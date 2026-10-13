@@ -1,0 +1,24 @@
+{
+  "permissions": {
+    "defaultMode": "auto"
+  },
+  "worktree": {
+    "baseRef": "fresh"
+  },
+  "modelSettings": {
+    "claude-sonnet-5": {},
+    "claude-opus-5": {},
+    "claude-opus-5-5": {}
+  },
+  "pluginConfigs": {
+    "agents-md@builtin": {
+      "options": {
+        "instructionFiles": "claude-md-or-agents-md"
+      }
+    }
+  },
+  "autoUpdatesChannel": "latest",
+  "tui": "fullscreen",
+  "theme": "dark",
+  "remoteControlAtStartup": false
+}
