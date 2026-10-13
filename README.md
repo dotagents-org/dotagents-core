@@ -76,6 +76,7 @@ O `-Check` roda a conferência dos dois padrões:
 | [session-archive](skills/session-archive/SKILL.md) | Grava a transcrição da sessão do Claude Code em `.artifacts/session-archives/`. |
 | [map-source-files](skills/map-source-files/SKILL.md) | Gera uma tabela Arquivo / Local / Responsabilidade dos arquivos-fonte de um repositório. |
 | [to-cards](skills/to-cards/SKILL.md) | Transforma texto solto (mensagem, e-mail, ata) em cards de tarefa. |
+| [llm-wiki](skills/llm-wiki/SKILL.md) | Mantém uma wiki em Markdown alimentada por fontes (`raw/` → `wiki/`), com ingestão, consulta e checagem. Ainda não usada em nenhum workspace. |
 
 As skills seguem a [especificação Agent Skills](https://agentskills.io/specification), e as regras de escrita estão em [standards/agents.md](standards/agents.md#skills). Também dá para instalar uma skill avulsa em outro lugar com o CLI do [skills.sh](https://skills.sh):
 
