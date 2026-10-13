@@ -1,56 +1,56 @@
 ---
 name: obsidian-docs
-description: Consulta a documentação oficial do Obsidian (obsidian.md/help), o diretório da comunidade (community.obsidian.md, plugins e temas) e o fórum (forum.obsidian.md) para responder dúvidas sobre o Obsidian com fontes. Use quando a pergunta envolver recursos nativos (Bases, Canvas, Markdown do Obsidian, propriedades, Sync, Publish, CLI, configurações), "existe plugin/tema que faz X", comparar ou avaliar plugins, bugs conhecidos, workarounds ou pedidos de recurso.
-compatibility: Requer Node 18+ e acesso à internet. O gh (GitHub CLI) e o CLI do Obsidian são opcionais.
+description: Looks up the official Obsidian documentation (obsidian.md/help), the community directory (community.obsidian.md, plugins and themes) and the forum (forum.obsidian.md) to answer questions about Obsidian with sources. Use when the question involves built-in features (Bases, Canvas, Obsidian Markdown, properties, Sync, Publish, CLI, settings), "is there a plugin/theme that does X", comparing or evaluating plugins, known bugs, workarounds or feature requests.
+compatibility: Requires Node 18+ and internet access. gh (GitHub CLI) and the Obsidian CLI are optional.
 metadata:
   author: gabrieldulolmarques
-  version: "1.0.0"
+  version: "1.1.0"
 ---
 
-# Consulta à documentação e à comunidade do Obsidian
+# Obsidian documentation and community lookup
 
-Responda dúvidas sobre o Obsidian com base em fontes verificáveis, não de memória. O Obsidian muda rápido (o Kanban do Bases, por exemplo, chegou na 1.14), então sempre confira.
+Answer questions about Obsidian from verifiable sources, not from memory. Obsidian changes fast (the Bases kanban view, for example, arrived in 1.14), so always check.
 
-## 1. Escolha a fonte pela pergunta
+## 1. Pick the source for the question
 
-| Tipo de pergunta | Fonte |
+| Kind of question | Source |
 |---|---|
-| Recurso nativo, sintaxe, configuração | Ajuda oficial |
-| "Tem plugin/tema que…", avaliar plugin | Diretório da comunidade |
-| Bug, workaround, "alguém já fez…", pedido de recurso | Fórum |
-| Criar plugin, API | docs.obsidian.md |
+| Built-in feature, syntax, setting | Official help |
+| "Is there a plugin/theme that…", evaluating a plugin | Community directory |
+| Bug, workaround, "has anyone done…", feature request | Forum |
+| Building a plugin, API | docs.obsidian.md |
 
-Em perguntas mistas, comece pela ajuda oficial e complete com o fórum. URLs, formatos e armadilhas de cada fonte estão em [references/fontes.md](references/fontes.md).
+For mixed questions, start with the official help and fill in from the forum. URLs, formats and pitfalls for each source are in [references/sources.md](references/sources.md).
 
-## 2. Busque
+## 2. Search
 
-**Ajuda oficial:** abra `https://obsidian.md/help/<seção>/<página>` com WebFetch (ex.: `/help/bases/syntax`). Se não souber o caminho, busque no repositório que gera o site:
+**Official help:** open `https://obsidian.md/help/<section>/<page>` with WebFetch (e.g. `/help/bases/syntax`). If you don't know the path, search the repository that builds the site:
 ```bash
-gh search code --repo obsidianmd/obsidian-help "<termo>" --limit 10
+gh search code --repo obsidianmd/obsidian-help "<term>" --limit 10
 ```
 
-**Plugins e temas:** a busca do community.obsidian.md não funciona via fetch. Use o script, que filtra a lista oficial:
+**Plugins and themes:** the community.obsidian.md search doesn't work through fetch. Use the script, which filters the official list:
 ```bash
-node scripts/buscar-plugins.mjs "<termo ou regex>"           # plugins
-node scripts/buscar-plugins.mjs "<termo>" --temas            # temas
+node scripts/search-plugins.mjs "<term or regex>"           # plugins
+node scripts/search-plugins.mjs "<term>" --themes           # themes
 ```
-Depois abra a página `community.obsidian.md/plugins/<id>` dos melhores candidatos pra ver downloads, data da última atualização, versão mínima e plataformas.
+Then open `community.obsidian.md/plugins/<id>` for the best candidates to see downloads, last update date, minimum version and platforms.
 
-**Fórum:**
+**Forum:**
 ```bash
-node scripts/buscar-forum.mjs "<termos em inglês>"
+node scripts/search-forum.mjs "<terms in English>"
 ```
-Leia de 1 a 3 tópicos. Priorize os marcados `[resolvido]` e as respostas da equipe.
+Read 1 to 3 topics. Prefer the ones marked `[solved]` and answers from the team.
 
-Os caminhos `scripts/` são relativos à pasta desta skill.
+The `scripts/` paths are relative to this skill's folder.
 
-## 3. Confira no vault quando fizer diferença
+## 3. Check the vault when it matters
 
-Se o Obsidian estiver aberto, `obsidian version` e `obsidian plugins:enabled` mostram a versão instalada e os plugins ativos. Avise quando o recurso pedir uma versão mais nova que a instalada.
+If Obsidian is open, `obsidian version` and `obsidian plugins:enabled` show the installed version and the enabled plugins. Warn when a feature needs a newer version than the installed one.
 
-## 4. Responda
+## 4. Answer
 
-- Seja direto e cite as URLs consultadas.
-- Separe o que é **documentação oficial** do que é **relato da comunidade**.
-- Ao recomendar plugin, compare downloads e data da última atualização. Avise quando ele está há mais de 1 ano sem atualização, ou quando um recurso nativo já resolve (ex.: Bases no lugar de Dataview ou Kanban).
-- Se nada confirmar a resposta, diga isso, em vez de completar de memória.
+- Answer in the user's language. Be direct and cite the URLs you used.
+- Separate **official documentation** from **community reports**.
+- When recommending a plugin, compare downloads and last update date. Warn when it has gone more than a year without updates, or when a built-in feature already covers it (e.g. Bases instead of Dataview or Kanban).
+- If nothing confirms the answer, say so instead of filling in from memory.

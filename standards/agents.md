@@ -1,222 +1,228 @@
-# Padrão da pasta `.agents/`
+# The `.agents/` folder standard
 
-> **Tipo:** padrão · **Escopo:** qualquer workspace com `AGENTS.md`, `.agents/` e `.artifacts/` na raiz, aplicado pelo `init-workspace.ps1` deste repositório · **Última verificação:** 2026-10-13
+> **Type:** standard · **Scope:** any workspace with `AGENTS.md`, `.agents/` and `.artifacts/` at the root, applied by this repository's `init-workspace.mjs` · **Last verified:** 2026-10-13
 
-`.agents/` é a fonte única da configuração dos agentes de código: Claude Code, Codex e
-OpenCode. As pastas `.claude/`, `.codex/` e `.opencode/` só **adaptam** esse conteúdo ao
-formato de cada ferramenta. Se algo pode ser escrito uma vez para as três, ele mora aqui.
-A documentação do projeto não fica aqui: ela segue o [padrão do `.artifacts/`](artifacts.md).
+`.agents/` is the single source of the coding agents' configuration: Claude Code, Codex and
+OpenCode. The `.claude/`, `.codex/` and `.opencode/` folders only **adapt** that content to
+each tool's format. If something can be written once for all three, it lives here.
+Project documentation does not live here: it follows the [`.artifacts/` standard](artifacts.md).
 
 ---
 
-## Base
+## Basis
 
 GALSTER, M. et al. *Configuring agentic AI coding tools: an exploratory study*. AIware '26,
-ACM, 2026. DOI [10.1145/3805760.3814887](https://doi.org/10.1145/3805760.3814887). O
-resumo fica no workspace another workspace, em
+ACM, 2026. DOI [10.1145/3805760.3814887](https://doi.org/10.1145/3805760.3814887). The
+summary lives in the another workspace workspace, at
 `.artifacts/poc/papers/abstract/configuring-agentic-ai-coding-tools-an-exploratory-study.md`.
 
-O artigo mapeia 8 mecanismos de configuração em 5 ferramentas e mede a adoção deles em
-2.853 repositórios. Três resultados viram regra aqui:
+The paper maps 8 configuration mechanisms across 5 tools and measures how often they are
+adopted in 2,853 repositories. Three findings become rules here:
 
-1. **Núcleo comum e adaptadores.** Para quem usa mais de uma ferramenta, os autores
-   recomendam manter o `AGENTS.md` como núcleo e usar o arquivo de cada ferramenta como
-   adaptador que aponta para ele. Este padrão aplica a mesma ideia aos outros mecanismos: o
-   conteúdo fica em `.agents/`, e as pastas das ferramentas só apontam para ele.
-2. **Só arquivos de contexto e skills existem nas cinco ferramentas.** São os dois
-   mecanismos que este padrão trata como portáveis sem ressalva.
-3. **Rules e Commands prendem o fluxo a uma ferramenta.** Commands não entram em
-   `.agents/`. A pasta `.agents/rules/` guarda outra coisa, explicada abaixo.
+1. **Shared core and adapters.** For people who use more than one tool, the authors
+   recommend keeping `AGENTS.md` as the core and using each tool's own file as an adapter
+   that points to it. This standard applies the same idea to the other mechanisms: the
+   content lives in `.agents/`, and the tool folders only point to it.
+2. **Only context files and skills exist in all five tools.** They are the two mechanisms
+   this standard treats as portable without caveats.
+3. **Rules and Commands lock the workflow into one tool.** Commands do not go in
+   `.agents/`. The `.agents/rules/` folder holds something else, explained below.
 
-O retrato do artigo é de fevereiro de 2026 e já envelheceu: as skills do Codex, por
-exemplo, saíram de `.codex/skills/` para `.agents/skills/`. Os caminhos abaixo foram
-conferidos na documentação oficial em 2026-10-13 (skills das três ferramentas; regras e
-agentes do OpenCode) e em 2026-09-30 (o resto, em `.artifacts/poc/agentes-de-codigo.md` do
-workspace another workspace).
+The paper's snapshot is from February 2026 and has already aged: Codex skills, for example,
+moved from `.codex/skills/` to `.agents/skills/`. The paths below were checked against the
+official documentation on 2026-10-13 (skills for all three tools; OpenCode rules and
+agents) and on 2026-09-30 (the rest, in `.artifacts/poc/agentes-de-codigo.md` of another
+Virtual Labs workspace).
 
 ---
 
-## Onde cada mecanismo mora
+## Where each mechanism lives
 
-| Mecanismo | Fonte | Claude Code | Codex | OpenCode |
+| Mechanism | Source | Claude Code | Codex | OpenCode |
 |---|---|---|---|---|
-| Arquivo de contexto | `AGENTS.md` na raiz | `CLAUDE.md` com `@AGENTS.md` | lê direto | lê direto; ignora `CLAUDE.md` quando há `AGENTS.md` |
-| Skills | `.agents/skills/<nome>/` | junção `.claude/skills` | lê direto | lê direto |
-| Instruções modulares | `.agents/rules/<tema>.md` | junção `.claude/rules` | só pelo link no `AGENTS.md` | `instructions` no `opencode.json` |
-| Subagentes | `.agents/agents/<nome>.md` | junção `.claude/agents` | `.codex/agents/<nome>.toml`, escrito a partir do `.md` | junção `.opencode/agents` |
-| Hooks | scripts em `.agents/hooks/` | registro no `.claude/settings.json` | registro em `hooks.json` ou `[hooks]` | plugin JS/TS que chama o script |
-| Settings | não fica em `.agents/` | `.claude/settings.json` | `.codex/config.toml` | `opencode.json` |
-| MCP | não fica em `.agents/` | `.mcp.json` | `[mcp_servers]` no `config.toml` | `mcp` no `opencode.json` |
-| Commands | não usar: vira skill | a skill já é `/nome` | descontinuado em favor de skills | `.opencode/commands/` só como atalho para uma skill |
+| Context file | `AGENTS.md` at the root | `CLAUDE.md` with `@AGENTS.md` | reads it directly | reads it directly; ignores `CLAUDE.md` when `AGENTS.md` exists |
+| Skills | `.agents/skills/<name>/` | `.claude/skills` junction | reads it directly | reads it directly |
+| Modular instructions | `.agents/rules/<topic>.md` | `.claude/rules` junction | only through the link in `AGENTS.md` | `instructions` in `opencode.json` |
+| Subagents | `.agents/agents/<name>.md` | `.claude/agents` junction | `.codex/agents/<name>.toml`, written from the `.md` | `.opencode/agents` junction |
+| Hooks | scripts in `.agents/hooks/` | registered in `.claude/settings.json` | registered in `hooks.json` or `[hooks]` | JS/TS plugin that calls the script |
+| Settings | not in `.agents/` | `.claude/settings.json` | `.codex/config.toml` | `opencode.json` |
+| MCP | not in `.agents/` | `.mcp.json` | `[mcp_servers]` in `config.toml` | `mcp` in `opencode.json` |
+| Commands | don't use: make it a skill | the skill already is `/name` | deprecated in favor of skills | `.opencode/commands/` only as a shortcut to a skill |
 
-Settings e MCP não têm formato comum entre as ferramentas, por isso ficam direto no arquivo
-de cada uma. Credenciais nunca entram nesses arquivos. Servidor MCP que só existe numa
-máquina vai no escopo local da ferramenta, não no arquivo do projeto.
+Settings and MCP have no format shared across the tools, so they go straight into each
+tool's file. Credentials never go into these files. An MCP server that only exists on one
+machine goes in the tool's local scope, not in the project file.
 
 ---
 
-## Estrutura
+## Layout
 
 ```
 <workspace>/
-├── AGENTS.md                    núcleo (regras de escrita em .artifacts/README.md)
-├── CLAUDE.md                    @AGENTS.md + só o que é exclusivo do Claude Code
-├── INDEX.md                     mapa dos documentos (padrão do .artifacts/)
-├── opencode.json                só se usar OpenCode: instructions, mcp, permissões
+├── AGENTS.md                    core (writing rules in .artifacts/README.md)
+├── CLAUDE.md                    @AGENTS.md + only what is specific to Claude Code
+├── INDEX.md                     map of the documents (.artifacts/ standard)
+├── opencode.json                only if you use OpenCode: instructions, mcp, permissions
 ├── .agents/
-│   ├── README.md                aponta para este padrão no repositório agents
-│   ├── rules/<tema>.md          só regras deste projeto
-│   ├── skills/<nome>            junção para agents/skills/<nome>, ou skill do projeto
-│   ├── agents/<nome>.md         só quando houver o primeiro subagente
-│   └── hooks/<script>           só quando houver o primeiro hook
+│   ├── README.md                points to this standard in the agents repository
+│   ├── rules/<topic>.md         only this project's rules
+│   ├── skills/<name>            junction to agents/skills/<name>, or a project skill
+│   ├── agents/<name>.md         only once there is a first subagent
+│   └── hooks/<script>           only once there is a first hook
 ├── .claude/
-│   ├── rules  → .agents/rules   junção
-│   ├── skills → .agents/skills  junção
-│   ├── agents → .agents/agents  junção, quando existir
+│   ├── rules  → .agents/rules   junction
+│   ├── skills → .agents/skills  junction
+│   ├── agents → .agents/agents  junction, when it exists
 │   └── settings.json
-├── .codex/                      só arquivos no formato do Codex
+├── .codex/                      only files in Codex's own format
 ├── .opencode/
-│   └── agents → .agents/agents  junção, quando existir
+│   └── agents → .agents/agents  junction, when it exists
 ├── .artifacts/
-└── <checkout-git>/
+└── <git-checkout>/
 ```
 
-Não crie pasta vazia "para o futuro". O artigo achou skills em 5,5% dos repositórios e
-subagentes em 4,6%. Mecanismo sem uso real só dá manutenção.
+Don't create empty folders "for later". The paper found skills in 5.5% of repositories and
+subagents in 4.6%. A mechanism nobody uses is only maintenance.
 
 ---
 
 ## `skills/`
 
-- **Skills reutilizáveis moram no repositório `agents`**, em `skills/<nome>/`, e entram no
-  workspace como junção `.agents/skills/<nome>`: `init-workspace.ps1 -Skills <nome>`. Cada
-  workspace liga só as que usa. Editar pela junção edita o repositório; faça o commit lá.
-- Skill que só faz sentido num projeto fica direto em `.agents/skills/<nome>/` do
-  workspace. Se ela ficar útil em outro lugar, mova para o repositório e troque por junção.
-- Uma pasta por skill, com o mesmo nome do campo `name`, em kebab-case.
-- `SKILL.md` com `name` e `description` no frontmatter, os dois campos que o padrão Agent
-  Skills exige. A `description` diz **o que a skill faz e quando usar**. Ela é a única parte
-  carregada em toda sessão; o corpo só entra quando a tarefa pede.
-- `SKILL.md` com menos de 500 linhas, como recomenda a especificação. Detalhe vai para
-  `references/`, código executável para `scripts/` e modelos para `assets/`. O artigo achou
-  85,5% das skills sem nenhum desses recursos, só texto. Uma skill que repete um
-  procedimento com comandos deve trazer o script.
-- O Codex limita a lista inicial de skills a 2% do contexto ou 8.000 caracteres. Por isso:
-  descrições curtas, e itens parecidos agrupados numa skill com uma referência por item, em
-  vez de uma skill por item.
-- O script de uma skill tem a forma de rodar declarada no `SKILL.md`. Não conte com
-  `python` ou `node` no PATH.
-- Skills de terceiros são instaladas a partir da raiz do workspace, nunca de dentro de
-  `.agents/`, senão o instalador cria `.agents/.agents/`. Ficam registradas em
-  `skills-lock.json` e não são editadas à mão: a próxima atualização desfaz a edição.
-- Em `skills/` só ficam pastas de skill, sem arquivo solto.
+- **Reusable skills live in the `agents` repository**, in `skills/<name>/`, and enter a
+  workspace as a `.agents/skills/<name>` link: `node init-workspace.mjs <workspace> --skills <name>`. Each
+  workspace links only the ones it uses. Editing through the junction edits the
+  repository; commit there.
+- A skill that only makes sense in one project lives directly in the workspace's
+  `.agents/skills/<name>/`. If it becomes useful elsewhere, move it to the repository and
+  replace it with a junction.
+- One folder per skill, named like its `name` field, in kebab-case.
+- `SKILL.md` with `name` and `description` in the frontmatter, the two fields the Agent
+  Skills standard requires. The `description` says **what the skill does and when to use
+  it**. It is the only part loaded in every session; the body only comes in when the task
+  calls for it.
+- `SKILL.md` under 500 lines, as the specification recommends. Details go to
+  `references/`, executable code to `scripts/` and templates to `assets/`. The paper found
+  85.5% of skills with none of these resources, text only. A skill that repeats a
+  procedure made of commands should ship the script.
+- Codex caps the initial skill list at 2% of the context or 8,000 characters. So: short
+  descriptions, and similar items grouped into one skill with one reference per item,
+  instead of one skill per item.
+- A skill's script has its run command stated in `SKILL.md`. Don't count on `python` or
+  `node` being on the PATH.
+- Third-party skills are installed from the workspace root, never from inside `.agents/`,
+  or the installer creates `.agents/.agents/`. They are recorded in `skills-lock.json` and
+  never edited by hand: the next update undoes the edit.
+- `skills/` holds only skill folders, no loose files.
 
 ---
 
 ## `rules/`
 
-O nome engana. No artigo, *Rules* é o mecanismo do Cursor e do Codex, e no Codex
-`.codex/rules/` guarda regras de **execução de comandos** (`prefix_rule`), não texto.
-`.agents/rules/` segue o sentido do Claude Code (`.claude/rules/`): instruções em Markdown,
-separadas por tema, que estendem o arquivo de contexto.
+The name is misleading. In the paper, *Rules* is the Cursor and Codex mechanism, and in
+Codex `.codex/rules/` holds **command execution** rules (`prefix_rule`), not text.
+`.agents/rules/` follows Claude Code's meaning (`.claude/rules/`): Markdown instructions,
+split by topic, that extend the context file.
 
-- **Regra que vale em todo lugar não entra aqui.** Ela mora em `rules/` do repositório
-  `agents` e é global: o `install.ps1` liga `~/.claude/rules` a ela, e o `AGENTS.md` global
-  tem o link para o Codex e o OpenCode. Exemplo: a convenção de commits.
-  `.agents/rules/` só guarda o que é específico deste projeto.
-- Um tema por arquivo, em kebab-case.
-- O Claude Code carrega todo arquivo desta pasta em toda sessão, como faz com o
-  `AGENTS.md`. O frontmatter `paths` limita uma regra a certos arquivos, mas só no Claude
-  Code. Então só entra aqui o que vale para qualquer tarefa do projeto. O que vale para um
-  tipo de tarefa vira skill.
-- Todo arquivo daqui tem link no `AGENTS.md`. O Codex não lê esta pasta, e o link é o único
-  caminho dele até a regra.
-- No OpenCode: `"instructions": [".agents/rules/*.md"]` no `opencode.json`.
-- Nada que não seja regra entra aqui, nem README: tudo nesta pasta vai para o contexto.
-- Nunca ligue `.agents/rules` a `.codex/rules`.
+- **A rule that applies everywhere does not go here.** It lives in the `agents`
+  repository's `rules/` and is global: `install.mjs` links `~/.claude/rules` to it, and the
+  global `AGENTS.md` links it for Codex and OpenCode. Example: the commit convention.
+  `.agents/rules/` only holds what is specific to this project.
+- One topic per file, in kebab-case.
+- Claude Code loads every file in this folder in every session, the same way it loads
+  `AGENTS.md`. The `paths` frontmatter limits a rule to certain files, but only in Claude
+  Code. So only what applies to any task in the project goes here. What applies to one
+  kind of task becomes a skill.
+- Every file here is linked from `AGENTS.md`. Codex does not read this folder, and the link
+  is its only way to the rule.
+- In OpenCode: `"instructions": [".agents/rules/*.md"]` in `opencode.json`.
+- Nothing that isn't a rule goes here, not even a README: everything in this folder goes
+  into the context.
+- Never link `.agents/rules` to `.codex/rules`.
 
 ---
 
 ## `agents/`
 
-- Só crie quando houver um caso real: trabalho que precisa de contexto isolado e devolve um
-  resumo, como uma busca longa.
-- Um arquivo `<nome>.md` por subagente. O núcleo comum às duas ferramentas é `name` (igual
-  ao nome do arquivo, de onde o OpenCode tira o nome), `description` (obrigatório nas duas)
-  e o corpo, que é o prompt.
-- Os outros campos não são compatíveis. O modelo é um apelido no Claude Code e
-  `provedor/modelo` no OpenCode; o Claude Code usa `tools` e o OpenCode usa `permission`. Sem
-  `mode`, o OpenCode também oferece o subagente como agente principal (`mode: all`). Nenhum
-  subagente deste padrão foi testado nas duas ferramentas ainda: confira o primeiro nas duas
-  antes de usá-lo como modelo.
-- O Codex usa TOML em `.codex/agents/`. Não há gerador: o `.toml` é escrito a partir do
-  `.md` e atualizado junto com ele.
+- Only create it when there is a real case: work that needs an isolated context and
+  returns a summary, such as a long search.
+- One `<name>.md` file per subagent. The core shared by both tools is `name` (equal to the
+  file name, which is where OpenCode takes the name from), `description` (required in
+  both) and the body, which is the prompt.
+- The other fields are not compatible. The model is an alias in Claude Code and
+  `provider/model` in OpenCode; Claude Code uses `tools` and OpenCode uses `permission`.
+  Without `mode`, OpenCode also offers the subagent as a primary agent (`mode: all`). No
+  subagent under this standard has been tested in both tools yet: check the first one in
+  both before using it as a template.
+- Codex uses TOML in `.codex/agents/`. There is no generator: the `.toml` is written from
+  the `.md` and kept in sync with it.
 
 ---
 
 ## `hooks/`
 
-Uma instrução pede, um hook garante. O que precisa acontecer sempre, como rodar os testes
-depois de uma edição, vira hook.
+An instruction asks; a hook guarantees. Anything that must always happen, like running the
+tests after an edit, becomes a hook.
 
-- O script mora aqui; o registro fica no arquivo de cada ferramenta (ver a tabela).
-- O formato da entrada do hook muda de uma ferramenta para outra. O script recebe por
-  argumento o que precisa, e o registro de cada ferramenta faz a ponte.
+- The script lives here; the registration goes in each tool's file (see the table).
+- The hook input format differs from tool to tool. The script receives what it needs as
+  arguments, and each tool's registration bridges the gap.
 
 ---
 
 ## Commands
 
-Não existe `.agents/commands/`. O artigo mostra que commands prendem o fluxo a uma
-ferramenta. O Claude Code fundiu commands com skills (`.claude/skills/x/` vira `/x`), e o
-Codex descontinuou os prompts personalizados em favor de skills. Se o OpenCode precisar de
-um atalho de barra, o `.opencode/commands/<nome>.md` só manda usar a skill.
+There is no `.agents/commands/`. The paper shows that commands lock the workflow into one
+tool. Claude Code merged commands into skills (`.claude/skills/x/` becomes `/x`), and Codex
+deprecated custom prompts in favor of skills. If OpenCode needs a slash shortcut,
+`.opencode/commands/<name>.md` only says to use the skill.
 
 ---
 
-## Pastas das ferramentas
+## Tool folders
 
-- Guardam só junções para `.agents/` e arquivos no formato da própria ferramenta.
-- **Windows:** use junção: `cmd /c mklink /J <link> <alvo-absoluto>`. Link simbólico exige
-  o Modo de Desenvolvedor. O `ln -s` do Git Bash **copia a pasta** e sai com código 0, então
-  nunca o use para estes links. Para remover uma junção, use `cmd /c rmdir <link>`; `rm -rf`
-  ou `Remove-Item -Recurse` podem apagar o conteúdo do alvo. A junção guarda o caminho
-  absoluto: se o workspace mudar de lugar, recrie as junções.
-- **Linux e macOS:** `ln -s` com caminho relativo.
-- **O OpenCode vê as skills em dobro**, porque lê `.claude/skills` e `.agents/skills`.
-  Segundo a documentação dele, `OPENCODE_DISABLE_CLAUDE_CODE_SKILLS=1` desliga a leitura de
-  `.claude/skills`.
-
----
-
-## Onde rodar os agentes
-
-Na **raiz do workspace**, onde estão o `AGENTS.md`, o `.agents/` e as junções.
-
-Dentro de um checkout git, as três ferramentas procuram skills subindo só até a raiz
-daquele repositório, e o Codex lê o `AGENTS.md` a partir dela. Nenhuma enxerga o `.agents/`
-do workspace. Rodar de dentro de um repositório exige links em cada repositório, que este
-padrão ainda não define.
+- They hold only junctions to `.agents/` and files in the tool's own format.
+- **Windows:** use a junction: `cmd /c mklink /J <link> <absolute-target>`. A symbolic link
+  requires Developer Mode. Git Bash's `ln -s` **copies the folder** and exits with code 0,
+  so never use it for these links. To remove a junction, use `cmd /c rmdir <link>`;
+  `rm -rf` or `Remove-Item -Recurse` can delete the target's contents. A junction stores
+  the absolute path: if the workspace moves, recreate the junctions.
+- **Linux and macOS:** `ln -s` with a relative path.
+- **OpenCode sees skills twice**, because it reads both `.claude/skills` and
+  `.agents/skills`. According to its documentation, `OPENCODE_DISABLE_CLAUDE_CODE_SKILLS=1`
+  turns off reading `.claude/skills`.
 
 ---
 
-## Limites
+## Where to run the agents
 
-- Quando a raiz do workspace não é um repositório git, como no workspace do
-  `modulo-simulacao-bio-lab`, nada daqui é versionado nem chega a quem clona um dos
-  repositórios. O artigo só estudou configuração versionada dentro do repositório.
-- As ferramentas mudam rápido. Ao atualizar uma delas, confira a tabela de mecanismos e
-  atualize a data de "Última verificação".
+At the **workspace root**, where `AGENTS.md`, `.agents/` and the junctions are.
+
+Inside a git checkout, all three tools look for skills only up to that repository's root,
+and Codex reads `AGENTS.md` starting from it. None of them sees the workspace's
+`.agents/`. Running from inside a repository requires links in each repository, which this
+standard does not define yet.
 
 ---
 
-## Conferência
+## Limits
 
-- [ ] Toda pasta de skill tem `SKILL.md` com `name` igual ao nome da pasta, `description` e
-      menos de 500 linhas.
-- [ ] Todo arquivo de `rules/` tem link no `AGENTS.md`.
-- [ ] `.claude/rules` e `.claude/skills` são junções, não cópias: `cmd /c dir /AL .claude`
-      lista as duas como `<JUNCTION>`.
-- [ ] Não existem `.agents/commands/`, `.agents/.agents/` nem `.codex/skills/`.
-- [ ] `.codex/rules/` não tem nada vindo de `.agents/rules/`.
-- [ ] `CLAUDE.md` começa com `@AGENTS.md` e não repete o que está nele.
+- When the workspace root is not a git repository, as in the `modulo-simulacao-bio-lab`
+  workspace, nothing here is versioned or reaches whoever clones one of the repositories.
+  The paper only studied configuration versioned inside the repository.
+- The tools change fast. When you update one of them, check the mechanism table and update
+  the "Last verified" date.
+
+---
+
+## Checklist
+
+`node init-workspace.mjs <workspace> --check` runs the automatable items.
+
+- [ ] Every skill folder has a `SKILL.md` whose `name` matches the folder, with a
+      `description` and under 500 lines.
+- [ ] Every file in `rules/` is linked from `AGENTS.md`.
+- [ ] `.claude/rules` and `.claude/skills` are junctions, not copies: `cmd /c dir /AL .claude`
+      lists both as `<JUNCTION>`.
+- [ ] `.agents/commands/`, `.agents/.agents/` and `.codex/skills/` don't exist.
+- [ ] `.codex/rules/` has nothing that came from `.agents/rules/`.
+- [ ] `CLAUDE.md` starts with `@AGENTS.md` and doesn't repeat what is in it.

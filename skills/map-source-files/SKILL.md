@@ -1,101 +1,91 @@
 ---
 name: map-source-files
-description: Mapeia todos os arquivos-fonte de um repositório (ou pasta) em uma tabela Markdown estática de Arquivo / Local / Responsabilidade, lendo cada arquivo para inferir sua responsabilidade real. Use quando o usuário pedir um "mapa do repositório", "inventário de arquivos", "tabela de responsabilidades" ou similar.
+description: Maps every source file in a repository (or folder) into a static Markdown table of File / Location / Responsibility, reading each file to infer what it actually does. Use when the user asks for a "repository map", "file inventory", "responsibility table" or similar.
 ---
 
-# Mapear arquivos-fonte em tabela de responsabilidades
+# Map source files into a responsibility table
 
-Gera um inventário completo dos arquivos-fonte de um repositório (ou de uma
-subpasta indicada), com uma linha por arquivo e três colunas: **Arquivo**,
-**Local** (pasta/módulo) e **Responsabilidade** (o que o arquivo faz, inferido
-lendo seu conteúdo — não apenas o nome/caminho).
+Builds a complete inventory of a repository's source files (or of a given subfolder), with
+one row per file and three columns: **File**, **Location** (folder/module) and
+**Responsibility** (what the file does, inferred by reading its content, not just its name
+or path).
 
-## Quando usar
+## When to use
 
-- O usuário pede um mapa/inventário/tabela de todos os arquivos de um repo,
-  módulo ou pasta.
-- Útil antes de um refactor grande (ex.: a reorganização planejada em
-  `artifacts/architecture-target.md` deste workspace) para ter uma foto do
-  estado atual.
+- The user asks for a map, inventory or table of all files in a repo, module or folder.
+- Useful before a large refactor, to have a snapshot of the current state.
 
-## Argumentos
+## Arguments
 
-O usuário deve indicar (pergunte se faltar):
-1. **Repositório/pasta alvo** — ex. `modulo-simulacao-bio-lab/Assets/scripts`,
-   ou o repo inteiro.
-2. **Filtro de extensões**, se houver (padrão: extensões de código-fonte do
-   projeto — `.cs` para Unity; adapte ao stack real do repo alvo, não assuma
-   `.cs` fora deste contexto).
-3. **Onde salvar o Markdown** — padrão: `artifacts/mapa-arquivos-<slug-da-pasta>-<data-YYYY-MM-DD>.md`
-   dentro do `.agents` (este workspace guarda docs gerados por agente
-   em `artifacts/`, nunca dentro do repo de código — ver AGENTS.md).
+The user should give (ask if missing):
+1. **Target repository/folder**, e.g. `modulo-simulacao-bio-lab/Assets/scripts`, or the
+   whole repo.
+2. **Extension filter**, if any (default: the project's source extensions, such as `.cs`
+   for Unity; match the target repo's real stack, don't assume `.cs` elsewhere).
+3. **Where to save the Markdown**. Default, following the `.artifacts/` standard:
+   `.artifacts/coding/source-map-<folder-slug>.md` at the workspace root, never inside the
+   code repository. No date in the name: the date goes in the header line.
 
-## Passo a passo
+## Steps
 
-1. **Enumerar arquivos** com Glob (não Bash `find`), um padrão por extensão
-   relevante, excluindo diretórios gerados/vendor: `Library/`, `Temp/`,
-   `obj/`, `bin/`, `node_modules/`, `.git/`, pacotes de terceiros dentro de
-   `Packages/` (Unity), `Logs/`, `Build/`.
-   - Para um repo grande, rode um Glob por extensão em vez de um único padrão
-     `**/*` para manter a lista gerenciável.
+1. **List the files** with Glob (not Bash `find`), one pattern per relevant extension,
+   excluding generated or vendored folders: `Library/`, `Temp/`, `obj/`, `bin/`,
+   `node_modules/`, `.git/`, third-party packages inside `Packages/` (Unity), `Logs/`,
+   `Build/`.
+   - For a large repo, run one Glob per extension instead of a single `**/*` pattern to
+     keep the list manageable.
 
-2. **Agrupar por pasta** (Local = caminho relativo do diretório até a raiz do
-   repo alvo). Isso vira a base da coluna "Local" e da ordenação/seções da
-   tabela final.
+2. **Group by folder** (Location = the directory's path relative to the target repo's
+   root). This becomes the "Location" column and the order and sections of the final
+   table.
 
-3. **Ler cada arquivo e inferir a responsabilidade.** Este passo é o que
-   distingue esta skill de um simples `ls`: não infira a responsabilidade só
-   pelo nome do arquivo.
-   - Leia o conteúdo real (Read) de cada arquivo.
-   - Escreva a responsabilidade em 1 frase curta e concreta: o que a
-     classe/módulo faz, não uma paráfrase do nome do arquivo (ex.:
-     "Controla abertura/fechamento do microtubo e notifica a view via evento
-     Observer", não "Controlador do microtubo").
-   - Se o repo for grande (dezenas/centenas de arquivos), despache a leitura
-     em lotes para subagentes (`Agent`, tipo `Explore` ou `general-purpose`)
-     em paralelo — um subagente por subpasta/módulo — cada um devolvendo já
-     as linhas da tabela nesse formato, para não estourar contexto lendo tudo
-     serialmente na conversa principal.
-   - Para arquivos claramente triviais/gerados (ex. `*.designer.cs`,
-     `AssemblyInfo.cs`, arquivos `.meta` do Unity) pode registrar
-     "arquivo gerado/boilerplate — não analisado em detalhe" sem ler o
-     conteúdo inteiro, mas não pule silenciosamente: liste-os mesmo assim.
+3. **Read each file and infer its responsibility.** This step is what sets this skill
+   apart from a plain `ls`: don't infer the responsibility from the file name alone.
+   - Read the actual content (Read) of each file.
+   - Write the responsibility as one short, concrete sentence: what the class/module does,
+     not a paraphrase of the file name (e.g. "Opens and closes the microtube and notifies
+     the view through an Observer event", not "Microtube controller").
+   - If the repo is large (dozens or hundreds of files), hand the reading off in batches to
+     subagents (`Agent`, type `Explore` or `general-purpose`) in parallel, one subagent per
+     subfolder/module, each returning its table rows in this format, so the main
+     conversation doesn't run out of context reading everything serially.
+   - For clearly trivial or generated files (e.g. `*.designer.cs`, `AssemblyInfo.cs`,
+     Unity `.meta` files) you may record "generated file/boilerplate, not analyzed in
+     detail" without reading the whole content, but don't skip them silently: list them
+     anyway.
 
-4. **Montar o Markdown final** com uma tabela por seção de pasta (ou uma
-   tabela única ordenada por Local, se o total for pequeno — até ~40 linhas).
-   Formato de cada tabela:
+4. **Build the final Markdown** with one table per folder section (or a single table
+   sorted by Location, if the total is small, up to ~40 rows). Format of each table:
 
    ```markdown
-   ## `<Local/da/pasta>`
+   ## `<Folder/location>`
 
-   | Arquivo | Responsabilidade |
+   | File | Responsibility |
    |---|---|
-   | `NomeDoArquivo.cs` | Frase curta e concreta do que o arquivo faz. |
+   | `FileName.cs` | Short, concrete sentence about what the file does. |
    ```
 
-   No topo do documento, incluir:
-   - Título com o repo/pasta mapeada e a data.
-   - Uma linha de resumo: total de arquivos, total de pastas.
-   - Um sumário/índice com links para cada seção de pasta (âncoras
-     Markdown), útil em repos grandes.
+   At the top of the document, include:
+   - The header line from the `.artifacts/` standard:
+     `> **Type:** living reference · **Scope:** source files of <target> · **Last verified:** YYYY-MM-DD`.
+   - A title with the mapped repo/folder.
+   - A one-line summary: total files, total folders.
+   - A table of contents with links to each folder section (Markdown anchors), useful in
+     large repos.
 
-5. **Salvar** com Write no caminho combinado no passo de argumentos. Não
-   sobrescrever um mapa existente sem checar antes se já existe (Read) —
-   se existir e o pedido for para atualizar, faça merge das mudanças reais
-   em vez de regenerar do zero, e diga ao usuário o que mudou.
+5. **Save** with Write at the path agreed in the arguments step. Don't overwrite an
+   existing map without checking first (Read): if it exists and the request is an update,
+   merge the real changes instead of regenerating from scratch, and tell the user what
+   changed. Add a line for the map in `INDEX.md` when it is new.
 
-6. Ao final, informe ao usuário: caminho do arquivo gerado, quantidade de
-   arquivos mapeados, e quaisquer arquivos que não puderam ser lidos
-   (binários, arquivos enormes, etc.) para transparência.
+6. At the end, tell the user: the path of the generated file, how many files were mapped,
+   and any files that couldn't be read (binaries, huge files, etc.), for transparency.
 
-## Notas
+## Notes
 
-- Esta skill é somente leitura sobre o código — nunca editar/mover arquivos
-  do repo mapeado.
-- Repita a leitura arquivo-a-arquivo mesmo que o nome pareça autoexplicativo:
-  o objetivo declarado desta skill é responsabilidade real, não paráfrase de
-  nome de arquivo/pasta.
-- Se o repo alvo já tiver documentação de arquitetura (como
-  `artifacts/architecture-current.md` neste workspace), pode usá-la como
-  contexto para nomear responsabilidades de forma consistente com os termos
-  já estabelecidos — mas sempre confirme contra o conteúdo real do arquivo.
+- This skill is read-only on the code: never edit or move files in the mapped repo.
+- Read file by file even when the name looks self-explanatory: the stated goal of this
+  skill is the real responsibility, not a paraphrase of file or folder names.
+- If the target repo already has architecture documentation (in `.artifacts/coding/`, for
+  example), you may use it as context to name responsibilities consistently with the
+  established terms, but always confirm against the file's actual content.

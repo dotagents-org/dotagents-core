@@ -1,4 +1,4 @@
-name: Validar skills
+name: Validate skills
 
 on:
   push:
@@ -14,9 +14,9 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Instalar skills-ref
+      - name: Install skills-ref
         run: pip install "git+https://github.com/agentskills/agentskills.git#subdirectory=skills-ref"
-      - name: Validar cada skill
+      - name: Validate each skill
         run: |
           status=0
           for dir in skills/*/; do

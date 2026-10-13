@@ -1,119 +1,123 @@
-# Padrão da pasta `.artifacts/`
+# The `.artifacts/` folder standard
 
-> **Tipo:** padrão · **Escopo:** qualquer workspace com `AGENTS.md`, `.agents/` e `.artifacts/` na raiz, aplicado pelo `init-workspace.ps1` deste repositório · **Última verificação:** 2026-10-13
+> **Type:** standard · **Scope:** any workspace with `AGENTS.md`, `.agents/` and `.artifacts/` at the root, applied by this repository's `init-workspace.mjs` · **Last verified:** 2026-10-13
 
-`.artifacts/` guarda a documentação que agentes e pessoas escrevem sobre o projeto:
-arquitetura, pendências, pesquisa e transcrições de sessão. A configuração dos agentes não
-mora aqui ([padrão do `.agents/`](agents.md)), nem código, segredos ou saída de
-build.
+`.artifacts/` holds the documentation that agents and people write about the project:
+architecture, pending issues, research and session transcripts. Agent configuration does
+not live here ([`.agents/` standard](agents.md)), and neither do code, secrets or build
+output.
 
 ---
 
-## Base
+## Basis
 
 GALSTER, M. et al. *Configuring agentic AI coding tools: an exploratory study*. AIware '26,
 ACM, 2026. DOI [10.1145/3805760.3814887](https://doi.org/10.1145/3805760.3814887).
 
-O artigo define arquivo de contexto como o Markdown que a ferramenta carrega em toda sessão.
-Ele aparece em 90,6% dos 2.853 repositórios estudados, muitas vezes como único mecanismo. Os
-autores também apontam o risco de várias camadas de arquivos de contexto gerarem instruções
-redundantes ou conflitantes.
+The paper defines a context file as the Markdown a tool loads in every session. It appears
+in 90.6% of the 2,853 repositories studied, often as the only mechanism. The authors also
+point out the risk of several layers of context files producing redundant or conflicting
+instructions.
 
-Este padrão responde dividindo a carga:
+This standard answers by splitting the load:
 
-- O `AGENTS.md` é o único documento carregado em toda sessão. Ele fica pequeno e só afirma
-  o estado atual.
-- O resto mora em `.artifacts/` e é lido **sob demanda**, como o corpo e as `references/`
-  de uma skill no carregamento progressivo do padrão Agent Skills: o agente consulta o mapa
-  (`INDEX.md`) e abre o documento quando a tarefa pede.
-- Cada fato mora num lugar só.
+- `AGENTS.md` is the only document loaded in every session. It stays small and only states
+  the current state.
+- Everything else lives in `.artifacts/` and is read **on demand**, like a skill's body and
+  `references/` under the Agent Skills progressive loading: the agent looks at the map
+  (`INDEX.md`) and opens the document when the task calls for it.
+- Each fact lives in one place only.
 
-Nenhuma das três ferramentas (Claude Code, Codex, OpenCode) lê `.artifacts/` por conta
-própria. O único caminho até um documento é um link no `AGENTS.md` ou no `INDEX.md`. Para o
-agente, documento sem link não existe.
+None of the three tools (Claude Code, Codex, OpenCode) reads `.artifacts/` on its own. The
+only way to a document is a link in `AGENTS.md` or `INDEX.md`. To the agent, a document
+without a link does not exist.
 
-O caso que deu origem à regra: o `AGENTS.md` do workspace do `modulo-simulacao-bio-lab`
-virou um changelog de 21 KB, com 40% do conteúdo em notas datadas que repetiam os logs, e
-entrava inteiro em toda sessão.
+The case behind the rule: the `AGENTS.md` of the `modulo-simulacao-bio-lab` workspace had
+turned into a 21 KB changelog, 40% of it dated notes repeating the logs, and it was loaded
+whole in every session.
 
 ---
 
-## Os cinco tipos de documento
+## The five document types
 
-| Tipo | Onde | Nome | Quando entra no contexto | Regra |
+| Type | Where | Name | When it enters the context | Rule |
 |---|---|---|---|---|
-| **Instrução** | `AGENTS.md`, na raiz | fixo | em toda sessão | Só o que o agente precisa *fazer*. Teto de ~8 KB (o Codex corta o total em 32 KiB). Afirma o estado atual e linka o registro. **Nunca recebe entrada de changelog** |
-| **Mapa** | `INDEX.md`, na raiz | fixo | quando o agente procura um documento | Uma linha por documento, com "para quê" |
-| **Referência viva** | `.artifacts/<área>/` | `<slug>.md`, sem data | quando a tarefa pede | Descreve o estado atual. É mantida e reescrita, e pode contradizer versões anteriores |
-| **Registro datado** | `.artifacts/session-archives/` | `AAAA-MM-DD-<id>.md` | quando alguém procura o histórico | Transcrição da sessão. **Imutável** depois que a sessão termina. É um retrato da data: confira contra o código antes de confiar |
-| **Fonte** | junto da referência que a usa | `<slug>.<ext>` | quando uma referência aponta para ela | Material bruto ou de terceiros (PDF, JSON, requisição). Não é reescrito |
+| **Instruction** | `AGENTS.md`, at the root | fixed | every session | Only what the agent needs to *do*. Cap of ~8 KB (Codex truncates the total at 32 KiB). States the current state and links the record. **Never takes a changelog entry** |
+| **Map** | `INDEX.md`, at the root | fixed | when the agent looks for a document | One line per document, with what it is for |
+| **Living reference** | `.artifacts/<area>/` | `<slug>.md`, no date | when the task calls for it | Describes the current state. It is maintained and rewritten, and may contradict earlier versions |
+| **Dated record** | `.artifacts/session-archives/` | `YYYY-MM-DD-<id>.md` | when someone looks for the history | Session transcript. **Immutable** once the session ends. It is a snapshot of that date: check it against the code before trusting it |
+| **Source** | next to the reference that uses it | `<slug>.<ext>` | when a reference points to it | Raw or third-party material (PDF, JSON, request). Never rewritten |
 
 ---
 
-## Estrutura
+## Layout
 
 ```
 .artifacts/
-├── README.md                       aponta para este padrão no repositório agents
-├── coding/                         sempre existe: código e projeto
-│   ├── pendencias.md               sempre existe: tudo diagnosticado e não corrigido
+├── README.md                       points to this standard in the agents repository
+├── coding/                         always exists: code and project
+│   ├── pending.md                  always exists: everything diagnosed and not fixed
 │   └── <slug>.md
-├── <área>/                         outra área, quando o assunto não cabe em coding/
+├── <area>/                         another area, when the subject doesn't fit in coding/
 │   ├── <slug>.md
-│   └── <fontes>/                   ex.: papers/pdf/ e papers/abstract/
-└── session-archives/               sempre existe
-    ├── AAAA-MM-DD-<session-id>.md
-    ├── AAAA-MM-DD-<origem>-<slug>.md
-    └── AAAA-MM-DD-<...>/           anexos da sessão
+│   └── <sources>/                  e.g. papers/pdf/ and papers/abstract/
+└── session-archives/               always exists
+    ├── YYYY-MM-DD-<session-id>.md
+    ├── YYYY-MM-DD-<origin>-<slug>.md
+    └── YYYY-MM-DD-<...>/           session attachments
 ```
 
-- **Nomes fixos:** `coding/`, `coding/pendencias.md` e `session-archives/`. Assim, em
-  qualquer workspace, o agente sabe onde procurar o que está quebrado e o que já aconteceu.
-- **Outras áreas** levam o nome do domínio, numa palavra minúscula. No workspace do
-  `modulo-simulacao-bio-lab`, `poc/` guarda o TCC.
-- **Nomes de arquivo:** kebab-case, sem acento e sem data fora de `session-archives/`.
-- **Fonte com resumo:** o resumo tem o mesmo nome-base da fonte (`papers/pdf/x.pdf` →
-  `papers/abstract/x.md`).
-- **Transcrições:** sessão do Claude Code usa o id da sessão e é gerada pela skill
-  `session-archive`. Sessão de outra origem (claude.ai, Codex, OpenCode) usa
-  `<origem>-<slug>`, como em `2026-10-12-claude-ai-orquestracao-agentes.md`. Os anexos ficam
-  numa pasta com o mesmo nome do `.md`, sem a extensão.
+- **Fixed names:** `coding/`, `coding/pending.md` and `session-archives/`. That way, in any
+  workspace, the agent knows where to look for what is broken and what already happened.
+- **Other areas** take the domain's name, as one lowercase word. In the
+  `modulo-simulacao-bio-lab` workspace, `poc/` holds the thesis.
+- **File names:** kebab-case, no accents and no date outside `session-archives/`. A
+  source may keep its publication year (`liu-2026-...pdf`); only a full date is not
+  allowed.
+- **Source with a summary:** the summary has the same base name as the source
+  (`papers/pdf/x.pdf` → `papers/abstract/x.md`).
+- **Transcripts:** a Claude Code session uses the session id and is produced by the
+  `session-archive` skill. A session from another origin (claude.ai, Codex, OpenCode) uses
+  `<origin>-<slug>`, as in `2026-10-12-claude-ai-agent-orchestration.md`. Attachments go in
+  a folder with the same name as the `.md`, without the extension.
 
 ---
 
-## Cabeçalho
+## Header
 
-Toda referência viva abre com uma linha:
+Every living reference opens with one line:
 
 ```
-> **Tipo:** … · **Escopo:** … · **Última verificação:** AAAA-MM-DD
+> **Type:** … · **Scope:** … · **Last verified:** YYYY-MM-DD
 ```
 
-Com ela, o agente decide em 200 bytes se o documento ainda vale. O resumo de uma fonte troca
-os dois últimos campos pelos que fazem sentido para ele, por exemplo
-`**Fonte:** … · **Lido em:** …`.
+With it, the agent decides in 200 bytes whether the document still holds. A source
+summary swaps the last two fields for ones that make sense for it, for example
+`**Source:** … · **Read on:** …`.
 
 ---
 
-## Onde escrever o quê
+## Where to write what
 
-| Aconteceu | Vai para |
+| What happened | Where it goes |
 |---|---|
-| A sessão terminou | a transcrição (`/session-archive`) |
-| Fato novo que o agente precisa para agir | `AGENTS.md`, **reescrevendo** a afirmação antiga em vez de empilhar uma nova |
-| Problema achado e não corrigido | uma linha em `coding/pendencias.md` |
-| Mudou a arquitetura ou uma convenção de código | o documento correspondente em `coding/` |
-| Mudou algo de outra área | o documento daquela área |
-| Decisão que continua valendo | onde o agente precisa dela (`AGENTS.md` ou a referência da área); o porquê fica na transcrição |
-| Documento novo | uma linha no `INDEX.md` |
-| Regra, skill, subagente ou hook | não é documento: vai para `.agents/` |
+| The session ended | the transcript (`/session-archive`) |
+| A new fact the agent needs to act | `AGENTS.md`, **rewriting** the old statement instead of stacking a new one |
+| A problem found and not fixed | one line in `coding/pending.md` |
+| The architecture or a code convention changed | the matching document in `coding/` |
+| Something in another area changed | that area's document |
+| A decision that still holds | where the agent needs it (`AGENTS.md` or the area's reference); the why stays in the transcript |
+| A new document | one line in `INDEX.md` |
+| A rule, skill, subagent or hook | not a document: it goes to `.agents/` |
 
 ---
 
-## Conferência
+## Checklist
 
-- [ ] `AGENTS.md` com até ~8 KB e sem notas datadas.
-- [ ] Toda referência viva tem link no `INDEX.md`, direto ou pela pasta.
-- [ ] Toda referência viva abre com a linha de cabeçalho.
-- [ ] Nenhum nome de arquivo com data fora de `session-archives/`.
-- [ ] Nenhuma transcrição editada depois da sessão. Correção vai para a referência viva.
+`node init-workspace.mjs <workspace> --check` runs the automatable items.
+
+- [ ] `AGENTS.md` at most ~8 KB and without dated notes.
+- [ ] Every living reference is linked from `INDEX.md`, directly or through its folder.
+- [ ] Every living reference opens with the header line.
+- [ ] No file name with a full date outside `session-archives/`.
+- [ ] No transcript edited after its session. Corrections go to the living reference.
