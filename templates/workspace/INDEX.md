@@ -1,9 +1,9 @@
-# Mapa dos documentos
+# Document map
 
-Uma linha por documento, com o "para quê". As regras de onde escrever cada coisa estão no [padrão do `.artifacts/`](.artifacts/README.md).
+One line per document, with what it is for. The rules for where to write each thing are in the [`.artifacts/` standard](.artifacts/README.md).
 
-| Documento | Para quê |
+| Document | What it is for |
 |---|---|
-| [AGENTS.md](AGENTS.md) | Instruções carregadas em toda sessão |
-| [.artifacts/coding/pendencias.md](.artifacts/coding/pendencias.md) | Problemas diagnosticados e ainda não corrigidos |
-| [.artifacts/session-archives/](.artifacts/session-archives/) | Transcrições das sessões, uma por arquivo |
+| [AGENTS.md](AGENTS.md) | Instructions loaded in every session |
+| [.artifacts/coding/pending.md](.artifacts/coding/pending.md) | Problems diagnosed and not fixed yet |
+| [.artifacts/session-archives/](.artifacts/session-archives/) | Session transcripts, one per file |

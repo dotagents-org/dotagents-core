@@ -1,13 +1,13 @@
-# <Nome do projeto>
+# <Project name>
 
-<Uma ou duas frases: o que é o projeto e o que fica nesta pasta.>
+<One or two sentences: what the project is and what lives in this folder.>
 
-Este workspace segue os padrões das pastas [`.agents/`](.agents/README.md) e [`.artifacts/`](.artifacts/README.md). O mapa dos documentos está no [INDEX.md](INDEX.md), e o que foi diagnosticado e ainda não corrigido está em [.artifacts/coding/pendencias.md](.artifacts/coding/pendencias.md).
+This workspace follows the [`.agents/`](.agents/README.md) and [`.artifacts/`](.artifacts/README.md) folder standards. The map of the documents is in [INDEX.md](INDEX.md), and what has been diagnosed and not fixed yet is in [.artifacts/coding/pending.md](.artifacts/coding/pending.md).
 
-## Como rodar
+## How to run
 
-<Comandos de build, teste e lint.>
+<Build, test and lint commands.>
 
-## Convenções
+## Conventions
 
-<O que o agente precisa seguir neste projeto e não está nas regras globais.>
+<What the agent must follow in this project that isn't in the global rules.>

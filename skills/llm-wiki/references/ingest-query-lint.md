@@ -1,74 +1,73 @@
-# Racional completo do padrão LLM Wiki
+# Full rationale of the LLM Wiki pattern
 
-Carregue este arquivo apenas quando precisar explicar o padrão ao usuário
-em profundidade, adaptá-lo a um domínio incomum, ou decidir um caso de
-borda que o `SKILL.md` não cobre diretamente.
+Load this file only when you need to explain the pattern to the user in
+depth, adapt it to an unusual domain, or settle an edge case that
+`SKILL.md` doesn't cover directly.
 
-## Por que não é só RAG
+## Why it isn't just RAG
 
-RAG tradicional (upload de arquivos, retrieval de chunks por query) não
-acumula nada — cada pergunta redescobre o conhecimento do zero. Uma
-pergunta sutil que exige sintetizar cinco documentos obriga o sistema a
-encontrar e recombinar os fragmentos relevantes toda vez.
+Traditional RAG (upload files, retrieve chunks per query) accumulates
+nothing: every question rediscovers the knowledge from scratch. A subtle
+question that requires synthesizing five documents forces the system to
+find and recombine the relevant fragments every time.
 
-O wiki é diferente: é um **artefato persistente e cumulativo**. As
-referências cruzadas já existem. As contradições já foram sinalizadas. A
-síntese já reflete tudo que foi lido até agora. Cada fonte nova enriquece
-o wiki; nada é re-derivado.
+The wiki is different: it is a **persistent, cumulative artifact**. The
+cross-references already exist. The contradictions have already been
+flagged. The synthesis already reflects everything read so far. Each new
+source enriches the wiki; nothing is re-derived.
 
-## As três camadas
+## The three layers
 
-- **raw/** — fontes imutáveis. Fonte de verdade; a skill nunca edita isso.
-- **wiki/** — markdown gerado e mantido pela IA. Resumos, páginas de
-  entidade/conceito, comparações, síntese. A IA é dona total desta
-  camada — o usuário lê, a IA escreve.
-- **schema (AGENTS.md do workspace)** — como o wiki está estruturado,
-  convenções, workflows de ingest/query/lint para *este* domínio
-  específico. Co-evolui com o usuário ao longo do tempo.
+- **raw/**: immutable sources. The source of truth; the skill never edits it.
+- **wiki/**: markdown generated and maintained by the AI. Summaries,
+  entity/concept pages, comparisons, synthesis. The AI fully owns this
+  layer: the user reads, the AI writes.
+- **schema (the workspace's AGENTS.md)**: how the wiki is structured,
+  conventions, ingest/query/lint workflows for *this* specific domain. It
+  co-evolves with the user over time.
 
-## Por que o schema fica fora da skill
+## Why the schema stays outside the skill
 
-A skill (`SKILL.md`) é o procedimento — genérico, reutilizável entre
-qualquer wiki. O schema (`AGENTS.md` do workspace) é a particularização —
-que tipos de página existem, taxonomia, convenção de citação daquele
-domínio específico. Misturar os dois faz a skill parar de ser portável: a
-próxima vez que o usuário quiser um wiki de domínio diferente, teria que
-editar a skill em vez de só escrever um novo `AGENTS.md`.
+The skill (`SKILL.md`) is the procedure: generic, reusable across any
+wiki. The schema (the workspace's `AGENTS.md`) is the specialization: what
+page types exist, taxonomy, citation convention for that specific domain.
+Mixing the two makes the skill stop being portable: the next time the user
+wants a wiki for a different domain, they would have to edit the skill
+instead of just writing a new `AGENTS.md`.
 
-## Domínios de exemplo (para calibrar o schema com o usuário)
+## Example domains (to calibrate the schema with the user)
 
-- **Pessoal**: metas, saúde, psicologia, autoconhecimento — arquivando
-  entradas de diário, artigos, notas de podcast.
-- **Pesquisa**: aprofundamento num tópico ao longo de semanas/meses,
-  construindo uma tese que evolui.
-- **Leitura de livro**: um capítulo por vez, páginas de personagens, temas,
-  linhas de enredo e como se conectam.
-- **Negócio/time**: wiki interno alimentado por threads de Slack,
-  transcrições de reunião, documentos de projeto — possivelmente com
-  humanos revisando updates.
-- **Análise competitiva, due diligence, planejamento de viagem, notas de
-  curso, hobby profundo** — qualquer acúmulo de conhecimento ao longo do
-  tempo que se beneficia de estar organizado em vez de espalhado.
+- **Personal**: goals, health, psychology, self-knowledge, filing journal
+  entries, articles, podcast notes.
+- **Research**: going deep on a topic over weeks or months, building an
+  evolving thesis.
+- **Reading a book**: one chapter at a time, pages for characters, themes,
+  plot threads and how they connect.
+- **Business/team**: an internal wiki fed by Slack threads, meeting
+  transcripts, project documents, possibly with humans reviewing updates.
+- **Competitive analysis, due diligence, trip planning, course notes, a
+  deep hobby**: any accumulation of knowledge over time that benefits from
+  being organized instead of scattered.
 
-## Ferramentas complementares (opcionais, fora do escopo da skill)
+## Complementary tools (optional, outside the skill's scope)
 
-- **Busca em escala** — quando o wiki passa de ~100 fontes / centenas de
-  páginas, `index.md` sozinho começa a não bastar. `qmd`
-  (github.com/tobi/qmd) é uma opção: busca local híbrida BM25/vetorial com
-  re-ranking por LLM, tem CLI e servidor MCP.
-- **Obsidian** como IDE do wiki — graph view pra ver a forma do
-  conhecimento (hubs, órfãs), Web Clipper pra trazer artigos como
-  markdown, Dataview pra tabelas dinâmicas a partir de frontmatter YAML
-  se as páginas tiverem tags/datas estruturadas.
-- **Marp** — decks de slide em markdown, útil quando "Query" pede uma
-  apresentação em vez de uma página.
-- O wiki é só um repo git de markdown — versionamento, branches e
-  colaboração vêm de graça, sem ferramenta extra.
+- **Search at scale**: once the wiki passes ~100 sources / hundreds of
+  pages, `index.md` alone starts to fall short. `qmd`
+  (github.com/tobi/qmd) is one option: local hybrid BM25/vector search with
+  LLM re-ranking, with a CLI and an MCP server.
+- **Obsidian** as the wiki's IDE: graph view to see the shape of the
+  knowledge (hubs, orphans), Web Clipper to bring articles in as markdown,
+  Dataview for dynamic tables from YAML frontmatter if the pages have
+  structured tags or dates.
+- **Marp**: markdown slide decks, useful when a "Query" asks for a
+  presentation instead of a page.
+- The wiki is just a git repository of markdown: versioning, branches and
+  collaboration come for free, with no extra tool.
 
-## Nota sobre imagens
+## A note on images
 
-IAs não leem markdown com imagens inline numa passada só. Se o schema do
-usuário envolve imagens baixadas localmente (ex: artigos clipados), o
-workflow correto é: ler o texto primeiro, depois visualizar as imagens
-referenciadas separadamente para contexto adicional. Documente isso no
-`AGENTS.md` do workspace se for relevante pro domínio.
+AIs don't read markdown with inline images in a single pass. If the
+user's schema involves locally downloaded images (e.g. clipped articles),
+the right workflow is: read the text first, then view the referenced
+images separately for extra context. Document this in the workspace's
+`AGENTS.md` if it matters for the domain.

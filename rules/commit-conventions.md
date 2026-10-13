@@ -1,73 +1,71 @@
-# Regra de commits
+# Commit convention
 
-Vale para todo repositório. Regra de um projeto que contradiga esta fica no `.agents/rules/`
-daquele projeto e diz o que muda.
+Applies to every repository. A project rule that contradicts this one lives in that
+project's `.agents/rules/` and says what changes.
 
-Base: [Conventional Commits v1.0.0](https://www.conventionalcommits.org/en/v1.0.0/).
+Based on [Conventional Commits v1.0.0](https://www.conventionalcommits.org/en/v1.0.0/).
 
 ```
 <emoji> <type>[optional scope]: <description>
 ```
 
-- **Emoji obrigatório** (gitmoji), antes do `<type>`. Não é decoração opcional:
-  a regra nasceu do histórico dos repositórios `modulo-web-backend` e
-  `modulo-web-frontend` (another workspace), onde todo commit segue esse formato.
-- `<type>` e `[scope]` seguem o Conventional Commits normal (`fix`, `feat`,
-  `refactor`, `docs`, `chore`, `ci`, `style`, `perf`, `test`, `build`...).
-  Escopo entre parênteses quando ajudar (`fix(auth): ...`).
-- `nit` é uma extensão desta regra (não faz parte do Conventional Commits
-  oficial) para correções cosméticas/não críticas — sempre com o emoji 🩹.
-- **Descrição em inglês**, minúscula, sem ponto final.
-- **Uma linha só** — sem corpo, sem lista de bullets.
-- **Sem trailer de co-autoria** (`Co-Authored-By: ...`) mesmo quando o commit
-  foi feito por um agente. Autoria do commit é sempre a do usuário (config
-  local do `git`), nunca do agente.
-- Mudança que quebra compatibilidade: `!` depois do type/scope, antes dos
-  dois-pontos (`feat(api)!: ...`), ou rodapé `BREAKING CHANGE: ...` — mas
-  como não há corpo/rodapé nesta convenção, prefira o `!` sempre que possível.
-- Um commit por mudança logicamente independente. Não junte mudanças de
-  schema com mudança de código de dois módulos não relacionados só porque
-  aconteceram na mesma sessão — separe por tema, mesmo que exija reconstruir
-  um arquivo em estágios (schema.prisma por exemplo).
+- **Emoji required** (gitmoji), before the `<type>`. It is not optional decoration: the
+  rule came from the history of the `modulo-web-backend` and `modulo-web-frontend`
+  repositories (another workspace), where every commit follows this format.
+- `<type>` and `[scope]` follow regular Conventional Commits (`fix`, `feat`, `refactor`,
+  `docs`, `chore`, `ci`, `style`, `perf`, `test`, `build`...). Scope in parentheses when it
+  helps (`fix(auth): ...`).
+- `nit` is an extension of this rule (not part of official Conventional Commits) for
+  cosmetic, non-critical fixes, always with the 🩹 emoji.
+- **Description in English**, lowercase, no trailing period.
+- **One line only**: no body, no bullet list.
+- **No co-author trailer** (`Co-Authored-By: ...`), even when an agent made the commit. The
+  commit's author is always the user (local `git` config), never the agent.
+- Breaking change: `!` after the type/scope, before the colon (`feat(api)!: ...`), or a
+  `BREAKING CHANGE: ...` footer. Since this convention has no body or footer, prefer the
+  `!` whenever possible.
+- One commit per logically independent change. Don't bundle schema changes with code
+  changes in two unrelated modules just because they happened in the same session: split
+  by topic, even if that means rebuilding a file in stages (schema.prisma, for example).
 
-## Legenda de emoji já em uso nestes repos
+## Emoji legend
 
-(Levantado de `git log`, não é lista fechada — mantenha o emoji que já
-identifica o tipo de mudança quando existir precedente. Baseado no padrão
-oficial [gitmoji.dev](https://gitmoji.dev).)
+(Collected from `git log`; not a closed list. Keep the emoji that already identifies a kind
+of change when there is a precedent. Based on the official
+[gitmoji.dev](https://gitmoji.dev) standard.)
 
-| Emoji | Uso |
+| Emoji | Use |
 |---|---|
-| ✨ | `feat` — funcionalidade nova |
-| 🐛 | `fix` — correção de bug |
-| 🩹 | `nit` — correção não crítica, cosmética, de baixo impacto; descreve a ação de dar muita atenção a detalhes sem importância |
-| ♻️ | `refactor` — refatoração sem mudar comportamento externo |
-| 🗃️ | `feat(database)` / mudança de schema |
+| ✨ | `feat`: new feature |
+| 🐛 | `fix`: bug fix |
+| 🩹 | `nit`: non-critical, cosmetic, low-impact fix; paying close attention to small details |
+| ♻️ | `refactor`: refactoring without changing external behavior |
+| 🗃️ | `feat(database)` / schema change |
 | 📝 | `docs` |
-| 🚨 | `chore(lint)` — correção de warning de lint/compilador |
-| ⚰️ | `chore` — remoção de código morto |
-| 🧹 | `chore` — limpeza genérica (quando não é especificamente lint ou dead code) |
-| 🔧 | `chore` — configuração |
+| 🚨 | `chore(lint)`: fix a lint or compiler warning |
+| ⚰️ | `chore`: remove dead code |
+| 🧹 | `chore`: general cleanup (when it isn't specifically lint or dead code) |
+| 🔧 | `chore`: configuration |
 | 👷 | `ci` |
-| 💚 | `ci` — corrigir build da CI |
-| 🐳 | mudança de Docker/Dockerfile |
-| 🔒 | segurança / correção de vulnerabilidade |
-| 🔐 | segredos (secrets, env, credenciais) |
-| 🛂 | permissões / autorização |
-| 🎨 | `style` — formatação, sem mudança de lógica |
-| ✏️ | `fix` — correção de typo |
-| 🔥 | remoção de código morto/arquivos (uso geral, além de ⚰️) |
-| 🚚 | mover/renomear arquivos ou rotas |
-| ⚡️ | `perf` — melhoria de performance |
-| ✅ | `test` — adicionar/corrigir testes |
-| 🚑️ | hotfix crítico |
-| 🔖 | tag de release/versão |
+| 💚 | `ci`: fix the CI build |
+| 🐳 | Docker/Dockerfile change |
+| 🔒 | security / vulnerability fix |
+| 🔐 | secrets (env, credentials) |
+| 🛂 | permissions / authorization |
+| 🎨 | `style`: formatting, no logic change |
+| ✏️ | `fix`: typo |
+| 🔥 | remove code or files (general use, beyond ⚰️) |
+| 🚚 | move/rename files or routes |
+| ⚡️ | `perf`: performance improvement |
+| ✅ | `test`: add or fix tests |
+| 🚑️ | critical hotfix |
+| 🔖 | release/version tag |
 | 🚧 | work in progress |
-| 💥 | breaking change (alternativa ao `!`, usar `!` como preferência) |
-| ⬆️ | upgrade de dependência |
-| ⬇️ | downgrade de dependência |
+| 💥 | breaking change (alternative to `!`; prefer `!`) |
+| ⬆️ | dependency upgrade |
+| ⬇️ | dependency downgrade |
 
-## Exemplos reais deste histórico
+## Real examples from that history
 
 ```
 🐛 fix(units): return null instead of throwing when a unit is not found
@@ -76,7 +74,7 @@ oficial [gitmoji.dev](https://gitmoji.dev).)
 🧹 chore(lint): clear remaining @typescript-eslint/no-unused-vars warnings
 ```
 
-## Exemplos com os emojis novos
+## Examples with the newer emojis
 
 ```
 🩹 nit(ui): tighten spacing on button label

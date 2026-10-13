@@ -1,173 +1,175 @@
 ---
 name: to-cards
 description: |
-  Transforma qualquer texto solto (mensagem, e-mail, anotação de reunião, lista de
-  tarefas, lista de artigos, pedido da orientadora) em cards de tarefa claros, prontos
-  para o Trello: um card por ação, título com verbo, descrição curta do porquê,
-  checklist, prioridade, prazo, lista e etiquetas sugeridas, mais um bloco de títulos
-  para colar no Trello e criar todos de uma vez. Use sempre que o usuário pedir para
-  "passar para cards", "virar tarefas", "organizar no Trello", "quebrar em tarefas",
-  "transformar essa mensagem/lista em to-dos", ou colar um texto com várias coisas a
-  fazer e pedir para organizar, mesmo sem citar o Trello.
+  Turns any loose text (message, email, meeting notes, to-do list, reading list, a request
+  from an advisor) into clear task cards, ready for Trello: one card per action, a title
+  that starts with a verb, a short description of why, a checklist, priority, due date,
+  suggested list and labels, plus a block of titles to paste into Trello and create them
+  all at once. Use whenever the user asks to "turn this into cards", "make tasks",
+  "organize in Trello", "break into tasks", "turn this message/list into to-dos", or pastes
+  a text with several things to do and asks to organize it, even without mentioning Trello.
 metadata:
-  version: "1.0.0"
+  version: "1.1.0"
 ---
 
 # to-cards
 
-Transforma um texto desorganizado em cards de tarefa que alguém consegue executar sem
-reler o texto original. O valor está em três coisas: **separar** o que está misturado,
-**reescrever** com clareza e **não inventar** nada.
+Turns a messy text into task cards that someone can carry out without rereading the
+original text. The value is in three things: **separating** what is mixed together,
+**rewriting** clearly and **not inventing** anything.
 
-A entrega é só no chat. A skill não acessa o Trello; o usuário cola o bloco final.
+The output is chat only. The skill doesn't access Trello; the user pastes the final block.
 
-## Fluxo
+## Flow
 
-1. **Ler o texto inteiro** e listar mentalmente cada ação distinta. Uma frase pode ter
-   duas ações ("ler o artigo e mandar resumo para a orientadora" = 2 cards se forem
-   entregas separadas; 1 card com checklist se o resumo for só o fim da leitura).
-   Critério: se as duas partes podem ser concluídas, atribuídas ou adiadas
-   independentemente, são cards diferentes.
-2. **Verificar lacunas que mudariam os cards** (ver "Quando perguntar"). Se houver,
-   perguntar antes de gerar e esperar a resposta.
-3. **Gerar os cards** no formato abaixo.
-4. **Fechar com o bloco para colar** no Trello.
+1. **Read the whole text** and list each distinct action. One sentence can hold two
+   actions ("read the paper and send a summary to the advisor" = 2 cards if they are
+   separate deliverables; 1 card with a checklist if the summary is just the end of the
+   reading). Rule of thumb: if the two parts can be finished, assigned or postponed
+   independently, they are different cards.
+2. **Check for gaps that would change the cards** (see "When to ask"). If there are any,
+   ask before generating and wait for the answer.
+3. **Generate the cards** in the format below.
+4. **Close with the block to paste** into Trello.
 
-## Quando perguntar
+## When to ask
 
-O usuário prefere ser consultado antes a receber cards com suposições. Mas perguntas
-demais cansam, então:
+The user prefers being asked first to getting cards built on assumptions. But too many
+questions are tiring, so:
 
-- Pergunte **só** o que mudaria os cards: não está claro se algo é uma ou duas tarefas;
-  um prazo é ambíguo ("até a reunião", sem saber quando é a reunião); não dá para saber
-  o que a tarefa pede de fato; não há nenhum sinal de prioridade em nenhum item.
-- Junte tudo em **uma única rodada de no máximo 3 perguntas**. Prefira perguntas
-  agregadas ("Algum destes tem prazo? Se não, deixo sem.") a uma pergunta por card.
-- Se o texto já é claro, **não pergunte**: gere direto.
-- Se o usuário disser para seguir sem responder, marque o que faltar como
-  `❓ a definir` e gere.
+- Ask **only** what would change the cards: it's unclear whether something is one task or
+  two; a due date is ambiguous ("by the meeting", without knowing when the meeting is);
+  you can't tell what the task actually asks for; no item has any sign of priority.
+- Put everything in **a single round of at most 3 questions**. Prefer grouped questions
+  ("Do any of these have a due date? If not, I'll leave them without.") to one question
+  per card.
+- If the text is already clear, **don't ask**: generate right away.
+- If the user says to go ahead without answering, mark what is missing as `❓ TBD` (in the
+  output language) and generate.
 
-## Regras de conteúdo
+## Content rules
 
-- **Idioma:** o mesmo do texto de entrada. Nomes próprios, títulos de artigos, nomes de
-  arquivos, comandos e termos técnicos ficam como no original.
-- **Título:** começa com verbo no infinitivo que diz a ação concreta ("Ler…",
-  "Corrigir…", "Configurar…", "Enviar…", "Decidir…"). Curto o bastante para ler numa
-  coluna do Trello (idealmente até ~60 caracteres). Inclua o objeto específico
-  ("Corrigir link quebrado no INDEX.md", não "Corrigir problema").
-- **Descrição:** 1–2 linhas dizendo **por que** a tarefa existe ou o que ela destrava.
-  Não repita o título com outras palavras.
-- **Checklist:** só quando há passos reais; 2–6 itens, cada um verificável. Sem
-  checklist para tarefa de um passo.
-- **Prioridade:** `alta`, `média` ou `baixa`, tirada de sinais do texto (urgência,
-  prazo próximo, bloqueia outra coisa, pedido da chefia/orientação). Se o texto não dá
-  sinal e o usuário não respondeu, `❓ a definir`.
-- **Prazo:** converta datas relativas em data exata a partir de hoje (use a data atual
-  do contexto), no formato `DD/MM/AAAA`, e mostre a expressão original entre
-  parênteses: `10/10/2026 (até sexta)`. Calcule o dia da semana com cuidado; na dúvida
-  entre duas datas, pergunte. Sem prazo no texto: omita o campo, a menos que o usuário
-  tenha pedido prazos.
-- **Lista e etiquetas:** sugira conforme o conteúdo. Lista = onde o card mora no fluxo
-  ou no tema (ex.: "Literatura", "Código", "Reunião", "A fazer"); etiquetas = 1–3
-  palavras curtas de tema ou tipo. Use os mesmos nomes em todos os cards da mesma
-  resposta, para o quadro ficar coerente.
-- **Preservar, não inventar:** links, datas, nomes de pessoas, números, DOIs e nomes de
-  arquivos vão para o card exatamente como estavam. Não acrescente informação que não
-  está no texto (passos, responsáveis, motivos). Se um motivo não está claro, a
-  descrição diz o que o texto diz, sem completar com suposição.
-- **Ordem:** a ordem do texto, a menos que haja dependências claras; nesse caso, o que
-  destrava vem antes, e a descrição do card dependente cita o card anterior.
+- **Language:** the same as the input text, including the field labels below (in
+  Portuguese: `Lista`, `Etiquetas`, `Prioridade`, `Prazo`, `alta/média/baixa`, `❓ a
+  definir`). Proper names, paper titles, file names, commands and technical terms stay as
+  in the original.
+- **Title:** starts with a verb that states the concrete action ("Read…", "Fix…",
+  "Configure…", "Send…", "Decide…"; in Portuguese, the infinitive: "Ler…", "Corrigir…").
+  Short enough to read in a Trello column (ideally up to ~60 characters). Include the
+  specific object ("Fix broken link in INDEX.md", not "Fix problem").
+- **Description:** 1–2 lines saying **why** the task exists or what it unblocks. Don't
+  repeat the title in other words.
+- **Checklist:** only when there are real steps; 2–6 items, each one checkable. No
+  checklist for a one-step task.
+- **Priority:** high, medium or low, taken from signals in the text (urgency, close due
+  date, blocks something else, request from a manager or advisor). If the text gives no
+  signal and the user didn't answer, `❓ TBD`.
+- **Due date:** turn relative dates into exact dates from today (use the current date from
+  the context), in the format `DD/MM/YYYY`, and show the original expression in
+  parentheses: `10/10/2026 (by Friday)`. Work out the weekday carefully; if torn between
+  two dates, ask. No due date in the text: leave the field out, unless the user asked for
+  due dates.
+- **List and labels:** suggest them from the content. List = where the card lives in the
+  workflow or topic (e.g. "Literature", "Code", "Meeting", "To do"); labels = 1–3 short
+  words for topic or type. Use the same names across all cards in the same answer, so the
+  board stays consistent.
+- **Preserve, don't invent:** links, dates, people's names, numbers, DOIs and file names go
+  into the card exactly as they were. Don't add information that isn't in the text (steps,
+  owners, reasons). If a reason is unclear, the description says what the text says,
+  without filling in a guess.
+- **Order:** the order of the text, unless there are clear dependencies; then what
+  unblocks comes first, and the dependent card's description mentions the earlier card.
 
-## Formato da resposta
+## Answer format
 
-Comece com uma linha dizendo quantos cards saíram e em quantas listas. Depois, um
-bloco por card:
+Start with one line saying how many cards came out and in how many lists. Then one block
+per card:
 
 ```markdown
-**<Título>**
-Lista: <lista> | Etiquetas: <etiqueta>, <etiqueta> | Prioridade: <alta/média/baixa> | Prazo: <DD/MM/AAAA (original)>
+**<Title>**
+List: <list> | Labels: <label>, <label> | Priority: <high/medium/low> | Due: <DD/MM/YYYY (original)>
 
-<Descrição em 1–2 linhas.>
+<Description in 1–2 lines.>
 
-- [ ] <passo>
-- [ ] <passo>
+- [ ] <step>
+- [ ] <step>
 
-<links, se houver>
+<links, if any>
 ```
 
-Separe os cards com uma linha `---`. Omita da linha de metadados os campos que não se
-aplicam (ex.: sem prazo, sem a parte `Prazo:`).
+Separate the cards with a `---` line. Leave out of the metadata line the fields that don't
+apply (e.g. no due date, no `Due:` part).
 
-No fim, o **bloco para colar**, agrupado por lista, um título por linha:
+At the end, the **block to paste**, grouped by list, one title per line:
 
 ````markdown
-Para criar no Trello: abra "Adicionar um cartão" na lista e cole o bloco; o Trello
-oferece criar um cartão por linha.
+To create them in Trello: open "Add a card" in the list and paste the block; Trello offers
+to create one card per line.
 
-Lista "<nome>":
+List "<name>":
 ```
-<Título 1>
-<Título 2>
+<Title 1>
+<Title 2>
 ```
 ````
 
-Não use `·` nem travessão (`—`) como separador; o usuário prefere `|`, `:` ou `-`.
+Don't use `·` or an em dash (`—`) as a separator; the user prefers `|`, `:` or `-`.
 
-## Exemplo
+## Example
 
-**Entrada:**
+**Input:**
 
-> pessoal, pra reunião de quinta: preciso que alguém revise o PR 82 do bio-lab (o do
-> event bus) e rode os testes. também falta mandar pra prof a versão nova do protocolo
-> de revisão, ela pediu até amanhã. e lembrar de renovar o domínio do firebase, vence
-> mês que vem
+> folks, for thursday's meeting: I need someone to review bio-lab PR 82 (the event bus
+> one) and run the tests. we also still need to send the prof the new version of the
+> review protocol, she asked for it by tomorrow. and remember to renew the firebase
+> domain, it expires next month
 
-**Saída** (hoje = 07/10/2026, quarta-feira):
+**Output** (today = 07/10/2026, Wednesday):
 
-3 cards em 2 listas.
+3 cards in 3 lists.
 
-**Revisar o PR #82 do bio-lab (event bus)**
-Lista: Código | Etiquetas: revisão, bio-lab | Prioridade: alta | Prazo: 08/10/2026 (reunião de quinta)
+**Review bio-lab PR #82 (event bus)**
+List: Code | Labels: review, bio-lab | Priority: high | Due: 08/10/2026 (Thursday's meeting)
 
-PR precisa estar revisado e testado antes da reunião de quinta.
+The PR has to be reviewed and tested before Thursday's meeting.
 
-- [ ] Ler as mudanças do PR #82
-- [ ] Rodar os testes
-- [ ] Deixar comentários ou aprovar
-
----
-
-**Enviar à professora a versão nova do protocolo de revisão**
-Lista: TCC | Etiquetas: orientação | Prioridade: alta | Prazo: 08/10/2026 (até amanhã)
-
-Pedido direto da orientadora, com prazo curto.
+- [ ] Read the changes in PR #82
+- [ ] Run the tests
+- [ ] Leave comments or approve
 
 ---
 
-**Renovar o domínio do Firebase**
-Lista: Infra | Etiquetas: firebase | Prioridade: média | Prazo: ❓ a definir (vence mês que vem)
+**Send the professor the new version of the review protocol**
+List: Thesis | Labels: advising | Priority: high | Due: 08/10/2026 (by tomorrow)
 
-O domínio vence no mês que vem; sem renovação, o site sai do ar.
+Direct request from the advisor, with a short deadline.
 
-Para criar no Trello: abra "Adicionar um cartão" na lista e cole o bloco; o Trello
-oferece criar um cartão por linha.
+---
 
-Lista "Código":
-```
-Revisar o PR #82 do bio-lab (event bus)
-```
+**Renew the Firebase domain**
+List: Infra | Labels: firebase | Priority: medium | Due: ❓ TBD (expires next month)
 
-Lista "TCC":
-```
-Enviar à professora a versão nova do protocolo de revisão
-```
+The domain expires next month; without renewal, the site goes down.
 
-Lista "Infra":
+To create them in Trello: open "Add a card" in the list and paste the block; Trello offers
+to create one card per line.
+
+List "Code":
 ```
-Renovar o domínio do Firebase
+Review bio-lab PR #82 (event bus)
 ```
 
-Repare: "rode os testes" virou checklist do card de revisão, não um card próprio,
-porque não faz sentido rodar os testes sem a revisão. O prazo do domínio ficou como
-`❓ a definir` porque "mês que vem" não diz o dia; nesse caso, se fosse o único ponto
-em aberto, valeria perguntar antes ("sabe o dia em que o domínio vence?").
+List "Thesis":
+```
+Send the professor the new version of the review protocol
+```
+
+List "Infra":
+```
+Renew the Firebase domain
+```
+
+Note: "run the tests" became a checklist item of the review card, not a card of its own,
+because running the tests makes no sense without the review. The domain's due date stayed
+as `❓ TBD` because "next month" doesn't give the day; in that case, if it were the only
+open point, it would be worth asking first ("do you know the day the domain expires?").
