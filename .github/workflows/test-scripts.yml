@@ -1,0 +1,41 @@
+name: Test scripts
+
+on:
+  push:
+    paths: ["*.mjs", "lib/**", "templates/**", "env/**", "AGENTS.md", ".github/workflows/test-scripts.yml"]
+  pull_request:
+    paths: ["*.mjs", "lib/**", "templates/**", "env/**", "AGENTS.md", ".github/workflows/test-scripts.yml"]
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: install.mjs is idempotent
+        run: |
+          node install.mjs --dry-run
+          node install.mjs
+          node install.mjs | tee second.txt
+          ! grep -E '^(created|updated|skipped|failed)' second.txt
+          ! grep -F '{{AGENTS_REPO}}' ~/.claude/CLAUDE.md
+
+      - name: init-workspace.mjs creates a workspace that passes the checklist
+        run: |
+          ws="$RUNNER_TEMP/ws"
+          mkdir -p "$ws"
+          node init-workspace.mjs "$ws" --skills obsidian-docs,session-archive
+          node init-workspace.mjs "$ws" --skills obsidian-docs,session-archive | tee second.txt
+          ! grep -E '^(created|updated|skipped|failed)' second.txt
+          node init-workspace.mjs "$ws" --check
+          test -f "$ws/.agents/skills/obsidian-docs/SKILL.md"

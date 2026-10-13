@@ -1,100 +1,106 @@
 # agents
 
-Minha configuração de agentes de código (Claude Code, Codex e OpenCode) num lugar só: instruções e regras globais, skills, os padrões das pastas `.agents/` e `.artifacts/` e os scripts que aplicam tudo isso na máquina e em cada workspace.
+My coding agent configuration (Claude Code, Codex and OpenCode) in one place: global instructions and rules, skills, the `.agents/` and `.artifacts/` folder standards, and the scripts that apply all of it to a machine and to each workspace. Works on Windows, Linux and macOS.
 
-## Estrutura
+## Layout
 
 ```
 agents/
-├── AGENTS.md                # instruções globais, valem em qualquer pasta
-├── rules/                   # regras globais (ex.: convenção de commits)
+├── AGENTS.md                # global instructions, apply in any folder
+├── env/                     # machine notes appended to AGENTS.md per platform (win32.md, linux.md…)
+├── rules/                   # global rules (e.g. commit convention)
 ├── standards/
-│   ├── agents.md            # padrão da pasta .agents/ de um workspace
-│   └── artifacts.md         # padrão da pasta .artifacts/ de um workspace
-├── skills/                  # skills reutilizáveis (formato Agent Skills)
-├── templates/workspace/     # modelos de AGENTS.md, INDEX.md e pendencias.md
+│   ├── agents.md            # the .agents/ folder standard for a workspace
+│   └── artifacts.md         # the .artifacts/ folder standard for a workspace
+├── skills/                  # reusable skills (Agent Skills format)
+├── templates/workspace/     # templates for AGENTS.md, INDEX.md and pending.md
 ├── claude/settings.json     # ~/.claude/settings.json
 ├── opencode/opencode.json   # ~/.config/opencode/opencode.json
-├── install.ps1              # aplica a parte global na máquina
-├── init-workspace.ps1       # aplica os padrões a um workspace, ou confere (-Check)
-└── lib/common.ps1           # funções usadas pelos dois scripts
+├── install.mjs              # applies the global part to this machine
+├── init-workspace.mjs       # applies the standards to a workspace, or checks it (--check)
+└── lib/common.mjs           # helpers used by both scripts
 ```
 
-## Global: `install.ps1`
+The scripts only need Node 18+, with no dependencies.
 
-```powershell
-git clone git@github.com:gabrieldulolmarques/agents.git D:\myWorkspace\agents
-D:\myWorkspace\agents\install.ps1 -WhatIf   # mostra o que vai fazer, sem mudar nada
-D:\myWorkspace\agents\install.ps1
+## Global: `install.mjs`
+
+```bash
+git clone git@github.com:gabrieldulolmarques/agents.git
+cd agents
+node install.mjs --dry-run   # shows what it would do, changes nothing
+node install.mjs
 ```
 
-| O quê | Para onde | Como | Depois de editar |
-|---|---|---|---|
-| `AGENTS.md` (Claude Code) | `~/.claude/CLAUDE.md` | import `@.../AGENTS.md` | vale na hora |
-| `AGENTS.md` (Codex) | `~/.codex/AGENTS.md` | cópia | rodar `install.ps1` |
-| `AGENTS.md` (OpenCode) | `~/.config/opencode/AGENTS.md` | cópia | rodar `install.ps1` |
-| `rules/` (Claude Code) | `~/.claude/rules` | junção | vale na hora |
-| `rules/` (Codex e OpenCode) | link no `AGENTS.md` | caminho absoluto | vale na hora |
-| `claude/settings.json` | `~/.claude/settings.json` | cópia | rodar `install.ps1` |
-| `opencode/opencode.json` | `~/.config/opencode/opencode.json` | cópia | rodar `install.ps1` |
+| What | Where to | How |
+|---|---|---|
+| `AGENTS.md` + `env/<platform>.md` | `~/.claude/CLAUDE.md`, `~/.codex/AGENTS.md`, `~/.config/opencode/AGENTS.md` | generated file |
+| `rules/` | `~/.claude/rules` | folder link |
+| `claude/settings.json` | `~/.claude/settings.json` | file link (copy on Windows) |
+| `opencode/opencode.json` | `~/.config/opencode/opencode.json` | file link (copy on Windows) |
 
-As skills não são globais: cada workspace liga só as que usa.
+- **`AGENTS.md` has no machine paths.** `{{AGENTS_REPO}}` becomes the location of the clone, and the file for the current platform in `env/` (`win32.md`, `linux.md`, `darwin.md`) is appended, when it exists. Codex and OpenCode read the rules through the absolute paths that result.
+- **Run `install.mjs` again after editing** `AGENTS.md` or `env/`, and on Windows also after editing the settings. On Linux and macOS, the settings and the rules are links, so changes apply right away.
+- Any file the script replaces is kept next to it as `.bak-<date>`. Run it as often as you like: what is already right stays as is.
 
-## Por workspace: `init-workspace.ps1`
+Skills are not global: each workspace links only the ones it uses.
 
-```powershell
-# aplica os padrões e liga duas skills
-D:\myWorkspace\agents\init-workspace.ps1 -Path D:\myWorkspace\Obsidian -Skills obsidian-docs, session-archive -WhatIf
-D:\myWorkspace\agents\init-workspace.ps1 -Path D:\myWorkspace\Obsidian -Skills obsidian-docs, session-archive
+## Per workspace: `init-workspace.mjs`
 
-# confere se o workspace segue os padrões, sem mudar nada
-D:\myWorkspace\agents\init-workspace.ps1 -Path D:\myWorkspace\Obsidian -Check
+```bash
+# apply the standards and link two skills
+node init-workspace.mjs ~/projects/notes --skills obsidian-docs,llm-wiki --dry-run
+node init-workspace.mjs ~/projects/notes --skills obsidian-docs,llm-wiki
+
+# check whether a workspace follows the standards, changing nothing
+node init-workspace.mjs ~/projects/notes --check
 ```
 
-O script cria só o que falta e nunca sobrescreve conteúdo seu:
+It creates only what is missing and never overwrites your content:
 
-- `AGENTS.md`, `INDEX.md` e `.artifacts/coding/pendencias.md` a partir dos modelos, só se ainda não existirem;
-- `CLAUDE.md` com `@AGENTS.md`;
-- `.agents/README.md` e `.artifacts/README.md` apontando para os padrões em `standards/`;
-- `.agents/skills/<nome>` como junção para `skills/<nome>` deste repositório;
-- `.claude/skills` e `.claude/rules` como junções para `.agents/`.
+- `AGENTS.md`, `INDEX.md` and `.artifacts/coding/pending.md` from the templates, only if they don't exist yet;
+- `CLAUDE.md` with `@AGENTS.md`;
+- `.agents/README.md` and `.artifacts/README.md` pointing to the standards in `standards/`;
+- `.agents/skills/<name>` as a link to `skills/<name>` in this repository;
+- `.claude/skills` and `.claude/rules` as links to `.agents/` (relative on Linux and macOS).
 
-O `-Check` roda a conferência dos dois padrões:
+`--check` runs the two standards' checklist:
 
-- tamanho do `AGENTS.md` e primeira linha do `CLAUDE.md`;
-- junções de verdade (e não pastas copiadas);
-- `name` de cada skill igual ao nome da pasta;
-- regras com link no `AGENTS.md`;
-- pastas proibidas;
-- datas em nomes de arquivo.
+- `AGENTS.md` size and `CLAUDE.md` first line;
+- real links (not copied folders);
+- each skill's `name` matching its folder;
+- rules linked from `AGENTS.md`;
+- forbidden folders;
+- full dates in file names.
 
 ## Skills
 
-| Skill | O que faz |
+| Skill | What it does |
 |---|---|
-| [obsidian-docs](skills/obsidian-docs/SKILL.md) | Responde dúvidas sobre o Obsidian consultando a ajuda oficial, o diretório de plugins e temas e o fórum. |
-| [session-archive](skills/session-archive/SKILL.md) | Grava a transcrição da sessão do Claude Code em `.artifacts/session-archives/`. |
-| [map-source-files](skills/map-source-files/SKILL.md) | Gera uma tabela Arquivo / Local / Responsabilidade dos arquivos-fonte de um repositório. |
-| [to-cards](skills/to-cards/SKILL.md) | Transforma texto solto (mensagem, e-mail, ata) em cards de tarefa. |
-| [llm-wiki](skills/llm-wiki/SKILL.md) | Mantém uma wiki em Markdown alimentada por fontes (`raw/` → `wiki/`), com ingestão, consulta e checagem. Ainda não usada em nenhum workspace. |
+| [obsidian-docs](skills/obsidian-docs/SKILL.md) | Answers questions about Obsidian from the official help, the plugin and theme directory, and the forum. |
+| [session-archive](skills/session-archive/SKILL.md) | Writes the Claude Code session transcript to `.artifacts/session-archives/`. |
+| [map-source-files](skills/map-source-files/SKILL.md) | Builds a File / Location / Responsibility table of a repository's source files. |
+| [to-cards](skills/to-cards/SKILL.md) | Turns loose text (message, email, meeting notes) into task cards. |
+| [llm-wiki](skills/llm-wiki/SKILL.md) | Maintains a Markdown wiki fed by sources (`raw/` → `wiki/`), with ingest, query and lint. Not used in any workspace yet. |
 
-As skills seguem a [especificação Agent Skills](https://agentskills.io/specification), e as regras de escrita estão em [standards/agents.md](standards/agents.md#skills). Também dá para instalar uma skill avulsa em outro lugar com o CLI do [skills.sh](https://skills.sh):
+The skills follow the [Agent Skills specification](https://agentskills.io/specification), and the writing rules are in [standards/agents.md](standards/agents.md#skills). You can also install a single skill elsewhere with the [skills.sh](https://skills.sh) CLI:
 
 ```bash
 npx skills add git@github.com:gabrieldulolmarques/agents.git -s obsidian-docs
 ```
 
-Skills de terceiros (ex.: `npx skills add blader/humanizer`) não entram aqui, para continuarem recebendo as atualizações do autor com `npx skills update`.
+Third-party skills (e.g. `npx skills add blader/humanizer`) don't go here, so they keep getting the author's updates through `npx skills update`.
 
-O GitHub Actions valida as skills com o [skills-ref](https://github.com/agentskills/agentskills/tree/main/skills-ref) a cada push que mexe em `skills/`. Para rodar localmente:
+## CI
 
-```bash
-PYTHONUTF8=1 uvx --from "git+https://github.com/agentskills/agentskills.git#subdirectory=skills-ref" skills-ref validate skills/<nome>
-```
+- **Validate skills:** runs [skills-ref](https://github.com/agentskills/agentskills/tree/main/skills-ref) on every push that touches `skills/`. Locally:
+  ```bash
+  PYTHONUTF8=1 uvx --from "git+https://github.com/agentskills/agentskills.git#subdirectory=skills-ref" skills-ref validate skills/<name>
+  ```
+- **Test scripts:** runs `install.mjs` and `init-workspace.mjs` on Linux, Windows and macOS, and checks that a second run changes nothing and that the new workspace passes `--check`.
 
-## Limites
+## Limits
 
-- **Links de arquivo** no Windows exigem administrador ou Modo de Desenvolvedor. Por isso as pastas são junções e os arquivos são cópias ou imports.
-- **Junções guardam caminho absoluto.** Se este repositório ou um workspace mudar de lugar, rode os scripts de novo.
-- **Os settings mudam pelo próprio app.** Quando você muda uma opção no Claude Code ou no OpenCode, a cópia da máquina fica diferente da do repositório. O `install.ps1` guarda a versão da máquina como backup antes de sobrescrever. Para manter a mudança, copie o arquivo de volta para cá e faça commit.
-- **O `~/.codex/config.toml` fica de fora.** O app do Codex escreve nele caminhos de runtime com hash, nomes de pipe e projetos confiáveis, coisas específicas desta máquina.
+- **Windows:** file symlinks require administrator rights or Developer Mode, so files are copied and folders become junctions. Junctions store absolute paths: if this repository or a workspace moves, run the scripts again.
+- **Settings change from inside the apps.** On Windows, a setting changed in Claude Code or OpenCode makes the machine's copy differ from the repository's, and the next install backs it up before overwriting. To keep the change, copy the file back here and commit. On Linux and macOS the apps write through the link, so check `git diff`.
+- **`~/.codex/config.toml` is left out.** The Codex app writes machine-specific things into it: runtime paths with hashes, pipe names and trusted projects.
