@@ -22,9 +22,10 @@ The user should give (ask if missing):
    whole repo.
 2. **Extension filter**, if any (default: the project's source extensions, such as `.cs`
    for Unity; match the target repo's real stack, don't assume `.cs` elsewhere).
-3. **Where to save the Markdown**. Default, following the `.artifacts/` standard:
-   `.artifacts/coding/source-map-<folder-slug>.md` at the workspace root, never inside the
-   code repository. No date in the name: the date goes in the header line.
+3. **Where to save the Markdown**. Default: inside the workspace's `.artifacts/`, never
+   inside the code repository. Use the folder where the project already keeps similar
+   documents, or `.artifacts/source-map-<folder-slug>.md` if there is none. No date in the
+   name: the date goes in the header line.
 
 ## Steps
 
@@ -86,6 +87,6 @@ The user should give (ask if missing):
 - This skill is read-only on the code: never edit or move files in the mapped repo.
 - Read file by file even when the name looks self-explanatory: the stated goal of this
   skill is the real responsibility, not a paraphrase of file or folder names.
-- If the target repo already has architecture documentation (in `.artifacts/coding/`, for
-  example), you may use it as context to name responsibilities consistently with the
+- If the target repo already has architecture documentation (in `.artifacts/`, for example),
+  you may use it as context to name responsibilities consistently with the
   established terms, but always confirm against the file's actual content.
