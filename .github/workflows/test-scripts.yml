@@ -16,8 +16,6 @@ jobs:
     defaults:
       run:
         shell: bash
-    env:
-      AGENTS_STATE_DIR: ${{ runner.temp }}/agents-state
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -26,6 +24,7 @@ jobs:
 
       - name: npm link makes the agents command
         run: |
+          echo "AGENTS_STATE_DIR=$RUNNER_TEMP/agents-state" >> "$GITHUB_ENV"
           npm link
           agents --version
           agents skills
