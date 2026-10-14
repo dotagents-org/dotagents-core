@@ -51,6 +51,8 @@ On Linux with Node from the system package manager, `npm link` may need `sudo`. 
 
 Every command accepts `--dry-run`. Any file a command replaces is kept next to it as `.bak-<date>`, and running a command again only changes what is out of place.
 
+In a terminal, the output uses icons and colors (`+` created, `~` updated, `✓` ok, `!` skipped, `✗` failed) and short paths: relative to the workspace, or with `~` for the home folder. Paths can also be typed with `~`, even in PowerShell. When the output goes to a pipe or a file (CI, scripts), it switches to plain `<status> <path> (<detail>)` lines. `NO_COLOR` turns the colors off and `FORCE_COLOR` turns the terminal output on.
+
 ## Two kinds of skills
 
 | | My skills | Third-party skills |
