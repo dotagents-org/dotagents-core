@@ -13,7 +13,8 @@ Project documentation does not live here: it follows the [`.artifacts/` standard
 
 The agent configuration is personal: it never goes into a project's repository. That covers
 `AGENTS.md`, `CLAUDE.md`, `INDEX.md`, `skills-lock.json`, `opencode.json`, `.agents/`,
-`.artifacts/`, `.claude/`, `.codex/` and `.opencode/` at the workspace root.
+`.artifacts/`, `.claude/`, `.codex/`, `.opencode/`, and the folders of other agents (`.copilot/`,
+`.cursor/`, `.gemini/`) at the workspace root.
 
 - When the workspace is inside a git repository, `dotagents init` lists those paths in the
   repository's `.git/info/exclude`. Git ignores them as it would with `.gitignore`, but the
