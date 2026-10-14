@@ -1,6 +1,6 @@
 # dotagents
 
-My coding agent configuration (Claude Code, Codex and OpenCode) in one place: global instructions and rules, skills, the `.agents/` and `.artifacts/` folder standards, and the `agents` command that applies all of it to a machine and to each workspace. Works on Windows, Linux and macOS.
+My coding agent configuration (Claude Code, Codex and OpenCode) in one place: global instructions and rules, skills, the `.agents/` and `.artifacts/` folder standards, and the `dotagents` command that applies all of it to a machine and to each workspace. Works on Windows, Linux and macOS.
 
 ## Layout
 
@@ -16,7 +16,7 @@ agents/
 ├── templates/workspace/     # templates for AGENTS.md and INDEX.md
 ├── claude/settings.json     # ~/.claude/settings.json
 ├── opencode/opencode.json   # ~/.config/opencode/opencode.json
-├── cli.mjs                  # the `agents` command
+├── cli.mjs                  # the `dotagents` command
 ├── lib/                     # its modules (global, workspace, registry, common)
 └── package.json
 ```
@@ -28,8 +28,8 @@ The command only needs Node 18.17+, with no dependencies.
 ```bash
 git clone git@github.com:gabrieldulolmarques/dotagents.git
 cd dotagents
-npm link          # makes the `agents` command point to this clone
-agents install    # global instructions, rules and settings
+npm link          # makes the `dotagents` command point to this clone
+dotagents install    # global instructions, rules and settings
 ```
 
 `npm link` doesn't copy anything: the command runs from the clone, so every link it creates points to the clone, and editing the clone takes effect right away. Without `npm link`, use `node cli.mjs <command>` from the clone.
@@ -40,13 +40,13 @@ On Linux with Node from the system package manager, `npm link` may need `sudo`. 
 
 | Command | What it does |
 |---|---|
-| `agents install` | applies the global configuration to this machine |
-| `agents init [path] --skills a,b` | applies the standards to a workspace and links skills from this repository |
-| `agents check [path]` | runs the standards checklist on a workspace, changing nothing |
-| `agents update` | `git pull` in the clone, then `install` |
-| `agents update --all` | also refreshes every workspace set up with `init` and runs `npx skills update` in the ones with third-party skills |
-| `agents skills` | lists the skills in this repository |
-| `agents workspaces` / `agents forget <path>` | lists the workspaces set up with `init` on this machine / removes one from the list |
+| `dotagents install` | applies the global configuration to this machine |
+| `dotagents init [path] --skills a,b` | applies the standards to a workspace and links skills from this repository |
+| `dotagents check [path]` | runs the standards checklist on a workspace, changing nothing |
+| `dotagents update` | `git pull` in the clone, then `install` |
+| `dotagents update --all` | also refreshes every workspace set up with `init` and runs `npx skills update` in the ones with third-party skills |
+| `dotagents skills` | lists the skills in this repository |
+| `dotagents workspaces` / `dotagents forget <path>` | lists the workspaces set up with `init` on this machine / removes one from the list |
 
 Every command accepts `--dry-run`. Any file a command replaces is kept next to it as `.bak-<date>`, and running a command again only changes what is out of place.
 
@@ -55,9 +55,9 @@ Every command accepts `--dry-run`. Any file a command replaces is kept next to i
 | | My skills | Third-party skills |
 |---|---|---|
 | Source | `skills/` in this repository | the author's repository |
-| Tool | `agents init --skills` | `npx skills add` ([skills.sh](https://skills.sh)) |
+| Tool | `dotagents init --skills` | `npx skills add` ([skills.sh](https://skills.sh)) |
 | In the workspace | link to the clone | folder copied into `.agents/skills/` + `skills-lock.json` |
-| Update | edit the clone (immediate) or `agents update` on another machine | `npx skills update -p` (or `agents update --all`) |
+| Update | edit the clone (immediate) or `dotagents update` on another machine | `npx skills update -p` (or `dotagents update --all`) |
 | Edit by hand | yes, in the clone | no: the next update undoes it |
 
 Both live in the workspace's `.agents/skills/`, which Codex and OpenCode read directly and Claude Code reads through the `.claude/skills` link:
@@ -66,45 +66,45 @@ Both live in the workspace's `.agents/skills/`, which Codex and OpenCode read di
 workspace/
 ├── skills-lock.json                  ← npx skills: third-party only
 ├── .agents/skills/
-│   ├── session-archive → <clone>/skills/session-archive    (agents init)
+│   ├── session-archive → <clone>/skills/session-archive    (dotagents init)
 │   └── humanizer/                                           (npx skills add)
-└── .claude/skills → .agents/skills                          (agents init)
+└── .claude/skills → .agents/skills                          (dotagents init)
 ```
 
 ## Workflows
 
 **New workspace**
 ```bash
-agents init ~/projects/app --skills session-archive,map-source-files
+dotagents init ~/projects/app --skills session-archive,map-source-files
 cd ~/projects/app
 npx skills add blader/humanizer      # always from the workspace root
-agents check ~/projects/app
+dotagents check ~/projects/app
 ```
 
 **Edit one of my skills**
 ```bash
 # edit <clone>/skills/<name>/  → already live in every workspace on this machine
 git commit -am "✨ feat(<name>): ..." && git push
-agents update                        # on the other machine
+dotagents update                        # on the other machine
 ```
 
 **Update everything on this machine**
 ```bash
-agents update --all
+dotagents update --all
 ```
 
 **New machine**
 ```bash
-git clone git@github.com:gabrieldulolmarques/dotagents.git && cd dotagents && npm link && agents install
-agents init <workspace> --skills ...         # links don't travel with the files
+git clone git@github.com:gabrieldulolmarques/dotagents.git && cd dotagents && npm link && dotagents install
+dotagents init <workspace> --skills ...         # links don't travel with the files
 cd <workspace> && npx skills experimental_install   # restore third-party skills from the lock
 ```
 
-**Adopt a third-party skill as mine** (to change it): `npx skills remove <name>` in the workspace, copy it to `skills/<name>/` here keeping its license, then `agents init <workspace> --skills <name>`. From then on it no longer gets the author's updates.
+**Adopt a third-party skill as mine** (to change it): `npx skills remove <name>` in the workspace, copy it to `skills/<name>/` here keeping its license, then `dotagents init <workspace> --skills <name>`. From then on it no longer gets the author's updates.
 
 ## What `install` and `init` touch
 
-`agents install`:
+`dotagents install`:
 
 | What | Where to | How |
 |---|---|---|
@@ -113,9 +113,9 @@ cd <workspace> && npx skills experimental_install   # restore third-party skills
 | `claude/settings.json` | `~/.claude/settings.json` | file link (copy on Windows) |
 | `opencode/opencode.json` | `~/.config/opencode/opencode.json` | file link (copy on Windows) |
 
-`AGENTS.md` has no machine paths: `{{AGENTS_REPO}}` becomes the clone's location, and the file for the current platform in `env/` is appended when it exists. Run `agents install` again after editing `AGENTS.md` or `env/`, and on Windows also after editing the settings.
+`AGENTS.md` has no machine paths: `{{AGENTS_REPO}}` becomes the clone's location, and the file for the current platform in `env/` is appended when it exists. Run `dotagents install` again after editing `AGENTS.md` or `env/`, and on Windows also after editing the settings.
 
-`agents init` creates only what is missing and never overwrites your content:
+`dotagents init` creates only what is missing and never overwrites your content:
 
 - `AGENTS.md` and `INDEX.md` from the templates;
 - `CLAUDE.md` with `@AGENTS.md`;
@@ -125,9 +125,9 @@ cd <workspace> && npx skills experimental_install   # restore third-party skills
 - `.claude/settings.json` with `"plansDirectory": ".artifacts/plans"`, so Claude Code saves its plans in the workspace (only that key is added; the rest of the file is kept);
 - `.artifacts/session-archives/` and `.artifacts/plans/`, the two fixed folders.
 
-It also records the workspace and its skills in `~/.config/agents/workspaces.json`, for `agents update --all`.
+It also records the workspace and its skills in `~/.config/dotagents/workspaces.json`, for `dotagents update --all`.
 
-`agents check` covers the standards' checklists and the skills:
+`dotagents check` covers the standards' checklists and the skills:
 
 - `AGENTS.md` size and `CLAUDE.md` first line;
 - real links, not copied folders;
@@ -156,11 +156,11 @@ They follow the [Agent Skills specification](https://agentskills.io/specificatio
   ```bash
   PYTHONUTF8=1 uvx --from "git+https://github.com/agentskills/agentskills.git#subdirectory=skills-ref" skills-ref validate skills/<name>
   ```
-- **Test scripts:** on Linux, Windows and macOS, runs `npm link` and every command, checks that a second run changes nothing, that a new workspace passes `agents check`, and that third-party skills from `npx skills` coexist with the linked ones.
+- **Test scripts:** on Linux, Windows and macOS, runs `npm link` and every command, checks that a second run changes nothing, that a new workspace passes `dotagents check`, and that third-party skills from `npx skills` coexist with the linked ones.
 
 ## Limits
 
-- **Windows:** file symlinks require administrator rights or Developer Mode, so files are copied and folders become junctions. Junctions store absolute paths: if this repository or a workspace moves, run `agents init` again.
+- **Windows:** file symlinks require administrator rights or Developer Mode, so files are copied and folders become junctions. Junctions store absolute paths: if this repository or a workspace moves, run `dotagents init` again.
 - **Settings change from inside the apps.** On Windows, a setting changed in Claude Code or OpenCode makes the machine's copy differ from the repository's, and the next install backs it up before overwriting. To keep the change, copy the file back here and commit. On Linux and macOS the apps write through the link, so check `git diff`.
 - **`~/.codex/config.toml` is left out.** The Codex app writes machine-specific things into it: runtime paths with hashes, pipe names and trusted projects.
 - **`npx skills experimental_install`** is how the skills CLI (1.7) restores from the lock; the name may change in later versions.

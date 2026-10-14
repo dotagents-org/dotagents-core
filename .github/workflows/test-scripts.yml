@@ -22,45 +22,45 @@ jobs:
         with:
           node-version: 22
 
-      - name: npm link makes the agents command
+      - name: npm link makes the dotagents command
         run: |
-          echo "AGENTS_STATE_DIR=$RUNNER_TEMP/agents-state" >> "$GITHUB_ENV"
+          echo "DOTAGENTS_STATE_DIR=$RUNNER_TEMP/agents-state" >> "$GITHUB_ENV"
           npm link
-          agents --version
-          agents skills
+          dotagents --version
+          dotagents skills
 
-      - name: agents install is idempotent
+      - name: dotagents install is idempotent
         run: |
-          agents install --dry-run
-          agents install
-          agents install | tee second.txt
+          dotagents install --dry-run
+          dotagents install
+          dotagents install | tee second.txt
           ! grep -E '^(created|updated|skipped|failed)' second.txt
           ! grep -F '{{AGENTS_REPO}}' ~/.claude/CLAUDE.md
 
-      - name: agents init creates a workspace that passes the checklist
+      - name: dotagents init creates a workspace that passes the checklist
         run: |
           ws="$RUNNER_TEMP/ws"
           mkdir -p "$ws"
-          agents init "$ws" --skills obsidian-docs,session-archive
-          agents init "$ws" --skills obsidian-docs,session-archive | tee second.txt
+          dotagents init "$ws" --skills obsidian-docs,session-archive
+          dotagents init "$ws" --skills obsidian-docs,session-archive | tee second.txt
           ! grep -E '^(created|updated|skipped|failed)' second.txt
-          agents check "$ws"
+          dotagents check "$ws"
           test -f "$ws/.agents/skills/obsidian-docs/SKILL.md"
           test -d "$ws/.artifacts/plans"
           grep -F '"plansDirectory": ".artifacts/plans"' "$ws/.claude/settings.json"
-          agents workspaces | grep -F "ws"
+          dotagents workspaces | grep -F "ws"
 
       - name: third-party skills from npx skills live next to the linked ones
         run: |
           ws="$RUNNER_TEMP/ws"
           (cd "$ws" && npx -y skills add blader/humanizer -y -a claude-code codex opencode)
-          agents check "$ws"
+          dotagents check "$ws"
           rm -rf "$ws/.agents/skills/humanizer"
-          ! agents check "$ws"
+          ! dotagents check "$ws"
           (cd "$ws" && npx -y skills experimental_install -y)
-          agents check "$ws"
+          dotagents check "$ws"
 
-      - name: agents update --all refreshes registered workspaces
+      - name: dotagents update --all refreshes registered workspaces
         run: |
-          agents update --all --no-pull --dry-run
-          agents update --all --no-pull
+          dotagents update --all --no-pull --dry-run
+          dotagents update --all --no-pull
