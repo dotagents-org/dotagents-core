@@ -3,7 +3,7 @@
 > **Type:** standard · **Scope:** any workspace with `AGENTS.md`, `.agents/` and `.artifacts/` at the root, applied by `agents init` from this repository · **Last verified:** 2026-10-13
 
 `.artifacts/` holds the documentation that agents and people write about the project:
-architecture, pending issues, research and session transcripts. Agent configuration does
+architecture, research and session transcripts. Agent configuration does
 not live here ([`.agents/` standard](agents.md)), and neither do code, secrets or build
 output.
 
@@ -55,8 +55,7 @@ whole in every session.
 ```
 .artifacts/
 ├── README.md                       points to this standard in the dotagents repository
-├── coding/                         always exists: code and project
-│   ├── pending.md                  always exists: everything diagnosed and not fixed
+├── coding/                         code and project, once there is a first document
 │   └── <slug>.md
 ├── <area>/                         another area, when the subject doesn't fit in coding/
 │   ├── <slug>.md
@@ -67,8 +66,8 @@ whole in every session.
     └── YYYY-MM-DD-<...>/           session attachments
 ```
 
-- **Fixed names:** `coding/`, `coding/pending.md` and `session-archives/`. That way, in any
-  workspace, the agent knows where to look for what is broken and what already happened.
+- **Fixed names:** `coding/` and `session-archives/`. That way, in any workspace, the agent
+  knows where to look for the project's documents and for what already happened.
 - **Other areas** take the domain's name, as one lowercase word. In the
   `modulo-simulacao-bio-lab` workspace, `poc/` holds the thesis.
 - **File names:** kebab-case, no accents and no date outside `session-archives/`. A
@@ -103,7 +102,6 @@ summary swaps the last two fields for ones that make sense for it, for example
 |---|---|
 | The session ended | the transcript (`/session-archive`) |
 | A new fact the agent needs to act | `AGENTS.md`, **rewriting** the old statement instead of stacking a new one |
-| A problem found and not fixed | one line in `coding/pending.md` |
 | The architecture or a code convention changed | the matching document in `coding/` |
 | Something in another area changed | that area's document |
 | A decision that still holds | where the agent needs it (`AGENTS.md` or the area's reference); the why stays in the transcript |

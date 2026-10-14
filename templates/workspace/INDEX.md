@@ -5,5 +5,4 @@ One line per document, with what it is for. The rules for where to write each th
 | Document | What it is for |
 |---|---|
 | [AGENTS.md](AGENTS.md) | Instructions loaded in every session |
-| [.artifacts/coding/pending.md](.artifacts/coding/pending.md) | Problems diagnosed and not fixed yet |
 | [.artifacts/session-archives/](.artifacts/session-archives/) | Session transcripts, one per file |
