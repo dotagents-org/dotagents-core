@@ -2,9 +2,9 @@ name: Test scripts
 
 on:
   push:
-    paths: ["cli.mjs", "package.json", "lib/**", "templates/**", "env/**", "AGENTS.md", ".github/workflows/test-scripts.yml"]
+    paths: ["cli.mjs", "package.json", "package-lock.json", "lib/**", "templates/**", "env/**", "AGENTS.md", ".github/workflows/test-scripts.yml"]
   pull_request:
-    paths: ["cli.mjs", "package.json", "lib/**", "templates/**", "env/**", "AGENTS.md", ".github/workflows/test-scripts.yml"]
+    paths: ["cli.mjs", "package.json", "package-lock.json", "lib/**", "templates/**", "env/**", "AGENTS.md", ".github/workflows/test-scripts.yml"]
 
 jobs:
   test:
@@ -72,3 +72,13 @@ jobs:
           dotagents untrack "$ws"
           ! dotagents workspaces | grep -F "$(basename "$ws")"
           test -f "$ws/AGENTS.md"
+
+      - name: agent files stay out of a project's git
+        run: |
+          repo="$RUNNER_TEMP/project"
+          mkdir -p "$repo" && cd "$repo" && git init -q
+          dotagents init "$repo" --skills to-cards
+          test -z "$(git status --porcelain)"
+          dotagents check "$repo"
+          git add -f AGENTS.md   # simulates an agent file committed by mistake
+          ! dotagents check "$repo"
