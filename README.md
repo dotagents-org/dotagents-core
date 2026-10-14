@@ -28,11 +28,12 @@ The command needs Node 20.12+ and two dependencies: [@clack/prompts](https://git
 ```bash
 git clone git@github.com:gabrieldulolmarques/dotagents.git
 cd dotagents
-npm link          # installs the dependencies and makes the `dotagents` command point to this clone
+npm install       # the two dependencies
+npm link          # makes the `dotagents` command point to this clone
 dotagents install    # global instructions, rules and settings
 ```
 
-`npm link` doesn't copy anything: the command runs from the clone, so every link it creates points to the clone, and editing the clone takes effect right away. Without `npm link`, run `npm install` once and use `node cli.mjs <command>` from the clone.
+`npm link` doesn't copy anything: the command runs from the clone, so every link it creates points to the clone, and editing the clone takes effect right away. Without `npm link`, use `node cli.mjs <command>` from the clone. `dotagents update` runs `npm install` again when a pull changes the dependencies.
 
 On Linux with Node from the system package manager, `npm link` may need `sudo`. To avoid it, point npm's global folder to your home first: `npm config set prefix ~/.local` (and have `~/.local/bin` on the PATH).
 
@@ -99,7 +100,7 @@ dotagents update --all
 
 **New machine**
 ```bash
-git clone git@github.com:gabrieldulolmarques/dotagents.git && cd dotagents && npm link && dotagents install
+git clone git@github.com:gabrieldulolmarques/dotagents.git && cd dotagents && npm install && npm link && dotagents install
 dotagents init <workspace> --skills ...         # links don't travel with the files
 cd <workspace> && npx skills experimental_install   # restore third-party skills from the lock
 ```
