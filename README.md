@@ -13,7 +13,7 @@ agents/
 │   ├── agents.md            # the .agents/ folder standard for a workspace
 │   └── artifacts.md         # the .artifacts/ folder standard for a workspace
 ├── skills/                  # my reusable skills (Agent Skills format)
-├── templates/workspace/     # templates for AGENTS.md, INDEX.md and pending.md
+├── templates/workspace/     # templates for AGENTS.md and INDEX.md
 ├── claude/settings.json     # ~/.claude/settings.json
 ├── opencode/opencode.json   # ~/.config/opencode/opencode.json
 ├── cli.mjs                  # the `agents` command
@@ -117,7 +117,7 @@ cd <workspace> && npx skills experimental_install   # restore third-party skills
 
 `agents init` creates only what is missing and never overwrites your content:
 
-- `AGENTS.md`, `INDEX.md` and `.artifacts/coding/pending.md` from the templates;
+- `AGENTS.md` and `INDEX.md` from the templates;
 - `CLAUDE.md` with `@AGENTS.md`;
 - `.agents/README.md` and `.artifacts/README.md` pointing to `standards/`;
 - one `.agents/skills/<name>` link per skill;
