@@ -1,6 +1,6 @@
 # Document map
 
-One line per document, with what it is for. The rules for where to write each thing are in the [`.artifacts/` standard](.artifacts/README.md).
+One line per document, with what it is for. A document that isn't linked here or from `AGENTS.md` doesn't exist for the agents. See the [`.artifacts/` standard](.artifacts/README.md).
 
 | Document | What it is for |
 |---|---|

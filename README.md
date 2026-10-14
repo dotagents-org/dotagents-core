@@ -134,7 +134,6 @@ It also records the workspace and its skills in `~/.config/agents/workspaces.jso
 - every skill in `skills-lock.json` installed;
 - rules linked from `AGENTS.md`;
 - forbidden folders;
-- full dates in file names.
 
 ## My skills
 
