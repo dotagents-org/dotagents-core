@@ -21,18 +21,18 @@ agents/
 └── package.json
 ```
 
-The command only needs Node 18.17+, with no dependencies.
+The command needs Node 20.12+ and two dependencies: [@clack/prompts](https://github.com/bombshell-dev/clack) for the terminal look and the questions, and picocolors for colors.
 
 ## Setup (once per machine)
 
 ```bash
 git clone git@github.com:gabrieldulolmarques/dotagents.git
 cd dotagents
-npm link          # makes the `dotagents` command point to this clone
+npm link          # installs the dependencies and makes the `dotagents` command point to this clone
 dotagents install    # global instructions, rules and settings
 ```
 
-`npm link` doesn't copy anything: the command runs from the clone, so every link it creates points to the clone, and editing the clone takes effect right away. Without `npm link`, use `node cli.mjs <command>` from the clone.
+`npm link` doesn't copy anything: the command runs from the clone, so every link it creates points to the clone, and editing the clone takes effect right away. Without `npm link`, run `npm install` once and use `node cli.mjs <command>` from the clone.
 
 On Linux with Node from the system package manager, `npm link` may need `sudo`. To avoid it, point npm's global folder to your home first: `npm config set prefix ~/.local` (and have `~/.local/bin` on the PATH).
 
@@ -49,7 +49,7 @@ On Linux with Node from the system package manager, `npm link` may need `sudo`. 
 | `dotagents workspaces` | lists the workspaces set up with `init` on this machine |
 | `dotagents untrack <path>` | stops tracking a workspace: removes it from that list, so `update --all` skips it. Its files are not touched |
 
-Every command accepts `--dry-run`. Any file a command replaces is kept next to it as `.bak-<date>`, and running a command again only changes what is out of place.
+Every command accepts `--dry-run`. Any file a command replaces is kept next to it as `.bak-<date>`, and running a command again only changes what is out of place. In a terminal, `init` without `--skills` asks for the folder (when none is given) and the skills, then confirms; `--yes` skips the questions, and they never appear in CI or when input is piped.
 
 In a terminal, the output uses icons and colors (`+` created, `~` updated, `✓` ok, `!` skipped, `✗` failed) and short paths: relative to the workspace, or with `~` for the home folder. Paths can also be typed with `~`, even in PowerShell. When the output goes to a pipe or a file (CI, scripts), it switches to plain `<status> <path> (<detail>)` lines. `NO_COLOR` turns the colors off and `FORCE_COLOR` turns the terminal output on.
 
@@ -78,7 +78,8 @@ workspace/
 
 **New workspace**
 ```bash
-dotagents init ~/projects/app --skills session-archive,map-source-files
+dotagents init ~/projects/app          # in a terminal: asks which skills to link and confirms
+dotagents init ~/projects/app --skills session-archive,map-source-files   # no questions
 cd ~/projects/app
 npx skills add blader/humanizer      # always from the workspace root
 dotagents check ~/projects/app

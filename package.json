@@ -8,7 +8,11 @@
     "dotagents": "cli.mjs"
   },
   "engines": {
-    "node": ">=18.17"
+    "node": ">=20.12"
   },
-  "license": "UNLICENSED"
+  "license": "UNLICENSED",
+  "dependencies": {
+    "@clack/prompts": "^1.8.1",
+    "picocolors": "^1.1.1"
+  }
 }
