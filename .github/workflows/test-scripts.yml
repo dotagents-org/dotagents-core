@@ -22,9 +22,10 @@ jobs:
         with:
           node-version: 22
 
-      - name: npm link makes the dotagents command
+      - name: npm install + npm link make the dotagents command
         run: |
           echo "DOTAGENTS_STATE_DIR=$RUNNER_TEMP/agents-state" >> "$GITHUB_ENV"
+          npm install
           npm link
           dotagents --version
           dotagents skills

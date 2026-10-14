@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // `dotagents`: applies this repository's coding agent configuration. Works on Windows, Linux and
-// macOS with Node 20.12+. Make it a command with `npm link` in the clone (it also installs the two
-// dependencies, @clack/prompts and picocolors, used for the terminal output and the prompts).
+// macOS with Node 20.12+. Make it a command with `npm install && npm link` in the clone (the two
+// dependencies, @clack/prompts and picocolors, draw the terminal output and the prompts).
 
 import { spawn } from "node:child_process";
 import fs from "node:fs";
@@ -231,9 +231,15 @@ async function update() {
   if (args["no-pull"]) report("ok", repo, "--no-pull: git pull skipped");
   else if (state.dryRun) report("would update", repo, "git pull --ff-only");
   else {
+    const lockBefore = readLock();
     const pull = await runWithSpinner("Pulling the repository", "git", ["-C", repo, "pull", "--ff-only"]);
     report(pull.code === 0 ? "ok" : "failed", repo, pull.last);
     if (pull.code !== 0) return finish("Fix the repository (commit, stash or resolve) and run dotagents update again.");
+    // New dependencies from the pull: install them now, or the next run can't start.
+    if (readLock() !== lockBefore) {
+      const npm = await runWithSpinner("Installing dependencies", "npm install --no-audit --no-fund", [], { cwd: repo, shell: true });
+      report(npm.code === 0 ? "updated" : "failed", path.join(repo, "node_modules"), npm.code === 0 ? "npm install" : npm.last);
+    }
   }
 
   installGlobal(repo);
@@ -265,6 +271,14 @@ async function updateThirdParty(ws) {
   // user input.
   const res = await runWithSpinner("Updating third-party skills", "npx -y skills update -p -y", [], { cwd: ws, shell: true });
   report(res.code === 0 ? "ok" : "failed", lock, res.last);
+}
+
+function readLock() {
+  try {
+    return fs.readFileSync(path.join(repo, "package-lock.json"), "utf8");
+  } catch {
+    return "";
+  }
 }
 
 // Runs a command without blocking, so the spinner keeps turning. Returns the exit code and the
