@@ -1,6 +1,6 @@
 # The `.agents/` folder standard
 
-> **Type:** standard · **Scope:** any workspace with `AGENTS.md`, `.agents/` and `.artifacts/` at the root, applied by `agents init` from this repository · **Last verified:** 2026-10-13
+> **Type:** standard · **Scope:** any workspace with `AGENTS.md`, `.agents/` and `.artifacts/` at the root, applied by `dotagents init` from this repository · **Last verified:** 2026-10-13
 
 `.agents/` is the single source of the coding agents' configuration: Claude Code, Codex and
 OpenCode. The `.claude/`, `.codex/` and `.opencode/` folders only **adapt** that content to
@@ -89,7 +89,7 @@ subagents in 4.6%. A mechanism nobody uses is only maintenance.
 ## `skills/`
 
 - **Reusable skills live in the `dotagents` repository**, in `skills/<name>/`, and enter a
-  workspace as a `.agents/skills/<name>` link: `agents init <workspace> --skills <name>`. Each
+  workspace as a `.agents/skills/<name>` link: `dotagents init <workspace> --skills <name>`. Each
   workspace links only the ones it uses. Editing through the link edits the repository;
   commit there.
 - A skill that only makes sense in one project lives directly in the workspace's
@@ -117,7 +117,7 @@ subagents in 4.6%. A mechanism nobody uses is only maintenance.
   example).
 - A third-party skill never has the same name as a skill from the `dotagents` repository, and
   a skill from the repository is never installed with `npx skills` (that would make a copy
-  instead of a link). `agents check` catches both.
+  instead of a link). `dotagents check` catches both.
 - `skills/` holds only skill folders, no loose files.
 
 ---
@@ -130,7 +130,7 @@ Codex `.codex/rules/` holds **command execution** rules (`prefix_rule`), not tex
 split by topic, that extend the context file.
 
 - **A rule that applies everywhere does not go here.** It lives in the `dotagents`
-  repository's `rules/` and is global: `agents install` links `~/.claude/rules` to it, and the
+  repository's `rules/` and is global: `dotagents install` links `~/.claude/rules` to it, and the
   global `AGENTS.md` links it for Codex and OpenCode. Example: the commit convention.
   `.agents/rules/` only holds what is specific to this project.
 - One topic per file, in kebab-case.
@@ -222,7 +222,7 @@ standard does not define yet.
 
 ## Checklist
 
-`agents check <workspace>` runs the automatable items.
+`dotagents check <workspace>` runs the automatable items.
 
 - [ ] Every skill folder has a `SKILL.md` whose `name` matches the folder, with a
       `description` and under 500 lines.

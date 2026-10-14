@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// `agents`: applies this repository's coding agent configuration. Works on Windows, Linux and
+// `dotagents`: applies this repository's coding agent configuration. Works on Windows, Linux and
 // macOS with Node 18.17+ and no dependencies. Make it a command with `npm link` in the clone.
 
 import { spawnSync } from "node:child_process";
@@ -14,9 +14,9 @@ import { assertWorkspace, checkWorkspace, initWorkspace, repoSkills } from "./li
 const repo = path.dirname(fileURLToPath(import.meta.url));
 const version = JSON.parse(fs.readFileSync(path.join(repo, "package.json"), "utf8")).version;
 
-const HELP = `agents ${version}: coding agent configuration for Claude Code, Codex and OpenCode
+const HELP = `dotagents ${version}: coding agent configuration for Claude Code, Codex and OpenCode
 
-Usage: agents <command> [options]
+Usage: dotagents <command> [options]
 
 Commands:
   install                      apply the global configuration to this machine
@@ -51,7 +51,7 @@ if (args.version) {
   try {
     run(command);
   } catch (err) {
-    console.error(`agents: ${err.message}`);
+    console.error(`dotagents: ${err.message}`);
     process.exitCode = 1;
   }
 }
@@ -68,7 +68,7 @@ function run(cmd) {
       const skills = args.skills ?? [];
       initWorkspace(repo, ws, skills);
       registerWorkspace(ws, skills);
-      return finish(`To check later: agents check "${ws}"`);
+      return finish(`To check later: dotagents check "${ws}"`);
     }
 
     case "check":
@@ -85,7 +85,7 @@ function run(cmd) {
 
     case "workspaces": {
       const all = loadWorkspaces();
-      if (!all.length) console.log(`No workspaces yet. Set one up with: agents init <path>`);
+      if (!all.length) console.log(`No workspaces yet. Set one up with: dotagents init <path>`);
       for (const w of all) {
         const missing = fs.existsSync(w.path) ? "" : "  (missing)";
         console.log(`${w.path}${missing}\n  skills: ${w.skills.join(", ") || "-"}`);
@@ -95,12 +95,12 @@ function run(cmd) {
     }
 
     case "forget":
-      if (!target) throw new Error("Usage: agents forget <path>");
+      if (!target) throw new Error("Usage: dotagents forget <path>");
       console.log(forgetWorkspace(ws) ? `Forgot ${ws}` : `${ws} was not in the list`);
       return;
 
     default:
-      throw new Error(`Unknown command '${cmd}'. Run: agents --help`);
+      throw new Error(`Unknown command '${cmd}'. Run: dotagents --help`);
   }
 }
 
@@ -112,7 +112,7 @@ function update() {
     const pull = spawnSync("git", ["-C", repo, "pull", "--ff-only"], { encoding: "utf8" });
     const out = `${pull.stdout ?? ""}${pull.stderr ?? ""}`.trim().split("\n").pop();
     report(pull.status === 0 ? "ok" : "failed", repo, out);
-    if (pull.status !== 0) return finish("Fix the repository (commit, stash or resolve) and run agents update again.");
+    if (pull.status !== 0) return finish("Fix the repository (commit, stash or resolve) and run dotagents update again.");
   }
 
   installGlobal(repo);
@@ -121,7 +121,7 @@ function update() {
     for (const w of loadWorkspaces()) {
       if (!fs.existsSync(w.path)) {
         section(`Workspace ${w.path}`);
-        report("skipped", w.path, "folder not found; remove it with: agents forget");
+        report("skipped", w.path, "folder not found; remove it with: dotagents forget");
         continue;
       }
       initWorkspace(repo, w.path, w.skills);

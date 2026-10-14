@@ -1,6 +1,6 @@
 # The `.artifacts/` folder standard
 
-> **Type:** standard · **Scope:** any workspace with `AGENTS.md`, `.agents/` and `.artifacts/` at the root, applied by `agents init` from this repository · **Last verified:** 2026-10-14
+> **Type:** standard · **Scope:** any workspace with `AGENTS.md`, `.agents/` and `.artifacts/` at the root, applied by `dotagents init` from this repository · **Last verified:** 2026-10-14
 
 `.artifacts/` holds the documentation that agents and people write about the project:
 architecture, research, decisions, session transcripts. Agent configuration does not live
@@ -60,7 +60,7 @@ every session.
 
 - Plans written before implementing something: the plan mode output, or a plan the user
   asks for.
-- **Claude Code** writes its plan-mode plans here on its own: `agents init` sets
+- **Claude Code** writes its plan-mode plans here on its own: `dotagents init` sets
   `"plansDirectory": ".artifacts/plans"` in the workspace's `.claude/settings.json`. The
   file names are the ones Claude Code generates.
 - **Codex and OpenCode** don't save plans to files by themselves. When asked for a plan, the
@@ -92,7 +92,7 @@ These keep the documents useful to the agents. They are advice, not checks.
 
 ## Checklist
 
-`agents check <workspace>` runs the automatable items.
+`dotagents check <workspace>` runs the automatable items.
 
 - [ ] `.artifacts/session-archives/` and `.artifacts/plans/` exist.
 - [ ] `.claude/settings.json` sets `plansDirectory` to `.artifacts/plans`.
