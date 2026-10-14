@@ -65,9 +65,9 @@ jobs:
           dotagents update --all --no-pull --dry-run
           dotagents update --all --no-pull
 
-      - name: dotagents workspaces rm removes a workspace from the list only
+      - name: dotagents untrack stops tracking a workspace without touching its files
         run: |
           ws="$RUNNER_TEMP/ws"
-          dotagents workspaces rm "$ws"
+          dotagents untrack "$ws"
           ! dotagents workspaces | grep -F "$(basename "$ws")"
           test -f "$ws/AGENTS.md"
