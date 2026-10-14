@@ -8,7 +8,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { finish, parseArgs, report, section, state } from "./lib/common.mjs";
 import { installGlobal } from "./lib/global.mjs";
-import { removeWorkspace, loadWorkspaces, registerWorkspace, registryFile } from "./lib/registry.mjs";
+import { untrackWorkspace, loadWorkspaces, registerWorkspace, registryFile } from "./lib/registry.mjs";
 import { assertWorkspace, checkWorkspace, initWorkspace, repoSkills } from "./lib/workspace.mjs";
 
 const repo = path.dirname(fileURLToPath(import.meta.url));
@@ -28,7 +28,8 @@ Commands:
                                third-party skills (npx skills update)
   skills                       list the skills in this repository
   workspaces                   list the workspaces set up with init on this machine
-  workspaces rm <path>         remove a workspace from that list (files are not touched)
+  untrack <path>               stop tracking a workspace: remove it from that list; its
+                               files are not touched
 
 Options:
   --dry-run   show what would be done, change nothing
@@ -83,16 +84,19 @@ function run(cmd) {
       for (const name of repoSkills(repo)) console.log(`${name.padEnd(20)} ${describe(name)}`);
       return;
 
+    case "untrack": {
+      if (!target) throw new Error("Usage: dotagents untrack <path>");
+      if (state.dryRun) return console.log(`Would stop tracking ${ws} (its files would not be touched)`);
+      console.log(
+        untrackWorkspace(ws)
+          ? `Stopped tracking ${ws}. Its files were not touched; update --all will skip it.`
+          : `${ws} was not being tracked`
+      );
+      return;
+    }
+
     case "workspaces": {
-      if (target === "rm") {
-        const toRemove = args._[2];
-        if (!toRemove) throw new Error("Usage: dotagents workspaces rm <path>");
-        const resolved = path.resolve(toRemove);
-        if (state.dryRun) return console.log(`Would remove ${resolved} from the list`);
-        console.log(removeWorkspace(resolved) ? `Removed ${resolved} from the list` : `${resolved} was not in the list`);
-        return;
-      }
-      if (target) throw new Error(`Unknown subcommand 'workspaces ${target}'. Use: dotagents workspaces [rm <path>]`);
+      if (target) throw new Error(`'workspaces' takes no arguments. To stop tracking a workspace: dotagents untrack <path>`);
       const all = loadWorkspaces();
       if (!all.length) console.log(`No workspaces yet. Set one up with: dotagents init <path>`);
       for (const w of all) {
@@ -125,7 +129,7 @@ function update() {
     for (const w of loadWorkspaces()) {
       if (!fs.existsSync(w.path)) {
         section(`Workspace ${w.path}`);
-        report("skipped", w.path, "folder not found; remove it with: dotagents workspaces rm");
+        report("skipped", w.path, "folder not found; stop tracking it with: dotagents untrack");
         continue;
       }
       initWorkspace(repo, w.path, w.skills);
