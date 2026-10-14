@@ -46,7 +46,7 @@ On Linux with Node from the system package manager, `npm link` may need `sudo`. 
 | `dotagents update` | `git pull` in the clone, then `install` |
 | `dotagents update --all` | also refreshes every workspace set up with `init` and runs `npx skills update` in the ones with third-party skills |
 | `dotagents skills` | lists the skills in this repository |
-| `dotagents workspaces` / `dotagents forget <path>` | lists the workspaces set up with `init` on this machine / removes one from the list |
+| `dotagents workspaces` / `dotagents workspaces rm <path>` | lists the workspaces set up with `init` on this machine / removes one from the list (files are not touched) |
 
 Every command accepts `--dry-run`. Any file a command replaces is kept next to it as `.bak-<date>`, and running a command again only changes what is out of place.
 
