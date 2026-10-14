@@ -14,3 +14,5 @@ These apply to every coding agent (Claude Code, Codex, OpenCode). The source is 
 ## Workspaces
 
 Projects with `AGENTS.md`, `.agents/` and `.artifacts/` at the root follow the standards in `{{AGENTS_REPO}}/standards/` (`agents.md` and `artifacts.md`). Reusable skills live in `{{AGENTS_REPO}}/skills/` and enter each workspace as a link. Edit them in the repository, not through the link's copy.
+
+In those workspaces, when you write a plan before implementing something, save it in `.artifacts/plans/` as `YYYY-MM-DD-<slug>.md`, unless your tool already writes plans there on its own (Claude Code does, through `plansDirectory`).

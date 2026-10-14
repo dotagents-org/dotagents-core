@@ -121,7 +121,9 @@ cd <workspace> && npx skills experimental_install   # restore third-party skills
 - `CLAUDE.md` with `@AGENTS.md`;
 - `.agents/README.md` and `.artifacts/README.md` pointing to `standards/`;
 - one `.agents/skills/<name>` link per skill;
-- `.claude/skills` and `.claude/rules` as links to `.agents/` (relative on Linux and macOS).
+- `.claude/skills` and `.claude/rules` as links to `.agents/` (relative on Linux and macOS);
+- `.claude/settings.json` with `"plansDirectory": ".artifacts/plans"`, so Claude Code saves its plans in the workspace (only that key is added; the rest of the file is kept);
+- `.artifacts/session-archives/` and `.artifacts/plans/`, the two fixed folders.
 
 It also records the workspace and its skills in `~/.config/agents/workspaces.json`, for `agents update --all`.
 
@@ -129,6 +131,7 @@ It also records the workspace and its skills in `~/.config/agents/workspaces.jso
 
 - `AGENTS.md` size and `CLAUDE.md` first line;
 - real links, not copied folders;
+- the two fixed folders and the `plansDirectory` setting;
 - each skill's `name` matching its folder;
 - my skills linked, not copied, and not also in the lock;
 - every skill in `skills-lock.json` installed;

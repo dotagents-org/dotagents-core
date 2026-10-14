@@ -7,8 +7,8 @@ architecture, research, decisions, session transcripts. Agent configuration does
 here ([`.agents/` standard](agents.md)), and neither do code, secrets or build output.
 
 **The structure is free.** It grows with the project's needs: folders and documents appear
-when there is something to put in them, named after what they hold. The only fixed part,
-for now, is `session-archives/`.
+when there is something to put in them, named after what they hold. The only fixed parts,
+for now, are `session-archives/` and `plans/`.
 
 ---
 
@@ -32,17 +32,21 @@ every session.
 
 ---
 
-## Fixed: `session-archives/`
+## Fixed folders
 
 ```
 .artifacts/
 ├── README.md                       points to this standard in the dotagents repository
-├── session-archives/               always exists
+├── session-archives/               always exists: one transcript per session
 │   ├── YYYY-MM-DD-<session-id>.md
 │   ├── YYYY-MM-DD-<origin>-<slug>.md
 │   └── YYYY-MM-DD-<...>/           session attachments
+├── plans/                          always exists: plans written before implementing
+│   └── <name>.md
 └── …                               whatever the project needs
 ```
+
+### `session-archives/`
 
 - One transcript per session. A Claude Code session uses the session id and is produced by
   the `session-archive` skill. A session from another origin (claude.ai, Codex, OpenCode)
@@ -51,6 +55,19 @@ every session.
 - A transcript is a dated record: **immutable** once the session ends. It is a snapshot of
   that date, so check it against the code before trusting it. Corrections go to the
   document that describes the current state, not to the transcript.
+
+### `plans/`
+
+- Plans written before implementing something: the plan mode output, or a plan the user
+  asks for.
+- **Claude Code** writes its plan-mode plans here on its own: `agents init` sets
+  `"plansDirectory": ".artifacts/plans"` in the workspace's `.claude/settings.json`. The
+  file names are the ones Claude Code generates.
+- **Codex and OpenCode** don't save plans to files by themselves. When asked for a plan, the
+  global `AGENTS.md` tells them to write it here, as `YYYY-MM-DD-<slug>.md`.
+- A plan is a working document while it is being carried out, and a record once it is
+  done or dropped. It is not rewritten afterwards: what changed during the work belongs in
+  the transcript, and the current state in the documents that describe it.
 
 ---
 
@@ -77,6 +94,7 @@ These keep the documents useful to the agents. They are advice, not checks.
 
 `agents check <workspace>` runs the automatable items.
 
-- [ ] `.artifacts/session-archives/` exists.
+- [ ] `.artifacts/session-archives/` and `.artifacts/plans/` exist.
+- [ ] `.claude/settings.json` sets `plansDirectory` to `.artifacts/plans`.
 - [ ] `AGENTS.md` at most ~8 KB.
 - [ ] No transcript edited after its session.
