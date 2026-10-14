@@ -6,3 +6,4 @@ One line per document, with what it is for. A document that isn't linked here or
 |---|---|
 | [AGENTS.md](AGENTS.md) | Instructions loaded in every session |
 | [.artifacts/session-archives/](.artifacts/session-archives/) | Session transcripts, one per file |
+| [.artifacts/plans/](.artifacts/plans/) | Plans written before implementing, one per file |

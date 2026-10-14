@@ -46,6 +46,8 @@ jobs:
           ! grep -E '^(created|updated|skipped|failed)' second.txt
           agents check "$ws"
           test -f "$ws/.agents/skills/obsidian-docs/SKILL.md"
+          test -d "$ws/.artifacts/plans"
+          grep -F '"plansDirectory": ".artifacts/plans"' "$ws/.claude/settings.json"
           agents workspaces | grep -F "ws"
 
       - name: third-party skills from npx skills live next to the linked ones
