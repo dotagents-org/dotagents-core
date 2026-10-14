@@ -64,3 +64,10 @@ jobs:
         run: |
           dotagents update --all --no-pull --dry-run
           dotagents update --all --no-pull
+
+      - name: dotagents workspaces rm removes a workspace from the list only
+        run: |
+          ws="$RUNNER_TEMP/ws"
+          dotagents workspaces rm "$ws"
+          ! dotagents workspaces | grep -F "$(basename "$ws")"
+          test -f "$ws/AGENTS.md"
