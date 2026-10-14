@@ -9,6 +9,24 @@ Project documentation does not live here: it follows the [`.artifacts/` standard
 
 ---
 
+## Never in the projects' git
+
+The agent configuration is personal: it never goes into a project's repository. That covers
+`AGENTS.md`, `CLAUDE.md`, `INDEX.md`, `skills-lock.json`, `opencode.json`, `.agents/`,
+`.artifacts/`, `.claude/`, `.codex/` and `.opencode/` at the workspace root.
+
+- When the workspace is inside a git repository, `dotagents init` lists those paths in the
+  repository's `.git/info/exclude`. Git ignores them as it would with `.gitignore`, but the
+  exclude file is local and never committed, so the project carries no trace of them, not
+  even an ignore rule.
+- Don't add them to the project's `.gitignore`: that file is committed.
+- `dotagents check` fails when one of them is already tracked. Remove it from the index with
+  `git rm -r --cached <path>` (the file stays on disk). dotagents never does it on its own.
+- What is worth keeping lives in the dotagents repository (skills, rules, standards). The
+  workspace's own `.agents/` and `.artifacts/` stay local.
+
+---
+
 ## Basis
 
 GALSTER, M. et al. *Configuring agentic AI coding tools: an exploratory study*. AIware '26,
@@ -212,9 +230,9 @@ standard does not define yet.
 
 ## Limits
 
-- When the workspace root is not a git repository, as in the `modulo-simulacao-bio-lab`
-  workspace, nothing here is versioned or reaches whoever clones one of the repositories.
-  The paper only studied configuration versioned inside the repository.
+- Nothing in a workspace's `.agents/` or `.artifacts/` is versioned or reaches whoever clones
+  one of the repositories, by choice (see "Never in the projects' git"). The paper only
+  studied configuration versioned inside the repository, the opposite choice.
 - The tools change fast. When you update one of them, check the mechanism table and update
   the "Last verified" date.
 
@@ -232,3 +250,4 @@ standard does not define yet.
 - [ ] `.agents/commands/`, `.agents/.agents/` and `.codex/skills/` don't exist.
 - [ ] `.codex/rules/` has nothing that came from `.agents/rules/`.
 - [ ] `CLAUDE.md` starts with `@AGENTS.md` and doesn't repeat what is in it.
+- [ ] No agent file is tracked by the project's git, and git doesn't see new ones.

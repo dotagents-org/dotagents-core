@@ -122,6 +122,7 @@ cd <workspace> && npx skills experimental_install   # restore third-party skills
 
 `dotagents init` creates only what is missing and never overwrites your content:
 
+- when the workspace is inside a git repository, an entry in its `.git/info/exclude` that keeps every agent file out of git. The exclude file is local and never committed, so the project gets no trace of the configuration, not even a `.gitignore` rule;
 - `AGENTS.md` and `INDEX.md` from the templates;
 - `CLAUDE.md` with `@AGENTS.md`;
 - `.agents/README.md` and `.artifacts/README.md` pointing to `standards/`;
@@ -136,6 +137,7 @@ It also records the workspace and its skills in `~/.config/dotagents/workspaces.
 
 - `AGENTS.md` size and `CLAUDE.md` first line;
 - real links, not copied folders;
+- no agent file tracked by the project's git, and none visible to it as new;
 - the two fixed folders and the `plansDirectory` setting;
 - each skill's `name` matching its folder;
 - my skills linked, not copied, and not also in the lock;
