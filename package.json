@@ -1,0 +1,14 @@
+{
+  "name": "agents-config",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Coding agent configuration for Claude Code, Codex and OpenCode: global instructions, rules, skills and workspace standards.",
+  "type": "module",
+  "bin": {
+    "agents": "cli.mjs"
+  },
+  "engines": {
+    "node": ">=18.17"
+  },
+  "license": "UNLICENSED"
+}

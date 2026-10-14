@@ -2,9 +2,9 @@ name: Test scripts
 
 on:
   push:
-    paths: ["*.mjs", "lib/**", "templates/**", "env/**", "AGENTS.md", ".github/workflows/test-scripts.yml"]
+    paths: ["cli.mjs", "package.json", "lib/**", "templates/**", "env/**", "AGENTS.md", ".github/workflows/test-scripts.yml"]
   pull_request:
-    paths: ["*.mjs", "lib/**", "templates/**", "env/**", "AGENTS.md", ".github/workflows/test-scripts.yml"]
+    paths: ["cli.mjs", "package.json", "lib/**", "templates/**", "env/**", "AGENTS.md", ".github/workflows/test-scripts.yml"]
 
 jobs:
   test:
@@ -16,26 +16,50 @@ jobs:
     defaults:
       run:
         shell: bash
+    env:
+      AGENTS_STATE_DIR: ${{ runner.temp }}/agents-state
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 22
 
-      - name: install.mjs is idempotent
+      - name: npm link makes the agents command
         run: |
-          node install.mjs --dry-run
-          node install.mjs
-          node install.mjs | tee second.txt
+          npm link
+          agents --version
+          agents skills
+
+      - name: agents install is idempotent
+        run: |
+          agents install --dry-run
+          agents install
+          agents install | tee second.txt
           ! grep -E '^(created|updated|skipped|failed)' second.txt
           ! grep -F '{{AGENTS_REPO}}' ~/.claude/CLAUDE.md
 
-      - name: init-workspace.mjs creates a workspace that passes the checklist
+      - name: agents init creates a workspace that passes the checklist
         run: |
           ws="$RUNNER_TEMP/ws"
           mkdir -p "$ws"
-          node init-workspace.mjs "$ws" --skills obsidian-docs,session-archive
-          node init-workspace.mjs "$ws" --skills obsidian-docs,session-archive | tee second.txt
+          agents init "$ws" --skills obsidian-docs,session-archive
+          agents init "$ws" --skills obsidian-docs,session-archive | tee second.txt
           ! grep -E '^(created|updated|skipped|failed)' second.txt
-          node init-workspace.mjs "$ws" --check
+          agents check "$ws"
           test -f "$ws/.agents/skills/obsidian-docs/SKILL.md"
+          agents workspaces | grep -F "ws"
+
+      - name: third-party skills from npx skills live next to the linked ones
+        run: |
+          ws="$RUNNER_TEMP/ws"
+          (cd "$ws" && npx -y skills add blader/humanizer -y -a claude-code codex opencode)
+          agents check "$ws"
+          rm -rf "$ws/.agents/skills/humanizer"
+          ! agents check "$ws"
+          (cd "$ws" && npx -y skills experimental_install -y)
+          agents check "$ws"
+
+      - name: agents update --all refreshes registered workspaces
+        run: |
+          agents update --all --no-pull --dry-run
+          agents update --all --no-pull
