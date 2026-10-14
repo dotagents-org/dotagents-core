@@ -1,6 +1,6 @@
 # Global instructions
 
-These apply to every coding agent (Claude Code, Codex, OpenCode). The source is the `AGENTS.md` in the `gabrieldulolmarques/agents` repository, cloned at `{{AGENTS_REPO}}`. Edit it there and run `node install.mjs` again, not in the copies.
+These apply to every coding agent (Claude Code, Codex, OpenCode). The source is the `AGENTS.md` in the `gabrieldulolmarques/agents` repository, cloned at `{{AGENTS_REPO}}`. Edit it there and run `agents install` again, not in the copies.
 
 ## Communication
 

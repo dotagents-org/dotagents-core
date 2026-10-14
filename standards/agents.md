@@ -1,6 +1,6 @@
 # The `.agents/` folder standard
 
-> **Type:** standard · **Scope:** any workspace with `AGENTS.md`, `.agents/` and `.artifacts/` at the root, applied by this repository's `init-workspace.mjs` · **Last verified:** 2026-10-13
+> **Type:** standard · **Scope:** any workspace with `AGENTS.md`, `.agents/` and `.artifacts/` at the root, applied by `agents init` from this repository · **Last verified:** 2026-10-13
 
 `.agents/` is the single source of the coding agents' configuration: Claude Code, Codex and
 OpenCode. The `.claude/`, `.codex/` and `.opencode/` folders only **adapt** that content to
@@ -89,12 +89,12 @@ subagents in 4.6%. A mechanism nobody uses is only maintenance.
 ## `skills/`
 
 - **Reusable skills live in the `agents` repository**, in `skills/<name>/`, and enter a
-  workspace as a `.agents/skills/<name>` link: `node init-workspace.mjs <workspace> --skills <name>`. Each
-  workspace links only the ones it uses. Editing through the junction edits the
-  repository; commit there.
+  workspace as a `.agents/skills/<name>` link: `agents init <workspace> --skills <name>`. Each
+  workspace links only the ones it uses. Editing through the link edits the repository;
+  commit there.
 - A skill that only makes sense in one project lives directly in the workspace's
   `.agents/skills/<name>/`. If it becomes useful elsewhere, move it to the repository and
-  replace it with a junction.
+  replace it with a link.
 - One folder per skill, named like its `name` field, in kebab-case.
 - `SKILL.md` with `name` and `description` in the frontmatter, the two fields the Agent
   Skills standard requires. The `description` says **what the skill does and when to use
@@ -109,9 +109,15 @@ subagents in 4.6%. A mechanism nobody uses is only maintenance.
   instead of one skill per item.
 - A skill's script has its run command stated in `SKILL.md`. Don't count on `python` or
   `node` being on the PATH.
-- Third-party skills are installed from the workspace root, never from inside `.agents/`,
-  or the installer creates `.agents/.agents/`. They are recorded in `skills-lock.json` and
-  never edited by hand: the next update undoes the edit.
+- Third-party skills are installed with `npx skills add <owner/repo>` from the workspace
+  root, never from inside `.agents/`, or the installer creates `.agents/.agents/`. They are
+  copied into `.agents/skills/`, recorded in `skills-lock.json` and never edited by hand:
+  the next update undoes the edit. `npx skills update -p` updates them, and
+  `npx skills experimental_install` restores them from the lock (after a fresh clone, for
+  example).
+- A third-party skill never has the same name as a skill from the `agents` repository, and
+  a skill from the repository is never installed with `npx skills` (that would make a copy
+  instead of a link). `agents check` catches both.
 - `skills/` holds only skill folders, no loose files.
 
 ---
@@ -124,7 +130,7 @@ Codex `.codex/rules/` holds **command execution** rules (`prefix_rule`), not tex
 split by topic, that extend the context file.
 
 - **A rule that applies everywhere does not go here.** It lives in the `agents`
-  repository's `rules/` and is global: `install.mjs` links `~/.claude/rules` to it, and the
+  repository's `rules/` and is global: `agents install` links `~/.claude/rules` to it, and the
   global `AGENTS.md` links it for Codex and OpenCode. Example: the commit convention.
   `.agents/rules/` only holds what is specific to this project.
 - One topic per file, in kebab-case.
@@ -216,7 +222,7 @@ standard does not define yet.
 
 ## Checklist
 
-`node init-workspace.mjs <workspace> --check` runs the automatable items.
+`agents check <workspace>` runs the automatable items.
 
 - [ ] Every skill folder has a `SKILL.md` whose `name` matches the folder, with a
       `description` and under 500 lines.

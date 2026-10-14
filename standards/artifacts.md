@@ -1,6 +1,6 @@
 # The `.artifacts/` folder standard
 
-> **Type:** standard · **Scope:** any workspace with `AGENTS.md`, `.agents/` and `.artifacts/` at the root, applied by this repository's `init-workspace.mjs` · **Last verified:** 2026-10-13
+> **Type:** standard · **Scope:** any workspace with `AGENTS.md`, `.agents/` and `.artifacts/` at the root, applied by `agents init` from this repository · **Last verified:** 2026-10-13
 
 `.artifacts/` holds the documentation that agents and people write about the project:
 architecture, pending issues, research and session transcripts. Agent configuration does
@@ -114,7 +114,7 @@ summary swaps the last two fields for ones that make sense for it, for example
 
 ## Checklist
 
-`node init-workspace.mjs <workspace> --check` runs the automatable items.
+`agents check <workspace>` runs the automatable items.
 
 - [ ] `AGENTS.md` at most ~8 KB and without dated notes.
 - [ ] Every living reference is linked from `INDEX.md`, directly or through its folder.
