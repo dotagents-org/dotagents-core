@@ -54,7 +54,7 @@ whole in every session.
 
 ```
 .artifacts/
-├── README.md                       points to this standard in the agents repository
+├── README.md                       points to this standard in the dotagents repository
 ├── coding/                         always exists: code and project
 │   ├── pending.md                  always exists: everything diagnosed and not fixed
 │   └── <slug>.md

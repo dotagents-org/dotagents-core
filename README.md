@@ -1,4 +1,4 @@
-# agents
+# dotagents
 
 My coding agent configuration (Claude Code, Codex and OpenCode) in one place: global instructions and rules, skills, the `.agents/` and `.artifacts/` folder standards, and the `agents` command that applies all of it to a machine and to each workspace. Works on Windows, Linux and macOS.
 
@@ -26,8 +26,8 @@ The command only needs Node 18.17+, with no dependencies.
 ## Setup (once per machine)
 
 ```bash
-git clone git@github.com:gabrieldulolmarques/agents.git
-cd agents
+git clone git@github.com:gabrieldulolmarques/dotagents.git
+cd dotagents
 npm link          # makes the `agents` command point to this clone
 agents install    # global instructions, rules and settings
 ```
@@ -95,7 +95,7 @@ agents update --all
 
 **New machine**
 ```bash
-git clone git@github.com:gabrieldulolmarques/agents.git && cd agents && npm link && agents install
+git clone git@github.com:gabrieldulolmarques/dotagents.git && cd dotagents && npm link && agents install
 agents init <workspace> --skills ...         # links don't travel with the files
 cd <workspace> && npx skills experimental_install   # restore third-party skills from the lock
 ```

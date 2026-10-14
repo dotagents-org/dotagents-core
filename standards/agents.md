@@ -64,9 +64,9 @@ machine goes in the tool's local scope, not in the project file.
 ├── INDEX.md                     map of the documents (.artifacts/ standard)
 ├── opencode.json                only if you use OpenCode: instructions, mcp, permissions
 ├── .agents/
-│   ├── README.md                points to this standard in the agents repository
+│   ├── README.md                points to this standard in the dotagents repository
 │   ├── rules/<topic>.md         only this project's rules
-│   ├── skills/<name>            junction to agents/skills/<name>, or a project skill
+│   ├── skills/<name>            link to dotagents/skills/<name>, or a project skill
 │   ├── agents/<name>.md         only once there is a first subagent
 │   └── hooks/<script>           only once there is a first hook
 ├── .claude/
@@ -88,7 +88,7 @@ subagents in 4.6%. A mechanism nobody uses is only maintenance.
 
 ## `skills/`
 
-- **Reusable skills live in the `agents` repository**, in `skills/<name>/`, and enter a
+- **Reusable skills live in the `dotagents` repository**, in `skills/<name>/`, and enter a
   workspace as a `.agents/skills/<name>` link: `agents init <workspace> --skills <name>`. Each
   workspace links only the ones it uses. Editing through the link edits the repository;
   commit there.
@@ -115,7 +115,7 @@ subagents in 4.6%. A mechanism nobody uses is only maintenance.
   the next update undoes the edit. `npx skills update -p` updates them, and
   `npx skills experimental_install` restores them from the lock (after a fresh clone, for
   example).
-- A third-party skill never has the same name as a skill from the `agents` repository, and
+- A third-party skill never has the same name as a skill from the `dotagents` repository, and
   a skill from the repository is never installed with `npx skills` (that would make a copy
   instead of a link). `agents check` catches both.
 - `skills/` holds only skill folders, no loose files.
@@ -129,7 +129,7 @@ Codex `.codex/rules/` holds **command execution** rules (`prefix_rule`), not tex
 `.agents/rules/` follows Claude Code's meaning (`.claude/rules/`): Markdown instructions,
 split by topic, that extend the context file.
 
-- **A rule that applies everywhere does not go here.** It lives in the `agents`
+- **A rule that applies everywhere does not go here.** It lives in the `dotagents`
   repository's `rules/` and is global: `agents install` links `~/.claude/rules` to it, and the
   global `AGENTS.md` links it for Codex and OpenCode. Example: the commit convention.
   `.agents/rules/` only holds what is specific to this project.
