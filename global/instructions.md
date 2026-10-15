@@ -1,6 +1,6 @@
 # Global instructions
 
-These apply to every coding agent (Claude Code, Codex, OpenCode). The source is `global/instructions.md` in the `gabrieldulolmarques/dotagents` repository, cloned at `{{AGENTS_REPO}}`. Edit it there and run `dotagents install` again, not in the copies.
+These apply to every coding agent (Claude Code, Codex, OpenCode). The source is `global/instructions.md` in the dotagents repository, cloned at `{{AGENTS_REPO}}`. Edit it there and run `dotagents install` again, not in the copies.
 
 ## Communication
 

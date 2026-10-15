@@ -168,7 +168,7 @@ async function newWorkspace() {
   const name = path.basename(url.replace(/[\\/]+$/, "")).replace(/\.git$/, "").split(":").pop();
   if (!name) throw new Error(`Can't tell the repository name from '${url}'`);
 
-  // The workspace folder can have any name (my-project, my-org-workspace…); <name>-workspace is
+  // The workspace folder can have any name (acme-platform, thesis…); <name>-workspace is
   // only the default. In a terminal, without a folder argument, ask for it.
   let folder = args._[2];
   const asked = folder === undefined && interactive && !args.yes;
