@@ -49,7 +49,7 @@ On Linux with Node from the system package manager, `npm link` may need `sudo`. 
 | `dotagents update` | `git pull` in the clone, then `install` |
 | `dotagents update --all` | also refreshes every workspace set up with `init` and runs `npx skills update` in the ones with third-party skills |
 | `dotagents skills` | lists my skills and the registered third-party ones |
-| `dotagents skills add <source> [--skills a,b]` | registers third-party skills in `third-party-skills.json` (source: `owner/repo`, a git URL or a path) |
+| `dotagents skills add <source> [--skills a,b | --all]` | registers third-party skills in `third-party-skills.json` (source: `owner/repo`, a git URL or a path) |
 | `dotagents skills remove <name>` | unregisters a third-party skill (workspaces that installed it keep it) |
 | `dotagents workspaces` | lists the workspaces set up with `init` on this machine |
 | `dotagents untrack <path>` | stops tracking a workspace: removes it from that list, so `update --all` skips it. Its files are not touched |
