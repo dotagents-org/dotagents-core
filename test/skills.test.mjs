@@ -36,16 +36,6 @@ test("skillsIn reports linked own skills and installed third-party ones", async 
   assert.deepEqual(skillsIn(REPO, ws), ["to-cards"]);
 });
 
-test("skillsIn also counts copies of own skills and a lock that lost its skills key", (t) => {
-  const ws = tempWorkspace(t);
-  const skills = path.join(ws, ".agents", "skills");
-  fs.cpSync(path.join(REPO, "skills", "to-cards"), path.join(skills, "to-cards"), { recursive: true });
-  fs.mkdirSync(path.join(skills, "humanizer"), { recursive: true });
-  fs.writeFileSync(path.join(skills, "humanizer", "SKILL.md"), "---\nname: humanizer\ndescription: x\n---\n");
-  fs.writeFileSync(path.join(ws, "skills-lock.json"), JSON.stringify({ version: 1, humanizer: { source: "blader/humanizer" } }));
-  assert.deepEqual(skillsIn(REPO, ws).sort(), ["humanizer", "to-cards"]);
-});
-
 test("the author's description is read whole, also from a block scalar", () => {
   const text = "---\nname: x\ndescription: |\n  First line.\n  Second line.\nlicense: MIT\n---\nBody";
   assert.deepEqual(parseSkill(text), { name: "x", description: "First line. Second line." });

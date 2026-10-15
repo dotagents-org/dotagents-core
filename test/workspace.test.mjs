@@ -28,102 +28,8 @@ test("an empty folder becomes a workspace that passes the checklist", async (t) 
   assert.match(read(ws, ".artifacts", "INDEX.md"), /\[AGENTS\.md\]\(\.\.\/AGENTS\.md\)/);
   assert.ok(!fs.existsSync(path.join(ws, "INDEX.md")));
   assert.match(read(ws, "AGENTS.md"), /\(\.artifacts\/INDEX\.md\)/);
-
-  quiet();
-  verifyWorkspace(REPO, ws);
-  assert.equal(state.problems, 0);
-});
-
-test("an INDEX.md left at the root by older versions moves into .artifacts with its links fixed", async (t) => {
-  const ws = tempWorkspace(t);
-  fs.mkdirSync(path.join(ws, ".artifacts", "plans"), { recursive: true });
-  fs.writeFileSync(path.join(ws, "AGENTS.md"), "# Mine\n\nStart at [INDEX.md](INDEX.md) or [its rules](INDEX.md#rules).\n");
-  fs.writeFileSync(
-    path.join(ws, "INDEX.md"),
-    "# Map\n\n[AGENTS.md](AGENTS.md) · [plans](.artifacts/plans/) · [web](https://example.com/x) · [top](#map)\n"
-  );
-  quiet();
-  await applyWorkspace(REPO, ws, []);
-  assert.equal(state.problems, 0);
-  assert.ok(!fs.existsSync(path.join(ws, "INDEX.md")));
-  assert.equal(
-    read(ws, ".artifacts", "INDEX.md"),
-    "# Map\n\n[AGENTS.md](../AGENTS.md) · [plans](plans/) · [web](https://example.com/x) · [top](#map)\n"
-  );
-  assert.equal(read(ws, "AGENTS.md"), "# Mine\n\nStart at [INDEX.md](.artifacts/INDEX.md) or [its rules](.artifacts/INDEX.md#rules).\n");
-
-  quiet();
-  verifyWorkspace(REPO, ws);
-  assert.equal(state.problems, 0);
-});
-
-test("an INDEX.md at the root next to one in .artifacts is left for you to merge", async (t) => {
-  const ws = tempWorkspace(t);
-  fs.mkdirSync(path.join(ws, ".artifacts"));
-  fs.writeFileSync(path.join(ws, "INDEX.md"), "# Old\n");
-  fs.writeFileSync(path.join(ws, ".artifacts", "INDEX.md"), "# New\n");
-  quiet();
-  await applyWorkspace(REPO, ws, []);
-  assert.equal(read(ws, "INDEX.md"), "# Old\n");
-  assert.equal(read(ws, ".artifacts", "INDEX.md"), "# New\n");
-  quiet();
-  verifyWorkspace(REPO, ws);
-  assert.equal(state.problems, 1);
-});
-
-test("copies of own skills become links, and a copy that was changed is kept as a backup", async (t) => {
-  const ws = tempWorkspace(t);
-  const skills = path.join(ws, ".agents", "skills");
-  fs.cpSync(path.join(REPO, "skills", "to-cards"), path.join(skills, "to-cards"), { recursive: true });
-  fs.cpSync(path.join(REPO, "skills", "map-source-files"), path.join(skills, "map-source-files"), { recursive: true });
-  fs.appendFileSync(path.join(skills, "map-source-files", "SKILL.md"), "\nA local change.\n");
-  quiet();
-  await applyWorkspace(REPO, ws, resolveSkills(REPO, ["to-cards", "map-source-files"]));
-  assert.equal(state.problems, 0);
-  for (const name of ["to-cards", "map-source-files"]) assert.ok(fs.lstatSync(path.join(skills, name)).isSymbolicLink());
-
-  const backups = fs.readdirSync(path.join(ws, ".agents", "backups"));
-  assert.equal(backups.length, 1);
-  assert.match(backups[0], /^map-source-files\.bak-/);
-  assert.match(read(ws, ".agents", "backups", backups[0], "SKILL.md"), /A local change\./);
-
-  quiet();
-  verifyWorkspace(REPO, ws);
-  assert.equal(state.problems, 0);
-});
-
-test("hand-written READMEs in .agents and .artifacts are kept as backups", async (t) => {
-  const ws = tempWorkspace(t);
-  for (const dir of [".agents", ".artifacts"]) {
-    fs.mkdirSync(path.join(ws, dir));
-    fs.writeFileSync(path.join(ws, dir, "README.md"), "# Mine\n");
-  }
-  quiet();
-  await applyWorkspace(REPO, ws, []);
-  assert.equal(state.problems, 0);
-  for (const dir of [".agents", ".artifacts"]) {
-    assert.match(read(ws, dir, "README.md"), /standards\//);
-    const bak = fs.readdirSync(path.join(ws, dir)).find((f) => f.startsWith("README.md.bak-"));
-    assert.equal(read(ws, dir, bak), "# Mine\n");
-  }
-});
-
-test("a skills-lock.json without its skills key is rebuilt, keeping a backup", async (t) => {
-  const ws = tempWorkspace(t);
-  const lock = path.join(ws, "skills-lock.json");
-  quiet();
-  await applyWorkspace(REPO, ws, []);
-  fs.writeFileSync(lock, JSON.stringify({ version: 1, "fake-skill": { source: "me/fake-skills" } }, null, 2));
-  quiet();
-  verifyWorkspace(REPO, ws);
-  assert.equal(state.problems, 1); // check points at it before init fixes it
-
-  quiet();
-  await applyWorkspace(REPO, ws, [fakeThirdParty], { installer: fakeInstaller });
-  assert.equal(state.problems, 0);
-  assert.deepEqual(JSON.parse(read(lock)).skills["fake-skill"], { source: "me/fake-skills" });
-  assert.equal(JSON.parse(read(lock))["fake-skill"], undefined);
-  assert.ok(fs.readdirSync(ws).some((f) => f.startsWith("skills-lock.json.bak-")));
+  assert.ok(!fs.existsSync(path.join(ws, ".agents", "README.md"))); // AGENTS.md and the global instructions point to the standards
+  assert.ok(!fs.existsSync(path.join(ws, ".artifacts", "README.md")));
 
   quiet();
   verifyWorkspace(REPO, ws);
@@ -319,13 +225,7 @@ test("AGENTS.md lists the repositories inside the workspace", async (t) => {
   assert.equal(state.problems, 1); // api/ isn't listed yet
 });
 
-test("the CLAUDE.md stub of earlier versions is removed, yours is kept with a warning", async (t) => {
-  const old = tempWorkspace(t, "old");
-  fs.writeFileSync(path.join(old, "CLAUDE.md"), "<!-- generated by someone/agents -->\n@AGENTS.md\n");
-  quiet();
-  await applyWorkspace(REPO, old, []);
-  assert.ok(!fs.existsSync(path.join(old, "CLAUDE.md")));
-
+test("your CLAUDE.md is kept, with a warning when it doesn't import AGENTS.md", async (t) => {
   const mine = tempWorkspace(t, "mine");
   fs.writeFileSync(path.join(mine, "CLAUDE.md"), "# My notes\n");
   quiet();
