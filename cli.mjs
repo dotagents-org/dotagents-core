@@ -3,6 +3,7 @@
 // macOS with Node 20.12+. Make it a command with `npm install && npm link` in the clone (the two
 // dependencies, @clack/prompts and picocolors, draw the terminal output and the prompts).
 
+import { spawn, spawnSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -13,7 +14,8 @@ import { installGlobal } from "./lib/global.mjs";
 import { loadWorkspaces, registerWorkspace, registryFile, untrackWorkspace } from "./lib/registry.mjs";
 import { listSkills, resolveSkills, skillsIn } from "./lib/skills.mjs";
 import { SAFE_NAME, SAFE_SOURCE, catalogFile, discoverSkills, loadCatalog, saveCatalog } from "./lib/thirdparty.mjs";
-import { applyWorkspace, assertWorkspace, verifyWorkspace } from "./lib/workspace.mjs";
+import { gitRepoOf, isRepoRoot } from "./lib/git.mjs";
+import { applyWorkspace, assertWorkspace, listRepoInAgentsMd, verifyWorkspace, wrapRepository } from "./lib/workspace.mjs";
 
 const repo = path.dirname(fileURLToPath(import.meta.url));
 const version = JSON.parse(fs.readFileSync(path.join(repo, "package.json"), "utf8")).version;
@@ -47,7 +49,9 @@ ${cmd("new", "<git-url> [folder]", "create a workspace folder and clone the repo
   "adds one more repository",
 ])}
 ${cmd("init", "[path] [--skills a,b]", "apply the standards and link skills", [
-  "in a terminal, without --skills, asks which skills to link",
+  "in a terminal, without --skills, asks which skills to link;",
+  "on a git repository, offers to move it into <name>-workspace/",
+  "(--wrap does it without asking)",
 ])}
 ${cmd("check", "[path]", "run the checklist, change nothing")}
 ${cmd("workspaces", "", "list the workspaces tracked on this machine")}
@@ -65,6 +69,7 @@ ${cmd("skills remove", "<name>", "unregister a third-party skill")}
 ${title("Options")}
   ${cyan("--dry-run")}    show what would be done, change nothing
   ${cyan("--yes")}        (init) don't ask anything
+  ${cyan("--wrap")}       (init) move a repository into <name>-workspace/ first
   ${cyan("--no-pull")}    (update) skip git pull, only reapply
   ${cyan("--help")}       show this help
   ${cyan("--version")}    show the version
@@ -81,7 +86,7 @@ ${dim("Third-party skills:")} npx skills add <owner/repo> ${dim("(at the workspa
 }
 
 const args = parseArgs(process.argv.slice(2), {
-  booleans: ["all", "dry-run", "help", "no-pull", "version", "yes"],
+  booleans: ["all", "dry-run", "help", "no-pull", "version", "wrap", "yes"],
   lists: ["skills"],
 });
 const [command, target] = args._;
@@ -211,39 +216,47 @@ async function newWorkspace() {
   return init(ws, { opened: true });
 }
 
-// Adds the new repository to the "## Repositories" section of an existing AGENTS.md. Only that
-// section is touched, and only when it exists; a new AGENTS.md gets the list from the template.
-function listRepoInAgentsMd(ws, name, url) {
-  const file = path.join(ws, "AGENTS.md");
-  if (!fs.existsSync(file)) return;
-  const text = fs.readFileSync(file, "utf8");
-  const match = text.match(/^## Repositories[^\n]*\n([\s\S]*?)(?=^## |(?![\s\S]))/m);
-  if (!match || match[1].includes(`\`${name}/\``)) return;
-  const entry = `- \`${name}/\`: ${url}`;
-  let body = match[1].replace(/^<No repository yet[^\n]*>\n?/m, "").replace(/\s*$/, "");
-  body = `${body}\n${/^- `/m.test(body) ? "" : "\n"}${entry}\n\n`;
-  fs.writeFileSync(file, text.replace(match[1], body));
-  report("updated", file, `listed ${name}/ under Repositories`);
-}
-
 // ── init ──────────────────────────────────────────────────────────────────────────────────────
 
 // opened: a command (new) already printed its header, so neither the questions nor init open
 // the rail again.
 async function init(ws, { opened = false } = {}) {
   let skills = args.skills;
+  // A repository to move into <name>-workspace/ first: asked in a terminal, --wrap otherwise.
+  let wrapFrom = args.wrap ? ws : null;
   // In a terminal, without --skills or --yes, ask instead of guessing. The questions open the
   // rail themselves, so the header is printed only when there were none.
   const asked = interactive && !args.yes && skills === undefined;
-  if (asked) ({ ws, skills } = await askInit(ws, { opened }));
-  assertWorkspace(repo, ws);
+  if (asked) ({ ws, skills, wrapFrom } = await askInit(ws, { opened }));
+  else if (wrapFrom) ws = `${wrapFrom}-workspace`;
   if (!asked && !opened) header("init", ws);
+  if (wrapFrom) {
+    assertWorkspace(repo, wrapFrom);
+    wrapRepository(wrapFrom, ws);
+    if (state.dryRun) return finish(`Then the standards are applied to "${displayPath(ws)}"`);
+    untrackWorkspace(wrapFrom);
+  }
+  assertWorkspace(repo, ws);
   state.base = ws;
   skills ??= [];
   await applyWorkspace(repo, ws, resolveSkills(repo, skills));
   if (!state.dryRun) registerWorkspace(ws, skills);
-  state.base = null; // the hint shows the workspace itself, not a path inside it
+  state.base = null; // the hints show the workspace itself, not a path inside it
+  if (wrapFrom) await afterWrap(wrapFrom, ws);
   return finish(`To check later: dotagents check "${displayPath(ws)}"`);
+}
+
+// The repository moved: the shell that ran init still sits in the old folder, and the agents
+// list past sessions by folder. In a terminal, offers to open the workspace in VS Code.
+async function afterWrap(from, ws) {
+  const say = (text) => (fancy ? line(dim(text)) : console.log(text));
+  if (fancy) line();
+  say(`Your terminal is still in the old folder: cd "${displayPath(ws)}"`);
+  say("Past agent sessions are listed under the old path: the move-sessions skill brings them along.");
+  const code = spawnSync("code", ["--version"], { stdio: "ignore", shell: process.platform === "win32" }).status === 0;
+  if (!interactive || args.yes || !code) return;
+  const open = await p.confirm({ message: `Open ${bold(displayPath(ws))} in VS Code?` });
+  if (open === true) spawn("code", [ws], { detached: true, stdio: "ignore", shell: process.platform === "win32" }).unref();
 }
 
 async function askInit(defaultWs, { opened = false } = {}) {
@@ -273,7 +286,24 @@ async function askInit(defaultWs, { opened = false } = {}) {
     ws = path.resolve(expandHome(answer || defaultWs));
   }
 
+  // A folder that is itself a repository: the recommended layout keeps the agent files outside
+  // it, in <name>-workspace/. A folder that has to stay as it is (an Obsidian vault, for
+  // example) answers no and keeps them inside, hidden from git by .git/info/exclude.
+  let wrapFrom = null;
+  const inside = opened ? null : gitRepoOf(ws);
+  if (inside && isRepoRoot(ws, inside.top)) {
+    p.log.message(dim(`No keeps the agent files inside the repository, hidden from git by .git/info/exclude: for a folder that has to stay as it is, like an Obsidian vault.`));
+    const wrap = exit(
+      await p.confirm({
+        message: `${bold(displayPath(ws))} is a git repository. Move it into ${bold(`${path.basename(ws)}-workspace/`)}, with the agent files outside it?`,
+      })
+    );
+    if (wrap) wrapFrom = ws;
+  }
+
+  // Skills already in place, read before the move.
   const present = skillsIn(repo, ws);
+  if (wrapFrom) ws = `${wrapFrom}-workspace`;
   const skills = exit(
     await p.multiselect({
       message: `Which skills should ${bold(displayPath(ws))} use?`,
@@ -298,7 +328,7 @@ async function askInit(defaultWs, { opened = false } = {}) {
       process.exit(0);
     }
   }
-  return { ws, skills };
+  return { ws, skills, wrapFrom };
 }
 
 // ── third-party catalog ───────────────────────────────────────────────────────────────────────

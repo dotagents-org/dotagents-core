@@ -28,7 +28,8 @@ app-workspace/            not a repository: AGENTS.md, .agents/, .artifacts/…
 - The workspace folder can have any name (`acme-platform`, `thesis`…).
   `<name>-workspace` is only the default.
 - `dotagents new <git-url> [folder]` creates the workspace folder, clones the repository into
-  it and runs `init`. With an existing workspace as the folder, it adds one more repository
+  it and runs `init`. For a repository already on disk, `dotagents init` on it offers to move
+  it into `<name>-workspace/` (`--wrap` does it without asking). With an existing workspace as the folder, it adds one more repository
   and lists it under "Repositories" in `AGENTS.md`.
 - The repositories never see the agent files, so there is nothing to ignore. Re-cloning,
   switching branches or `git clean -fdx` doesn't touch `.artifacts/` or the transcripts.

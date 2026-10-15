@@ -7,7 +7,7 @@ import path from "node:path";
 import { test } from "node:test";
 import { state } from "../lib/common.mjs";
 import { resolveSkills } from "../lib/skills.mjs";
-import { applyWorkspace, verifyWorkspace } from "../lib/workspace.mjs";
+import { applyWorkspace, verifyWorkspace, wrapRepository } from "../lib/workspace.mjs";
 import { REPO, fakeInstaller, fakeThirdParty, quiet, tempWorkspace } from "./helpers.mjs";
 
 const git = (cwd, ...args) => spawnSync("git", ["-C", cwd, ...args], { encoding: "utf8" });
@@ -126,6 +126,71 @@ test("when the workspace is a git repository, the agent files stay out of it", a
   verifyWorkspace(REPO, ws);
   assert.equal(state.problems, 0);
   assert.equal(state.counts.warnings, 1); // the wrapping layout is recommended
+});
+
+// A repository whose root an earlier init already set up, with one commit of its own.
+async function initializedRepo(t, name = "app") {
+  const dir = tempWorkspace(t, name);
+  git(dir, "init", "-q");
+  fs.writeFileSync(path.join(dir, "main.py"), "print('hi')\n");
+  git(dir, "add", "main.py");
+  git(dir, "-c", "user.name=t", "-c", "user.email=t@t", "-c", "commit.gpgsign=false", "commit", "-q", "-m", "init");
+  quiet();
+  await applyWorkspace(REPO, dir, resolveSkills(REPO, ["to-cards"]));
+  return dir;
+}
+
+test("wrapping a repository moves it into <name>-workspace with the agent files outside it", async (t) => {
+  const dir = await initializedRepo(t);
+  quiet();
+  const ws = wrapRepository(dir);
+  assert.equal(ws, `${dir}-workspace`);
+  assert.ok(!fs.existsSync(dir));
+
+  const moved = path.join(ws, "app");
+  assert.equal(read(moved, "main.py"), "print('hi')\n");
+  assert.equal(git(moved, "status", "--porcelain").stdout, "");
+  assert.ok(!fs.existsSync(path.join(moved, "AGENTS.md")));
+  assert.ok(fs.lstatSync(path.join(ws, ".agents", "skills", "to-cards")).isSymbolicLink());
+  assert.ok(fs.existsSync(path.join(ws, ".artifacts", "INDEX.md")));
+  assert.doesNotMatch(read(moved, ".git", "info", "exclude"), /dotagents/);
+  assert.match(read(ws, "AGENTS.md"), /- `app\/`/);
+
+  quiet();
+  await applyWorkspace(REPO, ws, resolveSkills(REPO, ["to-cards"]));
+  quiet();
+  verifyWorkspace(REPO, ws);
+  assert.equal(state.problems, 0);
+  assert.equal(state.counts.warnings, undefined); // the recommended layout now
+});
+
+test("wrapping leaves agent files the project commits inside the repository", async (t) => {
+  const dir = await initializedRepo(t);
+  git(dir, "add", "-f", "AGENTS.md");
+  quiet();
+  const ws = wrapRepository(dir);
+  assert.ok(fs.existsSync(path.join(ws, "app", "AGENTS.md")));
+  assert.ok(!fs.existsSync(path.join(ws, "AGENTS.md")));
+  assert.ok(fs.existsSync(path.join(ws, ".agents")));
+});
+
+test("wrapping in a dry run moves nothing", async (t) => {
+  const dir = await initializedRepo(t);
+  quiet({ dryRun: true });
+  const ws = wrapRepository(dir);
+  assert.ok(!fs.existsSync(ws));
+  assert.ok(fs.existsSync(path.join(dir, "AGENTS.md")));
+  assert.ok(state.counts["would move"] > 1);
+});
+
+test("wrapping refuses a folder that isn't a repository root or a workspace that exists", async (t) => {
+  const plain = tempWorkspace(t, "plain");
+  assert.throws(() => wrapRepository(plain), /not the root of a git repository/);
+
+  const dir = await initializedRepo(t);
+  fs.mkdirSync(`${dir}-workspace`);
+  assert.throws(() => wrapRepository(dir), /already exists/);
+  assert.ok(fs.existsSync(path.join(dir, ".git")));
 });
 
 test("an agent file committed to the repository fails the checklist", async (t) => {
