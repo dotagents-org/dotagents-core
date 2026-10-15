@@ -184,23 +184,36 @@ It refuses to clone over an existing folder, and refuses to use a folder that is
 ### dotagents init
 
 ```bash
-dotagents init [path] [--skills a,b] [--yes] [--dry-run]
+dotagents init [path] [--skills a,b] [--wrap] [--yes] [--dry-run]
 ```
 
 Applies the standards to a folder (the current one when no path is given) and puts the chosen skills in it. It creates only what is missing and never overwrites your own files. See [What init creates](#what-init-creates).
 
 - **In a terminal, without `--skills`,** it asks:
   1. which folder, when none was given;
-  2. which skills, from a list of yours and the registered third-party ones, with the ones already in the workspace selected;
-  3. for confirmation before changing anything.
+  2. when the folder is itself a git repository, whether to move it into `<name>-workspace/` (see [Wrapping a repository](#wrapping-a-repository));
+  3. which skills, from a list of yours and the registered third-party ones, with the ones already in the workspace selected;
+  4. for confirmation before changing anything.
 
   `Ctrl+C` leaves without changes.
 - **With `--skills a,b`,** it uses those names and asks nothing. Names can mix both kinds: `--skills to-cards,humanizer`.
-- **With `--yes`, in CI, or when input is piped,** it never asks.
+- **With `--wrap`,** it moves the repository into `<name>-workspace/` without asking.
+- **With `--yes`, in CI, or when input is piped,** it never asks, and a repository stays where it is unless `--wrap` is given.
 
 Running it again on a workspace is safe: what is already right stays as it is, and new skills are added to the ones already there.
 
 `init` also records the workspace and its skills in the [tracked list](#dotagents-workspaces), for `update --all`.
+
+#### Wrapping a repository
+
+Run on a folder that is itself a git repository, `init` offers the [recommended layout](#recommended-layout-the-workspace-wraps-the-repositories) instead of keeping the agent files inside it:
+
+1. It creates `<name>-workspace/` next to the repository and moves the repository into it, as `<name>-workspace/<name>/`.
+2. Agent files that an earlier `init` left at the repository root move up to the workspace, and their block leaves `.git/info/exclude`. Agent files the project commits stay in the repository.
+3. It lists the repository under "Repositories" in `AGENTS.md`, applies the standards to the workspace, and moves the entry in the tracked list to the new path.
+4. In a terminal, it offers to open the workspace in VS Code.
+
+Afterwards, the terminal that ran `init` is still in the old folder: `cd` into the workspace. The agents list past sessions by folder, so the old ones stay under the old path until the `move-sessions` skill brings them along. Answer no for a folder that has to stay where it is, such as an Obsidian vault.
 
 ### dotagents check
 
@@ -263,6 +276,7 @@ Removes a skill from the catalog. Workspaces that already installed it keep it; 
 | `--dry-run` | all that change something | Shows what would be done and changes nothing. |
 | `--skills a,b` | `init`, `new`, `skills add` | Skills to use, or to register. |
 | `--all` | `update`, `skills add` | Every tracked workspace, or every skill of the source. |
+| `--wrap` | `init` | Move a repository into `<name>-workspace/` before applying the standards. |
 | `--yes` | `init`, `new`, `skills add` | Never ask. |
 | `--no-pull` | `update` | Skip `git pull`. |
 | `--help`, `--version` | | |
@@ -335,7 +349,7 @@ Some things need a git repository in the current folder: Claude Code worktrees, 
 
 ### When the folder has to be the repository
 
-Sometimes the root itself must be the repository: an Obsidian vault, for example, which the app and the sync expect in one place. `init` then lists every agent file in the repository's `.git/info/exclude`. Git ignores them as it would with `.gitignore`, but the exclude file lives inside `.git/` and is never committed, so the project carries no trace of the configuration. `check` shows a warning that suggests the wrapping layout.
+Sometimes the root itself must be the repository: an Obsidian vault, for example, which the app and the sync expect in one place. When you answer no to [wrapping it](#wrapping-a-repository), `init` lists every agent file in the repository's `.git/info/exclude`. Git ignores them as it would with `.gitignore`, but the exclude file lives inside `.git/` and is never committed, so the project carries no trace of the configuration. `check` shows a warning that suggests the wrapping layout.
 
 The excluded paths are `AGENTS.md`, `CLAUDE.md`, `INDEX.md`, `skills-lock.json`, `opencode.json`, `.agents/`, `.artifacts/`, `.claude/`, `.codex/`, `.opencode/`, `.copilot/`, `.cursor/` and `.gemini/`, all anchored to the workspace.
 
@@ -542,7 +556,7 @@ The command is plain Node (ES modules) with two dependencies. `cli.mjs` reads th
 
 | Module | Interface | Behind it |
 |---|---|---|
-| `lib/workspace.mjs` | `applyWorkspace(repo, ws, skills)`, `verifyWorkspace(repo, ws)`, `assertWorkspace`, `childRepos`, `workspaceName` | The standard as one ordered list of items, each with how to apply it and how to verify it, side by side. `init`, `new` and `update --all` apply the list; `check` verifies it. |
+| `lib/workspace.mjs` | `applyWorkspace(repo, ws, skills)`, `verifyWorkspace(repo, ws)`, `wrapRepository(dir)`, `listRepoInAgentsMd`, `assertWorkspace`, `childRepos`, `workspaceName` | The standard as one ordered list of items, each with how to apply it and how to verify it, side by side. `init`, `new` and `update --all` apply the list; `check` verifies it. |
 | `lib/skills.mjs` | `listSkills(repo)`, `resolveSkills(repo, names)`, `skillsIn(repo, ws)`, `applySkills(ws, skills, { installer })`, `verifySkills(repo, ws)` | Own skills and third-party ones as one list (`name`, `kind`, `source`, `description`). Linking, installing (and in which order), and the skill checks. |
 | `lib/thirdparty.mjs` | `loadCatalog`, `saveCatalog`, `discoverSkills`, `parseSkill`, `npxInstaller` | The catalog file, reading `SKILL.md`, and the installer adapter that runs `npx skills add`. |
 | `lib/git.mjs` | `ensureExcluded`, `gitRepoOf`, `isRepoRoot`, `trackedAgentFiles`, `untrackedAgentFiles` | Keeping agent files out of a project's git through `.git/info/exclude`. |
