@@ -216,3 +216,14 @@ test("claude: conversations move from another system's ~/.claude, Windows paths 
   assert.equal(cwds[2], isWindows ? gitBash(s.to) : s.to);
   assert.equal(cwds[3], "D:\\elsewhere");
 });
+
+test("a dry run goes on past an open session, noting it", (t) => {
+  const s = setup(t);
+  const file = claudeTranscript(s, [line(s.from)]);
+  fs.utimesSync(file, new Date(), new Date()); // just written
+  const res = s.run("--from", s.from, "--to", s.to, "--dry-run");
+  assert.equal(res.status, 0, res.stderr);
+  assert.match(res.stdout, /note: .*close the session/);
+  assert.match(res.stdout, /would move/);
+  assert.ok(fs.existsSync(file));
+});

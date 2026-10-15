@@ -148,6 +148,13 @@ function rewriteJsonl(text, keys) {
 
 const recentlyChanged = (file) => fs.existsSync(file) && Date.now() - fs.statSync(file).mtimeMs < 10_000;
 
+// A file changed in the last seconds means the tool is still open: the move stops, while a dry run
+// only notes it, since it changes nothing.
+function stopIfOpen(tool, message) {
+  if (!args.dryRun) throw new Error(message);
+  console.log(`${tool.padEnd(9)}note: ${message} (before the real run)`);
+}
+
 function walkFiles(dir, match, out = []) {
   if (!fs.existsSync(dir)) return out;
   for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
@@ -173,7 +180,7 @@ async function openDb(file) {
 // Rewrites the given columns of a database. A consistent copy is saved first (VACUUM INTO).
 async function rewriteDb(tool, file, columns) {
   if (recentlyChanged(file) || recentlyChanged(`${file}-wal`)) {
-    throw new Error(`${file} changed in the last 10 seconds: close ${tool} and run this again`);
+    stopIfOpen(tool, `${file} changed in the last 10 seconds: close ${tool} and run this again`);
   }
   const db = await openDb(file);
   try {
@@ -229,7 +236,7 @@ async function claude() {
 
   const transcripts = fs.readdirSync(src).filter((f) => f.endsWith(".jsonl"));
   const open = transcripts.filter((f) => recentlyChanged(path.join(src, f)));
-  if (open.length) throw new Error(`Claude Code transcripts changed in the last 10 seconds (${open.join(", ")}): close the session and run this again`);
+  if (open.length) stopIfOpen("claude", `Claude Code transcripts changed in the last 10 seconds (${open.join(", ")}): close the session and run this again`);
   if (!args.dryRun) fs.mkdirSync(dst, { recursive: true });
 
   for (const file of transcripts) {
@@ -288,7 +295,7 @@ async function codex() {
     const original = fs.readFileSync(file, "utf8");
     const { text, count } = rewriteJsonl(original, keys);
     if (!count) continue;
-    if (recentlyChanged(file)) throw new Error(`${path.basename(file)} changed in the last 10 seconds: close Codex and run this again`);
+    if (recentlyChanged(file)) stopIfOpen("codex", `${path.basename(file)} changed in the last 10 seconds: close Codex and run this again`);
     touched++;
     say("codex", `update ${path.basename(file)}: ${count} paths`);
     if (!args.dryRun) {
