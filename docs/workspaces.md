@@ -53,7 +53,7 @@ Files dotagents generates start with a marker line. A file without the marker is
 | Area | Checks |
 |---|---|
 | Git | warns when the workspace is a repository or inside one; fails when an agent file is tracked, or when git would add one as new |
-| Root files | `AGENTS.md` exists, is at most ~8 KB and mentions every repository in the folder; warns when a `CLAUDE.md` doesn't import `AGENTS.md`, since Claude Code would then read only the `CLAUDE.md` |
+| Root files | `AGENTS.md` exists and mentions every repository in the folder; warns when a `CLAUDE.md` doesn't import `AGENTS.md`, since Claude Code would then read only the `CLAUDE.md` |
 | `.agents/` | no `.agents/.agents/`, `.agents/commands/` or `.codex/skills/`; every rule in `.agents/rules/` linked from `AGENTS.md` |
 | Skills | `.claude/skills` is a link to `.agents/skills`; every skill folder has a `SKILL.md` whose `name` matches the folder and that is under 500 lines; own skills are links, not copies, and not also in the lock; every skill in `skills-lock.json` is installed |
 | `.claude/` | `rules` is a link when it exists; `settings.json` sets `plansDirectory` |
