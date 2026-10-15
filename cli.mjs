@@ -222,7 +222,7 @@ async function init(ws, { opened = false } = {}) {
   state.base = ws;
   skills ??= [];
   const { own, thirdParty } = splitSkills(skills);
-  initWorkspace(repo, ws, own);
+  initWorkspace(repo, ws, own, { thirdParty: thirdParty.length });
   if (thirdParty.length) {
     section("Third-party skills");
     await installThirdParty(ws, thirdParty);
