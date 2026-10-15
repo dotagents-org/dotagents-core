@@ -94,3 +94,15 @@ jobs:
           grep -F '`api/`' app-workspace/AGENTS.md
           dotagents check app-workspace
           ! dotagents new "$RUNNER_TEMP/app.git" app-workspace --yes
+
+      - name: third-party skills registered once are offered by init
+        run: |
+          dotagents skills add blader/humanizer
+          grep -F '"humanizer"' third-party-skills.json
+          ws="$RUNNER_TEMP/tp"
+          mkdir -p "$ws"
+          dotagents init "$ws" --skills to-cards,humanizer
+          test -f "$ws/.agents/skills/humanizer/SKILL.md"
+          grep -F humanizer "$ws/skills-lock.json"
+          dotagents check "$ws"
+          ! dotagents init "$ws" --skills not-a-skill
