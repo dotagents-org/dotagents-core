@@ -13,6 +13,9 @@
 //                  a workspace maps its root to the workspace (--to) and its subfolders to the clone
 //                  inside it (--subdirs-to <workspace>/<clone>).
 //   --tools        which tools to handle (default: every one whose data is found)
+//   --from-claude-dir  read Claude Code conversations from another system's ~/.claude, to move
+//                  them across systems (Windows to WSL: /mnt/c/Users/<you>/.claude). --from may
+//                  then be a Windows path even when this runs on Linux.
 //   --dry-run      report what would change, change nothing
 //
 // Data locations, overridable for tests: CLAUDE_CONFIG_DIR (~/.claude), CODEX_HOME (~/.codex),
@@ -35,22 +38,29 @@ for (let i = 2; i < process.argv.length; i++) {
   else if (a.startsWith("--")) args[a.slice(2)] = process.argv[++i];
 }
 if (!args.from || !args.to) {
-  console.error("Usage: node move-sessions.mjs --from <old folder> --to <new folder> [--subdirs-to <folder>] [--tools claude,codex,opencode] [--dry-run]");
+  console.error("Usage: node move-sessions.mjs --from <old folder> --to <new folder> [--subdirs-to <folder>] [--tools claude,codex,opencode] [--from-claude-dir <dir>] [--dry-run]");
   process.exit(2);
 }
 
 const isWindows = process.platform === "win32";
-const from = path.resolve(args.from);
-const to = path.resolve(args.to);
-const subdirsTo = path.resolve(args["subdirs-to"] ?? args.to);
+// A Windows path is kept as written even on Linux, so sessions can move from Windows to WSL (or
+// another machine): --from D:\work\app --to /home/me/work/app --from-claude-dir /mnt/c/Users/me/.claude
+const isWindowsPath = (p) => /^[A-Za-z]:[\\/]/.test(p);
+const resolveArg = (p) => (isWindowsPath(p) && !isWindows ? p.replace(/\//g, "\\").replace(/\\+$/, "") : path.resolve(p));
+const from = resolveArg(args.from);
+const to = resolveArg(args.to);
+const subdirsTo = resolveArg(args["subdirs-to"] ?? args.to);
 const home = os.homedir();
 const dirs = {
   claude: process.env.CLAUDE_CONFIG_DIR || path.join(home, ".claude"),
+  // Where the conversations are read from: another system's ~/.claude when they move across systems.
+  claudeFrom: args["from-claude-dir"] ? path.resolve(args["from-claude-dir"]) : null,
   codex: process.env.CODEX_HOME || path.join(home, ".codex"),
   opencode: path.join(process.env.XDG_DATA_HOME || path.join(home, ".local", "share"), "opencode"),
 };
-const wanted = args.tools ? args.tools.split(",").map((t) => t.trim()) : Object.keys(dirs);
-const unknown = wanted.filter((t) => !(t in dirs));
+const TOOLS = ["claude", "codex", "opencode"];
+const wanted = args.tools ? args.tools.split(",").map((t) => t.trim()) : TOOLS;
+const unknown = wanted.filter((t) => !TOOLS.includes(t));
 if (unknown.length) {
   console.error(`Unknown tool: ${unknown.join(", ")}. Use claude, codex, opencode.`);
   process.exit(2);
@@ -63,20 +73,24 @@ const say = (tool, msg) => console.log(`${tool.padEnd(9)}${args.dryRun ? "would 
 // slashes (D:/a, OpenCode's form), Git Bash (/d/a) and Windows' extended prefix (\\?\D:\a, in
 // Codex's database). Each spelling maps to the same spelling of the new folder.
 
-const styles = isWindows
-  ? [
-      (p) => p,
-      (p) => p[0].toLowerCase() + p.slice(1),
-      (p) => p.replace(/\\/g, "/"),
-      (p) => (p[0].toLowerCase() + p.slice(1)).replace(/\\/g, "/"),
-      (p) => `/${p[0].toLowerCase()}${p.slice(2).replace(/\\/g, "/")}`,
-      (p) => `\\\\?\\${p}`,
-    ]
-  : [(p) => p];
+const windowsStyles = [
+  (p) => p,
+  (p) => p[0].toLowerCase() + p.slice(1),
+  (p) => p.replace(/\\/g, "/"),
+  (p) => (p[0].toLowerCase() + p.slice(1)).replace(/\\/g, "/"),
+  (p) => `/${p[0].toLowerCase()}${p.slice(2).replace(/\\/g, "/")}`,
+  (p) => `\\\\?\\${p}`,
+];
+const styles = isWindowsPath(from) ? windowsStyles : [(p) => p];
 
+// Same family (Windows to Windows): keep each spelling's style. Across systems (Windows to Linux):
+// every old spelling becomes the plain new path.
+const restyle = (style, p) => (isWindowsPath(from) === isWindowsPath(p) ? style(p) : p);
 const rules = [...new Set(styles.map((s) => s(from)))].map((old) => {
   const style = styles.find((s) => s(from) === old);
-  return { old, sep: old.includes("/") ? "/" : "\\", root: style(to), sub: style(subdirsTo) };
+  const sep = old.includes("/") ? "/" : "\\";
+  const newSep = isWindowsPath(from) === isWindowsPath(to) ? sep : isWindowsPath(to) ? "\\" : "/";
+  return { old, sep, newSep, root: restyle(style, to), sub: restyle(style, subdirsTo) };
 });
 
 // The new path for a path under --from, or null when it is somewhere else.
@@ -84,7 +98,7 @@ function mapPath(p) {
   if (typeof p !== "string") return null;
   for (const r of rules) {
     if (p === r.old) return r.root;
-    if (p.startsWith(r.old + r.sep)) return r.sub + p.slice(r.old.length);
+    if (p.startsWith(r.old + r.sep)) return r.sub + p.slice(r.old.length).split(r.sep).join(r.newSep);
   }
   return null;
 }
@@ -199,15 +213,18 @@ function group(changes) {
 
 async function claude() {
   const projects = path.join(dirs.claude, "projects");
+  const srcProjects = path.join(dirs.claudeFrom ?? dirs.claude, "projects");
   const name = (dir) => dir.replace(/[^a-zA-Z0-9]/g, "-");
-  const find = (dir) => {
-    if (!fs.existsSync(projects)) return null;
-    const match = fs.readdirSync(projects).find((n) => (isWindows ? n.toLowerCase() === name(dir).toLowerCase() : n === name(dir)));
-    return match ? path.join(projects, match) : null;
+  // Project folders of Windows paths vary in drive-letter case (D--… and d--…).
+  const find = (base, dir) => {
+    if (!fs.existsSync(base)) return null;
+    const loose = isWindows || isWindowsPath(dir);
+    const match = fs.readdirSync(base).find((n) => (loose ? n.toLowerCase() === name(dir).toLowerCase() : n === name(dir)));
+    return match ? path.join(base, match) : null;
   };
-  const src = find(from);
-  if (!src) return say("claude", `nothing: no project for ${from}`);
-  const dst = find(to) ?? path.join(projects, name(to));
+  const src = find(srcProjects, from);
+  if (!src) return say("claude", `nothing: no project for ${from} in ${srcProjects}`);
+  const dst = find(projects, to) ?? path.join(projects, name(to));
   if (src.toLowerCase() === dst.toLowerCase()) throw new Error("--from and --to are the same Claude Code project");
 
   const transcripts = fs.readdirSync(src).filter((f) => f.endsWith(".jsonl"));
@@ -306,7 +323,7 @@ async function opencode() {
 
 const handlers = { claude, codex, opencode };
 const present = {
-  claude: () => fs.existsSync(path.join(dirs.claude, "projects")),
+  claude: () => fs.existsSync(path.join(dirs.claudeFrom ?? dirs.claude, "projects")),
   codex: () => fs.existsSync(dirs.codex),
   opencode: () => fs.existsSync(path.join(dirs.opencode, "opencode.db")),
 };
