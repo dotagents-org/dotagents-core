@@ -20,12 +20,14 @@ The agent configuration is personal: it never goes into a project's repository. 
 that is not a git repository, and each project repository is a folder inside it:
 
 ```
-app-workspace/            not a repository: AGENTS.md, CLAUDE.md, .agents/, .artifacts/…
+app-workspace/            not a repository: AGENTS.md, .agents/, .artifacts/…
 ├── app/                  git clone: only the project's own files
 └── api/                  another repository of the same project, if any
 ```
 
-- `dotagents new <git-url> [folder]` creates `<name>-workspace/`, clones the repository into
+- The workspace folder can have any name (`my-project`, `my-org-workspace`…).
+  `<name>-workspace` is only the default.
+- `dotagents new <git-url> [folder]` creates the workspace folder, clones the repository into
   it and runs `init`. With an existing workspace as the folder, it adds one more repository
   and lists it under "Repositories" in `AGENTS.md`.
 - The repositories never see the agent files, so there is nothing to ignore. Re-cloning,
@@ -81,7 +83,7 @@ Virtual Labs workspace).
 
 | Mechanism | Source | Claude Code | Codex | OpenCode |
 |---|---|---|---|---|
-| Context file | `AGENTS.md` at the root | `CLAUDE.md` with `@AGENTS.md` | reads it directly | reads it directly; ignores `CLAUDE.md` when `AGENTS.md` exists |
+| Context file | `AGENTS.md` at the root | reads it directly (v2.1.277+) while there is no `CLAUDE.md` | reads it directly | reads it directly; ignores `CLAUDE.md` when `AGENTS.md` exists |
 | Skills | `.agents/skills/<name>/` | `.claude/skills` junction | reads it directly | reads it directly |
 | Modular instructions | `.agents/rules/<topic>.md` | `.claude/rules` junction | only through the link in `AGENTS.md` | `instructions` in `opencode.json` |
 | Subagents | `.agents/agents/<name>.md` | `.claude/agents` junction | `.codex/agents/<name>.toml`, written from the `.md` | `.opencode/agents` junction |
@@ -101,7 +103,6 @@ machine goes in the tool's local scope, not in the project file.
 ```
 <workspace>/
 ├── AGENTS.md                    core (writing rules in .artifacts/README.md)
-├── CLAUDE.md                    @AGENTS.md + only what is specific to Claude Code
 ├── INDEX.md                     map of the documents (.artifacts/ standard)
 ├── opencode.json                only if you use OpenCode: instructions, mcp, permissions
 ├── .agents/
@@ -272,5 +273,5 @@ standard does not define yet.
       lists both as `<JUNCTION>`.
 - [ ] `.agents/commands/`, `.agents/.agents/` and `.codex/skills/` don't exist.
 - [ ] `.codex/rules/` has nothing that came from `.agents/rules/`.
-- [ ] `CLAUDE.md` starts with `@AGENTS.md` and doesn't repeat what is in it.
+- [ ] No `CLAUDE.md`, or one that imports `@AGENTS.md` (otherwise Claude Code reads only the `CLAUDE.md`).
 - [ ] No agent file is tracked by the project's git, and git doesn't see new ones.

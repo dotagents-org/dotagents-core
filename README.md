@@ -43,7 +43,7 @@ dotagents keeps one source for all of it and generates or links what each tool e
                           │  git clone + npm link
                           ▼
    <clone>/  ─────────────────────── the `dotagents` command ──────────────────────┐
-   ├── AGENTS.md, env/      global instructions                                   │
+   ├── global/              global instructions (instructions.md, env/)           │
    ├── rules/               global rules                                          │
    ├── claude/, opencode/   settings                                              │
    ├── skills/              my skills                                             │
@@ -53,7 +53,7 @@ dotagents keeps one source for all of it and generates or links what each tool e
         ┌─────────────────────────────────────────────────────┬──────────────────┘
         ▼ dotagents install (machine)                         ▼ dotagents new / init (workspace)
   ~/.claude/CLAUDE.md, rules, settings.json            app-workspace/
-  ~/.codex/AGENTS.md                                   ├── AGENTS.md, CLAUDE.md, INDEX.md
+  ~/.codex/AGENTS.md                                   ├── AGENTS.md, INDEX.md
   ~/.config/opencode/AGENTS.md, opencode.json          ├── .agents/skills/<skill>  → <clone>/skills/<skill>
                                                        ├── .claude/skills → .agents/skills
                                                        ├── .artifacts/session-archives/, plans/
@@ -124,7 +124,7 @@ dotagents <command> [options]
 |---|---|
 | [`install`](#dotagents-install) | Applies the global configuration to this machine. |
 | [`update [--all]`](#dotagents-update) | Pulls this repository and runs `install`; with `--all`, also refreshes every tracked workspace. |
-| [`new <git-url> [folder]`](#dotagents-new) | Creates `<name>-workspace/`, clones the repository into it and applies the standards. |
+| [`new <git-url> [folder]`](#dotagents-new) | Creates a workspace folder (any name; `<name>-workspace` by default), clones the repository into it and applies the standards. |
 | [`init [path]`](#dotagents-init) | Applies the standards to a folder and puts the chosen skills in it. |
 | [`check [path]`](#dotagents-check) | Runs the standards checklist on a workspace, changing nothing. |
 | [`workspaces`](#dotagents-workspaces) | Lists the workspaces tracked on this machine. |
@@ -144,7 +144,7 @@ dotagents install --dry-run    # show what would change
 dotagents install
 ```
 
-Run it again after editing `AGENTS.md`, `env/` or `rules/`, and on Windows also after editing the settings in `claude/` or `opencode/`. On Linux and macOS the settings and the rules are links, so their changes apply right away.
+Run it again after editing `global/` or `rules/`, and on Windows also after editing the settings in `claude/` or `opencode/`. On Linux and macOS the settings and the rules are links, so their changes apply right away.
 
 ### dotagents update
 
@@ -174,7 +174,7 @@ dotagents new git@github.com:me/app.git                 # app-workspace/app/
 dotagents new git@github.com:me/api.git app-workspace   # adds api/ to the same workspace
 ```
 
-1. Creates the folder (`<name>-workspace/` by default; `<name>` comes from the URL).
+1. Creates the workspace folder. Its name is free (`my-project`, `my-org-workspace`…): pass it as `[folder]`, or answer the question in a terminal. Without one, it is `<name>-workspace/`, with `<name>` taken from the URL.
 2. Clones the repository into `<folder>/<name>/`.
 3. If the workspace already had an `AGENTS.md` with a `## Repositories` section, adds the new repository to that list. Only that section is touched.
 4. Runs `init` on the workspace, with the same questions and options.
@@ -319,7 +319,6 @@ A workspace is a project folder that follows the `.agents/` and `.artifacts/` st
 ```
 app-workspace/            not a git repository
 ├── AGENTS.md             project instructions, read by all three tools
-├── CLAUDE.md             one line: @AGENTS.md
 ├── INDEX.md              map of the project's documents
 ├── .agents/              skills (and rules, subagents, hooks when there are any)
 ├── .claude/              links to .agents/, plus settings.json
@@ -348,7 +347,7 @@ In this order:
 |---|---|---|
 | Git | an entry in `.git/info/exclude` | only when the folder is inside a git repository |
 | Root files | `AGENTS.md`, `INDEX.md` | from `templates/workspace/`, only when missing; `AGENTS.md` gets the project name and the list of repositories in the folder |
-| | `CLAUDE.md` | `@AGENTS.md`; left alone if you wrote your own |
+| | `CLAUDE.md` | none: Claude Code reads `AGENTS.md` directly; the `@AGENTS.md` stub that earlier versions generated is removed, a `CLAUDE.md` of yours stays |
 | `.agents/` | `README.md` | points to the standard in this repository |
 | | `skills/<name>` | a link per own skill; third-party ones installed with `npx skills add` |
 | | `.claude/skills` | a link to `.agents/skills`, made before any installation |
@@ -363,7 +362,7 @@ Files dotagents generates start with a marker line. A file without the marker is
 | Area | Checks |
 |---|---|
 | Git | warns when the workspace is a repository or inside one; fails when an agent file is tracked, or when git would add one as new |
-| Root files | `AGENTS.md` exists, is at most ~8 KB and mentions every repository in the folder; `CLAUDE.md` starts with `@AGENTS.md` |
+| Root files | `AGENTS.md` exists, is at most ~8 KB and mentions every repository in the folder; warns when a `CLAUDE.md` doesn't import `AGENTS.md`, since Claude Code would then read only the `CLAUDE.md` |
 | `.agents/` | no `.agents/.agents/`, `.agents/commands/` or `.codex/skills/`; every rule in `.agents/rules/` linked from `AGENTS.md` |
 | Skills | `.claude/skills` is a link to `.agents/skills`; every skill folder has a `SKILL.md` whose `name` matches the folder and that is under 500 lines; my skills are links, not copies, and not also in the lock; every skill in `skills-lock.json` is installed |
 | `.claude/` | `rules` is a link when it exists; `settings.json` sets `plansDirectory` |
@@ -437,12 +436,12 @@ From then on it no longer gets the author's updates.
 
 | From | To | How |
 |---|---|---|
-| `AGENTS.md` + `env/<platform>.md` | `~/.claude/CLAUDE.md`, `~/.codex/AGENTS.md`, `~/.config/opencode/AGENTS.md` | generated file |
+| `global/instructions.md` + `global/env/<platform>.md` | `~/.claude/CLAUDE.md`, `~/.codex/AGENTS.md`, `~/.config/opencode/AGENTS.md` | generated file |
 | `rules/` | `~/.claude/rules` | folder link |
 | `claude/settings.json` | `~/.claude/settings.json` | link on Linux and macOS, copy on Windows |
 | `opencode/opencode.json` | `~/.config/opencode/opencode.json` | link on Linux and macOS, copy on Windows |
 
-- **`AGENTS.md`** holds the global instructions: language, commit convention, how workspaces work. It has no machine paths. `{{AGENTS_REPO}}` becomes the clone's location, and the file for the current platform (`env/win32.md`, `env/linux.md`, `env/darwin.md`) is appended when it exists. That is where machine notes go, such as the shell, where projects live or which tools are installed.
+- **`global/instructions.md`** holds the global instructions: language, commit convention, how workspaces work. It has no machine paths. `{{AGENTS_REPO}}` becomes the clone's location, and the file for the current platform (`env/win32.md`, `env/linux.md`, `env/darwin.md`) is appended when it exists. That is where machine notes go, such as the shell, where projects live or which tools are installed.
 - **`rules/`** holds rules for every project. Claude Code reads them through `~/.claude/rules`; Codex and OpenCode reach them through the path that `AGENTS.md` mentions. Today there is one: [the commit convention](rules/commit-conventions.md).
 - **Settings:** Claude Code's and OpenCode's settings files. When the app changes a setting, see [Limits](#limits).
 - **Left out on purpose:** `~/.codex/config.toml`. The Codex app writes machine-specific things into it (runtime paths with hashes, pipe names, trusted projects), so versioning it would break Codex on another machine.
@@ -518,8 +517,9 @@ dotagents update --all
 
 ```
 dotagents/
-├── AGENTS.md                  global instructions ({{AGENTS_REPO}} is filled in by install)
-├── env/                       machine notes appended per platform (win32.md, linux.md, darwin.md)
+├── global/
+│   ├── instructions.md        global instructions ({{AGENTS_REPO}} is filled in by install)
+│   └── env/                   machine notes appended per platform (win32.md, linux.md, darwin.md)
 ├── rules/                     global rules
 ├── claude/settings.json       → ~/.claude/settings.json
 ├── opencode/opencode.json     → ~/.config/opencode/opencode.json
