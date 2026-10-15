@@ -10,7 +10,7 @@
 
 **"skills-lock.json: X is installed" fails.** The lock lists a third-party skill whose folder is gone. Run `npx skills experimental_install` at the workspace root.
 
-**"is a link to the dotagents repository" fails.** One of the own skills is a copy instead of a link. Delete the copy and run `dotagents init <workspace> --skills <name>`.
+**"is a link to the dotagents repository" fails.** One of the own skills is a copy instead of a link. Run `dotagents init <workspace> --skills <name>`: it replaces the copy with the link, keeping a changed copy in `.agents/backups/`.
 
 **"no agent file is tracked by git" fails.** An agent file was committed to the project. Remove it from the index (the file stays on disk) and commit:
 
@@ -18,7 +18,7 @@
 git rm -r --cached AGENTS.md .claude
 ```
 
-**".artifacts/INDEX.md exists" fails, with an `INDEX.md` at the root.** Earlier versions put the map at the workspace root. Move it to `.artifacts/INDEX.md` and fix its relative links (`AGENTS.md` becomes `../AGENTS.md`, `.artifacts/plans/` becomes `plans/`).
+**".artifacts/INDEX.md exists" fails, with an `INDEX.md` at the root.** Earlier versions put the map at the workspace root. Run `dotagents init <workspace>`: it moves the file and fixes its links. When `.artifacts/INDEX.md` also exists, merge the two by hand and delete the one at the root.
 
 **`update --all` warns about skills no longer known.** A skill was removed from `skills/` or from the catalog. To drop it from the workspace's record, run `dotagents untrack <workspace>` and `dotagents init <workspace>` again.
 
