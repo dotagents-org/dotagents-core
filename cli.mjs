@@ -54,7 +54,8 @@ ${cmd("untrack", "<path>", "stop tracking a workspace; its files are not touched
 ${title("Skills")}
 ${cmd("skills", "", "list your skills and the registered third-party ones")}
 ${cmd("skills add", "<source>", "register third-party skills (owner/repo, git URL or path)", [
-  "--skills a,b picks some when the source has several;",
+  "--skills a,b picks some when the source has several,",
+  "--all takes every skill in the source;",
   "init and new offer them; installed with npx skills add",
 ])}
 ${cmd("skills remove", "<name>", "unregister a third-party skill")}
@@ -319,13 +320,15 @@ async function registerThirdParty(source) {
   if (!found.length) throw new Error(`No SKILL.md found in ${source}`);
 
   let chosen = found;
-  if (args.skills) {
+  if (args.all) {
+    chosen = found;
+  } else if (args.skills) {
     const missing = args.skills.filter((n) => !found.some((s) => s.name === n));
     if (missing.length) throw new Error(`${source} has no skill named ${missing.join(", ")}. It has: ${found.map((s) => s.name).join(", ")}`);
     chosen = found.filter((s) => args.skills.includes(s.name));
   } else if (found.length > 1) {
     if (!interactive || args.yes) {
-      throw new Error(`${source} has ${found.length} skills (${found.map((s) => s.name).join(", ")}). Pick with --skills a,b`);
+      throw new Error(`${source} has ${found.length} skills (${found.map((s) => s.name).join(", ")}). Pick with --skills a,b, or take them all with --all`);
     }
     const picked = await p.multiselect({
       message: `Which skills from ${bold(source)} should be registered?`,
