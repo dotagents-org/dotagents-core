@@ -11,7 +11,7 @@ import * as p from "@clack/prompts";
 import { displayPath, fancy, finish, header, interactive, line, parseArgs, rail, report, runWithSpinner, section, state, style } from "./lib/common.mjs";
 import { installGlobal } from "./lib/global.mjs";
 import { loadWorkspaces, registerWorkspace, registryFile, untrackWorkspace } from "./lib/registry.mjs";
-import { SAFE_NAME, SAFE_SOURCE, discoverSkills, firstSentence, installThirdParty, installedThirdParty, loadCatalog, parseSkill, saveCatalog } from "./lib/thirdparty.mjs";
+import { SAFE_NAME, SAFE_SOURCE, discoverSkills, installThirdParty, installedThirdParty, loadCatalog, parseSkill, saveCatalog } from "./lib/thirdparty.mjs";
 import { assertWorkspace, checkWorkspace, initWorkspace, repoSkills } from "./lib/workspace.mjs";
 
 const repo = path.dirname(fileURLToPath(import.meta.url));
@@ -269,12 +269,12 @@ async function askInit(defaultWs, { opened = false } = {}) {
         ...repoSkills(repo).map((name) => ({
           value: name,
           label: name,
-          hint: linked.includes(name) ? "already linked" : truncate(describe(name), 60),
+          hint: linked.includes(name) ? "already linked" : fitHint(describe(name), name),
         })),
         ...catalog.map((s) => ({
           value: s.name,
           label: `${s.name} ${dim(`· ${s.source}`)}`,
-          hint: installed.includes(s.name) ? "already installed" : truncate(firstSentence(s.description), 50),
+          hint: installed.includes(s.name) ? "already installed" : fitHint(s.description, `${s.name} · ${s.source}`),
         })),
       ],
       initialValues: [...linked, ...installed],
@@ -329,7 +329,7 @@ async function registerThirdParty(source) {
     }
     const picked = await p.multiselect({
       message: `Which skills from ${bold(source)} should be registered?`,
-      options: found.map((s) => ({ value: s.name, label: s.name, hint: truncate(firstSentence(s.description), 60) })),
+      options: found.map((s) => ({ value: s.name, label: s.name, hint: fitHint(s.description, s.name) })),
       required: true,
     });
     if (p.isCancel(picked)) {
@@ -465,7 +465,7 @@ function listSkills() {
   const catalog = loadCatalog(repo);
   if (!fancy) {
     names.forEach((name) => console.log(`${name.padEnd(20)} ${describe(name)}`));
-    catalog.forEach((s) => console.log(`${s.name.padEnd(20)} ${firstSentence(s.description)}  (third-party: ${s.source})`));
+    catalog.forEach((s) => console.log(`${s.name.padEnd(20)} ${s.description}  (third-party: ${s.source})`));
     return;
   }
   const width = Math.max(...[...names, ...catalog.map((s) => s.name)].map((n) => n.length)) + 2;
@@ -482,7 +482,7 @@ function listSkills() {
   console.log(`${style.cyan("◇")}  ${bold(`${catalog.length} third-party`)} ${dim("registered in third-party-skills.json, installed with npx skills")}`);
   if (!catalog.length) line(dim("None yet. Register one with: dotagents skills add <owner/repo>"));
   for (const s of catalog) {
-    row(s.name, firstSentence(s.description), cyan);
+    row(s.name, s.description, cyan);
     line(`${" ".repeat(width)}${gray(`from ${s.source}`)}`);
   }
   line();
@@ -527,7 +527,10 @@ function wrap(text, width) {
 
 const truncate = (text, max) => (text.length > max ? `${text.slice(0, max - 1)}…` : text);
 
+// A prompt hint is one line: the author's full description, cut only where the terminal ends.
+const fitHint = (text, label) => truncate(text, Math.max(30, (process.stdout.columns || 100) - label.length - 14));
+
 // First sentence of a skill's description, read from its SKILL.md frontmatter.
 function describe(name) {
-  return firstSentence(parseSkill(fs.readFileSync(path.join(repo, "skills", name, "SKILL.md"), "utf8")).description);
+  return parseSkill(fs.readFileSync(path.join(repo, "skills", name, "SKILL.md"), "utf8")).description;
 }
