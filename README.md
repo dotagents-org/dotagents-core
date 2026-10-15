@@ -13,6 +13,7 @@ agents/
 │   ├── agents.md            # the .agents/ folder standard for a workspace
 │   └── artifacts.md         # the .artifacts/ folder standard for a workspace
 ├── skills/                  # my reusable skills (Agent Skills format)
+├── third-party-skills.json  # third-party skills I use, offered by init and new
 ├── templates/workspace/     # templates for AGENTS.md and INDEX.md
 ├── claude/settings.json     # ~/.claude/settings.json
 ├── opencode/opencode.json   # ~/.config/opencode/opencode.json
@@ -47,7 +48,9 @@ On Linux with Node from the system package manager, `npm link` may need `sudo`. 
 | `dotagents check [path]` | runs the standards checklist on a workspace, changing nothing |
 | `dotagents update` | `git pull` in the clone, then `install` |
 | `dotagents update --all` | also refreshes every workspace set up with `init` and runs `npx skills update` in the ones with third-party skills |
-| `dotagents skills` | lists the skills in this repository |
+| `dotagents skills` | lists my skills and the registered third-party ones |
+| `dotagents skills add <source> [--skills a,b]` | registers third-party skills in `third-party-skills.json` (source: `owner/repo`, a git URL or a path) |
+| `dotagents skills remove <name>` | unregisters a third-party skill (workspaces that installed it keep it) |
 | `dotagents workspaces` | lists the workspaces set up with `init` on this machine |
 | `dotagents untrack <path>` | stops tracking a workspace: removes it from that list, so `update --all` skips it. Its files are not touched |
 
@@ -60,7 +63,8 @@ In a terminal, the output uses icons and colors (`+` created, `~` updated, `✓`
 | | My skills | Third-party skills |
 |---|---|---|
 | Source | `skills/` in this repository | the author's repository |
-| Tool | `dotagents init --skills` | `npx skills add` ([skills.sh](https://skills.sh)) |
+| Registered in | — | `third-party-skills.json`, with `dotagents skills add <source>` |
+| Tool | `dotagents init --skills` | `dotagents init --skills` too, which runs `npx skills add` ([skills.sh](https://skills.sh)) |
 | In the workspace | link to the clone | folder copied into `.agents/skills/` + `skills-lock.json` |
 | Update | edit the clone (immediate) or `dotagents update` on another machine | `npx skills update -p` (or `dotagents update --all`) |
 | Edit by hand | yes, in the clone | no: the next update undoes it |
@@ -77,16 +81,25 @@ workspace/
 ```
 
 ## Workflows
+**Register a third-party skill once** (it is then offered by `init` and `new` on every machine)
+```bash
+dotagents skills add blader/humanizer
+dotagents skills add vercel-labs/agent-skills --skills web-design-guidelines,writing-guidelines
+git commit -am "✨ feat(skills): register humanizer" && git push
+```
 
 **New workspace** (recommended layout: the workspace wraps the repositories, so they never see the agent files)
 ```bash
 cd ~/projects
-dotagents new git@github.com:me/app.git       # app-workspace/ with app/ inside; asks which skills to link
+dotagents new git@github.com:me/app.git       # app-workspace/ with app/ inside; asks which skills to use,
+                                              # yours and the registered third-party ones
 dotagents new git@github.com:me/api.git app-workspace   # one more repository in the same workspace
 cd app-workspace
-npx skills add blader/humanizer               # always from the workspace root
-dotagents check                                # run the agents from here too
+dotagents init . --skills humanizer           # add a skill later, without questions
+dotagents check                               # run the agents from here too
 ```
+
+A third-party skill that isn't registered can still be installed by hand with `npx skills add <source>`, always from the workspace root.
 
 ```
 app-workspace/        AGENTS.md, CLAUDE.md, .agents/, .artifacts/ (never committed anywhere)

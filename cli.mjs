@@ -3,15 +3,15 @@
 // macOS with Node 20.12+. Make it a command with `npm install && npm link` in the clone (the two
 // dependencies, @clack/prompts and picocolors, draw the terminal output and the prompts).
 
-import { spawn } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import * as p from "@clack/prompts";
-import { displayPath, fancy, finish, header, interactive, line, parseArgs, rail, report, section, state, style } from "./lib/common.mjs";
+import { displayPath, fancy, finish, header, interactive, line, parseArgs, rail, report, runWithSpinner, section, state, style } from "./lib/common.mjs";
 import { installGlobal } from "./lib/global.mjs";
 import { loadWorkspaces, registerWorkspace, registryFile, untrackWorkspace } from "./lib/registry.mjs";
+import { SAFE_NAME, SAFE_SOURCE, discoverSkills, firstSentence, installThirdParty, installedThirdParty, loadCatalog, parseSkill, saveCatalog } from "./lib/thirdparty.mjs";
 import { assertWorkspace, checkWorkspace, initWorkspace, repoSkills } from "./lib/workspace.mjs";
 
 const repo = path.dirname(fileURLToPath(import.meta.url));
@@ -51,8 +51,13 @@ ${cmd("check", "[path]", "run the checklist, change nothing")}
 ${cmd("workspaces", "", "list the workspaces tracked on this machine")}
 ${cmd("untrack", "<path>", "stop tracking a workspace; its files are not touched")}
 
-${title("Info")}
-${cmd("skills", "", "list the skills in this repository")}
+${title("Skills")}
+${cmd("skills", "", "list your skills and the registered third-party ones")}
+${cmd("skills add", "<source>", "register third-party skills (owner/repo, git URL or path)", [
+  "--skills a,b picks some when the source has several;",
+  "init and new offer them; installed with npx skills add",
+])}
+${cmd("skills remove", "<name>", "unregister a third-party skill")}
 
 ${title("Options")}
   ${cyan("--dry-run")}    show what would be done, change nothing
@@ -122,6 +127,9 @@ async function run(cmd) {
       return update();
 
     case "skills":
+      if (target === "add") return registerThirdParty(args._[2]);
+      if (target === "remove") return unregisterThirdParty(args._[2]);
+      if (target) throw new Error(`Unknown subcommand 'skills ${target}'. Use: dotagents skills [add <source> | remove <name>]`);
       return listSkills();
 
     case "workspaces":
@@ -213,7 +221,12 @@ async function init(ws, { opened = false } = {}) {
   if (!asked && !opened) header("init", ws);
   state.base = ws;
   skills ??= [];
-  initWorkspace(repo, ws, skills);
+  const { own, thirdParty } = splitSkills(skills);
+  initWorkspace(repo, ws, own);
+  if (thirdParty.length) {
+    section("Third-party skills");
+    await installThirdParty(ws, thirdParty);
+  }
   if (!state.dryRun) registerWorkspace(ws, skills);
   state.base = null; // the hint shows the workspace itself, not a path inside it
   return finish(`To check later: dotagents check "${displayPath(ws)}"`);
@@ -246,17 +259,25 @@ async function askInit(defaultWs, { opened = false } = {}) {
     ws = path.resolve(expandHome(answer || defaultWs));
   }
 
-  const available = repoSkills(repo);
+  const catalog = loadCatalog(repo);
   const linked = linkedSkills(ws);
+  const installed = installedThirdParty(ws, catalog);
   const skills = exit(
     await p.multiselect({
-      message: `Which skills should ${bold(displayPath(ws))} link?`,
-      options: available.map((name) => ({
-        value: name,
-        label: name,
-        hint: linked.includes(name) ? "already linked" : truncate(describe(name), 60),
-      })),
-      initialValues: linked,
+      message: `Which skills should ${bold(displayPath(ws))} use?`,
+      options: [
+        ...repoSkills(repo).map((name) => ({
+          value: name,
+          label: name,
+          hint: linked.includes(name) ? "already linked" : truncate(describe(name), 60),
+        })),
+        ...catalog.map((s) => ({
+          value: s.name,
+          label: `${s.name} ${dim(`· ${s.source}`)}`,
+          hint: installed.includes(s.name) ? "already installed" : truncate(firstSentence(s.description), 50),
+        })),
+      ],
+      initialValues: [...linked, ...installed],
       required: false,
     })
   );
@@ -273,6 +294,97 @@ async function askInit(defaultWs, { opened = false } = {}) {
     }
   }
   return { ws, skills };
+}
+
+// --skills mixes both kinds: names from skills/ are linked, names from the catalog are installed.
+function splitSkills(names) {
+  const ownNames = repoSkills(repo);
+  const catalog = loadCatalog(repo);
+  const unknown = names.filter((n) => !ownNames.includes(n) && !catalog.some((s) => s.name === n));
+  if (unknown.length) {
+    const all = [...ownNames, ...catalog.map((s) => s.name)].join(", ");
+    throw new Error(`Unknown skill: ${unknown.join(", ")}. Available: ${all}. Register a third-party one with: dotagents skills add <source>`);
+  }
+  return { own: names.filter((n) => ownNames.includes(n)), thirdParty: catalog.filter((s) => names.includes(s.name)) };
+}
+
+// ── third-party catalog ───────────────────────────────────────────────────────────────────────
+
+async function registerThirdParty(source) {
+  if (!source) throw new Error("Usage: dotagents skills add <source> [--skills a,b]   (source: owner/repo, a git URL or a path)");
+  if (!SAFE_SOURCE.test(source)) throw new Error(`'${source}' has characters that aren't allowed in a source`);
+  header("skills add", source);
+  section("Source");
+  const found = await discoverSkills(source);
+  if (!found.length) throw new Error(`No SKILL.md found in ${source}`);
+
+  let chosen = found;
+  if (args.skills) {
+    const missing = args.skills.filter((n) => !found.some((s) => s.name === n));
+    if (missing.length) throw new Error(`${source} has no skill named ${missing.join(", ")}. It has: ${found.map((s) => s.name).join(", ")}`);
+    chosen = found.filter((s) => args.skills.includes(s.name));
+  } else if (found.length > 1) {
+    if (!interactive || args.yes) {
+      throw new Error(`${source} has ${found.length} skills (${found.map((s) => s.name).join(", ")}). Pick with --skills a,b`);
+    }
+    const picked = await p.multiselect({
+      message: `Which skills from ${bold(source)} should be registered?`,
+      options: found.map((s) => ({ value: s.name, label: s.name, hint: truncate(firstSentence(s.description), 60) })),
+      required: true,
+    });
+    if (p.isCancel(picked)) {
+      p.cancel("Nothing was registered.");
+      process.exit(0);
+    }
+    chosen = found.filter((s) => picked.includes(s.name));
+  }
+
+  const catalog = loadCatalog(repo);
+  const own = repoSkills(repo);
+  const file = path.join(repo, "third-party-skills.json");
+  section("Catalog");
+  for (const skill of chosen) {
+    if (!SAFE_NAME.test(skill.name)) {
+      report("skipped", file, `${skill.name}: not a valid skill name`);
+      continue;
+    }
+    if (own.includes(skill.name)) {
+      report("skipped", file, `${skill.name}: same name as one of your skills in skills/`);
+      continue;
+    }
+    const existing = catalog.find((s) => s.name === skill.name);
+    if (existing && existing.source === source && existing.description === skill.description) {
+      report("ok", file, `${skill.name} from ${source}`);
+      continue;
+    }
+    if (existing && existing.source !== source) {
+      report("skipped", file, `${skill.name} is already registered from ${existing.source}; remove it first`);
+      continue;
+    }
+    report(state.dryRun ? (existing ? "would update" : "would create") : existing ? "updated" : "created", file, `${skill.name} from ${source}`);
+    if (!state.dryRun) {
+      const entry = { name: skill.name, source, description: skill.description };
+      if (existing) Object.assign(existing, entry);
+      else catalog.push(entry);
+    }
+  }
+  if (!state.dryRun) saveCatalog(repo, catalog);
+  return finish("Commit third-party-skills.json to have them on your other machines. Use one: dotagents init <path> --skills <name>");
+}
+
+function unregisterThirdParty(name) {
+  if (!name) throw new Error("Usage: dotagents skills remove <name>");
+  const catalog = loadCatalog(repo);
+  const file = path.join(repo, "third-party-skills.json");
+  header("skills remove", name);
+  section("Catalog");
+  if (!catalog.some((s) => s.name === name)) {
+    report("skipped", file, `${name} is not registered`);
+    return finish();
+  }
+  report(state.dryRun ? "would update" : "updated", file, `removed ${name} (workspaces that installed it keep it)`);
+  if (!state.dryRun) saveCatalog(repo, catalog.filter((s) => s.name !== name));
+  return finish();
 }
 
 // Skills of this repository already linked in the workspace's .agents/skills/.
@@ -319,7 +431,8 @@ async function update() {
         continue;
       }
       state.base = w.path;
-      initWorkspace(repo, w.path, w.skills);
+      // Third-party skills are kept up to date by npx skills update below.
+      initWorkspace(repo, w.path, w.skills.filter((s) => repoSkills(repo).includes(s)));
       if (fs.existsSync(path.join(w.path, "skills-lock.json"))) await updateThirdParty(w.path);
       state.base = null;
     }
@@ -345,45 +458,35 @@ function readLock() {
   }
 }
 
-// Runs a command without blocking, so the spinner keeps turning. Returns the exit code and the
-// last line of output (without colors).
-function runWithSpinner(message, command, commandArgs, options = {}) {
-  const spin = fancy ? p.spinner({ indicator: "dots" }) : null;
-  spin?.start(message);
-  return new Promise((resolve) => {
-    const child = spawn(command, commandArgs, { ...options, stdio: ["ignore", "pipe", "pipe"] });
-    let output = "";
-    child.stdout.on("data", (d) => (output += d));
-    child.stderr.on("data", (d) => (output += d));
-    const done = (code) => {
-      const last = output.replace(/\x1b\[[0-9;?]*[A-Za-z]/g, "").trim().split(/\r?\n/).pop() ?? "";
-      if (spin) code === 0 ? spin.stop(dim(message)) : spin.error(message);
-      resolve({ code, last });
-    };
-    child.on("error", (err) => {
-      output += err.message;
-      done(1);
-    });
-    child.on("close", done);
-  });
-}
-
 // ── listings ──────────────────────────────────────────────────────────────────────────────────
 
 function listSkills() {
   const names = repoSkills(repo);
-  if (!fancy) return names.forEach((name) => console.log(`${name.padEnd(20)} ${describe(name)}`));
-  const width = Math.max(...names.map((n) => n.length)) + 2;
+  const catalog = loadCatalog(repo);
+  if (!fancy) {
+    names.forEach((name) => console.log(`${name.padEnd(20)} ${describe(name)}`));
+    catalog.forEach((s) => console.log(`${s.name.padEnd(20)} ${firstSentence(s.description)}  (third-party: ${s.source})`));
+    return;
+  }
+  const width = Math.max(...[...names, ...catalog.map((s) => s.name)].map((n) => n.length)) + 2;
   const columns = Math.max(60, process.stdout.columns || 100);
+  const row = (name, text, color) => {
+    const lines = wrap(text, columns - width - 6);
+    line(`${color(name.padEnd(width))}${dim(lines[0] ?? "")}`);
+    for (const rest of lines.slice(1)) line(`${" ".repeat(width)}${dim(rest)}`);
+  };
   console.log(`${rail.start()}  ${bold(`${names.length} skills`)} ${dim(`in ${displayPath(path.join(repo, "skills"))}`)}`);
   line();
-  for (const name of names) {
-    const lines = wrap(describe(name), columns - width - 6);
-    line(`${green(name.padEnd(width))}${dim(lines[0] ?? "")}`);
-    for (const text of lines.slice(1)) line(`${" ".repeat(width)}${dim(text)}`);
+  for (const name of names) row(name, describe(name), green);
+  line();
+  console.log(`${style.cyan("◇")}  ${bold(`${catalog.length} third-party`)} ${dim("registered in third-party-skills.json, installed with npx skills")}`);
+  if (!catalog.length) line(dim("None yet. Register one with: dotagents skills add <owner/repo>"));
+  for (const s of catalog) {
+    row(s.name, firstSentence(s.description), cyan);
+    line(`${" ".repeat(width)}${gray(`from ${s.source}`)}`);
   }
   line();
-  console.log(`${rail.end()}  ${dim("Link into a workspace:")} dotagents init ${dim("<path>")} --skills ${dim("<name>")}\n`);
+  console.log(`${rail.end()}  ${dim("Use in a workspace:")} dotagents init ${dim("<path>")} --skills ${dim("<name>")}\n`);
 }
 
 function listWorkspaces() {
@@ -426,9 +529,5 @@ const truncate = (text, max) => (text.length > max ? `${text.slice(0, max - 1)}�
 
 // First sentence of a skill's description, read from its SKILL.md frontmatter.
 function describe(name) {
-  const text = fs.readFileSync(path.join(repo, "skills", name, "SKILL.md"), "utf8");
-  const front = text.match(/^---\n([\s\S]*?)\n---/)?.[1] ?? "";
-  const m = front.match(/^description:\s*(?:[|>]-?\s*\n((?:[ \t]+.*\n?)+)|(.+))/m);
-  const desc = (m?.[1] ?? m?.[2] ?? "").replace(/\s+/g, " ").trim();
-  return desc.split(/(?<=\.)\s/)[0];
+  return firstSentence(parseSkill(fs.readFileSync(path.join(repo, "skills", name, "SKILL.md"), "utf8")).description);
 }
