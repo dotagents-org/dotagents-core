@@ -53,10 +53,10 @@ dotagents keeps one source for all of it and generates or links what each tool e
         ┌─────────────────────────────────────────────────────┬──────────────────┘
         ▼ dotagents install (machine)                         ▼ dotagents new / init (workspace)
   ~/.claude/CLAUDE.md, rules, settings.json            app-workspace/
-  ~/.codex/AGENTS.md                                   ├── AGENTS.md, INDEX.md
+  ~/.codex/AGENTS.md                                   ├── AGENTS.md
   ~/.config/opencode/AGENTS.md, opencode.json          ├── .agents/skills/<skill>  → <clone>/skills/<skill>
                                                        ├── .claude/skills → .agents/skills
-                                                       ├── .artifacts/session-archives/, plans/
+                                                       ├── .artifacts/INDEX.md, session-archives/, plans/
                                                        └── app/   ← the project's git clone, untouched
 ```
 
@@ -319,10 +319,10 @@ A workspace is a project folder that follows the `.agents/` and `.artifacts/` st
 ```
 app-workspace/            not a git repository
 ├── AGENTS.md             project instructions, read by all three tools
-├── INDEX.md              map of the project's documents
 ├── .agents/              skills (and rules, subagents, hooks when there are any)
 ├── .claude/              links to .agents/, plus settings.json
 ├── .artifacts/           documentation written by agents and people
+│   ├── INDEX.md          map of the project's documents
 │   ├── session-archives/ session transcripts
 │   └── plans/            plans written before implementing
 ├── app/                  git clone: only the project's own files
@@ -346,7 +346,7 @@ In this order:
 | Step | What | Rule |
 |---|---|---|
 | Git | an entry in `.git/info/exclude` | only when the folder is inside a git repository |
-| Root files | `AGENTS.md`, `INDEX.md` | from `templates/workspace/`, only when missing; `AGENTS.md` gets the project name and the list of repositories in the folder |
+| Root files | `AGENTS.md` | from `templates/workspace/`, only when missing; `AGENTS.md` gets the project name and the list of repositories in the folder |
 | | `CLAUDE.md` | none: Claude Code reads `AGENTS.md` directly; the `@AGENTS.md` stub that earlier versions generated is removed, a `CLAUDE.md` of yours stays |
 | `.agents/` | `README.md` | points to the standard in this repository |
 | | `skills/<name>` | a link per own skill; third-party ones installed with `npx skills add` |
@@ -354,6 +354,7 @@ In this order:
 | `.claude/` | `rules` | a link to `.agents/rules`, when that folder exists |
 | | `settings.json` | adds `"plansDirectory": ".artifacts/plans"` and keeps the rest of the file; a different value already there is respected |
 | `.artifacts/` | `README.md`, `session-archives/`, `plans/` | the two fixed folders |
+| | `INDEX.md` | the map of the documents, from `templates/workspace/`, only when missing; skipped while an `INDEX.md` from earlier versions sits at the root |
 
 Files dotagents generates start with a marker line. A file without the marker is yours: dotagents leaves it alone, or, where it has to replace it, keeps a copy next to it as `<file>.bak-<date>`. Links are relative on Linux and macOS when they stay inside the workspace, so the workspace can move; Windows junctions are always absolute.
 
@@ -366,7 +367,7 @@ Files dotagents generates start with a marker line. A file without the marker is
 | `.agents/` | no `.agents/.agents/`, `.agents/commands/` or `.codex/skills/`; every rule in `.agents/rules/` linked from `AGENTS.md` |
 | Skills | `.claude/skills` is a link to `.agents/skills`; every skill folder has a `SKILL.md` whose `name` matches the folder and that is under 500 lines; own skills are links, not copies, and not also in the lock; every skill in `skills-lock.json` is installed |
 | `.claude/` | `rules` is a link when it exists; `settings.json` sets `plansDirectory` |
-| `.artifacts/` | `session-archives/` and `plans/` exist |
+| `.artifacts/` | `INDEX.md`, `session-archives/` and `plans/` exist; fails while an `INDEX.md` sits at the root, where earlier versions put it |
 
 ## Skills
 
@@ -454,7 +455,7 @@ A file already in place that dotagents didn't generate is kept next to the new o
 The two standards describe how a workspace is organized and why. dotagents applies the parts that can be automated.
 
 - **[standards/agents.md](standards/agents.md), the `.agents/` folder.** It is the single source of the agents' configuration, and the tools' folders only adapt it. It covers where each mechanism lives in each tool (context file, skills, rules, subagents, hooks, settings, MCP), why commands become skills, why `.agents/rules` is never linked to `.codex/rules`, how to link folders on Windows, and the rule that keeps everything out of the projects' git. It is based on Galster et al., *Configuring agentic AI coding tools: an exploratory study* (AIware '26).
-- **[standards/artifacts.md](standards/artifacts.md), the `.artifacts/` folder.** It holds the documentation agents and people write. Its structure is free and grows with the project. Only `session-archives/` and `plans/` are fixed. It also keeps `AGENTS.md` small and lists every document in `INDEX.md`, because the tools don't read `.artifacts/` on their own: a document without a link doesn't exist for them.
+- **[standards/artifacts.md](standards/artifacts.md), the `.artifacts/` folder.** It holds the documentation agents and people write. Its structure is free and grows with the project. Only `INDEX.md`, `session-archives/` and `plans/` are fixed. It also keeps `AGENTS.md` small and lists every document in `.artifacts/INDEX.md`, because the tools don't read `.artifacts/` on their own: a document without a link doesn't exist for them.
 
 When an agent writes a plan before implementing, it goes to `.artifacts/plans/`. Claude Code does it by itself through `plansDirectory`; Codex and OpenCode follow the instruction in the global `AGENTS.md`.
 

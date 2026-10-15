@@ -8,7 +8,7 @@ here ([`.agents/` standard](agents.md)), and neither do code, secrets or build o
 
 **The structure is free.** It grows with the project's needs: folders and documents appear
 when there is something to put in them, named after what they hold. The only fixed parts,
-for now, are `session-archives/` and `plans/`.
+for now, are `INDEX.md`, `session-archives/` and `plans/`.
 
 ---
 
@@ -36,6 +36,7 @@ repeat the logs, loaded whole in every session.
 ```
 .artifacts/
 ├── README.md                       points to this standard in the dotagents repository
+├── INDEX.md                        always exists: the map of the documents
 ├── session-archives/               always exists: one transcript per session
 │   ├── YYYY-MM-DD-<session-id>.md
 │   ├── YYYY-MM-DD-<origin>-<slug>.md
@@ -44,6 +45,15 @@ repeat the logs, loaded whole in every session.
 │   └── <name>.md
 └── …                               whatever the project needs
 ```
+
+### `INDEX.md`
+
+- The map of the documents: one line per document, with what it is for. `AGENTS.md` links
+  to it, so it is how the agents find everything else (see the guidelines below).
+- Its links are relative to `.artifacts/`: `[AGENTS.md](../AGENTS.md)`,
+  `[plans/](plans/)`.
+- Earlier versions of dotagents put it at the workspace root. `dotagents check` fails until
+  it is moved here, with its links fixed.
 
 ### `session-archives/`
 
@@ -75,7 +85,7 @@ repeat the logs, loaded whole in every session.
 These keep the documents useful to the agents. They are advice, not checks.
 
 - **A document without a link does not exist for the agent.** None of the three tools reads
-  `.artifacts/` on its own: link each document from `INDEX.md` (the map, one line per
+  `.artifacts/` on its own: link each document from `.artifacts/INDEX.md` (the map, one line per
   document with what it is for) or from `AGENTS.md`.
 - **`AGENTS.md` stays small** (~8 KB; Codex truncates the total at 32 KiB) and only states
   what the agent needs to *do*. A new fact rewrites the old statement instead of stacking a
@@ -93,7 +103,8 @@ These keep the documents useful to the agents. They are advice, not checks.
 
 `dotagents check <workspace>` runs the automatable items.
 
-- [ ] `.artifacts/session-archives/` and `.artifacts/plans/` exist.
+- [ ] `.artifacts/INDEX.md`, `.artifacts/session-archives/` and `.artifacts/plans/` exist,
+      and there is no `INDEX.md` at the root.
 - [ ] `.claude/settings.json` sets `plansDirectory` to `.artifacts/plans`.
 - [ ] `AGENTS.md` at most ~8 KB.
 - [ ] No transcript edited after its session.

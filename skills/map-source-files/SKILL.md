@@ -76,7 +76,7 @@ The user should give (ask if missing):
 5. **Save** with Write at the path agreed in the arguments step. Don't overwrite an
    existing map without checking first (Read): if it exists and the request is an update,
    merge the real changes instead of regenerating from scratch, and tell the user what
-   changed. Add a line for the map in `INDEX.md` when it is new.
+   changed. Add a line for the map in `.artifacts/INDEX.md` when it is new.
 
 6. At the end, tell the user: the path of the generated file, how many files were mapped,
    and any files that couldn't be read (binaries, huge files, etc.), for transparency.
