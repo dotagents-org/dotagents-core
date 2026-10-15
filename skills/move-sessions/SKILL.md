@@ -3,7 +3,7 @@ name: move-sessions
 description: Makes past conversations of Claude Code, Codex and OpenCode follow a project folder that moved, so each tool lists them again from the new folder. Use when a project folder was moved or renamed, a repository went into a workspace folder, or the user wants old sessions to show up under a new path.
 compatibility: Claude Code, Codex, OpenCode. Node 18+ for Claude Code; Node 22.13+ for Codex and OpenCode (SQLite through node:sqlite).
 metadata:
-  version: "2.0.0"
+  version: "2.1.0"
 ---
 
 # Move sessions
@@ -20,7 +20,7 @@ Only path fields are rewritten, parsed as JSON or read as database columns: mess
 
 ## Steps
 
-1. **Pin the folders.** `--from` is the folder the conversations were started in (it may no longer exist); `--to` is where they belong now. When the old folder's *subfolders* now live somewhere else than `--to` (a repository moved into a workspace: its root maps to the workspace, its subfolders to the repository inside it), pass that place as `--subdirs-to`. Done when you can name all three paths.
+1. **Pin the folders.** `--from` is the folder the conversations were started in (it may no longer exist); `--to` is where they belong now. When the old folder's *subfolders* now live somewhere else than `--to` (a repository moved into a workspace: its root maps to the workspace, its subfolders to the repository inside it), pass that place as `--subdirs-to`. **Across systems** (Windows to WSL, or another machine), run the script on the destination and pass the source's Claude Code folder as `--from-claude-dir` (`/mnt/c/Users/<you>/.claude` from WSL); `--from` can then stay a Windows path (`D:\work\app`), and every spelling of it becomes the destination path. Only Claude Code supports this: Codex and OpenCode keep their own data on each system. Done when you can name all the paths.
 
 2. **Dry run.**
 

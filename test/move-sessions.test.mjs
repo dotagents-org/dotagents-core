@@ -192,3 +192,27 @@ test("an open tool database stops its part of the move", async (t) => {
   assert.equal(res.status, 1);
   assert.match(res.stderr, /close opencode/);
 });
+
+// ── Across systems ────────────────────────────────────────────────────────────────────────────
+
+test("claude: conversations move from another system's ~/.claude, Windows paths included", (t) => {
+  const s = setup(t);
+  const otherClaude = path.join(s.root, "windows-claude");
+  const winFrom = "D:\\work\\app";
+  const project = path.join(otherClaude, "projects", "D--work-app");
+  fs.mkdirSync(project, { recursive: true });
+  const file = path.join(project, "abc.jsonl");
+  fs.writeFileSync(file, [line(winFrom), line("d:\\work\\app\\src"), line("/d/work/app"), line("D:\\elsewhere")].join("\n") + "\n");
+  age(file);
+
+  const res = s.run("--from", winFrom, "--to", s.to, "--from-claude-dir", otherClaude, "--tools", "claude");
+  assert.equal(res.status, 0, res.stderr);
+
+  assert.ok(!fs.existsSync(file), "the conversation left the other system");
+  const cwds = fs.readFileSync(path.join(s.target, "abc.jsonl"), "utf8").trim().split("\n").map((l) => JSON.parse(l).cwd);
+  assert.equal(cwds[0], s.to);
+  // On Windows the lowercase spelling keeps its style; on Linux every spelling becomes the plain path.
+  assert.equal(cwds[1], isWindows ? `${s.to[0].toLowerCase()}${s.to.slice(1)}\\src` : `${s.to}/src`);
+  assert.equal(cwds[2], isWindows ? gitBash(s.to) : s.to);
+  assert.equal(cwds[3], "D:\\elsewhere");
+});
