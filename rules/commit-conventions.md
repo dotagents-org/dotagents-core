@@ -9,9 +9,8 @@ Based on [Conventional Commits v1.0.0](https://www.conventionalcommits.org/en/v1
 <emoji> <type>[optional scope]: <description>
 ```
 
-- **Emoji required** (gitmoji), before the `<type>`. It is not optional decoration: the
-  rule came from the history of the `modulo-web-backend` and `modulo-web-frontend`
-  repositories (another workspace), where every commit follows this format.
+- **Emoji required** (gitmoji), before the `<type>`. It is part of the format, not optional
+  decoration: it makes the kind of change visible at a glance in `git log --oneline`.
 - `<type>` and `[scope]` follow regular Conventional Commits (`fix`, `feat`, `refactor`,
   `docs`, `chore`, `ci`, `style`, `perf`, `test`, `build`...). Scope in parentheses when it
   helps (`fix(auth): ...`).
@@ -30,7 +29,7 @@ Based on [Conventional Commits v1.0.0](https://www.conventionalcommits.org/en/v1
 
 ## Emoji legend
 
-(Collected from `git log`; not a closed list. Keep the emoji that already identifies a kind
+(Not a closed list. Keep the emoji that already identifies a kind
 of change when there is a precedent. Based on the official
 [gitmoji.dev](https://gitmoji.dev) standard.)
 
@@ -65,7 +64,7 @@ of change when there is a precedent. Based on the official
 | ⬆️ | dependency upgrade |
 | ⬇️ | dependency downgrade |
 
-## Real examples from that history
+## Examples
 
 ```
 🐛 fix(units): return null instead of throwing when a unit is not found

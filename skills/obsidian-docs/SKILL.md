@@ -3,7 +3,6 @@ name: obsidian-docs
 description: Looks up the official Obsidian documentation (obsidian.md/help), the community directory (community.obsidian.md, plugins and themes) and the forum (forum.obsidian.md) to answer questions about Obsidian with sources. Use when the question involves built-in features (Bases, Canvas, Obsidian Markdown, properties, Sync, Publish, CLI, settings), "is there a plugin/theme that does X", comparing or evaluating plugins, known bugs, workarounds or feature requests.
 compatibility: Requires Node 18+ and internet access. gh (GitHub CLI) and the Obsidian CLI are optional.
 metadata:
-  author: gabrieldulolmarques
   version: "1.1.0"
 ---
 

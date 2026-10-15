@@ -2,7 +2,7 @@
 name: to-cards
 description: |
   Turns any loose text (message, email, meeting notes, to-do list, reading list, a request
-  from an advisor) into clear task cards, ready for Trello: one card per action, a title
+  from a manager) into clear task cards, ready for Trello: one card per action, a title
   that starts with a verb, a short description of why, a checklist, priority, due date,
   suggested list and labels, plus a block of titles to paste into Trello and create them
   all at once. Use whenever the user asks to "turn this into cards", "make tasks",
@@ -23,7 +23,7 @@ The output is chat only. The skill doesn't access Trello; the user pastes the fi
 ## Flow
 
 1. **Read the whole text** and list each distinct action. One sentence can hold two
-   actions ("read the paper and send a summary to the advisor" = 2 cards if they are
+   actions ("read the paper and send a summary to the team" = 2 cards if they are
    separate deliverables; 1 card with a checklist if the summary is just the end of the
    reading). Rule of thumb: if the two parts can be finished, assigned or postponed
    independently, they are different cards.
@@ -62,7 +62,7 @@ questions are tiring, so:
 - **Checklist:** only when there are real steps; 2–6 items, each one checkable. No
   checklist for a one-step task.
 - **Priority:** high, medium or low, taken from signals in the text (urgency, close due
-  date, blocks something else, request from a manager or advisor). If the text gives no
+  date, blocks something else, request from a manager or client). If the text gives no
   signal and the user didn't answer, `❓ TBD`.
 - **Due date:** turn relative dates into exact dates from today (use the current date from
   the context), in the format `DD/MM/YYYY`, and show the original expression in
@@ -113,23 +113,23 @@ List "<name>":
 ```
 ````
 
-Don't use `·` or an em dash (`—`) as a separator; the user prefers `|`, `:` or `-`.
+Separate fields with `|`, `:` or `-`.
 
 ## Example
 
 **Input:**
 
-> folks, for thursday's meeting: I need someone to review bio-lab PR 82 (the event bus
-> one) and run the tests. we also still need to send the prof the new version of the
-> review protocol, she asked for it by tomorrow. and remember to renew the firebase
+> folks, for thursday's meeting: I need someone to review api PR 82 (the event bus
+> one) and run the tests. we also still need to send the client the new version of the
+> proposal, they asked for it by tomorrow. and remember to renew the company
 > domain, it expires next month
 
 **Output** (today = 07/10/2026, Wednesday):
 
 3 cards in 3 lists.
 
-**Review bio-lab PR #82 (event bus)**
-List: Code | Labels: review, bio-lab | Priority: high | Due: 08/10/2026 (Thursday's meeting)
+**Review api PR #82 (event bus)**
+List: Code | Labels: review, api | Priority: high | Due: 08/10/2026 (Thursday's meeting)
 
 The PR has to be reviewed and tested before Thursday's meeting.
 
@@ -139,15 +139,15 @@ The PR has to be reviewed and tested before Thursday's meeting.
 
 ---
 
-**Send the professor the new version of the review protocol**
-List: Thesis | Labels: advising | Priority: high | Due: 08/10/2026 (by tomorrow)
+**Send the client the new version of the proposal**
+List: Clients | Labels: proposal | Priority: high | Due: 08/10/2026 (by tomorrow)
 
-Direct request from the advisor, with a short deadline.
+Direct request from the client, with a short deadline.
 
 ---
 
-**Renew the Firebase domain**
-List: Infra | Labels: firebase | Priority: medium | Due: ❓ TBD (expires next month)
+**Renew the company domain**
+List: Infra | Labels: domain | Priority: medium | Due: ❓ TBD (expires next month)
 
 The domain expires next month; without renewal, the site goes down.
 
@@ -156,17 +156,17 @@ to create one card per line.
 
 List "Code":
 ```
-Review bio-lab PR #82 (event bus)
+Review api PR #82 (event bus)
 ```
 
-List "Thesis":
+List "Clients":
 ```
-Send the professor the new version of the review protocol
+Send the client the new version of the proposal
 ```
 
 List "Infra":
 ```
-Renew the Firebase domain
+Renew the company domain
 ```
 
 Note: "run the tests" became a checklist item of the review card, not a card of its own,

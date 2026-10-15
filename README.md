@@ -1,6 +1,6 @@
 # dotagents
 
-My configuration for coding agents (Claude Code, Codex and OpenCode), kept in one repository and applied by one command, `dotagents`. It covers two levels:
+A configuration repository for coding agents (Claude Code, Codex and OpenCode): one place for the configuration, applied by one command, `dotagents`. It covers two levels:
 
 - **The machine:** global instructions, rules and settings, written where each tool looks for them.
 - **Each workspace:** a project folder gets the `.agents/` and `.artifacts/` standards, the skills it needs and the links each tool expects, without a single agent file ending up in the project's git history.
@@ -39,14 +39,14 @@ dotagents keeps one source for all of it and generates or links what each tool e
 ## How it works
 
 ```
-                 gabrieldulolmarques/dotagents  (GitHub)
+                 <you>/dotagents  (your own copy on GitHub)
                           │  git clone + npm link
                           ▼
    <clone>/  ─────────────────────── the `dotagents` command ──────────────────────┐
    ├── global/              global instructions (instructions.md, env/)           │
    ├── rules/               global rules                                          │
    ├── claude/, opencode/   settings                                              │
-   ├── skills/              my skills, and third-party-skills.json: the catalog   │
+   ├── skills/              own skills, and third-party-skills.json: the catalog  │
    │                        of skills by other authors                            │
    └── standards/, templates/    the workspace standards                         │
                                                                                   │
@@ -76,7 +76,7 @@ No administrator rights are needed on Windows: folders are linked with junctions
 Once per machine. WSL counts as a separate machine: it has its own home folder, its own Node and its own copies of the tools, so it needs its own clone and its own `dotagents install`.
 
 ```bash
-git clone git@github.com:gabrieldulolmarques/dotagents.git
+git clone git@github.com:<you>/dotagents.git
 cd dotagents
 npm install            # the two dependencies
 npm link               # creates the `dotagents` command, pointing to this clone
@@ -129,7 +129,7 @@ dotagents <command> [options]
 | [`check [path]`](#dotagents-check) | Runs the standards checklist on a workspace, changing nothing. |
 | [`workspaces`](#dotagents-workspaces) | Lists the workspaces tracked on this machine. |
 | [`untrack <path>`](#dotagents-untrack) | Stops tracking a workspace. Its files are not touched. |
-| [`skills`](#dotagents-skills) | Lists my skills and the registered third-party ones. |
+| [`skills`](#dotagents-skills) | Lists the own skills and the registered third-party ones. |
 | [`skills add <source>`](#dotagents-skills-add) | Registers third-party skills in the catalog. |
 | [`skills remove <name>`](#dotagents-skills-remove) | Removes a third-party skill from the catalog. |
 
@@ -174,7 +174,7 @@ dotagents new git@github.com:me/app.git                 # app-workspace/app/
 dotagents new git@github.com:me/api.git app-workspace   # adds api/ to the same workspace
 ```
 
-1. Creates the workspace folder. Its name is free (`my-project`, `my-org-workspace`…): pass it as `[folder]`, or answer the question in a terminal. Without one, it is `<name>-workspace/`, with `<name>` taken from the URL.
+1. Creates the workspace folder. Its name is free (`acme-platform`, `thesis`…): pass it as `[folder]`, or answer the question in a terminal. Without one, it is `<name>-workspace/`, with `<name>` taken from the URL.
 2. Clones the repository into `<folder>/<name>/`.
 3. If the workspace already had an `AGENTS.md` with a `## Repositories` section, adds the new repository to that list. Only that section is touched.
 4. Runs `init` on the workspace, with the same questions and options.
@@ -226,7 +226,7 @@ Removes a workspace from the tracked list, so `update --all` skips it. Its files
 
 ### dotagents skills
 
-Lists my skills and the registered third-party ones, each with the full description its author wrote and, for third-party ones, where it comes from.
+Lists the own skills and the registered third-party ones, each with the full description its author wrote and, for third-party ones, where it comes from.
 
 ### dotagents skills add
 
@@ -244,7 +244,7 @@ dotagents skills add mattpocock/skills --all
 
 It makes a shallow clone of the source in a temporary folder, finds every `SKILL.md` in it and stores the name, the source and the description exactly as the author wrote them. When the source has several skills, pick some with `--skills`, all of them with `--all`, or choose from a list in a terminal.
 
-A skill is skipped when its name matches one of my skills, when it is already registered from another source, or when its name isn't valid. Running the command again updates the stored descriptions. Commit `skills/third-party-skills.json` afterwards to have the change on the other machine.
+A skill is skipped when its name matches one of the own skills, when it is already registered from another source, or when its name isn't valid. Running the command again updates the stored descriptions. Commit `skills/third-party-skills.json` afterwards to have the change on the other machine.
 
 ### dotagents skills remove
 
@@ -277,7 +277,7 @@ In a terminal, every command draws one vertical line from `┌` to `└`, with a
 ┌   dotagents  init  ~/projects/app-workspace
 │
 ◇  .agents/
-│  + created      .agents/skills/to-cards  → D:/myWorkspace/dotagents/skills/to-cards
+│  + created      .agents/skills/to-cards  → ~/dotagents/skills/to-cards
 │
 ◇  .artifacts/
 │  + created      .artifacts/plans
@@ -364,7 +364,7 @@ Files dotagents generates start with a marker line. A file without the marker is
 | Git | warns when the workspace is a repository or inside one; fails when an agent file is tracked, or when git would add one as new |
 | Root files | `AGENTS.md` exists, is at most ~8 KB and mentions every repository in the folder; warns when a `CLAUDE.md` doesn't import `AGENTS.md`, since Claude Code would then read only the `CLAUDE.md` |
 | `.agents/` | no `.agents/.agents/`, `.agents/commands/` or `.codex/skills/`; every rule in `.agents/rules/` linked from `AGENTS.md` |
-| Skills | `.claude/skills` is a link to `.agents/skills`; every skill folder has a `SKILL.md` whose `name` matches the folder and that is under 500 lines; my skills are links, not copies, and not also in the lock; every skill in `skills-lock.json` is installed |
+| Skills | `.claude/skills` is a link to `.agents/skills`; every skill folder has a `SKILL.md` whose `name` matches the folder and that is under 500 lines; own skills are links, not copies, and not also in the lock; every skill in `skills-lock.json` is installed |
 | `.claude/` | `rules` is a link when it exists; `settings.json` sets `plansDirectory` |
 | `.artifacts/` | `session-archives/` and `plans/` exist |
 
@@ -374,7 +374,7 @@ Skills follow the [Agent Skills](https://agentskills.io/specification) format: a
 
 ### Two kinds
 
-| | My skills | Third-party skills |
+| | Own skills | Third-party skills |
 |---|---|---|
 | Live in | `skills/` in this repository | the author's repository |
 | Known through | the folder itself | `skills/third-party-skills.json` (`dotagents skills add`) |
@@ -394,7 +394,7 @@ app-workspace/
 
 A third-party skill that isn't in the catalog can still be installed by hand with `npx skills add <source>`. Always run it from the workspace root; from inside `.agents/` it creates `.agents/.agents/`.
 
-### My skills
+### Own skills
 
 | Skill | What it does |
 |---|---|
@@ -490,7 +490,7 @@ git commit -am "✨ feat(skills): register humanizer" && git push
 dotagents update
 ```
 
-**Edit one of my skills**
+**Edit one of the own skills**
 
 ```bash
 # edit <clone>/skills/<name>/  → already live in every workspace on this machine
@@ -501,7 +501,7 @@ dotagents update          # on the other machine
 **New machine**
 
 ```bash
-git clone git@github.com:gabrieldulolmarques/dotagents.git
+git clone git@github.com:<you>/dotagents.git
 cd dotagents && npm install && npm link && dotagents install
 # for each workspace copied or cloned to this machine (links don't travel with the files):
 dotagents init <workspace>
@@ -524,7 +524,7 @@ dotagents/
 ├── rules/                     global rules
 ├── claude/settings.json       → ~/.claude/settings.json
 ├── opencode/opencode.json     → ~/.config/opencode/opencode.json
-├── skills/                    my skills
+├── skills/                    own skills
 │   └── third-party-skills.json  catalog of third-party skills
 ├── standards/                 the .agents/ and .artifacts/ standards
 ├── templates/workspace/       AGENTS.md and INDEX.md for new workspaces
@@ -542,7 +542,7 @@ The command is plain Node (ES modules) with two dependencies. `cli.mjs` reads th
 | Module | Interface | Behind it |
 |---|---|---|
 | `lib/workspace.mjs` | `applyWorkspace(repo, ws, skills)`, `verifyWorkspace(repo, ws)`, `assertWorkspace`, `childRepos`, `workspaceName` | The standard as one ordered list of items, each with how to apply it and how to verify it, side by side. `init`, `new` and `update --all` apply the list; `check` verifies it. |
-| `lib/skills.mjs` | `listSkills(repo)`, `resolveSkills(repo, names)`, `skillsIn(repo, ws)`, `applySkills(ws, skills, { installer })`, `verifySkills(repo, ws)` | My skills and the third-party ones as one list (`name`, `kind`, `source`, `description`). Linking, installing (and in which order), and the skill checks. |
+| `lib/skills.mjs` | `listSkills(repo)`, `resolveSkills(repo, names)`, `skillsIn(repo, ws)`, `applySkills(ws, skills, { installer })`, `verifySkills(repo, ws)` | Own skills and third-party ones as one list (`name`, `kind`, `source`, `description`). Linking, installing (and in which order), and the skill checks. |
 | `lib/thirdparty.mjs` | `loadCatalog`, `saveCatalog`, `discoverSkills`, `parseSkill`, `npxInstaller` | The catalog file, reading `SKILL.md`, and the installer adapter that runs `npx skills add`. |
 | `lib/git.mjs` | `ensureExcluded`, `gitRepoOf`, `isRepoRoot`, `trackedAgentFiles`, `untrackedAgentFiles` | Keeping agent files out of a project's git through `.git/info/exclude`. |
 | `lib/global.mjs` | `installGlobal(repo)`, `renderInstructions(repo)` | The machine level: instructions, rules and settings. |
@@ -592,7 +592,7 @@ node cli.mjs --help      # run without npm link
 
 **"skills-lock.json: X is installed" fails.** The lock lists a third-party skill whose folder is gone. Run `npx skills experimental_install` at the workspace root.
 
-**"is a link to the dotagents repository" fails.** One of my skills is a copy instead of a link. Delete the copy and run `dotagents init <workspace> --skills <name>`.
+**"is a link to the dotagents repository" fails.** One of the own skills is a copy instead of a link. Delete the copy and run `dotagents init <workspace> --skills <name>`.
 
 **"no agent file is tracked by git" fails.** An agent file was committed to the project. Remove it from the index (the file stays on disk) and commit:
 
