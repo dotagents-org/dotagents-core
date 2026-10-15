@@ -8,7 +8,7 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import * as p from "@clack/prompts";
-import { displayPath, fancy, finish, header, interactive, line, parseArgs, rail, report, runWithSpinner, section, state, style } from "./lib/common.mjs";
+import { checkWarn, displayPath, fancy, finish, header, interactive, line, parseArgs, rail, report, runWithSpinner, section, state, style } from "./lib/common.mjs";
 import { installGlobal } from "./lib/global.mjs";
 import { loadWorkspaces, registerWorkspace, registryFile, untrackWorkspace } from "./lib/registry.mjs";
 import { listSkills, resolveSkills, skillsIn } from "./lib/skills.mjs";
@@ -400,7 +400,7 @@ async function update() {
       // ones are then brought up to date by npx skills update.
       const known = listSkills(repo).map((s) => s.name);
       const gone = w.skills.filter((name) => !known.includes(name));
-      if (gone.length) report("skipped", w.path, `no longer in this repository or the catalog: ${gone.join(", ")}`);
+      if (gone.length) checkWarn(`skipped skills no longer in this repository or the catalog: ${gone.join(", ")}`, `to drop them for good: dotagents untrack, then dotagents init again`);
       await applyWorkspace(repo, w.path, resolveSkills(repo, w.skills.filter((name) => known.includes(name))));
       if (fs.existsSync(path.join(w.path, "skills-lock.json"))) await updateThirdParty(w.path);
       state.base = null;
