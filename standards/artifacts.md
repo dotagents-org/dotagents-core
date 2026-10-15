@@ -35,7 +35,6 @@ repeat the logs, loaded whole in every session.
 
 ```
 .artifacts/
-├── README.md                       points to this standard in the dotagents repository
 ├── INDEX.md                        always exists: the map of the documents
 ├── session-archives/               always exists: one transcript per session
 │   ├── YYYY-MM-DD-<session-id>.md
@@ -52,8 +51,6 @@ repeat the logs, loaded whole in every session.
   to it, so it is how the agents find everything else (see the guidelines below).
 - Its links are relative to `.artifacts/`: `[AGENTS.md](../AGENTS.md)`,
   `[plans/](plans/)`.
-- Earlier versions of dotagents put it at the workspace root. `dotagents check` fails until
-  it is moved here, with its links fixed.
 
 ### `session-archives/`
 

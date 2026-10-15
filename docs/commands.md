@@ -71,12 +71,12 @@ It refuses to clone over an existing folder, and refuses to use a folder that is
 dotagents init [path] [--skills a,b] [--wrap] [--yes] [--dry-run]
 ```
 
-Applies the standards to a folder (the current one when no path is given) and puts the chosen skills in it. It creates only what is missing, and brings a workspace set up by hand or by an earlier version up to the standard: copies of own skills become links, the old root `INDEX.md` moves into `.artifacts/`. Anything of yours it has to replace is kept as a backup first. See [What init creates](workspaces.md#what-init-creates).
+Applies the standards to a folder (the current one when no path is given) and puts the chosen skills in it. It creates only what is missing and never overwrites your own files. See [What init creates](workspaces.md#what-init-creates).
 
 - **In a terminal, without `--skills`,** it asks:
   1. which folder, when none was given;
   2. when the folder is itself a git repository, whether to move it into `<name>-workspace/` (see [Wrapping a repository](#wrapping-a-repository));
-  3. which skills, from a list of yours and the registered third-party ones, with the ones already in the workspace selected, copies of own skills included (they become links);
+  3. which skills, from a list of yours and the registered third-party ones, with the ones already in the workspace selected;
   4. for confirmation before changing anything.
 
   `Ctrl+C` leaves without changes.

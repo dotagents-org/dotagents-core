@@ -100,10 +100,9 @@ machine goes in the tool's local scope, not in the project file.
 
 ```
 <workspace>/
-├── AGENTS.md                    core (writing rules in .artifacts/README.md)
+├── AGENTS.md                    core (writing rules in the .artifacts/ standard)
 ├── opencode.json                only if you use OpenCode: instructions, mcp, permissions
 ├── .agents/
-│   ├── README.md                points to this standard in the dotagents repository
 │   ├── rules/<topic>.md         only this project's rules
 │   ├── skills/<name>            link to dotagents/skills/<name>, or a project skill
 │   ├── agents/<name>.md         only once there is a first subagent

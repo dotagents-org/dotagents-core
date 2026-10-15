@@ -2,7 +2,7 @@
 
 <One or two sentences: what the project is and what lives in this folder.>
 
-This workspace follows the [`.agents/`](.agents/README.md) and [`.artifacts/`](.artifacts/README.md) folder standards. The map of the documents is in [.artifacts/INDEX.md](.artifacts/INDEX.md).
+This workspace follows the dotagents `.agents/` and `.artifacts/` folder standards (the global instructions say where they are). The map of the documents is in [.artifacts/INDEX.md](.artifacts/INDEX.md).
 
 ## Repositories
 
