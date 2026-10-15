@@ -76,7 +76,7 @@ Applies the standards to a folder (the current one when no path is given) and pu
 - **In a terminal, without `--skills`,** it asks:
   1. which folder, when none was given;
   2. when the folder is itself a git repository, whether to move it into `<name>-workspace/` (see [Wrapping a repository](#wrapping-a-repository));
-  3. which skills, from a list of yours and the registered third-party ones, with the ones already in the workspace selected;
+  3. which skills, from a list of yours and the registered third-party ones, with the ones already in the workspace selected, copies of own skills included (they become links);
   4. for confirmation before changing anything.
 
   `Ctrl+C` leaves without changes.
