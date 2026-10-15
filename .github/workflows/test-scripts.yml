@@ -2,9 +2,9 @@ name: Test scripts
 
 on:
   push:
-    paths: ["cli.mjs", "package.json", "package-lock.json", "lib/**", "templates/**", "env/**", "AGENTS.md", ".github/workflows/test-scripts.yml"]
+    paths: ["cli.mjs", "package.json", "package-lock.json", "test/**", "lib/**", "templates/**", "env/**", "AGENTS.md", ".github/workflows/test-scripts.yml"]
   pull_request:
-    paths: ["cli.mjs", "package.json", "package-lock.json", "lib/**", "templates/**", "env/**", "AGENTS.md", ".github/workflows/test-scripts.yml"]
+    paths: ["cli.mjs", "package.json", "package-lock.json", "test/**", "lib/**", "templates/**", "env/**", "AGENTS.md", ".github/workflows/test-scripts.yml"]
 
 jobs:
   test:
@@ -26,6 +26,7 @@ jobs:
         run: |
           echo "DOTAGENTS_STATE_DIR=$RUNNER_TEMP/agents-state" >> "$GITHUB_ENV"
           npm install
+          npm test
           npm link
           dotagents --version
           dotagents skills
