@@ -39,6 +39,11 @@ ${cmd("update", "[--all]", "git pull this repository and run install", [
 ])}
 
 ${title("Workspace")}
+${cmd("new", "<git-url> [folder]", "create <name>-workspace/ and clone the repository into it", [
+  "agent files at the root, the repository in a subfolder,",
+  "so it never sees them; an existing workspace as folder",
+  "adds one more repository",
+])}
 ${cmd("init", "[path] [--skills a,b]", "apply the standards and link skills", [
   "in a terminal, without --skills, asks which skills to link",
 ])}
@@ -57,6 +62,7 @@ ${title("Options")}
   ${cyan("--version")}    show the version
 
 ${title("Examples")}
+  ${gray("$")} dotagents new git@github.com:me/app.git
   ${gray("$")} dotagents init
   ${gray("$")} dotagents init ~/projects/app --skills session-archive,to-cards
   ${gray("$")} dotagents check ~/projects/app
@@ -101,6 +107,9 @@ async function run(cmd) {
     case "init":
       return init(ws);
 
+    case "new":
+      return newWorkspace();
+
     case "check":
       assertWorkspace(repo, ws);
       header("check", ws);
@@ -137,16 +146,71 @@ async function run(cmd) {
   }
 }
 
+// ── new ───────────────────────────────────────────────────────────────────────────────────────
+
+// Creates a workspace around a repository: <name>-workspace/ holds the agent files and
+// <name>-workspace/<name>/ the clone, so the project repository never sees them. With an
+// existing workspace as the folder, adds one more repository to it.
+async function newWorkspace() {
+  const url = target;
+  if (!url) throw new Error("Usage: dotagents new <git-url> [folder]");
+  const name = path.basename(url.replace(/[\\/]+$/, "")).replace(/\.git$/, "").split(":").pop();
+  if (!name) throw new Error(`Can't tell the repository name from '${url}'`);
+
+  const folder = args._[2];
+  const ws = path.resolve(expandHome(folder ?? `${name}-workspace`));
+  const clone = path.join(ws, name);
+  assertWorkspace(repo, path.dirname(ws));
+  if (fs.existsSync(clone)) throw new Error(`${displayPath(clone)} already exists`);
+  if (fs.existsSync(ws) && fs.existsSync(path.join(ws, ".git"))) {
+    throw new Error(`${displayPath(ws)} is itself a git repository; pick another folder for the workspace`);
+  }
+
+  header("new", ws);
+  state.base = ws;
+  section("Repository");
+  if (state.dryRun) {
+    if (!fs.existsSync(ws)) report("would create", ws, "workspace folder");
+    report("would create", clone, `git clone ${url}`);
+    state.base = null;
+    return finish(`Then: dotagents init "${displayPath(ws)}"`);
+  }
+  fs.mkdirSync(ws, { recursive: true });
+  const res = await runWithSpinner(`Cloning ${name}`, "git", ["clone", url, clone]);
+  report(res.code === 0 ? "created" : "failed", clone, res.code === 0 ? url : res.last);
+  if (res.code !== 0) return finish("The workspace folder was created; fix the URL or your access and run dotagents new again.");
+  listRepoInAgentsMd(ws, name, url);
+  state.base = null;
+  return init(ws, { opened: true });
+}
+
+// Adds the new repository to the "## Repositories" section of an existing AGENTS.md. Only that
+// section is touched, and only when it exists; a new AGENTS.md gets the list from the template.
+function listRepoInAgentsMd(ws, name, url) {
+  const file = path.join(ws, "AGENTS.md");
+  if (!fs.existsSync(file)) return;
+  const text = fs.readFileSync(file, "utf8");
+  const match = text.match(/^## Repositories[^\n]*\n([\s\S]*?)(?=^## |(?![\s\S]))/m);
+  if (!match || match[1].includes(`\`${name}/\``)) return;
+  const entry = `- \`${name}/\`: ${url}`;
+  let body = match[1].replace(/^<No repository yet[^\n]*>\n?/m, "").replace(/\s*$/, "");
+  body = `${body}\n${/^- `/m.test(body) ? "" : "\n"}${entry}\n\n`;
+  fs.writeFileSync(file, text.replace(match[1], body));
+  report("updated", file, `listed ${name}/ under Repositories`);
+}
+
 // ── init ──────────────────────────────────────────────────────────────────────────────────────
 
-async function init(ws) {
+// opened: a command (new) already printed its header, so neither the questions nor init open
+// the rail again.
+async function init(ws, { opened = false } = {}) {
   let skills = args.skills;
   // In a terminal, without --skills or --yes, ask instead of guessing. The questions open the
   // rail themselves, so the header is printed only when there were none.
   const asked = interactive && !args.yes && skills === undefined;
-  if (asked) ({ ws, skills } = await askInit(ws));
+  if (asked) ({ ws, skills } = await askInit(ws, { opened }));
   assertWorkspace(repo, ws);
-  if (!asked) header("init", ws);
+  if (!asked && !opened) header("init", ws);
   state.base = ws;
   skills ??= [];
   initWorkspace(repo, ws, skills);
@@ -155,19 +219,19 @@ async function init(ws) {
   return finish(`To check later: dotagents check "${displayPath(ws)}"`);
 }
 
-async function askInit(defaultWs) {
+async function askInit(defaultWs, { opened = false } = {}) {
   const exit = (value) => {
     if (p.isCancel(value)) {
-      p.cancel("Nothing was changed.");
+      p.cancel(opened ? "The repository was cloned; nothing else was changed. Run dotagents init later." : "Nothing was changed.");
       process.exit(0);
     }
     return value;
   };
 
-  p.intro(`${style.bgMagenta(style.white(style.bold(" dotagents ")))} ${bold("init")}`);
+  if (!opened) p.intro(`${style.bgMagenta(style.white(style.bold(" dotagents ")))} ${bold("init")}`);
 
   let ws = defaultWs;
-  if (target === undefined) {
+  if (target === undefined && !opened) {
     const answer = exit(
       await p.text({
         message: "Which folder is the workspace?",
@@ -204,7 +268,7 @@ async function askInit(defaultWs) {
       })
     );
     if (!ok) {
-      p.cancel("Nothing was changed.");
+      p.cancel(opened ? "The repository was cloned; nothing else was changed. Run dotagents init later." : "Nothing was changed.");
       process.exit(0);
     }
   }

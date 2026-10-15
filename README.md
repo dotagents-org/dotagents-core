@@ -42,6 +42,7 @@ On Linux with Node from the system package manager, `npm link` may need `sudo`. 
 | Command | What it does |
 |---|---|
 | `dotagents install` | applies the global configuration to this machine |
+| `dotagents new <git-url> [folder]` | creates `<name>-workspace/`, clones the repository into it and applies the standards; agent files at the root, the repository in a subfolder (an existing workspace as folder adds one more repository) |
 | `dotagents init [path] --skills a,b` | applies the standards to a workspace and links skills from this repository |
 | `dotagents check [path]` | runs the standards checklist on a workspace, changing nothing |
 | `dotagents update` | `git pull` in the clone, then `install` |
@@ -77,14 +78,23 @@ workspace/
 
 ## Workflows
 
-**New workspace**
+**New workspace** (recommended layout: the workspace wraps the repositories, so they never see the agent files)
 ```bash
-dotagents init ~/projects/app          # in a terminal: asks which skills to link and confirms
-dotagents init ~/projects/app --skills session-archive,map-source-files   # no questions
-cd ~/projects/app
-npx skills add blader/humanizer      # always from the workspace root
-dotagents check ~/projects/app
+cd ~/projects
+dotagents new git@github.com:me/app.git       # app-workspace/ with app/ inside; asks which skills to link
+dotagents new git@github.com:me/api.git app-workspace   # one more repository in the same workspace
+cd app-workspace
+npx skills add blader/humanizer               # always from the workspace root
+dotagents check                                # run the agents from here too
 ```
+
+```
+app-workspace/        AGENTS.md, CLAUDE.md, .agents/, .artifacts/ (never committed anywhere)
+├── app/              git clone, untouched
+└── api/
+```
+
+For a folder that already exists, `dotagents init <path>` (asks the skills in a terminal) or `dotagents init <path> --skills a,b`. When that folder is itself a git repository, the agent files are kept out of it through `.git/info/exclude`, and `check` suggests the wrapping layout.
 
 **Edit one of my skills**
 ```bash
