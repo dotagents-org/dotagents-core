@@ -25,7 +25,7 @@ app-workspace/            not a repository: AGENTS.md, .agents/, .artifacts/…
 └── api/                  another repository of the same project, if any
 ```
 
-- The workspace folder can have any name (`my-project`, `my-org-workspace`…).
+- The workspace folder can have any name (`acme-platform`, `thesis`…).
   `<name>-workspace` is only the default.
 - `dotagents new <git-url> [folder]` creates the workspace folder, clones the repository into
   it and runs `init`. With an existing workspace as the folder, it adds one more repository
@@ -55,9 +55,7 @@ moving the folder would break the app and the sync):
 ## Basis
 
 GALSTER, M. et al. *Configuring agentic AI coding tools: an exploratory study*. AIware '26,
-ACM, 2026. DOI [10.1145/3805760.3814887](https://doi.org/10.1145/3805760.3814887). The
-summary lives in the another workspace workspace, at
-`.artifacts/poc/papers/abstract/configuring-agentic-ai-coding-tools-an-exploratory-study.md`.
+ACM, 2026. DOI [10.1145/3805760.3814887](https://doi.org/10.1145/3805760.3814887).
 
 The paper maps 8 configuration mechanisms across 5 tools and measures how often they are
 adopted in 2,853 repositories. Three findings become rules here:
@@ -74,8 +72,7 @@ adopted in 2,853 repositories. Three findings become rules here:
 The paper's snapshot is from February 2026 and has already aged: Codex skills, for example,
 moved from `.codex/skills/` to `.agents/skills/`. The paths below were checked against the
 official documentation on 2026-10-13 (skills for all three tools; OpenCode rules and
-agents) and on 2026-09-30 (the rest, in `.artifacts/poc/agentes-de-codigo.md` of another
-Virtual Labs workspace).
+agents) and on 2026-09-30 (the rest).
 
 ---
 

@@ -18,10 +18,9 @@ or path).
 ## Arguments
 
 The user should give (ask if missing):
-1. **Target repository/folder**, e.g. `modulo-simulacao-bio-lab/Assets/scripts`, or the
-   whole repo.
-2. **Extension filter**, if any (default: the project's source extensions, such as `.cs`
-   for Unity; match the target repo's real stack, don't assume `.cs` elsewhere).
+1. **Target repository/folder**, e.g. `services/api/src`, or the whole repo.
+2. **Extension filter**, if any (default: the source extensions of the target repo's real
+   stack, read from its files and build config; don't assume a language).
 3. **Where to save the Markdown**. Default: inside the workspace's `.artifacts/`, never
    inside the code repository. Use the folder where the project already keeps similar
    documents, or `.artifacts/source-map-<folder-slug>.md` if there is none. No date in the
@@ -30,9 +29,9 @@ The user should give (ask if missing):
 ## Steps
 
 1. **List the files** with Glob (not Bash `find`), one pattern per relevant extension,
-   excluding generated or vendored folders: `Library/`, `Temp/`, `obj/`, `bin/`,
-   `node_modules/`, `.git/`, third-party packages inside `Packages/` (Unity), `Logs/`,
-   `Build/`.
+   excluding dependencies, build output and generated folders: `.git/`, `node_modules/`,
+   `dist/`, `build/`, `bin/`, `obj/`, `.venv/`, `target/`, and the stack's own (a game
+   engine's `Library/` and `Temp/`, for example). Read `.gitignore` for the rest.
    - For a large repo, run one Glob per extension instead of a single `**/*` pattern to
      keep the list manageable.
 
@@ -44,14 +43,14 @@ The user should give (ask if missing):
    apart from a plain `ls`: don't infer the responsibility from the file name alone.
    - Read the actual content (Read) of each file.
    - Write the responsibility as one short, concrete sentence: what the class/module does,
-     not a paraphrase of the file name (e.g. "Opens and closes the microtube and notifies
-     the view through an Observer event", not "Microtube controller").
+     not a paraphrase of the file name (e.g. "Validates the order, reserves stock and emits
+     an OrderPlaced event", not "Order controller").
    - If the repo is large (dozens or hundreds of files), hand the reading off in batches to
      subagents (`Agent`, type `Explore` or `general-purpose`) in parallel, one subagent per
      subfolder/module, each returning its table rows in this format, so the main
      conversation doesn't run out of context reading everything serially.
-   - For clearly trivial or generated files (e.g. `*.designer.cs`, `AssemblyInfo.cs`,
-     Unity `.meta` files) you may record "generated file/boilerplate, not analyzed in
+   - For clearly trivial or generated files (e.g. `*.designer.cs`, `*.pb.go`, lockfiles,
+     engine `.meta` files) you may record "generated file/boilerplate, not analyzed in
      detail" without reading the whole content, but don't skip them silently: list them
      anyway.
 
@@ -63,7 +62,7 @@ The user should give (ask if missing):
 
    | File | Responsibility |
    |---|---|
-   | `FileName.cs` | Short, concrete sentence about what the file does. |
+   | `order_service.py` | Short, concrete sentence about what the file does. |
    ```
 
    At the top of the document, include:

@@ -26,9 +26,8 @@ The answer here is to split the load: `AGENTS.md` is the only document loaded in
 session, and everything else lives in `.artifacts/` and is read **on demand**, like a
 skill's body and `references/` under the Agent Skills progressive loading.
 
-The case behind it: the `AGENTS.md` of the `modulo-simulacao-bio-lab` workspace had turned
-into a 21 KB changelog, 40% of it dated notes repeating the logs, and it was loaded whole in
-every session.
+The failure this prevents: an `AGENTS.md` that grows into a changelog, with dated notes that
+repeat the logs, loaded whole in every session.
 
 ---
 
