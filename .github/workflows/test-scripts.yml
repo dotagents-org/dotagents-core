@@ -99,7 +99,7 @@ jobs:
       - name: third-party skills registered once are offered by init
         run: |
           dotagents skills add blader/humanizer
-          grep -F '"humanizer"' third-party-skills.json
+          grep -F '"humanizer"' skills/third-party-skills.json
           ws="$RUNNER_TEMP/tp"
           mkdir -p "$ws"
           dotagents init "$ws" --skills to-cards,humanizer

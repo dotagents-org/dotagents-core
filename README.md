@@ -46,8 +46,8 @@ dotagents keeps one source for all of it and generates or links what each tool e
    ├── global/              global instructions (instructions.md, env/)           │
    ├── rules/               global rules                                          │
    ├── claude/, opencode/   settings                                              │
-   ├── skills/              my skills                                             │
-   ├── third-party-skills.json   catalog of skills by other authors              │
+   ├── skills/              my skills, and third-party-skills.json: the catalog   │
+   │                        of skills by other authors                            │
    └── standards/, templates/    the workspace standards                         │
                                                                                   │
         ┌─────────────────────────────────────────────────────┬──────────────────┘
@@ -234,7 +234,7 @@ Lists my skills and the registered third-party ones, each with the full descript
 dotagents skills add <source> [--skills a,b | --all] [--dry-run]
 ```
 
-Registers third-party skills in `third-party-skills.json`, so `init` and `new` offer them on every machine. The source can be `owner/repo` (GitHub), a git URL or a local path.
+Registers third-party skills in `skills/third-party-skills.json`, so `init` and `new` offer them on every machine. The source can be `owner/repo` (GitHub), a git URL or a local path.
 
 ```bash
 dotagents skills add blader/humanizer
@@ -244,7 +244,7 @@ dotagents skills add mattpocock/skills --all
 
 It makes a shallow clone of the source in a temporary folder, finds every `SKILL.md` in it and stores the name, the source and the description exactly as the author wrote them. When the source has several skills, pick some with `--skills`, all of them with `--all`, or choose from a list in a terminal.
 
-A skill is skipped when its name matches one of my skills, when it is already registered from another source, or when its name isn't valid. Running the command again updates the stored descriptions. Commit `third-party-skills.json` afterwards to have the change on the other machine.
+A skill is skipped when its name matches one of my skills, when it is already registered from another source, or when its name isn't valid. Running the command again updates the stored descriptions. Commit `skills/third-party-skills.json` afterwards to have the change on the other machine.
 
 ### dotagents skills remove
 
@@ -377,7 +377,7 @@ Skills follow the [Agent Skills](https://agentskills.io/specification) format: a
 | | My skills | Third-party skills |
 |---|---|---|
 | Live in | `skills/` in this repository | the author's repository |
-| Known through | the folder itself | `third-party-skills.json` (`dotagents skills add`) |
+| Known through | the folder itself | `skills/third-party-skills.json` (`dotagents skills add`) |
 | Put in a workspace by | `dotagents init --skills` | `dotagents init --skills`, which runs `npx skills add` |
 | In the workspace | a link to the clone | a folder in `.agents/skills/`, recorded in `skills-lock.json` |
 | Updated by | editing the clone (immediate) | `npx skills update`, or `dotagents update --all` |
@@ -525,7 +525,7 @@ dotagents/
 ├── claude/settings.json       → ~/.claude/settings.json
 ├── opencode/opencode.json     → ~/.config/opencode/opencode.json
 ├── skills/                    my skills
-├── third-party-skills.json    catalog of third-party skills
+│   └── third-party-skills.json  catalog of third-party skills
 ├── standards/                 the .agents/ and .artifacts/ standards
 ├── templates/workspace/       AGENTS.md and INDEX.md for new workspaces
 ├── cli.mjs                    the dotagents command: arguments, questions, output

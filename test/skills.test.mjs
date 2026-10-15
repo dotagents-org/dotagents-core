@@ -5,7 +5,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { test } from "node:test";
 import { applySkills, listSkills, resolveSkills, skillsIn } from "../lib/skills.mjs";
-import { parseSkill } from "../lib/thirdparty.mjs";
+import { catalogFile, parseSkill } from "../lib/thirdparty.mjs";
 import { REPO, fakeInstaller, fakeThirdParty, quiet, tempWorkspace } from "./helpers.mjs";
 
 test("own skills and registered third-party skills come from one list", () => {
@@ -13,7 +13,7 @@ test("own skills and registered third-party skills come from one list", () => {
   const toCards = all.find((s) => s.name === "to-cards");
   assert.equal(toCards.kind, "own");
   assert.ok(toCards.description.startsWith("Turns any loose text"));
-  const catalog = JSON.parse(fs.readFileSync(path.join(REPO, "third-party-skills.json"), "utf8")).skills;
+  const catalog = JSON.parse(fs.readFileSync(catalogFile(REPO), "utf8")).skills;
   for (const entry of catalog) assert.equal(all.find((s) => s.name === entry.name)?.kind, "third-party");
 });
 

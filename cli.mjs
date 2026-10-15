@@ -12,7 +12,7 @@ import { checkWarn, displayPath, fancy, finish, header, interactive, line, parse
 import { installGlobal } from "./lib/global.mjs";
 import { loadWorkspaces, registerWorkspace, registryFile, untrackWorkspace } from "./lib/registry.mjs";
 import { listSkills, resolveSkills, skillsIn } from "./lib/skills.mjs";
-import { SAFE_NAME, SAFE_SOURCE, discoverSkills, loadCatalog, saveCatalog } from "./lib/thirdparty.mjs";
+import { SAFE_NAME, SAFE_SOURCE, catalogFile, discoverSkills, loadCatalog, saveCatalog } from "./lib/thirdparty.mjs";
 import { applyWorkspace, assertWorkspace, verifyWorkspace } from "./lib/workspace.mjs";
 
 const repo = path.dirname(fileURLToPath(import.meta.url));
@@ -336,7 +336,7 @@ async function registerThirdParty(source) {
 
   const catalog = loadCatalog(repo);
   const own = listSkills(repo).filter((s) => s.kind === "own").map((s) => s.name);
-  const file = path.join(repo, "third-party-skills.json");
+  const file = catalogFile(repo);
   section("Catalog");
   for (const skill of chosen) {
     if (!SAFE_NAME.test(skill.name)) {
@@ -364,13 +364,13 @@ async function registerThirdParty(source) {
     }
   }
   if (!state.dryRun) saveCatalog(repo, catalog);
-  return finish("Commit third-party-skills.json to have them on your other machines. Use one: dotagents init <path> --skills <name>");
+  return finish("Commit skills/third-party-skills.json to have them on your other machines. Use one: dotagents init <path> --skills <name>");
 }
 
 function unregisterThirdParty(name) {
   if (!name) throw new Error("Usage: dotagents skills remove <name>");
   const catalog = loadCatalog(repo);
-  const file = path.join(repo, "third-party-skills.json");
+  const file = catalogFile(repo);
   header("skills remove", name);
   section("Catalog");
   if (!catalog.some((s) => s.name === name)) {
@@ -466,7 +466,7 @@ function printSkills() {
   line();
   for (const s of own) row(s.name, s.description, green);
   line();
-  console.log(`${style.cyan("◇")}  ${bold(`${thirdParty.length} third-party`)} ${dim("registered in third-party-skills.json, installed with npx skills")}`);
+  console.log(`${style.cyan("◇")}  ${bold(`${thirdParty.length} third-party`)} ${dim("registered in skills/third-party-skills.json, installed with npx skills")}`);
   if (!thirdParty.length) line(dim("None yet. Register one with: dotagents skills add <owner/repo>"));
   for (const s of thirdParty) {
     row(s.name, s.description, cyan);
