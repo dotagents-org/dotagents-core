@@ -25,7 +25,28 @@ test("an empty folder becomes a workspace that passes the checklist", async (t) 
   assert.ok(fs.lstatSync(path.join(ws, ".agents", "skills", "to-cards")).isSymbolicLink());
   assert.ok(fs.existsSync(path.join(ws, ".artifacts", "session-archives")));
   assert.ok(fs.existsSync(path.join(ws, ".artifacts", "plans")));
+  assert.match(read(ws, ".artifacts", "INDEX.md"), /\[AGENTS\.md\]\(\.\.\/AGENTS\.md\)/);
+  assert.ok(!fs.existsSync(path.join(ws, "INDEX.md")));
+  assert.match(read(ws, "AGENTS.md"), /\(\.artifacts\/INDEX\.md\)/);
 
+  quiet();
+  verifyWorkspace(REPO, ws);
+  assert.equal(state.problems, 0);
+});
+
+test("an INDEX.md left at the root by older versions is kept, not duplicated, and check asks to move it", async (t) => {
+  const ws = tempWorkspace(t);
+  fs.writeFileSync(path.join(ws, "INDEX.md"), "# Mine\n");
+  quiet();
+  await applyWorkspace(REPO, ws, []);
+  assert.equal(read(ws, "INDEX.md"), "# Mine\n");
+  assert.ok(!fs.existsSync(path.join(ws, ".artifacts", "INDEX.md")));
+
+  quiet();
+  verifyWorkspace(REPO, ws);
+  assert.equal(state.problems, 1);
+
+  fs.renameSync(path.join(ws, "INDEX.md"), path.join(ws, ".artifacts", "INDEX.md"));
   quiet();
   verifyWorkspace(REPO, ws);
   assert.equal(state.problems, 0);

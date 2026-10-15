@@ -12,7 +12,7 @@ Project documentation does not live here: it follows the [`.artifacts/` standard
 ## Never in the projects' git
 
 The agent configuration is personal: it never goes into a project's repository. That covers
-`AGENTS.md`, `CLAUDE.md`, `INDEX.md`, `skills-lock.json`, `opencode.json`, `.agents/`,
+`AGENTS.md`, `CLAUDE.md`, `skills-lock.json`, `opencode.json`, `.agents/`,
 `.artifacts/`, `.claude/`, `.codex/`, `.opencode/`, and the folders of other agents (`.copilot/`,
 `.cursor/`, `.gemini/`) at the workspace root.
 
@@ -100,7 +100,6 @@ machine goes in the tool's local scope, not in the project file.
 ```
 <workspace>/
 ├── AGENTS.md                    core (writing rules in .artifacts/README.md)
-├── INDEX.md                     map of the documents (.artifacts/ standard)
 ├── opencode.json                only if you use OpenCode: instructions, mcp, permissions
 ├── .agents/
 │   ├── README.md                points to this standard in the dotagents repository
@@ -116,7 +115,7 @@ machine goes in the tool's local scope, not in the project file.
 ├── .codex/                      only files in Codex's own format
 ├── .opencode/
 │   └── agents → .agents/agents  junction, when it exists
-├── .artifacts/
+├── .artifacts/                  INDEX.md, the map of the documents, and the rest (.artifacts/ standard)
 └── <git-checkout>/
 ```
 
