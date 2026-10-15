@@ -71,6 +71,16 @@ test("a dry run leaves the folder untouched", async (t) => {
   assert.ok(state.counts["would create"] > 0);
 });
 
+test("a long AGENTS.md is the project's choice, not a failed check", async (t) => {
+  const ws = tempWorkspace(t);
+  fs.writeFileSync(path.join(ws, "AGENTS.md"), `# Long\n\n${"A line the project wants every agent to read.\n".repeat(500)}`);
+  quiet();
+  await applyWorkspace(REPO, ws, []);
+  quiet();
+  verifyWorkspace(REPO, ws);
+  assert.equal(state.problems, 0);
+});
+
 test("your own AGENTS.md is never overwritten", async (t) => {
   const ws = tempWorkspace(t);
   fs.writeFileSync(path.join(ws, "AGENTS.md"), "# Mine\n");

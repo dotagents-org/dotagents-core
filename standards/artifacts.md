@@ -87,8 +87,9 @@ These keep the documents useful to the agents. They are advice, not checks.
 - **A document without a link does not exist for the agent.** None of the three tools reads
   `.artifacts/` on its own: link each document from `.artifacts/INDEX.md` (the map, one line per
   document with what it is for) or from `AGENTS.md`.
-- **`AGENTS.md` stays small** (~8 KB; Codex truncates the total at 32 KiB) and only states
-  what the agent needs to *do*. A new fact rewrites the old statement instead of stacking a
+- **`AGENTS.md` stays lean** and only states what the agent needs to *do*: every session
+  loads all of it. Codex stops reading after 32 KiB in total, global and project
+  `AGENTS.md` together (`project_doc_max_bytes`). A new fact rewrites the old statement instead of stacking a
   dated note; the history stays in the transcripts.
 - **Each fact lives in one place.** A document that describes the current state is
   rewritten when the state changes.
@@ -106,5 +107,4 @@ These keep the documents useful to the agents. They are advice, not checks.
 - [ ] `.artifacts/INDEX.md`, `.artifacts/session-archives/` and `.artifacts/plans/` exist,
       and there is no `INDEX.md` at the root.
 - [ ] `.claude/settings.json` sets `plansDirectory` to `.artifacts/plans`.
-- [ ] `AGENTS.md` at most ~8 KB.
 - [ ] No transcript edited after its session.
