@@ -40,7 +40,8 @@ ${cmd("update", "[--all]", "git pull this repository and run install", [
 ])}
 
 ${title("Workspace")}
-${cmd("new", "<git-url> [folder]", "create <name>-workspace/ and clone the repository into it", [
+${cmd("new", "<git-url> [folder]", "create a workspace folder and clone the repository into it", [
+  "folder: any name; default <name>-workspace (asked in a terminal);",
   "agent files at the root, the repository in a subfolder,",
   "so it never sees them; an existing workspace as folder",
   "adds one more repository",
@@ -167,7 +168,23 @@ async function newWorkspace() {
   const name = path.basename(url.replace(/[\\/]+$/, "")).replace(/\.git$/, "").split(":").pop();
   if (!name) throw new Error(`Can't tell the repository name from '${url}'`);
 
-  const folder = args._[2];
+  // The workspace folder can have any name (my-project, my-org-workspace…); <name>-workspace is
+  // only the default. In a terminal, without a folder argument, ask for it.
+  let folder = args._[2];
+  const asked = folder === undefined && interactive && !args.yes;
+  if (asked) {
+    p.intro(`${style.bgMagenta(style.white(style.bold(" dotagents ")))} ${bold("new")}`);
+    const answer = await p.text({
+      message: "Workspace folder name?",
+      placeholder: `${name}-workspace`,
+      defaultValue: `${name}-workspace`,
+    });
+    if (p.isCancel(answer)) {
+      p.cancel("Nothing was changed.");
+      process.exit(0);
+    }
+    folder = answer;
+  }
   const ws = path.resolve(expandHome(folder ?? `${name}-workspace`));
   const clone = path.join(ws, name);
   assertWorkspace(repo, path.dirname(ws));
@@ -176,7 +193,7 @@ async function newWorkspace() {
     throw new Error(`${displayPath(ws)} is itself a git repository; pick another folder for the workspace`);
   }
 
-  header("new", ws);
+  if (!asked) header("new", ws);
   state.base = ws;
   section("Repository");
   if (state.dryRun) {
