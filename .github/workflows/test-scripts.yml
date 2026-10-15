@@ -82,3 +82,15 @@ jobs:
           dotagents check "$repo"
           git add -f AGENTS.md   # simulates an agent file committed by mistake
           ! dotagents check "$repo"
+
+      - name: dotagents new wraps repositories in a workspace
+        run: |
+          cd "$RUNNER_TEMP"
+          git init -q --bare app.git && git init -q --bare api.git
+          dotagents new "$RUNNER_TEMP/app.git" --skills to-cards
+          test -d app-workspace/app/.git && test -f app-workspace/AGENTS.md
+          test -z "$(git -C app-workspace/app status --porcelain)"
+          dotagents new "$RUNNER_TEMP/api.git" app-workspace --yes
+          grep -F '`api/`' app-workspace/AGENTS.md
+          dotagents check app-workspace
+          ! dotagents new "$RUNNER_TEMP/app.git" app-workspace --yes

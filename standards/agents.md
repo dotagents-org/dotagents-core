@@ -16,8 +16,30 @@ The agent configuration is personal: it never goes into a project's repository. 
 `.artifacts/`, `.claude/`, `.codex/`, `.opencode/`, and the folders of other agents (`.copilot/`,
 `.cursor/`, `.gemini/`) at the workspace root.
 
-- When the workspace is inside a git repository, `dotagents init` lists those paths in the
-  repository's `.git/info/exclude`. Git ignores them as it would with `.gitignore`, but the
+**Recommended layout: the workspace wraps the repositories.** The agent files sit at a root
+that is not a git repository, and each project repository is a folder inside it:
+
+```
+app-workspace/            not a repository: AGENTS.md, CLAUDE.md, .agents/, .artifacts/…
+├── app/                  git clone: only the project's own files
+└── api/                  another repository of the same project, if any
+```
+
+- `dotagents new <git-url> [folder]` creates `<name>-workspace/`, clones the repository into
+  it and runs `init`. With an existing workspace as the folder, it adds one more repository
+  and lists it under "Repositories" in `AGENTS.md`.
+- The repositories never see the agent files, so there is nothing to ignore. Re-cloning,
+  switching branches or `git clean -fdx` doesn't touch `.artifacts/` or the transcripts.
+- `AGENTS.md` lists the repositories, so the agents know where the code is and run git inside
+  them (`git -C <folder>`). `dotagents check` fails when a repository is missing from it.
+- Run the agents at the workspace root (see "Where to run the agents"). Features that need a
+  git repository in the current folder, such as Claude Code worktrees or `codex exec`, have to
+  be used from inside a repository, or with `--skip-git-repo-check` in Codex.
+
+**Fallback, when the root has to be the repository** (an Obsidian vault, for example, where
+moving the folder would break the app and the sync):
+
+- `dotagents init` lists those paths in the repository's `.git/info/exclude`. Git ignores them as it would with `.gitignore`, but the
   exclude file is local and never committed, so the project carries no trace of them, not
   even an ignore rule.
 - Don't add them to the project's `.gitignore`: that file is committed.
