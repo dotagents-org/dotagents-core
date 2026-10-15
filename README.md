@@ -400,7 +400,7 @@ A third-party skill that isn't in the catalog can still be installed by hand wit
 |---|---|
 | [llm-wiki](skills/llm-wiki/SKILL.md) | Maintains a Markdown wiki fed by sources (`raw/` → `wiki/`), with ingest, query and lint. |
 | [map-source-files](skills/map-source-files/SKILL.md) | Builds a File / Location / Responsibility table of a repository's source files. |
-| [move-claude-sessions](skills/move-claude-sessions/SKILL.md) | Moves Claude Code conversations to another folder's project when a project folder moves, so `claude --resume` finds them there. |
+| [move-sessions](skills/move-sessions/SKILL.md) | Makes past conversations of Claude Code, Codex and OpenCode follow a project folder that moved, so each tool lists them again from the new folder. |
 | [obsidian-docs](skills/obsidian-docs/SKILL.md) | Answers questions about Obsidian from the official help, the plugin and theme directory, and the forum. |
 | [session-archive](skills/session-archive/SKILL.md) | Writes the session transcript to `.artifacts/session-archives/`. |
 | [to-cards](skills/to-cards/SKILL.md) | Turns loose text (a message, an email, meeting notes) into task cards. |
@@ -564,7 +564,7 @@ npm test                 # unit tests (node:test)
 node cli.mjs --help      # run without npm link
 ```
 
-**Unit tests** (`test/`) go through the modules' interfaces on real temporary folders: applying and verifying a workspace, idempotency, dry run, links versus copies, third-party skills through a fake installer (no network), git exclusion inside a real repository, the global install with a temporary home folder, and the `move-claude-sessions` script with a temporary `CLAUDE_CONFIG_DIR`. They run in a couple of seconds.
+**Unit tests** (`test/`) go through the modules' interfaces on real temporary folders: applying and verifying a workspace, idempotency, dry run, links versus copies, third-party skills through a fake installer (no network), git exclusion inside a real repository, the global install with a temporary home folder, and the `move-sessions` script against temporary data folders for the three tools. They run in a couple of seconds.
 
 **CI** runs on every push that touches the code:
 
