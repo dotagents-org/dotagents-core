@@ -106,3 +106,7 @@ jobs:
           grep -F humanizer "$ws/skills-lock.json"
           dotagents check "$ws"
           ! dotagents init "$ws" --skills not-a-skill
+          only="$RUNNER_TEMP/only-third-party"
+          mkdir -p "$only"
+          dotagents init "$only" --skills humanizer
+          dotagents check "$only"
