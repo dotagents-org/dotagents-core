@@ -111,7 +111,13 @@ test("hand-written READMEs in .agents and .artifacts are kept as backups", async
 test("a skills-lock.json without its skills key is rebuilt, keeping a backup", async (t) => {
   const ws = tempWorkspace(t);
   const lock = path.join(ws, "skills-lock.json");
+  quiet();
+  await applyWorkspace(REPO, ws, []);
   fs.writeFileSync(lock, JSON.stringify({ version: 1, "fake-skill": { source: "me/fake-skills" } }, null, 2));
+  quiet();
+  verifyWorkspace(REPO, ws);
+  assert.equal(state.problems, 1); // check points at it before init fixes it
+
   quiet();
   await applyWorkspace(REPO, ws, [fakeThirdParty], { installer: fakeInstaller });
   assert.equal(state.problems, 0);

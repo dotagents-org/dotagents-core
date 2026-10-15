@@ -56,7 +56,7 @@ Files dotagents generates start with a marker line. A file without the marker is
 | Git | warns when the workspace is a repository or inside one; fails when an agent file is tracked, or when git would add one as new |
 | Root files | `AGENTS.md` exists and mentions every repository in the folder; warns when a `CLAUDE.md` doesn't import `AGENTS.md` (an `@AGENTS.md` anywhere in its text), since Claude Code would then read only the `CLAUDE.md` |
 | `.agents/` | no `.agents/.agents/`, `.agents/commands/` or `.codex/skills/`; every rule in `.agents/rules/` linked from `AGENTS.md` |
-| Skills | `.claude/skills` is a link to `.agents/skills`; every skill folder has a `SKILL.md` whose `name` matches the folder and that is under 500 lines; own skills are links, not copies, and not also in the lock; every skill in `skills-lock.json` is installed |
+| Skills | `.claude/skills` is a link to `.agents/skills`; every skill folder has a `SKILL.md` whose `name` matches the folder and that is under 500 lines; own skills are links, not copies, and not also in the lock; every skill in `skills-lock.json` is installed, and the lock keeps its entries under `"skills"` |
 | `.claude/` | `rules` is a link when it exists; `settings.json` sets `plansDirectory` |
 | `.artifacts/` | `INDEX.md`, `session-archives/` and `plans/` exist; fails while an `INDEX.md` sits at the root, where earlier versions put it (`init` moves it) |
 

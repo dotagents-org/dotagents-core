@@ -9,7 +9,7 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import * as p from "@clack/prompts";
-import { checkWarn, displayPath, fancy, finish, header, interactive, line, parseArgs, rail, report, runWithSpinner, section, state, style } from "./lib/common.mjs";
+import { checkWarn, displayPath, fancy, finish, header, interactive, line, lstat, parseArgs, rail, report, runWithSpinner, section, state, style } from "./lib/common.mjs";
 import { installGlobal } from "./lib/global.mjs";
 import { loadWorkspaces, registerWorkspace, registryFile, untrackWorkspace } from "./lib/registry.mjs";
 import { listSkills, resolveSkills, skillsIn } from "./lib/skills.mjs";
@@ -309,7 +309,8 @@ async function askInit(defaultWs, { opened = false } = {}) {
       message: `Which skills should ${bold(displayPath(ws))} use?`,
       options: listSkills(repo).map((s) => {
         const label = s.kind === "own" ? s.name : `${s.name} ${dim(`· ${s.source}`)}`;
-        const here = s.kind === "own" ? "already linked" : "already installed";
+        const linked = lstat(path.join(ws, ".agents", "skills", s.name))?.isSymbolicLink();
+        const here = s.kind === "own" ? (linked ? "already linked" : "a copy: becomes a link") : "already installed";
         return { value: s.name, label, hint: present.includes(s.name) ? here : fitHint(s.description, label) };
       }),
       initialValues: present,
