@@ -10,5 +10,6 @@
 | [Recipes](recipes.md) | Common tasks, start to finish. |
 | [Architecture and development](architecture.md) | Repository layout, modules, tests, CI, how to add a rule. |
 | [Troubleshooting and limits](troubleshooting.md) | Failing checks and how to fix them, known limits. |
+| [Use case: an Obsidian vault](use-cases/obsidian-vault.md) | A notes vault as a workspace: setup, the AGENTS.md, what a cloud drive or git sync carries, pitfalls. |
 
 The standards themselves live in [standards/](../standards/): [`.agents/`](../standards/agents.md) and [`.artifacts/`](../standards/artifacts.md).
