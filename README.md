@@ -153,6 +153,7 @@ Every command that changes something takes `--dry-run`.
 - [Recipes](docs/recipes.md): common tasks, start to finish.
 - [Architecture and development](docs/architecture.md): modules, tests, CI.
 - [Troubleshooting and limits](docs/troubleshooting.md).
+- Use case: [an Obsidian vault](docs/use-cases/obsidian-vault.md), synced by a cloud drive or by git.
 - Standards: [`.agents/`](standards/agents.md) and [`.artifacts/`](standards/artifacts.md), based on Galster et al., *Configuring agentic AI coding tools: an exploratory study* (AIware '26).
 
 ## License
