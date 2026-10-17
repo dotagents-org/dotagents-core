@@ -66,8 +66,6 @@ The user should give (ask if missing):
    ```
 
    At the top of the document, include:
-   - The header line from the `.artifacts/` standard:
-     `> **Type:** living reference · **Scope:** source files of <target> · **Last verified:** YYYY-MM-DD`.
    - A title with the mapped repo/folder.
    - A one-line summary: total files, total folders.
    - A table of contents with links to each folder section (Markdown anchors), useful in
