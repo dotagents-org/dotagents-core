@@ -1,7 +1,5 @@
 # The `.agents/` folder standard
 
-> **Type:** standard · **Scope:** any workspace with `AGENTS.md`, `.agents/` and `.artifacts/` at the root, applied by `dotagents init` from this repository · **Last verified:** 2026-10-13
-
 `.agents/` is the single source of the coding agents' configuration: Claude Code, Codex and
 OpenCode. The `.claude/`, `.codex/` and `.opencode/` folders only **adapt** that content to
 each tool's format. If something can be written once for all three, it lives here.
@@ -253,8 +251,8 @@ standard does not define yet.
 - Nothing in a workspace's `.agents/` or `.artifacts/` is versioned or reaches whoever clones
   one of the repositories, by choice (see "Never in the projects' git"). The paper only
   studied configuration versioned inside the repository, the opposite choice.
-- The tools change fast. When you update one of them, check the mechanism table and update
-  the "Last verified" date.
+- The tools change fast. When you update one of them, check the mechanism table again and
+  update the dates in "Basis" saying when the paths were checked.
 
 ---
 

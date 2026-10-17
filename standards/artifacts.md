@@ -1,7 +1,5 @@
 # The `.artifacts/` folder standard
 
-> **Type:** standard · **Scope:** any workspace with `AGENTS.md`, `.agents/` and `.artifacts/` at the root, applied by `dotagents init` from this repository · **Last verified:** 2026-10-14
-
 `.artifacts/` holds the documentation that agents and people write about the project:
 architecture, research, decisions, session transcripts. Agent configuration does not live
 here ([`.agents/` standard](agents.md)), and neither do code, secrets or build output.
@@ -90,9 +88,7 @@ These keep the documents useful to the agents. They are advice, not checks.
   dated note; the history stays in the transcripts.
 - **Each fact lives in one place.** A document that describes the current state is
   rewritten when the state changes.
-- **Name things after what they hold**, in kebab-case. A one-line header helps the agent
-  decide quickly whether a document still holds:
-  `> **Type:** … · **Scope:** … · **Last verified:** YYYY-MM-DD`.
+- **Name things after what they hold**, in kebab-case.
 - A rule, skill, subagent or hook is not a document: it goes to `.agents/`.
 
 ---
