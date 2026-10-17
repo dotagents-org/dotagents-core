@@ -12,7 +12,7 @@ test("own skills and registered third-party skills come from one list", () => {
   const all = listSkills(REPO);
   const toCards = all.find((s) => s.name === "to-cards");
   assert.equal(toCards.kind, "own");
-  assert.ok(toCards.description.startsWith("Turns any loose text"));
+  assert.ok(toCards.description.startsWith("Turns loose text"));
   const catalog = JSON.parse(fs.readFileSync(catalogFile(REPO), "utf8")).skills;
   for (const entry of catalog) assert.equal(all.find((s) => s.name === entry.name)?.kind, "third-party");
 });
