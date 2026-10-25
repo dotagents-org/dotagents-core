@@ -47,7 +47,8 @@ A third-party skill that isn't in the catalog can still be installed by hand wit
 4. Validate it, then commit:
 
    ```bash
-   PYTHONUTF8=1 uvx --from "git+https://github.com/agentskills/agentskills.git#subdirectory=skills-ref" skills-ref validate skills/<name>
+   py -m pip install "git+https://github.com/agentskills/agentskills.git#subdirectory=skills-ref"   # once; python3 -m pip on Linux
+   PYTHONUTF8=1 skills-ref validate skills/<name>
    ```
 
 The full rules are in [standards/agents.md](../standards/agents.md#skills). A skill only some projects need can also live directly in one workspace's `.agents/skills/`.
