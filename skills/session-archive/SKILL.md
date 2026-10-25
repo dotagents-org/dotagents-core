@@ -41,11 +41,12 @@ Contents, in chronological order:
 
 1. Find the session id: the UUID in your scratchpad directory path; it
    matches the transcript filename.
-2. Run from anywhere, with `uv` (it brings its own Python; on Windows a bare
-   `python` may be the Microsoft Store stub):
+2. Run from anywhere with the official Python: `py` on Windows (a bare `python`
+   may be the Microsoft Store stub), `python3` on Linux and macOS. The script
+   needs only the standard library.
 
    ```bash
-   uv run --no-project python .agents/skills/session-archive/scripts/archive_session.py --session-id <session-id>
+   py .agents/skills/session-archive/scripts/archive_session.py --session-id <session-id>
    ```
 
    Without `--session-id`, the script picks the most recently modified
