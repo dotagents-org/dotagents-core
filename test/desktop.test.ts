@@ -7,7 +7,7 @@ import os from "node:os";
 import path from "node:path";
 import { test, type TestContext } from "node:test";
 import { dropAccount, launcherDir, setUpAccount } from "../lib/accounts.ts";
-import { type Shortcut, type Shortcuts, desktopDataDir, desktopExe, desktopLauncherFile, powershellShortcuts, shortcutFile } from "../lib/desktop.ts";
+import { type Shortcut, type Shortcuts, appTitle, desktopDataDir, desktopExe, desktopLauncherFile, powershellShortcuts, shortcutFile } from "../lib/desktop.ts";
 import { state } from "../lib/state.ts";
 import { REPO, quiet } from "./helpers.ts";
 
@@ -46,14 +46,21 @@ function fakeShortcuts() {
   return { saved, desktop: { shortcuts } };
 }
 
-test("a second account gets its desktop data folder, launcher and Start menu shortcut; the default one doesn't", (t) => {
+test("every account gets a Start menu shortcut, \"Claude <Name>\"; only the second one a data folder of its own", (t) => {
   tempWindowsHome(t);
   const { saved, desktop } = fakeShortcuts();
   quiet();
   setUpAccount(REPO, { name: "work", isDefault: true, desktop });
   setUpAccount(REPO, { name: "personal", desktop });
   assert.equal(state.problems, 0);
-  assert.ok(!fs.existsSync(shortcutFile("work")));
+  assert.ok(shortcutFile("personal").endsWith("Claude Personal.lnk"));
+  assert.equal(appTitle("my-work"), "Claude My Work");
+  // The default account opens the normal app, with its own data and ~/.claude.
+  assert.equal(saved.get(shortcutFile("work"))?.description, "dotagents:work");
+  assert.ok(!fs.existsSync(desktopDataDir("work")));
+  const defaultVbs = fs.readFileSync(desktopLauncherFile(launcherDir(), "work"), "utf8");
+  assert.ok(defaultVbs.includes('.Remove "CLAUDE_CONFIG_DIR"'));
+  assert.ok(!defaultVbs.includes("--user-data-dir"));
   assert.ok(fs.existsSync(desktopDataDir("personal")));
   const vbs = fs.readFileSync(desktopLauncherFile(launcherDir(), "personal"), "utf8");
   assert.ok(vbs.includes(`"CLAUDE_CONFIG_DIR") = "${path.join(os.homedir(), ".claude-personal")}"`));

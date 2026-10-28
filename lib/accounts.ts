@@ -61,8 +61,7 @@ function applyAccount(repo: string, account: Account, desktop: { shortcuts: Shor
   installGlobal(repo, account.configDir);
   section("Launcher");
   writeGenerated(launcherFile(account.name), launcher(account), { comment: isWindows ? "rem" : "#", executable: true, onForeign: "backup" });
-  // The default account keeps the normal Desktop app.
-  if (desktop && !account.default) applyDesktop(account, { launcherDir: launcherDir(), shortcuts: desktop.shortcuts });
+  if (desktop) applyDesktop(account, { launcherDir: launcherDir(), shortcuts: desktop.shortcuts });
 }
 
 // Adds an account, or brings one up to date: its folder, the configuration and the launcher.
@@ -127,7 +126,7 @@ export function verifyAccounts({ desktop = desktopDefault() }: DesktopOption = {
   section("Accounts");
   const seen = new Map<string, string>();
   for (const account of loadAccounts()) {
-    if (desktop && !account.default) verifyDesktop(account.name);
+    if (desktop) verifyDesktop(account.name, account.default);
     checkItem(fs.existsSync(account.configDir), `${account.name}: ${showFolder(account.configDir)} exists`, `create it with: dotagents account add ${account.name}`);
     checkItem(fs.existsSync(launcherFile(account.name)), `${account.name}: launcher ${path.basename(launcherFile(account.name))} exists`, `write it with: dotagents install`);
     const who = signedIn(account.configDir);
