@@ -19,8 +19,10 @@ import path from "node:path";
 import { ensureDir, lstat, removeGenerated, writeGenerated } from "./common.ts";
 import { checkItem, checkWarn, report, section } from "./output.ts";
 import { state } from "./state.ts";
+import { SHORTCUT_APP_ID_CS, appIdFor, taskbarWatcher, taskbarWatcherFile } from "./taskbar.ts";
 
-export type Shortcut = { target: string; args: string; description: string; icon: string };
+// appId: the AppUserModelID that gives the account its own taskbar button (lib/taskbar.ts).
+export type Shortcut = { target: string; args: string; description: string; icon: string; appId: string };
 
 // Reads and writes .lnk files. read returns null when the file doesn't exist.
 export type Shortcuts = {
@@ -47,8 +49,17 @@ const MARK = (name: string) => `dotagents:${name}`;
 
 // The default account opens the normal app, with CLAUDE_CONFIG_DIR cleared (~/.claude); the
 // others their own data folder and config folder.
-function vbsLauncher(name: string, configDir: string, isDefault: boolean) {
+// Then it starts the taskbar watcher, hidden, for the account's own button (lib/taskbar.ts).
+function vbsLauncher(repo: string, launcherDir: string, name: string, configDir: string, isDefault: boolean) {
   const q = (s: string) => s.replace(/"/g, '""');
+  const arg = (flag: string, value: string) => ` -${flag} ""${q(value)}""`;
+  const watcher =
+    `powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -WindowStyle Hidden -File ""${q(taskbarWatcherFile(launcherDir))}""` +
+    arg("AppId", appIdFor(name)) +
+    arg("DisplayName", appTitle(name)) +
+    arg("Icon", windowIcon(repo, name)) +
+    arg("Launcher", desktopLauncherFile(launcherDir, name)) +
+    (isDefault ? "" : arg("DataDir", desktopDataDir(name)));
   return [
     `' Claude Desktop as the ${name} account.`,
     'Set shell = CreateObject("WScript.Shell")',
@@ -58,6 +69,7 @@ function vbsLauncher(name: string, configDir: string, isDefault: boolean) {
       ? ["On Error Resume Next", 'shell.Environment("PROCESS").Remove "CLAUDE_CONFIG_DIR"', "On Error GoTo 0"]
       : [`shell.Environment("PROCESS")("CLAUDE_CONFIG_DIR") = "${q(configDir)}"`]),
     isDefault ? `shell.Run """${q(desktopExe())}""", 1, False` : `shell.Run """${q(desktopExe())}"" --user-data-dir=""${q(desktopDataDir(name))}""", 1, False`,
+    `shell.Run "${watcher}", 0, False`,
     "",
   ].join("\r\n");
 }
@@ -71,12 +83,19 @@ export function accountIcon(repo: string, name: string) {
   return fs.existsSync(ico) ? `${ico},0` : `${desktopExe()},0`;
 }
 
+// The same icon for a window's taskbar button, which takes an .ico file as a plain path.
+const windowIcon = (repo: string, name: string) => accountIcon(repo, name).replace(/\.ico,0$/i, ".ico");
+
 function shortcutFor(repo: string, name: string, launcherDir: string): Shortcut {
-  return { target: wscript(), args: `"${desktopLauncherFile(launcherDir, name)}"`, description: MARK(name), icon: accountIcon(repo, name) };
+  return { target: wscript(), args: `"${desktopLauncherFile(launcherDir, name)}"`, description: MARK(name), icon: accountIcon(repo, name), appId: appIdFor(name) };
 }
 
 const sameShortcut = (a: Shortcut, b: Shortcut) =>
-  a.target.toLowerCase() === b.target.toLowerCase() && a.args === b.args && a.description === b.description && a.icon.toLowerCase() === b.icon.toLowerCase();
+  a.target.toLowerCase() === b.target.toLowerCase() &&
+  a.args === b.args &&
+  a.description === b.description &&
+  a.icon.toLowerCase() === b.icon.toLowerCase() &&
+  a.appId === b.appId;
 
 function ensureShortcut(lnk: string, wanted: Shortcut, shortcuts: Shortcuts) {
   const current = lstat(lnk) ? shortcuts.read(lnk) : null;
@@ -101,7 +120,11 @@ export function applyDesktop(
   }
   // Made before the first start: a folder the app creates itself lands in its MSIX container.
   if (!account.default) ensureDir(desktopDataDir(account.name));
-  writeGenerated(desktopLauncherFile(launcherDir, account.name), vbsLauncher(account.name, account.configDir, Boolean(account.default)), { comment: "'", onForeign: "backup" });
+  writeGenerated(taskbarWatcherFile(launcherDir), taskbarWatcher(), { comment: "#", onForeign: "backup" });
+  writeGenerated(desktopLauncherFile(launcherDir, account.name), vbsLauncher(repo, launcherDir, account.name, account.configDir, Boolean(account.default)), {
+    comment: "'",
+    onForeign: "backup",
+  });
   ensureShortcut(shortcutFile(account.name), shortcutFor(repo, account.name, launcherDir), shortcuts);
 }
 
@@ -129,8 +152,10 @@ export function verifyDesktop(name: string, isDefault = false) {
 // variables, so no quoting reaches the command line.
 export const powershellShortcuts: Shortcuts = {
   read(lnk) {
-    const script = "$s = (New-Object -ComObject WScript.Shell).CreateShortcut($env:DA_LNK); @{target=$s.TargetPath; args=$s.Arguments; description=$s.Description; icon=$s.IconLocation} | ConvertTo-Json -Compress";
-    const res = spawnSync("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", script], { encoding: "utf8", env: { ...process.env, DA_LNK: lnk } });
+    const script =
+      "Add-Type -TypeDefinition $env:DA_CS; $s = (New-Object -ComObject WScript.Shell).CreateShortcut($env:DA_LNK); " +
+      "@{target=$s.TargetPath; args=$s.Arguments; description=$s.Description; icon=$s.IconLocation; appId=[DotagentsShortcutAppId]::Read($env:DA_LNK)} | ConvertTo-Json -Compress";
+    const res = spawnSync("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", script], { encoding: "utf8", env: { ...process.env, DA_LNK: lnk, DA_CS: SHORTCUT_APP_ID_CS } });
     if (res.status !== 0) return null;
     try {
       return JSON.parse(res.stdout) as Shortcut;
@@ -140,11 +165,14 @@ export const powershellShortcuts: Shortcuts = {
   },
   write(lnk, s) {
     const script =
-      "$s = (New-Object -ComObject WScript.Shell).CreateShortcut($env:DA_LNK); $s.TargetPath = $env:DA_TARGET; $s.Arguments = $env:DA_ARGS; $s.Description = $env:DA_DESCRIPTION; $s.IconLocation = $env:DA_ICON; $s.Save()";
+      "Add-Type -TypeDefinition $env:DA_CS; $s = (New-Object -ComObject WScript.Shell).CreateShortcut($env:DA_LNK); " +
+      "$s.TargetPath = $env:DA_TARGET; $s.Arguments = $env:DA_ARGS; $s.Description = $env:DA_DESCRIPTION; $s.IconLocation = $env:DA_ICON; $s.Save(); " +
+      "[DotagentsShortcutAppId]::Write($env:DA_LNK, $env:DA_APPID)";
     const res = spawnSync("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", script], {
       encoding: "utf8",
-      env: { ...process.env, DA_LNK: lnk, DA_TARGET: s.target, DA_ARGS: s.args, DA_DESCRIPTION: s.description, DA_ICON: s.icon },
+      env: { ...process.env, DA_LNK: lnk, DA_CS: SHORTCUT_APP_ID_CS, DA_TARGET: s.target, DA_ARGS: s.args, DA_DESCRIPTION: s.description, DA_ICON: s.icon, DA_APPID: s.appId },
     });
     if (res.status !== 0) throw new Error(`Couldn't write ${lnk}: ${res.stderr.trim()}`);
   },
 };
+
