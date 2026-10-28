@@ -1,6 +1,7 @@
-// A second Claude Desktop app per account, on Windows: the app takes --user-data-dir (an
-// Electron flag, not documented by Anthropic), so each account gets its own data folder and a
-// Start menu shortcut, "Claude <name>". The default account keeps the normal app.
+// A Claude Desktop app per account, on Windows: the app takes --user-data-dir (an Electron flag,
+// not documented by Anthropic), so each account other than the default gets its own data folder.
+// Every account gets a Start menu shortcut, "Claude <Name>"; the default account's opens the
+// normal app.
 //
 // The shortcut runs a small .vbs launcher, so no console window flashes: it sets
 // CLAUDE_CONFIG_DIR, for the Code tab inside the app to use the account's folder, and starts
@@ -34,18 +35,26 @@ const localAppData = () => process.env.LOCALAPPDATA ?? path.join(os.homedir(), "
 export const desktopExe = () => path.join(localAppData(), "Microsoft", "WindowsApps", "claude-desktop.exe");
 // Right under %APPDATA%: Cowork only works with the data folder there.
 export const desktopDataDir = (name: string) => path.join(appData(), `Claude-${name}`);
-export const shortcutFile = (name: string) => path.join(appData(), "Microsoft", "Windows", "Start Menu", "Programs", `Claude ${name}.lnk`);
+// "lovelace" → "Claude Lovelace", "my-work" → "Claude My Work".
+export const appTitle = (name: string) => `Claude ${name.split("-").map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ")}`;
+export const shortcutFile = (name: string) => path.join(appData(), "Microsoft", "Windows", "Start Menu", "Programs", `${appTitle(name)}.lnk`);
 export const desktopLauncherFile = (launcherDir: string, name: string) => path.join(launcherDir, `claude-desktop-${name}.vbs`);
 
 const MARK = (name: string) => `dotagents:${name}`;
 
-function vbsLauncher(name: string, configDir: string) {
+// The default account opens the normal app, with CLAUDE_CONFIG_DIR cleared (~/.claude); the
+// others their own data folder and config folder.
+function vbsLauncher(name: string, configDir: string, isDefault: boolean) {
   const q = (s: string) => s.replace(/"/g, '""');
   return [
     `' Claude Desktop as the ${name} account.`,
     'Set shell = CreateObject("WScript.Shell")',
-    `shell.Environment("PROCESS")("CLAUDE_CONFIG_DIR") = "${q(configDir)}"`,
-    `shell.Run """${q(desktopExe())}"" --user-data-dir=""${q(desktopDataDir(name))}""", 1, False`,
+    // Removed, never set empty: an empty CLAUDE_CONFIG_DIR makes Claude Code use the current folder.
+    // Remove fails when the variable isn't set, hence On Error Resume Next around it.
+    ...(isDefault
+      ? ["On Error Resume Next", 'shell.Environment("PROCESS").Remove "CLAUDE_CONFIG_DIR"', "On Error GoTo 0"]
+      : [`shell.Environment("PROCESS")("CLAUDE_CONFIG_DIR") = "${q(configDir)}"`]),
+    isDefault ? `shell.Run """${q(desktopExe())}""", 1, False` : `shell.Run """${q(desktopExe())}"" --user-data-dir=""${q(desktopDataDir(name))}""", 1, False`,
     "",
   ].join("\r\n");
 }
@@ -70,15 +79,15 @@ function ensureShortcut(lnk: string, wanted: Shortcut, shortcuts: Shortcuts) {
 }
 
 // The data folder, the launcher and the shortcut of an account's Desktop app.
-export function applyDesktop(account: { name: string; configDir: string }, { launcherDir, shortcuts = powershellShortcuts }: { launcherDir: string; shortcuts?: Shortcuts }) {
+export function applyDesktop(account: { name: string; configDir: string; default?: boolean }, { launcherDir, shortcuts = powershellShortcuts }: { launcherDir: string; shortcuts?: Shortcuts }) {
   section("Desktop");
   if (!fs.existsSync(desktopExe())) {
     checkWarn("Claude Desktop isn't installed, so no desktop shortcut", "install it from claude.ai/download and run dotagents install again");
     return;
   }
   // Made before the first start: a folder the app creates itself lands in its MSIX container.
-  ensureDir(desktopDataDir(account.name));
-  writeGenerated(desktopLauncherFile(launcherDir, account.name), vbsLauncher(account.name, account.configDir), { comment: "'", onForeign: "backup" });
+  if (!account.default) ensureDir(desktopDataDir(account.name));
+  writeGenerated(desktopLauncherFile(launcherDir, account.name), vbsLauncher(account.name, account.configDir, Boolean(account.default)), { comment: "'", onForeign: "backup" });
   ensureShortcut(shortcutFile(account.name), shortcutFor(account.name, launcherDir), shortcuts);
 }
 
@@ -96,10 +105,10 @@ export function removeDesktop(name: string, { launcherDir, shortcuts = powershel
   report("updated", lnk, "removed");
 }
 
-export function verifyDesktop(name: string) {
+export function verifyDesktop(name: string, isDefault = false) {
   if (!fs.existsSync(desktopExe())) return;
-  checkItem(fs.existsSync(desktopDataDir(name)), `${name}: desktop data folder exists`, "create it with: dotagents install");
-  checkItem(fs.existsSync(shortcutFile(name)), `${name}: Start menu shortcut "Claude ${name}" exists`, "create it with: dotagents install");
+  if (!isDefault) checkItem(fs.existsSync(desktopDataDir(name)), `${name}: desktop data folder exists`, "create it with: dotagents install");
+  checkItem(fs.existsSync(shortcutFile(name)), `${name}: Start menu shortcut "${appTitle(name)}" exists`, "create it with: dotagents install");
 }
 
 // The real adapter: PowerShell and the WScript.Shell object. The values go through environment
