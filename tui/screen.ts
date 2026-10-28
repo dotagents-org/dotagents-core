@@ -12,6 +12,8 @@ export type ScreenProps = {
   now: Date;
   // Goes up when the user presses r.
   refresh: number;
+  // The lines the screen may use: a frame taller than the terminal can't be redrawn.
+  rows: number;
 };
 
 export type Screen = {

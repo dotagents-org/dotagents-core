@@ -69,6 +69,11 @@ test("the usage screen shows every account, and the number keys switch screens",
   app.stdin.write("4");
   await settle();
   assert.match(plain(app), /session-archive/);
+  // More skills than lines: the list scrolls instead of growing past the terminal.
+  assert.match(plain(app), /↓ \d+ more · ↑↓ scroll/);
+  app.stdin.write("\u001B[B"); // ↓
+  await settle();
+  assert.match(plain(app), /↑ 1 more/);
 });
 
 test("the arrows and tab go round the screens, and the usage --watch view opens on usage", async (t) => {

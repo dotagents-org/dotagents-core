@@ -4,8 +4,9 @@ import { Box, Text } from "ink";
 import { createElement as h, useMemo } from "react";
 import { listSkills } from "../../lib/skills.ts";
 import { type Screen, type ScreenProps, theme } from "../screen.ts";
+import { ScrollList } from "../scroll.ts";
 
-function SkillsScreen({ repo, refresh }: ScreenProps) {
+function SkillsScreen({ repo, refresh, rows }: ScreenProps) {
   const all = useMemo(() => listSkills(repo), [repo, refresh]);
   const width = Math.max(...all.map((s) => s.name.length)) + 2;
   const row = (s: (typeof all)[number]) =>
@@ -17,14 +18,14 @@ function SkillsScreen({ repo, refresh }: ScreenProps) {
     );
   const own = all.filter((s) => s.kind === "own");
   const thirdParty = all.filter((s) => s.kind === "third-party");
-  return h(
-    Box,
-    { flexDirection: "column" },
-    h(Text, { bold: true }, `${own.length} skills`),
+  const lines = [
+    h(Text, { key: "own", bold: true }, `${own.length} skills`),
     ...own.map(row),
-    h(Box, { marginTop: 1 }, h(Text, { bold: true }, `${thirdParty.length} third-party`)),
-    ...thirdParty.map(row)
-  );
+    h(Text, { key: "gap" }, " "),
+    h(Text, { key: "third", bold: true }, `${thirdParty.length} third-party`),
+    ...thirdParty.map(row),
+  ];
+  return h(ScrollList, { lines, rows });
 }
 
 export const skillsScreen: Screen = { id: "skills", title: "Skills", Component: SkillsScreen };
