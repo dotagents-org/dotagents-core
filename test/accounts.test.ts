@@ -6,7 +6,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { test, type TestContext } from "node:test";
-import { dropAccount, installAccounts, launcherFile, setUpAccount, verifyAccounts } from "../lib/accounts.ts";
+import { dropAccount, installAccounts, launcherFile, setUpAccount, showFolder, verifyAccounts } from "../lib/accounts.ts";
 import { loadAccounts } from "../lib/machine-state.ts";
 import { state } from "../lib/state.ts";
 import { REPO, quiet } from "./helpers.ts";
@@ -126,4 +126,13 @@ test("the launcher runs claude with the account's folder", (t) => {
     }).stdout.trim();
   assert.equal(run("personal"), `dir=[${path.join(home, ".claude-personal")}] key=[]`);
   assert.equal(run("work"), "dir=[] key=[]");
+});
+
+test("an account folder that is a link shows where it points; a plain folder doesn't", (t) => {
+  const home = tempHome(t);
+  fs.mkdirSync(path.join(home, ".claude-work"));
+  fs.symlinkSync(path.join(home, ".claude-work"), path.join(home, ".claude"), "junction");
+  fs.mkdirSync(path.join(home, ".claude-personal"));
+  assert.match(showFolder(path.join(home, ".claude")), /\.claude → .*\.claude-work$/);
+  assert.doesNotMatch(showFolder(path.join(home, ".claude-personal")), /→/);
 });

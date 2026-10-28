@@ -7,7 +7,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { CREDENTIAL_VARIABLES, defaultConfigDir, signedIn } from "./claude-code.ts";
-import { ensureDir, isWindows, realpath, removeGenerated, samePath, writeGenerated } from "./common.ts";
+import { ensureDir, isWindows, lstat, realpath, removeGenerated, samePath, writeGenerated } from "./common.ts";
 import { installGlobal } from "./global.ts";
 import { type Account, accountsFile, loadAccounts, removeAccount, saveAccount } from "./machine-state.ts";
 import { checkItem, checkWarn, displayPath, report, section } from "./output.ts";
@@ -94,11 +94,12 @@ export function dropAccount(name: string) {
   removeAccount(name);
 }
 
-// The folder as Claude Code sees it, plus where it really is when it's a link
-// ("~/.claude → ~/.claude-work").
+// The folder as Claude Code sees it, plus where it really is when it is a link or a junction
+// ("~/.claude → ~/.claude-work"). Only a link counts: a resolved path can also differ by a
+// Windows short name (RUNNER~1), which is the same folder.
 export function showFolder(configDir: string) {
-  const real = realpath(configDir);
-  return real && !samePath(real, configDir) ? `${displayPath(configDir)} → ${displayPath(real)}` : displayPath(configDir);
+  const real = lstat(configDir)?.isSymbolicLink() ? realpath(configDir) : null;
+  return real ? `${displayPath(configDir)} → ${displayPath(real)}` : displayPath(configDir);
 }
 
 // What `install` applies: the default folder, and every account of this machine.
