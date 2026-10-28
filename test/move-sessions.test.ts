@@ -6,37 +6,41 @@ import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { test } from "node:test";
+import { test, type TestContext } from "node:test";
 import { REPO } from "./helpers.ts";
 
 const SCRIPT = path.join(REPO, "skills", "move-sessions", "scripts", "move-sessions.mjs");
 const isWindows = process.platform === "win32";
-const projectName = (dir) => dir.replace(/[^a-zA-Z0-9]/g, "-");
-const gitBash = (dir) => `/${dir[0].toLowerCase()}${dir.slice(2).replace(/\\/g, "/")}`;
+const projectName = (dir: string) => dir.replace(/[^a-zA-Z0-9]/g, "-");
+const gitBash = (dir: string) => `/${dir[0].toLowerCase()}${dir.slice(2).replace(/\\/g, "/")}`;
 
-function setup(t) {
+function setup(t: TestContext) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "dotagents-move-"));
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));
-  const s = {
+  const claude = path.join(root, "claude");
+  const from = path.join(root, "app");
+  const to = path.join(root, "app-workspace");
+  return {
     root,
-    claude: path.join(root, "claude"),
-    from: path.join(root, "app"),
-    to: path.join(root, "app-workspace"),
+    claude,
+    from,
+    to,
+    project: path.join(claude, "projects", projectName(from)),
+    target: path.join(claude, "projects", projectName(to)),
+    run: (...args: string[]) =>
+      spawnSync(process.execPath, [SCRIPT, ...args], {
+        encoding: "utf8",
+        env: { ...process.env, CLAUDE_CONFIG_DIR: claude },
+      }),
   };
-  s.project = path.join(s.claude, "projects", projectName(s.from));
-  s.target = path.join(s.claude, "projects", projectName(s.to));
-  s.run = (...args) =>
-    spawnSync(process.execPath, [SCRIPT, ...args], {
-      encoding: "utf8",
-      env: { ...process.env, CLAUDE_CONFIG_DIR: s.claude },
-    });
-  return s;
 }
 
-const line = (cwd, extra = {}) => JSON.stringify({ type: "user", cwd, ...extra });
-const age = (file) => fs.utimesSync(file, new Date(Date.now() - 60_000), new Date(Date.now() - 60_000));
+type Setup = ReturnType<typeof setup>;
 
-function claudeTranscript(s, lines) {
+const line = (cwd: string, extra = {}) => JSON.stringify({ type: "user", cwd, ...extra });
+const age = (file: string) => fs.utimesSync(file, new Date(Date.now() - 60_000), new Date(Date.now() - 60_000));
+
+function claudeTranscript(s: Setup, lines: string[]) {
   fs.mkdirSync(s.project, { recursive: true });
   const file = path.join(s.project, "abc.jsonl");
   fs.writeFileSync(file, `${lines.join("\n")}\n`);

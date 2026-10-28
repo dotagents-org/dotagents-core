@@ -10,15 +10,17 @@
 import fs from "node:fs";
 import path from "node:path";
 import { checkItem, ensureDirLink, lstat, realpath, report, samePath, state } from "./common.ts";
-import { loadCatalog, npxInstaller, parseSkill } from "./thirdparty.ts";
+import { loadCatalog, npxInstaller, parseSkill, type Installer } from "./thirdparty.ts";
+
+export type Skill = { name: string; kind: "own" | "third-party"; source: string; description: string };
 
 // Every skill this repository knows: [{ name, kind: "own" | "third-party", source, description }].
-export function listSkills(repo) {
+export function listSkills(repo: string): Skill[] {
   const dir = path.join(repo, "skills");
   const own = fs
     .readdirSync(dir)
     .filter((name) => fs.existsSync(path.join(dir, name, "SKILL.md")))
-    .map((name) => ({
+    .map((name): Skill => ({
       name,
       kind: "own",
       source: path.join(dir, name),
@@ -26,12 +28,12 @@ export function listSkills(repo) {
     }));
   const thirdParty = loadCatalog(repo)
     .filter((s) => !own.some((o) => o.name === s.name))
-    .map((s) => ({ name: s.name, kind: "third-party", source: s.source, description: s.description ?? "" }));
+    .map((s): Skill => ({ name: s.name, kind: "third-party", source: s.source, description: s.description ?? "" }));
   return [...own, ...thirdParty];
 }
 
 // Names → skills. Unknown names fail with the list of what is available.
-export function resolveSkills(repo, names) {
+export function resolveSkills(repo: string, names: string[]): Skill[] {
   const all = listSkills(repo);
   const unknown = names.filter((n) => !all.some((s) => s.name === n));
   if (unknown.length) {
@@ -40,12 +42,12 @@ export function resolveSkills(repo, names) {
         "Register a third-party one with: dotagents skills add <source>"
     );
   }
-  return names.map((n) => all.find((s) => s.name === n));
+  return names.map((n) => all.find((s) => s.name === n)!);
 }
 
-const skillsDir = (ws) => path.join(ws, ".agents", "skills");
+const skillsDir = (ws: string) => path.join(ws, ".agents", "skills");
 
-function lockNames(ws) {
+function lockNames(ws: string): string[] | null | undefined {
   const file = path.join(ws, "skills-lock.json");
   if (!fs.existsSync(file)) return null;
   try {
@@ -57,7 +59,7 @@ function lockNames(ws) {
 
 // Names of the known skills already in the workspace: own ones linked, third-party ones installed
 // (folder present and in the lock). The init questions start from this list.
-export function skillsIn(repo, ws) {
+export function skillsIn(repo: string, ws: string) {
   const locked = lockNames(ws) ?? [];
   return listSkills(repo)
     .filter((s) => {
@@ -70,7 +72,7 @@ export function skillsIn(repo, ws) {
 
 // Puts the skills in the workspace. The .claude/skills link comes before any installation, so
 // the installer finds it in place instead of creating a real .claude/skills folder.
-export async function applySkills(ws, skills, { installer = npxInstaller } = {}) {
+export async function applySkills(ws: string, skills: Skill[], { installer = npxInstaller }: { installer?: Installer } = {}) {
   for (const skill of skills.filter((s) => s.kind === "own")) {
     ensureDirLink(path.join(skillsDir(ws), skill.name), skill.source);
   }
@@ -97,7 +99,7 @@ export async function applySkills(ws, skills, { installer = npxInstaller } = {})
 
 // Checklist of the workspace's skills: every folder is a valid skill, own skills are links (not
 // copies) and not also in the lock, and every locked skill is installed.
-export function verifySkills(repo, ws) {
+export function verifySkills(repo: string, ws: string) {
   const own = listSkills(repo).filter((s) => s.kind === "own");
   const lock = lockNames(ws);
   if (lock === undefined) checkItem(false, "skills-lock.json is valid JSON");
@@ -130,7 +132,7 @@ export function verifySkills(repo, ws) {
 
     const mine = own.find((s) => s.name === entry);
     if (mine) {
-      const linked = lstat(folder).isSymbolicLink();
+      const linked = Boolean(lstat(folder)?.isSymbolicLink());
       checkItem(linked, `${label} is a link to the dotagents repository`, `a copy; delete it and run: dotagents init "${ws}" --skills ${entry}`);
       const target = realpath(folder);
       const expected = realpath(mine.source);

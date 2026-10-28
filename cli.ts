@@ -23,13 +23,13 @@ const version = JSON.parse(fs.readFileSync(path.join(repo, "package.json"), "utf
 const { bold, dim, cyan, green, red, yellow, magenta, gray } = style;
 
 function help() {
-  const cmd = (name, args, desc, more = []) => {
+  const cmd = (name: string, args: string, desc: string, more: string[] = []) => {
     const left = `${cyan(name)}${args ? ` ${dim(args)}` : ""}`;
     const width = name.length + (args ? args.length + 1 : 0);
     const pad = " ".repeat(Math.max(2, 30 - width));
     return [`  ${left}${pad}${desc}`, ...more.map((text) => `${" ".repeat(32)}${text}`)].join("\n");
   };
-  const title = (t) => bold(t.toUpperCase());
+  const title = (t: string) => bold(t.toUpperCase());
   return `${bold(magenta("dotagents"))} ${dim(version)}  Claude Code configuration
 
 ${title("Usage")}
@@ -86,7 +86,19 @@ ${dim("Repository:")} ${displayPath(repo)}
 ${dim("Third-party skills:")} npx skills add <owner/repo> ${dim("(at the workspace root)")}`;
 }
 
-const args = parseArgs(process.argv.slice(2), {
+type CliArgs = {
+  _: string[];
+  all?: boolean;
+  "dry-run"?: boolean;
+  help?: boolean;
+  "no-pull"?: boolean;
+  version?: boolean;
+  wrap?: boolean;
+  yes?: boolean;
+  skills?: string[];
+};
+
+const args = parseArgs<CliArgs>(process.argv.slice(2), {
   booleans: ["all", "dry-run", "help", "no-pull", "version", "wrap", "yes"],
   lists: ["skills"],
 });
@@ -106,11 +118,11 @@ if (args.version) {
 
 // Accepts ~ for the home folder, so the short paths dotagents prints can be pasted back (the
 // Windows shells don't expand ~ for external commands).
-function expandHome(dir) {
+function expandHome(dir: string) {
   return dir === "~" || /^~[\\/]/.test(dir) ? path.join(os.homedir(), dir.slice(1)) : dir;
 }
 
-async function run(cmd) {
+async function run(cmd: string) {
   const ws = path.resolve(expandHome(target ?? process.cwd()));
   switch (cmd) {
     case "install":
@@ -221,7 +233,7 @@ async function newWorkspace() {
 
 // opened: a command (new) already printed its header, so neither the questions nor init open
 // the rail again.
-async function init(ws, { opened = false } = {}) {
+async function init(ws: string, { opened = false } = {}) {
   let skills = args.skills;
   // A repository to move into <name>-workspace/ first: asked in a terminal, --wrap otherwise.
   let wrapFrom = args.wrap ? ws : null;
@@ -249,8 +261,8 @@ async function init(ws, { opened = false } = {}) {
 
 // The repository moved: the shell that ran init still sits in the old folder, and the agents
 // list past sessions by folder. In a terminal, offers to open the workspace in VS Code.
-async function afterWrap(from, ws) {
-  const say = (text) => (fancy ? line(dim(text)) : console.log(text));
+async function afterWrap(from: string, ws: string) {
+  const say = (text: string) => (fancy ? line(dim(text)) : console.log(text));
   if (fancy) line();
   say(`Your terminal is still in the old folder: cd "${displayPath(ws)}"`);
   say("Past agent sessions are listed under the old path: the move-sessions skill brings them along.");
@@ -260,13 +272,13 @@ async function afterWrap(from, ws) {
   if (open === true) spawn("code", [ws], { detached: true, stdio: "ignore", shell: process.platform === "win32" }).unref();
 }
 
-async function askInit(defaultWs, { opened = false } = {}) {
-  const exit = (value) => {
+async function askInit(defaultWs: string, { opened = false } = {}) {
+  const exit = <T,>(value: T): Exclude<T, symbol> => {
     if (p.isCancel(value)) {
       p.cancel(opened ? "The repository was cloned; nothing else was changed. Run dotagents init later." : "Nothing was changed.");
       process.exit(0);
     }
-    return value;
+    return value as Exclude<T, symbol>;
   };
 
   if (!opened) p.intro(`${style.bgMagenta(style.white(style.bold(" dotagents ")))} ${bold("init")}`);
@@ -334,7 +346,7 @@ async function askInit(defaultWs, { opened = false } = {}) {
 
 // ── third-party catalog ───────────────────────────────────────────────────────────────────────
 
-async function registerThirdParty(source) {
+async function registerThirdParty(source: string | undefined) {
   if (!source) throw new Error("Usage: dotagents skills add <source> [--skills a,b]   (source: owner/repo, a git URL or a path)");
   if (!SAFE_SOURCE.test(source)) throw new Error(`'${source}' has characters that aren't allowed in a source`);
   header("skills add", source);
@@ -346,9 +358,10 @@ async function registerThirdParty(source) {
   if (args.all) {
     chosen = found;
   } else if (args.skills) {
-    const missing = args.skills.filter((n) => !found.some((s) => s.name === n));
+    const wanted = args.skills;
+    const missing = wanted.filter((n) => !found.some((s) => s.name === n));
     if (missing.length) throw new Error(`${source} has no skill named ${missing.join(", ")}. It has: ${found.map((s) => s.name).join(", ")}`);
-    chosen = found.filter((s) => args.skills.includes(s.name));
+    chosen = found.filter((s) => wanted.includes(s.name));
   } else if (found.length > 1) {
     if (!interactive || args.yes) {
       throw new Error(`${source} has ${found.length} skills (${found.map((s) => s.name).join(", ")}). Pick with --skills a,b, or take them all with --all`);
@@ -398,7 +411,7 @@ async function registerThirdParty(source) {
   return finish("Commit skills/third-party-skills.json to have them on your other machines. Use one: dotagents init <path> --skills <name>");
 }
 
-function unregisterThirdParty(name) {
+function unregisterThirdParty(name: string | undefined) {
   if (!name) throw new Error("Usage: dotagents skills remove <name>");
   const catalog = loadCatalog(repo);
   const file = catalogFile(repo);
@@ -457,7 +470,7 @@ async function update() {
   finish();
 }
 
-async function updateThirdParty(ws) {
+async function updateThirdParty(ws: string) {
   section("Third-party skills");
   const lock = path.join(ws, "skills-lock.json");
   if (state.dryRun) return report("would update", lock, "npx skills update -p -y");
@@ -488,7 +501,7 @@ function printSkills() {
   }
   const width = Math.max(...all.map((s) => s.name.length)) + 2;
   const columns = Math.max(60, process.stdout.columns || 100);
-  const row = (name, text, color) => {
+  const row = (name: string, text: string, color: (text: string) => string) => {
     const lines = wrap(text, columns - width - 6);
     line(`${color(name.padEnd(width))}${dim(lines[0] ?? "")}`);
     for (const rest of lines.slice(1)) line(`${" ".repeat(width)}${dim(rest)}`);
@@ -531,8 +544,8 @@ function listWorkspaces() {
   console.log(`${rail.end()}  ${dim(`List kept in ${displayPath(registryFile())}`)}\n`);
 }
 
-function wrap(text, width) {
-  const lines = [];
+function wrap(text: string, width: number) {
+  const lines: string[] = [];
   let current = "";
   for (const word of text.split(" ")) {
     if (current && current.length + word.length + 1 > width) {
@@ -544,7 +557,7 @@ function wrap(text, width) {
   return lines;
 }
 
-const truncate = (text, max) => (text.length > max ? `${text.slice(0, max - 1)}…` : text);
+const truncate = (text: string, max: number) => (text.length > max ? `${text.slice(0, max - 1)}…` : text);
 
 // A prompt hint is one line: the author's full description, cut only where the terminal ends.
-const fitHint = (text, label) => truncate(text, Math.max(30, (process.stdout.columns || 100) - label.length - 14));
+const fitHint = (text: string, label: string) => truncate(text, Math.max(30, (process.stdout.columns || 100) - label.length - 14));

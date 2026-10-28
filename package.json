@@ -9,7 +9,7 @@
   },
   "scripts": {
     "typecheck": "tsc",
-    "test": "node --test \"test/*.test.ts\""
+    "test": "tsc && node --test \"test/*.test.ts\""
   },
   "engines": {
     "node": ">=22.18"

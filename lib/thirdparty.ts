@@ -8,13 +8,18 @@ import os from "node:os";
 import path from "node:path";
 import { runWithSpinner } from "./common.ts";
 
+// A registered third-party skill, as skills/third-party-skills.json stores it.
+export type CatalogEntry = { name: string; source: string; description?: string };
+// What an installer needs, and what it answers. Tests pass a fake with the same shape.
+export type Installer = (ws: string, skill: { name: string; source: string; description: string }) => Promise<{ ok: boolean; detail: string }>;
+
 // The catalog sits next to my own skills.
-export const catalogFile = (repo) => path.join(repo, "skills", "third-party-skills.json");
+export const catalogFile = (repo: string) => path.join(repo, "skills", "third-party-skills.json");
 // The agent `npx skills add` installs for. The copy lands in .agents/skills, and .claude/skills
 // already links there.
 const AGENTS = "claude-code";
 
-export function loadCatalog(repo) {
+export function loadCatalog(repo: string): CatalogEntry[] {
   try {
     return JSON.parse(fs.readFileSync(catalogFile(repo), "utf8")).skills ?? [];
   } catch {
@@ -22,13 +27,13 @@ export function loadCatalog(repo) {
   }
 }
 
-export function saveCatalog(repo, skills) {
+export function saveCatalog(repo: string, skills: CatalogEntry[]) {
   const sorted = [...skills].sort((a, b) => a.name.localeCompare(b.name));
   fs.writeFileSync(catalogFile(repo), `${JSON.stringify({ skills: sorted }, null, 2)}\n`);
 }
 
 // name and description from a SKILL.md frontmatter.
-export function parseSkill(text) {
+export function parseSkill(text: string) {
   const front = text.replace(/\r\n/g, "\n").match(/^---\n([\s\S]*?)\n---/)?.[1] ?? "";
   const name = front.match(/^name:\s*["']?([^"'\n]+)["']?\s*$/m)?.[1].trim();
   const m = front.match(/^description:\s*(?:[|>]-?\s*\n((?:[ \t]+.*\n?)+)|(.+))/m);
@@ -38,19 +43,19 @@ export function parseSkill(text) {
 
 
 // owner/repo → GitHub URL; URLs and local paths are used as given.
-function cloneUrl(source) {
+function cloneUrl(source: string) {
   if (/^[\w.-]+\/[\w.-]+$/.test(source) && !fs.existsSync(source)) return `https://github.com/${source}.git`;
   return source;
 }
 
 // Skills a source provides: a shallow clone into a temporary folder, then every SKILL.md in it.
-export async function discoverSkills(source) {
+export async function discoverSkills(source: string) {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "dotagents-"));
   try {
     const res = await runWithSpinner(`Reading ${source}`, "git", ["clone", "--depth", "1", "--quiet", cloneUrl(source), tmp]);
     if (res.code !== 0) throw new Error(`Couldn't clone ${source}: ${res.last}`);
-    const found = [];
-    const walk = (dir, depth) => {
+    const found: { name: string; description: string }[] = [];
+    const walk = (dir: string, depth: number) => {
       if (depth > 4) return;
       for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
         if (e.name === ".git" || e.name === "node_modules") continue;
@@ -72,14 +77,14 @@ export async function discoverSkills(source) {
 // The installer adapter for third-party skills: `npx skills add`, run from the workspace root, so
 // the skill lands in .agents/skills/ and in skills-lock.json. Returns { ok, detail }. Tests use a
 // fake adapter with the same shape.
-export async function npxInstaller(ws, skill) {
+export const npxInstaller: Installer = async (ws, skill) => {
   // A single command string with shell: true, so Windows finds npx.cmd. The values come from
   // the catalog, which only holds names and sources checked by register (no shell characters).
   const cmd = `npx -y skills add ${skill.source} -s ${skill.name} -y -a ${AGENTS}`;
   const res = await runWithSpinner(`Installing ${skill.name}`, cmd, [], { cwd: ws, shell: true });
   const ok = res.code === 0 && fs.existsSync(path.join(ws, ".agents", "skills", skill.name, "SKILL.md"));
   return { ok, detail: ok ? `from ${skill.source}` : res.last };
-}
+};
 
 // Only letters, digits and the punctuation of owner/repo, git URLs and paths: the source goes
 // into a shell command.

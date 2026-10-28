@@ -10,7 +10,7 @@ import { REPO, fakeInstaller, fakeThirdParty, quiet, tempWorkspace } from "./hel
 
 test("own skills and registered third-party skills come from one list", () => {
   const all = listSkills(REPO);
-  const toCards = all.find((s) => s.name === "to-cards");
+  const toCards = all.find((s) => s.name === "to-cards")!;
   assert.equal(toCards.kind, "own");
   assert.ok(toCards.description.startsWith("Turns loose text"));
   const catalog = JSON.parse(fs.readFileSync(catalogFile(REPO), "utf8")).skills;

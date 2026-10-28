@@ -4,12 +4,12 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { test } from "node:test";
+import { test, type TestContext } from "node:test";
 import { state } from "../lib/common.ts";
 import { installGlobal } from "../lib/global.ts";
 import { REPO, quiet } from "./helpers.ts";
 
-function tempHome(t) {
+function tempHome(t: TestContext) {
   const home = fs.mkdtempSync(path.join(os.tmpdir(), "dotagents-home-"));
   const saved = { HOME: process.env.HOME, USERPROFILE: process.env.USERPROFILE, XDG_CONFIG_HOME: process.env.XDG_CONFIG_HOME };
   Object.assign(process.env, { HOME: home, USERPROFILE: home, XDG_CONFIG_HOME: path.join(home, ".config") });

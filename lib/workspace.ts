@@ -21,14 +21,15 @@ import {
   state,
 } from "./common.ts";
 import { AGENT_FILES, ensureExcluded, gitRepoOf, isRepoRoot, removeExcluded, trackedAgentFiles, untrackedAgentFiles } from "./git.ts";
-import { applySkills, verifySkills } from "./skills.ts";
+import { applySkills, verifySkills, type Skill } from "./skills.ts";
+import type { Installer } from "./thirdparty.ts";
 
 // Relative to the workspace root, with forward slashes (Claude Code ignores backslashes on
 // Linux, macOS and WSL).
 const PLANS_DIR = ".artifacts/plans";
 const FIXED_ARTIFACTS = ["session-archives", "plans"];
 
-export function assertWorkspace(repo, ws) {
+export function assertWorkspace(repo: string, ws: string) {
   if (!fs.existsSync(ws)) throw new Error(`Workspace not found: ${ws}`);
   const fromRepo = path.relative(repo, ws);
   // Inside the repository: same folder, or a relative path that doesn't climb out. On Windows a
@@ -40,7 +41,7 @@ export function assertWorkspace(repo, ws) {
 
 // Git repositories directly inside the workspace. The recommended layout keeps the agent files
 // at a root that is not a repository, and each project repository in its own folder.
-export function childRepos(ws) {
+export function childRepos(ws: string) {
   if (!fs.existsSync(ws)) return [];
   return fs
     .readdirSync(ws, { withFileTypes: true })
@@ -56,7 +57,7 @@ export function childRepos(ws) {
 // left at the repository root (untracked, hidden by .git/info/exclude) move up to the
 // workspace, and their exclude block goes away; files the project commits stay where they are.
 // Returns the workspace path.
-export function wrapRepository(dir, ws = `${dir}-workspace`) {
+export function wrapRepository(dir: string, ws = `${dir}-workspace`) {
   const inside = gitRepoOf(dir);
   if (!inside || !isRepoRoot(dir, inside.top)) throw new Error(`${dir} is not the root of a git repository`);
   if (lstat(ws)) throw new Error(`${ws} already exists; pick another folder for the workspace`);
@@ -88,7 +89,7 @@ export function wrapRepository(dir, ws = `${dir}-workspace`) {
 
 // Adds a repository to the "## Repositories" section of an existing AGENTS.md. Only that section
 // is touched, and only when it exists; a new AGENTS.md gets the list from the template.
-export function listRepoInAgentsMd(ws, name, url) {
+export function listRepoInAgentsMd(ws: string, name: string, url: string) {
   const file = path.join(ws, "AGENTS.md");
   if (!fs.existsSync(file)) return;
   const text = fs.readFileSync(file, "utf8");
@@ -102,22 +103,29 @@ export function listRepoInAgentsMd(ws, name, url) {
 }
 
 // "app-workspace" → "app".
-export const workspaceName = (ws) => path.basename(ws).replace(/-workspace$/, "");
+export const workspaceName = (ws: string) => path.basename(ws).replace(/-workspace$/, "");
 
-function reposList(ws) {
+function reposList(ws: string) {
   const repos = childRepos(ws);
   if (!repos.length) return "<No repository yet. Clone one into this workspace with: dotagents new <git-url> .>";
   return repos.map((r) => `- \`${r.name}/\`${r.remote ? `: ${r.remote}` : ""}`).join("\n");
 }
 
-const read = (p) => (fs.existsSync(p) ? fs.readFileSync(p, "utf8") : null);
+const read = (p: string) => (fs.existsSync(p) ? fs.readFileSync(p, "utf8") : null);
 
 // ── The standard ─────────────────────────────────────────────────────────────────────────────
 // Order matters for apply: git exclusion first (so nothing created later shows up in the
 // project's git status), skills before .claude/ (the skills link comes with the skills).
-// ctx: { repo, ws, skills (resolved), installer }.
 
-const STANDARD = [
+type VerifyContext = { repo: string; ws: string };
+type ApplyContext = VerifyContext & { skills: Skill[]; installer?: Installer };
+type StandardItem = {
+  title: string;
+  apply(ctx: ApplyContext): void | Promise<void>;
+  verify(ctx: VerifyContext): void;
+};
+
+const STANDARD: StandardItem[] = [
   {
     title: "Git",
     apply: ({ ws }) => ensureExcluded(ws),
@@ -188,7 +196,7 @@ const STANDARD = [
         const ok = st.isSymbolicLink() && samePath(realpath(link) ?? "", realpath(path.join(ws, ".agents", "rules")) ?? "?");
         checkItem(ok, ".claude/rules links to .agents/rules", st.isSymbolicLink() ? "points elsewhere or is broken" : "a copied folder, not a link");
       }
-      let plansDirectory;
+      let plansDirectory: unknown;
       try {
         plansDirectory = JSON.parse(fs.readFileSync(path.join(ws, ".claude", "settings.json"), "utf8")).plansDirectory;
       } catch {}
@@ -210,8 +218,8 @@ const STANDARD = [
 
 // Applies the standard to a workspace with the given (resolved) skills. installer: the adapter
 // for third-party skills (npx skills add unless a test passes a fake one).
-export async function applyWorkspace(repo, ws, skills = [], { installer } = {}) {
-  const ctx = { repo, ws, skills, installer };
+export async function applyWorkspace(repo: string, ws: string, skills: Skill[] = [], { installer }: { installer?: Installer } = {}) {
+  const ctx: ApplyContext = { repo, ws, skills, installer };
   for (const item of STANDARD) {
     section(item.title);
     await item.apply(ctx);
@@ -219,7 +227,7 @@ export async function applyWorkspace(repo, ws, skills = [], { installer } = {}) 
 }
 
 // Runs the checklist of every item of the standard.
-export function verifyWorkspace(repo, ws) {
+export function verifyWorkspace(repo: string, ws: string) {
   section("Checklist");
   const ctx = { repo, ws };
   for (const item of STANDARD) item.verify(ctx);

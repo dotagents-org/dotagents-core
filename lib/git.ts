@@ -28,36 +28,36 @@ export const AGENT_FILES = [
 const BEGIN = "# >>> dotagents: agent configuration, kept out of this repository";
 const END = "# <<< dotagents";
 
-function git(cwd, ...args) {
+function git(cwd: string, ...args: string[]) {
   const res = spawnSync("git", ["-C", cwd, ...args], { encoding: "utf8" });
   return res.status === 0 ? res.stdout.trim() : null;
 }
 
 // The git repository that contains the workspace folder, or null. Workspaces whose root is not a
 // repository (only the projects inside are) need nothing: the files sit outside every repository.
-export function gitRepoOf(ws) {
+export function gitRepoOf(ws: string) {
   const top = git(ws, "rev-parse", "--show-toplevel");
   if (!top) return null;
   const exclude = git(ws, "rev-parse", "--git-path", "info/exclude");
-  return { top: path.resolve(top), exclude: path.resolve(ws, exclude) };
+  return { top: path.resolve(top), exclude: path.resolve(ws, exclude ?? path.join(".git", "info", "exclude")) };
 }
 
 // The workspace relative to the repository root, with real paths on both sides: git reports the
 // resolved root (macOS /var is /private/var, Windows may use 8.3 short names), so comparing it with
 // the path as typed would give a wrong prefix and the exclusions would miss.
-function relativeToTop(ws, top) {
+function relativeToTop(ws: string, top: string) {
   return toSlash(path.relative(realpath(top) ?? top, realpath(ws) ?? ws));
 }
 
-export const isRepoRoot = (ws, top) => relativeToTop(ws, top) === "";
+export const isRepoRoot = (ws: string, top: string) => relativeToTop(ws, top) === "";
 
 // Patterns anchored to the workspace, relative to the repository root.
-function patternsFor(ws, top) {
+function patternsFor(ws: string, top: string) {
   const prefix = relativeToTop(ws, top);
   return AGENT_FILES.map((f) => `/${prefix ? `${prefix}/` : ""}${f}`);
 }
 
-export function ensureExcluded(ws) {
+export function ensureExcluded(ws: string) {
   const repo = gitRepoOf(ws);
   if (!repo) return report("ok", ws, "not inside a git repository: nothing to exclude");
   const block = [BEGIN, ...patternsFor(ws, repo.top), END].join("\n");
@@ -76,7 +76,7 @@ export function ensureExcluded(ws) {
 
 // Drops the block ensureExcluded wrote for this workspace path, once the agent files no longer
 // live there (the repository was moved into a workspace of its own).
-export function removeExcluded(ws) {
+export function removeExcluded(ws: string) {
   const repo = gitRepoOf(ws);
   if (!repo || !fs.existsSync(repo.exclude)) return;
   const first = patternsFor(ws, repo.top)[0];
@@ -91,7 +91,7 @@ export function removeExcluded(ws) {
 
 // Agent files that git already tracks (committed or staged). The exclude list doesn't hide them;
 // they have to be removed from the index by hand, which dotagents never does on its own.
-export function trackedAgentFiles(ws) {
+export function trackedAgentFiles(ws: string) {
   const repo = gitRepoOf(ws);
   if (!repo) return [];
   const prefix = relativeToTop(ws, repo.top);
@@ -100,7 +100,7 @@ export function trackedAgentFiles(ws) {
 }
 
 // Agent files that git would pick up as new files (neither tracked nor ignored).
-export function untrackedAgentFiles(ws) {
+export function untrackedAgentFiles(ws: string) {
   const repo = gitRepoOf(ws);
   if (!repo) return [];
   const prefix = relativeToTop(ws, repo.top);
@@ -109,4 +109,4 @@ export function untrackedAgentFiles(ws) {
   return out ? out.split("\n").filter(Boolean) : [];
 }
 
-const escape = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+const escape = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
