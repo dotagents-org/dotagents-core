@@ -14,6 +14,8 @@ import { App } from "../tui/app.ts";
 import { REPO, quiet } from "./helpers.ts";
 
 const settle = () => new Promise((resolve) => setTimeout(resolve, 60));
+// The frame without colors: a terminal with colors on (Windows Terminal) puts codes in the text.
+const plain = (app: { lastFrame(): string | undefined }): string => (app.lastFrame() ?? "").replace(/\x1b\[[0-9;]*m/g, "");
 
 function twoAccounts(t: TestContext) {
   const home = fs.mkdtempSync(path.join(os.tmpdir(), "dotagents-tui-"));
@@ -52,40 +54,40 @@ test("the usage screen shows every account, and the number keys switch screens",
   twoAccounts(t);
   const app = render(h(App, { repo: REPO }));
   t.after(() => app.unmount());
-  let frame = app.lastFrame() ?? "";
+  let frame = plain(app);
   for (const tab of ["1 Usage", "2 Accounts", "3 Workspaces", "4 Skills"]) assert.ok(frame.includes(tab), tab);
   assert.match(frame, /work[\s\S]*Session \(5h\)[\s\S]*93%/);
   assert.match(frame, /personal[\s\S]*12%/);
 
   app.stdin.write("2");
   await settle();
-  frame = app.lastFrame() ?? "";
+  frame = plain(app);
   assert.match(frame, /uuid-a@example\.com/);
   // The accounts' checklist, from verifyAccounts through capture: these accounts have no launcher.
   assert.match(frame, /✗ 4 passed · 2 failed[\s\S]*launcher claude-work(\.cmd)? exists/);
 
   app.stdin.write("4");
   await settle();
-  assert.match(app.lastFrame() ?? "", /session-archive/);
+  assert.match(plain(app), /session-archive/);
 });
 
 test("the arrows and tab go round the screens, and the usage --watch view opens on usage", async (t) => {
   twoAccounts(t);
   const app = render(h(App, { repo: REPO, initial: "skills" }));
   t.after(() => app.unmount());
-  assert.match(app.lastFrame() ?? "", /session-archive/);
+  assert.match(plain(app), /session-archive/);
   app.stdin.write("\u001B[C"); // →, from the last screen back to the first
   await settle();
-  assert.match(app.lastFrame() ?? "", /Session \(5h\)/);
+  assert.match(plain(app), /Session \(5h\)/);
   app.stdin.write("\t");
   await settle();
-  assert.match(app.lastFrame() ?? "", /uuid-b@example\.com/);
+  assert.match(plain(app), /uuid-b@example\.com/);
 });
 
 // Waits until the frame matches, for actions that finish on their own time.
 async function until(app: ReturnType<typeof render>, pattern: RegExp) {
-  for (let i = 0; i < 50 && !pattern.test(app.lastFrame() ?? ""); i++) await settle();
-  assert.match(app.lastFrame() ?? "", pattern);
+  for (let i = 0; i < 50 && !pattern.test(plain(app)); i++) await settle();
+  assert.match(plain(app), pattern);
 }
 
 test("i on the accounts screen previews the install, n cancels it and y applies it", async (t) => {
@@ -98,14 +100,14 @@ test("i on the accounts screen previews the install, n cancels it and y applies 
   assert.ok(!fs.existsSync(launcher));
   app.stdin.write("n");
   await settle();
-  assert.doesNotMatch(app.lastFrame() ?? "", /preview/);
+  assert.doesNotMatch(plain(app), /preview/);
   app.stdin.write("i");
   await until(app, /y apply/);
   app.stdin.write("y");
   await until(app, /Install:[\s\S]*created/);
   assert.ok(fs.existsSync(launcher));
   // The checklist is read again: the launchers are there now.
-  assert.match(app.lastFrame() ?? "", /✓ 6 passed/);
+  assert.match(plain(app), /✓ 6 passed/);
 });
 
 test("a on the workspaces screen applies the standards to the picked workspace, after a preview", async (t) => {
