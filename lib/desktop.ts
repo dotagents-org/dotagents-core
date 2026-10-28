@@ -64,8 +64,15 @@ function vbsLauncher(name: string, configDir: string, isDefault: boolean) {
 
 const wscript = () => path.join(process.env.SystemRoot ?? "C:\\Windows", "System32", "wscript.exe");
 
-function shortcutFor(name: string, launcherDir: string): Shortcut {
-  return { target: wscript(), args: `"${desktopLauncherFile(launcherDir, name)}"`, description: MARK(name), icon: `${desktopExe()},0` };
+// The account's own icon, assets/claude-<name>.ico in this repository, when there is one; else
+// the app's. Shortcuts only take .ico (or an .exe), so the .svg next to it is the source.
+export function accountIcon(repo: string, name: string) {
+  const ico = path.join(repo, "assets", `claude-${name}.ico`);
+  return fs.existsSync(ico) ? `${ico},0` : `${desktopExe()},0`;
+}
+
+function shortcutFor(repo: string, name: string, launcherDir: string): Shortcut {
+  return { target: wscript(), args: `"${desktopLauncherFile(launcherDir, name)}"`, description: MARK(name), icon: accountIcon(repo, name) };
 }
 
 const sameShortcut = (a: Shortcut, b: Shortcut) =>
@@ -82,7 +89,11 @@ function ensureShortcut(lnk: string, wanted: Shortcut, shortcuts: Shortcuts) {
 }
 
 // The data folder, the launcher and the shortcut of an account's Desktop app.
-export function applyDesktop(account: { name: string; configDir: string; default?: boolean }, { launcherDir, shortcuts = powershellShortcuts }: { launcherDir: string; shortcuts?: Shortcuts }) {
+export function applyDesktop(
+  repo: string,
+  account: { name: string; configDir: string; default?: boolean },
+  { launcherDir, shortcuts = powershellShortcuts }: { launcherDir: string; shortcuts?: Shortcuts }
+) {
   section("Desktop");
   if (!desktopInstalled()) {
     checkWarn("Claude Desktop isn't installed, so no desktop shortcut", "install it from claude.ai/download and run dotagents install again");
@@ -91,7 +102,7 @@ export function applyDesktop(account: { name: string; configDir: string; default
   // Made before the first start: a folder the app creates itself lands in its MSIX container.
   if (!account.default) ensureDir(desktopDataDir(account.name));
   writeGenerated(desktopLauncherFile(launcherDir, account.name), vbsLauncher(account.name, account.configDir, Boolean(account.default)), { comment: "'", onForeign: "backup" });
-  ensureShortcut(shortcutFile(account.name), shortcutFor(account.name, launcherDir), shortcuts);
+  ensureShortcut(shortcutFile(account.name), shortcutFor(repo, account.name, launcherDir), shortcuts);
 }
 
 // Removes the launcher and the shortcut; the data folder, with the sign-in, stays.

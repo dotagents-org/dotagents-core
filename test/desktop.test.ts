@@ -7,7 +7,7 @@ import os from "node:os";
 import path from "node:path";
 import { test, type TestContext } from "node:test";
 import { dropAccount, launcherDir, setUpAccount } from "../lib/accounts.ts";
-import { type Shortcut, type Shortcuts, appTitle, desktopDataDir, desktopExe, desktopLauncherFile, powershellShortcuts, shortcutFile } from "../lib/desktop.ts";
+import { type Shortcut, type Shortcuts, accountIcon, appTitle, desktopDataDir, desktopExe, desktopLauncherFile, powershellShortcuts, shortcutFile } from "../lib/desktop.ts";
 import { state } from "../lib/state.ts";
 import { REPO, quiet } from "./helpers.ts";
 
@@ -68,6 +68,9 @@ test("every account gets a Start menu shortcut, \"Claude <Name>\"; only the seco
   const lnk = saved.get(shortcutFile("personal"));
   assert.equal(lnk?.description, "dotagents:personal");
   assert.ok(lnk?.args.includes("claude-desktop-personal.vbs"));
+  // No assets/claude-personal.ico: the app's icon. The repository's own accounts have theirs.
+  assert.equal(lnk?.icon, `${desktopExe()},0`);
+  assert.equal(accountIcon(REPO, "lovelace"), `${path.join(REPO, "assets", "claude-lovelace.ico")},0`);
 
   // A second run changes nothing.
   quiet();
