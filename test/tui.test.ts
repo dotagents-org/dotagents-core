@@ -55,7 +55,7 @@ test("the usage screen shows every account, and the number keys switch screens",
   frame = app.lastFrame() ?? "";
   assert.match(frame, /uuid-a@example\.com/);
   // The accounts' checklist, from verifyAccounts through capture: these accounts have no launcher.
-  assert.match(frame, /✗ 4 passed · 2 failed[\s\S]*launcher claude-work exists/);
+  assert.match(frame, /✗ 4 passed · 2 failed[\s\S]*launcher claude-work(\.cmd)? exists/);
 
   app.stdin.write("4");
   await settle();
