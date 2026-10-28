@@ -13,7 +13,7 @@ dotagents/
 │   └── third-party-skills.json  catalog of third-party skills
 ├── standards/                 the .agents/ and .artifacts/ standards
 ├── templates/workspace/       AGENTS.md and INDEX.md for new workspaces
-├── assets/                    the account icons
+├── assets/                    the account icons: claude-<name>.svg, the source, and the .ico the Start menu shortcuts use
 ├── docs/                      this documentation
 ├── cli.ts                     the dotagents command: reads the arguments, picks the command, prints the help
 ├── commands/                  one file per command: its help, its questions, its run
@@ -98,6 +98,13 @@ node cli.ts --help      # run without npm link
 **Actions on a screen** go through `useAction` (`tui/action.ts`): it runs the module once as a preview (`captureAsync` with `dryRun: true`), shows what would change, and runs it for real on `y`. The terminal spinner stays off inside the view, since it would draw over it.
 
 **Adding a screen:** write `tui/screens/<name>.ts` exporting a `Screen` (id, title, `Component`), add it to `SCREENS` in `tui/app.ts` (the order is the tabs' order and the number keys'), and cover it in `test/tui.test.ts`.
+
+**Changing an account icon:** edit `assets/claude-<name>.svg`, then rebuild the `.ico` (16 to 256 px) and run `dotagents install` on Windows:
+
+```bash
+uvx --from cairosvg==2.7.1 cairosvg assets/claude-<name>.svg -o /tmp/icon.png -W 256 -H 256
+uv run --no-project --with pillow==12.0.0 python -c "from PIL import Image; Image.open('/tmp/icon.png').save('assets/claude-<name>.ico', sizes=[(s, s) for s in (16, 24, 32, 48, 64, 128, 256)])"
+```
 
 **Adding a command:** write `commands/<name>.ts` exporting a `Command` (name, usage, summary, group, `run`), add it to `COMMANDS` in `cli.ts` (the order is the help's order), and describe it in [Commands](commands.md) and in the table of the README.
 

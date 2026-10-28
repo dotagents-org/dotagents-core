@@ -61,7 +61,7 @@ function applyAccount(repo: string, account: Account, desktop: { shortcuts: Shor
   installGlobal(repo, account.configDir);
   section("Launcher");
   writeGenerated(launcherFile(account.name), launcher(account), { comment: isWindows ? "rem" : "#", executable: true, onForeign: "backup" });
-  if (desktop) applyDesktop(account, { launcherDir: launcherDir(), shortcuts: desktop.shortcuts });
+  if (desktop) applyDesktop(repo, account, { launcherDir: launcherDir(), shortcuts: desktop.shortcuts });
 }
 
 // Adds an account, or brings one up to date: its folder, the configuration and the launcher.
