@@ -211,3 +211,20 @@ export function finish(hint = "") {
   renderer({ kind: "finish", hint });
   process.exitCode = state.problems ? 1 : 0;
 }
+
+// Runs fn with its events kept instead of printed, and the run's counters left as they were:
+// how a view other than the terminal (the TUI) shows what a module did.
+export function capture(fn: () => void): Event[] {
+  const events: Event[] = [];
+  const saved = { renderer, problems: state.problems, counts: { ...state.counts }, base: state.base };
+  renderer = collect(events);
+  state.problems = 0;
+  state.counts = {};
+  try {
+    fn();
+  } finally {
+    renderer = saved.renderer;
+    Object.assign(state, { problems: saved.problems, counts: saved.counts, base: saved.base });
+  }
+  return events;
+}

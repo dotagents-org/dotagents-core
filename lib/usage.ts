@@ -123,3 +123,51 @@ export function bar(pct: number, width = 30) {
   const part = EIGHTHS[eighths % 8];
   return "█".repeat(full) + part + "·".repeat(width - full - (part ? 1 : 0));
 }
+
+// ── Words for the views (the usage command and the TUI show the same thing) ──────────────────
+
+// Below half, up to 79%, from 80%: green, yellow, red in both views.
+export const levelOf = (pct: number) => (pct >= 80 ? "high" : pct >= 50 ? "warn" : "ok");
+
+export const windowLabel = (w: UsageWindow) => (w.kind === "session" ? "Session (5h)" : w.kind === "week" ? "Week" : `${w.model} week`);
+
+const hhmm = (d: Date) => d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
+const day = (d: Date) => `${d.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" })} ${hhmm(d)}`;
+
+export function span(ms: number) {
+  const minutes = Math.round(ms / 60_000);
+  if (minutes < 1) return "less than a minute";
+  if (minutes < 60) return `${minutes} min`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 48) return `${hours}h${String(minutes % 60).padStart(2, "0")}`;
+  return `${Math.floor(hours / 24)} days`;
+}
+
+export function resetText(w: UsageWindow, now: Date) {
+  if (w.reset || !w.resetsAt) return w.kind === "session" ? "no window open" : "reset";
+  if (w.kind === "session") return `resets ${hhmm(w.resetsAt)} · in ${span(w.resetsAt.getTime() - now.getTime())}`;
+  return `resets ${day(w.resetsAt)}`;
+}
+
+// The pace as a sentence, and whether it is a warning.
+export function paceText(w: UsageWindow, now: Date): { text: string; warn: boolean } | null {
+  const p = pace(w, now);
+  if (!p) return null;
+  if ("runsOutAt" in p) return { text: `⚠ at this pace, runs out at ${w.kind === "session" ? hhmm(p.runsOutAt) : day(p.runsOutAt)}`, warn: true };
+  return { text: `~${p.leftAtReset}% left at reset`, warn: false };
+}
+
+// How old the account's data is, and whether that's too old.
+export function freshnessText(a: AccountUsage, now: Date): { text: string; warn: boolean } | null {
+  if (!a.fetchedAt) return null;
+  const when = `data from ${hhmm(a.fetchedAt)} · ${span(now.getTime() - a.fetchedAt.getTime())} ago`;
+  return a.state === "stale" ? { text: `⚠ ${when}, stale: run /usage in this account`, warn: true } : { text: when, warn: false };
+}
+
+// What an account without numbers says instead.
+export function stateNote(a: AccountUsage) {
+  if (a.state === "not-signed-in") return `not signed in · sign in with: claude-${a.name} auth login`;
+  if (a.state === "no-data") return "no data yet · run /usage in this account";
+  if (a.state === "other-account") return "the cache is from an earlier sign-in · run /usage in this account";
+  return null;
+}

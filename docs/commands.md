@@ -23,6 +23,20 @@ dotagents <command> [options]
 
 `dotagents --help` shows the same list, and `dotagents --version` the version.
 
+## The full-screen view
+
+In a terminal, `dotagents` with no command opens a full-screen view with one tab per screen: **Usage** (live, the same as `dotagents usage`), **Accounts** (the same as `account list`, with its checklist), **Workspaces** (↑↓ picks one, and its `check` shows below) and **Skills**. `dotagents usage --watch` opens it on the usage screen.
+
+| Key | Does |
+|---|---|
+| `Tab`, `→` / `Shift+Tab`, `←` | next / previous screen |
+| `1`–`4` | go to a screen |
+| `↑` `↓` | pick an item (Workspaces) |
+| `r` | read everything again |
+| `q`, `Esc` | quit |
+
+The view only reads for now; it changes nothing. Outside a terminal (a pipe, CI), `dotagents` with no command prints the help, and `usage --watch` stops with an error.
+
 ## dotagents install
 
 Writes the global configuration where Claude Code reads it: in `~/.claude`, and in the folder of every account added with [`account add`](#dotagents-account-add), whose launchers it also rewrites. See [Global configuration](global-configuration.md) for exactly what goes where.
@@ -88,6 +102,7 @@ Forgets the account and deletes its launcher. The folder, with the sign-in and t
 dotagents usage            # every account: session (5h), week, per-model weeks
 dotagents usage --short    # one line: work 28%·22% │ personal 0%·0%
 dotagents usage --json     # the data, for scripts
+dotagents usage --watch    # the full-screen view on the usage screen, updated live
 ```
 
 Reads the usage Claude Code keeps in each account's state file (`cachedUsageUtilization` in `~/.claude.json`, or `<folder>/.claude.json`). It makes no network call and needs no token. Without accounts, it shows the one in `~/.claude`.
@@ -214,6 +229,7 @@ Removes a skill from the catalog. Workspaces that already installed it keep it; 
 | `--color #RRGGBB` | `account add` | The account's color in the listings. |
 | `--short` | `usage` | One line, for a prompt or a status line. |
 | `--json` | `usage` | The data, for scripts. |
+| `--watch` | `usage` | The full-screen view, updated live. |
 | `--yes` | `init`, `new`, `skills add` | Never ask. |
 | `--no-pull` | `update` | Skip `git pull`. |
 | `--help`, `--version` | | |

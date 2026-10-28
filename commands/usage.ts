@@ -3,40 +3,14 @@
 import { PALETTE } from "../lib/accounts.ts";
 import { defaultConfigDir } from "../lib/claude-code.ts";
 import { loadAccounts } from "../lib/machine-state.ts";
-import { fancy, header, line, paint, rail, style } from "../lib/output.ts";
-import { type AccountUsage, type UsageWindow, accountUsage, bar, pace } from "../lib/usage.ts";
+import { fancy, header, interactive, line, paint, rail, style } from "../lib/output.ts";
+import { type AccountUsage, type UsageWindow, accountUsage, bar, freshnessText, levelOf, paceText, resetText, stateNote, windowLabel } from "../lib/usage.ts";
 import type { Command } from "./shared.ts";
 
 const { bold, dim, cyan, gray, green, yellow, red } = style;
 
-// Green below half, yellow up to 79%, red from 80%.
-const level = (pct: number) => (pct >= 80 ? red : pct >= 50 ? yellow : green);
-
-const label = (w: UsageWindow) => (w.kind === "session" ? "Session (5h)" : w.kind === "week" ? "Week" : `${w.model} week`);
-
-const hhmm = (d: Date) => d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
-const day = (d: Date) => `${d.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" })} ${hhmm(d)}`;
-
-function span(ms: number) {
-  const minutes = Math.round(ms / 60_000);
-  if (minutes < 1) return "less than a minute";
-  if (minutes < 60) return `${minutes} min`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 48) return `${hours}h${String(minutes % 60).padStart(2, "0")}`;
-  return `${Math.floor(hours / 24)} days`;
-}
-
-function resetText(w: UsageWindow, now: Date) {
-  if (w.reset || !w.resetsAt) return w.kind === "session" ? "no window open" : "reset";
-  if (w.kind === "session") return `resets ${hhmm(w.resetsAt)} · in ${span(w.resetsAt.getTime() - now.getTime())}`;
-  return `resets ${day(w.resetsAt)}`;
-}
-
-const STATE_NOTE: Record<Exclude<AccountUsage["state"], "ok" | "stale">, (name: string) => string> = {
-  "not-signed-in": (name) => `not signed in · sign in with: claude-${name} auth login`,
-  "no-data": () => "no data yet · run /usage in this account",
-  "other-account": () => "the cache is from an earlier sign-in · run /usage in this account",
-};
+const LEVEL = { ok: green, warn: yellow, high: red };
+const level = (pct: number) => LEVEL[levelOf(pct)];
 
 function railView(list: AccountUsage[], now: Date) {
   header("usage");
@@ -45,8 +19,9 @@ function railView(list: AccountUsage[], now: Date) {
     const color = paint(a.color);
     line();
     console.log(`${color("◇")}  ${bold(color(a.name))}${a.default ? `  ${cyan("● default")}` : ""}`);
-    if (a.state !== "ok" && a.state !== "stale") {
-      line(dim(STATE_NOTE[a.state](a.name)));
+    const note = stateNote(a);
+    if (note) {
+      line(dim(note));
       continue;
     }
     for (const w of a.windows) {
@@ -55,15 +30,12 @@ function railView(list: AccountUsage[], now: Date) {
       const filled = cells.replace(/·+$/, "");
       const meter = `${paintLevel(filled)}${gray(cells.slice(filled.length))}`;
       const pct = paintLevel(`${String(w.pct).padStart(3)}%`);
-      line(`${label(w).padEnd(width)} ${meter}  ${pct}  ${dim(resetText(w, now))}`);
-      const p = pace(w, now);
-      if (p && "runsOutAt" in p) line(`${" ".repeat(width)} ${yellow(`⚠ at this pace, runs out at ${w.kind === "session" ? hhmm(p.runsOutAt) : day(p.runsOutAt)}`)}`);
-      else if (p) line(`${" ".repeat(width)} ${gray(`~${p.leftAtReset}% left at reset`)}`);
+      line(`${windowLabel(w).padEnd(width)} ${meter}  ${pct}  ${dim(resetText(w, now))}`);
+      const p = paceText(w, now);
+      if (p) line(`${" ".repeat(width)} ${(p.warn ? yellow : gray)(p.text)}`);
     }
-    if (a.fetchedAt) {
-      const when = `data from ${hhmm(a.fetchedAt)} · ${span(now.getTime() - a.fetchedAt.getTime())} ago`;
-      line(a.state === "stale" ? yellow(`└ ⚠ ${when}, stale: run /usage in this account`) : dim(`└ ${when}`));
-    }
+    const fresh = freshnessText(a, now);
+    if (fresh) line(fresh.warn ? yellow(`└ ${fresh.text}`) : dim(`└ ${fresh.text}`));
   }
   line();
   console.log(`${rail.end()}  ${dim(`${list.length} account${list.length === 1 ? "" : "s"} · local data, no network`)}\n`);
@@ -98,11 +70,16 @@ function shortView(list: AccountUsage[]) {
 
 export const usage: Command = {
   name: "usage",
-  usage: "[--short] [--json]",
+  usage: "[--watch] [--short] [--json]",
   summary: "show how much of each account's plan is used",
   more: ["from Claude Code's cache, no network;", "/usage in an account refreshes it"],
   group: "Accounts",
-  run({ args }) {
+  async run({ repo, args }) {
+    if (args.watch) {
+      if (!interactive) throw new Error("--watch needs a terminal; use --json or --short in scripts");
+      const { runTui } = await import("../tui/app.ts");
+      return runTui(repo, "usage");
+    }
     const now = new Date();
     const accounts = loadAccounts();
     // Without accounts, the one in ~/.claude.
