@@ -9,7 +9,9 @@
 
 import fs from "node:fs";
 import path from "node:path";
-import { checkItem, ensureDirLink, lstat, realpath, report, samePath, state } from "./common.ts";
+import { ensureDirLink, lstat, realpath, samePath } from "./common.ts";
+import { checkItem, report } from "./output.ts";
+import { state } from "./state.ts";
 import { loadCatalog, npxInstaller, parseSkill, type Installer } from "./thirdparty.ts";
 
 export type Skill = { name: string; kind: "own" | "third-party"; source: string; description: string };

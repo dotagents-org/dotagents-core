@@ -5,7 +5,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { test, type TestContext } from "node:test";
-import { state } from "../lib/common.ts";
+import { state } from "../lib/state.ts";
 import { installGlobal } from "../lib/global.ts";
 import { REPO, quiet } from "./helpers.ts";
 

@@ -3,7 +3,8 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import type { TestContext } from "node:test";
-import { resetState } from "../lib/common.ts";
+import { collect, setRenderer, type Event } from "../lib/output.ts";
+import { resetState } from "../lib/state.ts";
 import type { Skill } from "../lib/skills.ts";
 import type { Installer } from "../lib/thirdparty.ts";
 
@@ -18,8 +19,13 @@ export function tempWorkspace(t: TestContext, name = "ws") {
   return ws;
 }
 
-// Fresh, silent counters before each scenario.
-export const quiet = (overrides = {}) => resetState({ silent: true, ...overrides });
+// Fresh counters before each scenario, and nothing printed. Returns the events the run emits.
+export function quiet(overrides: Parameters<typeof resetState>[0] = {}) {
+  resetState(overrides);
+  const events: Event[] = [];
+  setRenderer(collect(events));
+  return events;
+}
 
 // A third-party skill that never touches the network.
 export const fakeThirdParty: Skill = { name: "fake-skill", kind: "third-party", source: "me/fake-skills", description: "A fake skill." };

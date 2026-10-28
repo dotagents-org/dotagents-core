@@ -5,7 +5,9 @@
 import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
-import { realpath, report, state, toSlash } from "./common.ts";
+import { realpath } from "./common.ts";
+import { report, toSlash } from "./output.ts";
+import { state } from "./state.ts";
 
 // Everything dotagents creates or relies on in a workspace root.
 export const AGENT_FILES = [

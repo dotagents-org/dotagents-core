@@ -6,20 +6,9 @@
 import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
-import {
-  checkItem,
-  checkWarn,
-  createFromTemplate,
-  ensureDir,
-  ensureDirLink,
-  ensureJsonKey,
-  lstat,
-  realpath,
-  report,
-  samePath,
-  section,
-  state,
-} from "./common.ts";
+import { createFromTemplate, ensureDir, ensureDirLink, ensureJsonKey, lstat, realpath, samePath } from "./common.ts";
+import { checkItem, checkWarn, report, section } from "./output.ts";
+import { state } from "./state.ts";
 import { AGENT_FILES, ensureExcluded, gitRepoOf, isRepoRoot, removeExcluded, trackedAgentFiles, untrackedAgentFiles } from "./git.ts";
 import { applySkills, verifySkills, type Skill } from "./skills.ts";
 import type { Installer } from "./thirdparty.ts";
