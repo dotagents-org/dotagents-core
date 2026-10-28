@@ -4,7 +4,7 @@
 
 import fs from "node:fs";
 import path from "node:path";
-import { Box, Text, render, useApp, useInput } from "ink";
+import { Box, Text, render, useApp, useInput, useStdout } from "ink";
 import { createElement as h, useEffect, useState } from "react";
 import { type Screen, theme } from "./screen.ts";
 import { accountsScreen } from "./screens/accounts.ts";
@@ -16,9 +16,13 @@ import { workspacesScreen } from "./screens/workspaces.ts";
 export const SCREENS: Screen[] = [usageScreen, accountsScreen, workspacesScreen, skillsScreen];
 
 const TICK_MS = 2000;
+// The frame around a screen: the header, the tabs with their margins, the keys with theirs.
+const FRAME_ROWS = 7;
 
 export function App({ repo, initial = SCREENS[0].id }: { repo: string; initial?: string }) {
   const { exit } = useApp();
+  const { stdout } = useStdout();
+  const rows = Math.max(5, ((stdout as NodeJS.WriteStream).rows || 24) - FRAME_ROWS);
   const [index, setIndex] = useState(Math.max(0, SCREENS.findIndex((s) => s.id === initial)));
   const [now, setNow] = useState(() => new Date());
   const [refresh, setRefresh] = useState(0);
@@ -48,7 +52,7 @@ export function App({ repo, initial = SCREENS[0].id }: { repo: string; initial?:
       { marginY: 1 },
       ...SCREENS.map((s, i) => h(Text, { key: s.id, inverse: i === index, color: i === index ? undefined : theme.muted }, ` ${i + 1} ${s.title} `))
     ),
-    h(screen.Component, { key: screen.id, repo, now, refresh }),
+    h(screen.Component, { key: screen.id, repo, now, refresh, rows }),
     h(Box, { marginTop: 1 }, h(Text, { color: theme.muted }, `tab ←→ screens · 1-${SCREENS.length} jump · ↑↓ select · r reload · q quit`))
   );
 }
