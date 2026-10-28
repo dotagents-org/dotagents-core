@@ -94,6 +94,8 @@ node cli.ts --help      # run without npm link
 
 **The full-screen view (`tui/`)** is a second way to show what `lib/` knows, next to the commands. Each screen is a file in `tui/screens/` that reads from `lib/` and renders with Ink, without JSX (`createElement`), because Node runs `.ts` but doesn't turn JSX into code. What a module reports through events (a checklist, an install) reaches a screen through `capture()`, which keeps the events instead of printing them. The view is loaded only when used, so the commands don't load React.
 
+**Actions on a screen** go through `useAction` (`tui/action.ts`): it runs the module once as a preview (`captureAsync` with `dryRun: true`), shows what would change, and runs it for real on `y`. The terminal spinner stays off inside the view, since it would draw over it.
+
 **Adding a screen:** write `tui/screens/<name>.ts` exporting a `Screen` (id, title, `Component`), add it to `SCREENS` in `tui/app.ts` (the order is the tabs' order and the number keys'), and cover it in `test/tui.test.ts`.
 
 **Adding a command:** write `commands/<name>.ts` exporting a `Command` (name, usage, summary, group, `run`), add it to `COMMANDS` in `cli.ts` (the order is the help's order), and describe it in [Commands](commands.md) and in the table of the README.

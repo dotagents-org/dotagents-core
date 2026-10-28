@@ -9,7 +9,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { spawn, type SpawnOptions } from "node:child_process";
 import { spinner } from "@clack/prompts";
-import { fancy, report, style } from "./output.ts";
+import { fancy, report, spinnerAllowed, style } from "./output.ts";
 import { state } from "./state.ts";
 
 export const isWindows = process.platform === "win32";
@@ -37,7 +37,7 @@ export function runWithSpinner(
   commandArgs: string[],
   options: SpawnOptions = {},
 ): Promise<{ code: number; last: string }> {
-  const spin = fancy ? spinner({ indicator: "dots" }) : null;
+  const spin = fancy && spinnerAllowed() ? spinner({ indicator: "dots" }) : null;
   spin?.start(message);
   return new Promise((resolve) => {
     const child = spawn(command, commandArgs, { ...options, stdio: ["ignore", "pipe", "pipe"] });

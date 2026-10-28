@@ -33,9 +33,12 @@ In a terminal, `dotagents` with no command opens a full-screen view with one tab
 | `1`–`4` | go to a screen |
 | `↑` `↓` | pick an item (Workspaces) |
 | `r` | read everything again |
+| `i` | (Accounts) install the configuration to every account, like `dotagents install` |
+| `a` | (Workspaces) apply the standards again to the picked workspace, with its skills, like `update --all` does to each one |
+| `y` / `n` | apply / cancel the action shown in the preview |
 | `q`, `Esc` | quit |
 
-The view only reads for now; it changes nothing. Outside a terminal (a pipe, CI), `dotagents` with no command prints the help, and `usage --watch` stops with an error.
+An action always shows a preview first, the same as `--dry-run`: `y` applies it, `n` cancels it, and when nothing would change it says so and asks nothing. Outside a terminal (a pipe, CI), `dotagents` with no command prints the help, and `usage --watch` stops with an error.
 
 ## dotagents install
 
