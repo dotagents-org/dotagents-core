@@ -47,7 +47,7 @@ A third-party skill that isn't in the catalog can still be installed by hand wit
 4. Validate it, then commit:
 
    ```bash
-   py -m pip install "git+https://github.com/agentskills/agentskills.git#subdirectory=skills-ref"   # once; python3 -m pip on Linux
+   py -m pip install "git+https://github.com/agentskills/agentskills.git#subdirectory=skills-ref" # once; python3 -m pip on Linux
    PYTHONUTF8=1 skills-ref validate skills/<name>
    ```
 
