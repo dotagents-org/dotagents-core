@@ -98,7 +98,7 @@ Lists the accounts (color, default, signed-in e-mail, folder, launcher) and chec
 dotagents account remove personal
 ```
 
-Forgets the account and deletes its launchers and, on Windows, its Start menu shortcut. The folders (the account's and the Desktop data folder), with the sign-in and the history, stays; delete it by hand if you want it gone.
+Forgets the account and deletes its launchers and, on Windows, its Start menu shortcut. The folders (the account's and the Desktop data folder), with the sign-in and the history, stay; delete them by hand if you want them gone.
 
 ## dotagents usage
 
