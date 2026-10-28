@@ -15,9 +15,16 @@ const isWindows = process.platform === "win32";
 
 function tempHome(t: TestContext) {
   const home = fs.mkdtempSync(path.join(os.tmpdir(), "dotagents-home-"));
-  const keys = ["HOME", "USERPROFILE", "DOTAGENTS_STATE_DIR", "ANTHROPIC_API_KEY"] as const;
+  const keys = ["HOME", "USERPROFILE", "APPDATA", "LOCALAPPDATA", "DOTAGENTS_STATE_DIR", "ANTHROPIC_API_KEY"] as const;
   const saved = Object.fromEntries(keys.map((k) => [k, process.env[k]]));
-  Object.assign(process.env, { HOME: home, USERPROFILE: home, DOTAGENTS_STATE_DIR: path.join(home, "state") });
+  // APPDATA and LOCALAPPDATA too: on Windows the Desktop step must never touch the real Start menu.
+  Object.assign(process.env, {
+    HOME: home,
+    USERPROFILE: home,
+    APPDATA: path.join(home, "AppData", "Roaming"),
+    LOCALAPPDATA: path.join(home, "AppData", "Local"),
+    DOTAGENTS_STATE_DIR: path.join(home, "state"),
+  });
   delete process.env.ANTHROPIC_API_KEY;
   t.after(() => {
     for (const [k, v] of Object.entries(saved)) v === undefined ? delete process.env[k] : (process.env[k] = v);

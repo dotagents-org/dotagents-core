@@ -17,9 +17,15 @@ const settle = () => new Promise((resolve) => setTimeout(resolve, 60));
 
 function twoAccounts(t: TestContext) {
   const home = fs.mkdtempSync(path.join(os.tmpdir(), "dotagents-tui-"));
-  const keys = ["HOME", "USERPROFILE", "DOTAGENTS_STATE_DIR"] as const;
+  const keys = ["HOME", "USERPROFILE", "APPDATA", "LOCALAPPDATA", "DOTAGENTS_STATE_DIR"] as const;
   const saved = Object.fromEntries(keys.map((k) => [k, process.env[k]]));
-  Object.assign(process.env, { HOME: home, USERPROFILE: home, DOTAGENTS_STATE_DIR: path.join(home, "state") });
+  Object.assign(process.env, {
+    HOME: home,
+    USERPROFILE: home,
+    APPDATA: path.join(home, "AppData", "Roaming"),
+    LOCALAPPDATA: path.join(home, "AppData", "Local"),
+    DOTAGENTS_STATE_DIR: path.join(home, "state"),
+  });
   t.after(() => {
     for (const [k, v] of Object.entries(saved)) v === undefined ? delete process.env[k] : (process.env[k] = v);
     fs.rmSync(home, { recursive: true, force: true });
