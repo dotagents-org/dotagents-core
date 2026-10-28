@@ -34,12 +34,14 @@ flowchart LR
     git["git.ts<br/>.git/info/exclude"]
     gl["global.ts<br/>machine level"]
     reg["registry.ts<br/>tracked workspaces"]
-    common["common.ts<br/>file actions, output"]
+    common["common.ts<br/>file actions"]
+    out["output.ts<br/>events, renderers"]
 
     cli --> ws & sk & gl & reg & tp
     ws --> sk & git
     sk --> tp
     ws & sk & git & gl & tp --> common
+    cli & ws & sk & git & gl & common --> out
 ```
 
 | Module | Interface | Behind it |
@@ -50,11 +52,14 @@ flowchart LR
 | `lib/git.ts` | `ensureExcluded`, `removeExcluded`, `gitRepoOf`, `isRepoRoot`, `trackedAgentFiles`, `untrackedAgentFiles` | Keeping agent files out of a project's git through `.git/info/exclude`. |
 | `lib/global.ts` | `installGlobal(repo)`, `renderInstructions(repo)` | The machine level: instructions, rules and settings. |
 | `lib/registry.ts` | `loadWorkspaces`, `registerWorkspace`, `untrackWorkspace` | The tracked workspaces of this machine. |
-| `lib/common.ts` | file actions (`ensureDirLink`, `ensureFile`, `writeGenerated`, `ensureJsonKey`…), output (`report`, `checkItem`, `section`, `finish`…), `runWithSpinner`, `parseArgs` | Junctions on Windows and symlinks elsewhere, backups, dry run, the terminal and plain output. |
+| `lib/common.ts` | file actions (`ensureDirLink`, `ensureFile`, `writeGenerated`, `ensureJsonKey`…), `runWithSpinner`, `parseArgs` | Junctions on Windows and symlinks elsewhere, backups, dry run. |
+| `lib/output.ts` | `report`, `checkItem`, `checkWarn`, `section`, `header`, `finish`, `setRenderer`, `displayPath` | Every result becomes an event for the current renderer: the rail in a terminal, plain lines when piped, a list in the tests. The modules never print. |
+| `lib/state.ts` | `state`, `resetState` | The run: `--dry-run`, the counters behind the summary and the exit code, and the folder paths are shown relative to. |
 
-Two decisions shape the modules:
+Three decisions shape the modules:
 
 - **A rule of the standard is written once.** Adding one means adding an item to the list in `lib/workspace.ts`, with its `apply` and its `verify` next to each other.
+- **Output is an event stream.** A module reports what happened (`report`, `checkItem`…) and never formats it; the renderer decides how it looks. A new output (`--json`, a full-screen view) is one more renderer, not a change in the modules.
 - **Third-party installation is an adapter.** `applySkills` receives an `installer`: `npxInstaller` by default, a fake one in the tests. The order that matters (link `.claude/skills` first, install after) stays inside the skills module.
 
 Every action is idempotent: it looks at what is there, does nothing when it is already right, and reports `ok`. That is what makes `--dry-run`, repeated runs and `update --all` safe.

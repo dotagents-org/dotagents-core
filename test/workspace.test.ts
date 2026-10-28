@@ -5,7 +5,7 @@ import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { test, type TestContext } from "node:test";
-import { state } from "../lib/common.ts";
+import { state } from "../lib/state.ts";
 import { resolveSkills } from "../lib/skills.ts";
 import { applyWorkspace, verifyWorkspace, wrapRepository } from "../lib/workspace.ts";
 import { REPO, fakeInstaller, fakeThirdParty, quiet, tempWorkspace } from "./helpers.ts";
