@@ -9,6 +9,7 @@
 
 import fs from "node:fs";
 import path from "node:path";
+import { projectFiles } from "./claude-code.ts";
 import { ensureDirLink, lstat, realpath, samePath } from "./common.ts";
 import { checkItem, report } from "./output.ts";
 import { state } from "./state.ts";
@@ -80,7 +81,7 @@ export async function applySkills(ws: string, skills: Skill[], { installer = npx
   }
   if (skills.length || fs.existsSync(skillsDir(ws))) {
     if (!state.dryRun) fs.mkdirSync(skillsDir(ws), { recursive: true });
-    ensureDirLink(path.join(ws, ".claude", "skills"), skillsDir(ws), { relative: true });
+    ensureDirLink(projectFiles(ws).skills, skillsDir(ws), { relative: true });
   }
 
   const installed = lockNames(ws) ?? [];
@@ -106,7 +107,7 @@ export function verifySkills(repo: string, ws: string) {
   const lock = lockNames(ws);
   if (lock === undefined) checkItem(false, "skills-lock.json is valid JSON");
 
-  const link = path.join(ws, ".claude", "skills");
+  const link = projectFiles(ws).skills;
   const st = lstat(link);
   if (st) {
     const ok = st.isSymbolicLink() && samePath(realpath(link) ?? "", realpath(skillsDir(ws)) ?? "?");

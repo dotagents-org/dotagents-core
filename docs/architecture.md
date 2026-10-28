@@ -35,6 +35,7 @@ flowchart LR
     tp["thirdparty.ts<br/>catalog, npx installer"]
     git["git.ts<br/>.git/info/exclude"]
     gl["global.ts<br/>machine level"]
+    cc["claude-code.ts<br/>Claude Code paths"]
     reg["registry.ts<br/>tracked workspaces"]
     common["common.ts<br/>file actions"]
     out["output.ts<br/>events, renderers"]
@@ -42,6 +43,7 @@ flowchart LR
     cli --> ws & sk & gl & reg & tp
     ws --> sk & git
     sk --> tp
+    gl & ws & sk --> cc
     ws & sk & git & gl & tp --> common
     cli & ws & sk & git & gl & common --> out
 ```
@@ -52,7 +54,8 @@ flowchart LR
 | `lib/skills.ts` | `listSkills(repo)`, `resolveSkills(repo, names)`, `skillsIn(repo, ws)`, `applySkills(ws, skills, { installer })`, `verifySkills(repo, ws)` | Own skills and third-party ones as one list (`name`, `kind`, `source`, `description`). Linking, installing (and in which order), and the skill checks. |
 | `lib/thirdparty.ts` | `loadCatalog`, `saveCatalog`, `discoverSkills`, `parseSkill`, `npxInstaller` | The catalog file, reading `SKILL.md`, and the installer adapter that runs `npx skills add`. |
 | `lib/git.ts` | `ensureExcluded`, `removeExcluded`, `gitRepoOf`, `isRepoRoot`, `trackedAgentFiles`, `untrackedAgentFiles` | Keeping agent files out of a project's git through `.git/info/exclude`. |
-| `lib/global.ts` | `installGlobal(repo)`, `renderInstructions(repo)` | The machine level: instructions, rules and settings. |
+| `lib/global.ts` | `installGlobal(repo, configDir?)`, `renderInstructions(repo)` | The machine level: instructions, rules and settings, applied to one Claude Code config folder (`~/.claude` by default). |
+| `lib/claude-code.ts` | `defaultConfigDir`, `userFiles(configDir)`, `projectFiles(ws)` | Where Claude Code reads its configuration, at the user level and in a workspace. No other module spells these paths out. |
 | `lib/registry.ts` | `loadWorkspaces`, `registerWorkspace`, `untrackWorkspace` | The tracked workspaces of this machine. |
 | `lib/common.ts` | file actions (`ensureDirLink`, `ensureFile`, `writeGenerated`, `ensureJsonKey`…), `runWithSpinner`, `parseArgs` | Junctions on Windows and symlinks elsewhere, backups, dry run. |
 | `lib/output.ts` | `report`, `checkItem`, `checkWarn`, `section`, `header`, `finish`, `setRenderer`, `displayPath` | Every result becomes an event for the current renderer: the rail in a terminal, plain lines when piped, a list in the tests. The modules never print. |
