@@ -13,8 +13,10 @@ dotagents/
 │   └── third-party-skills.json  catalog of third-party skills
 ├── standards/                 the .agents/ and .artifacts/ standards
 ├── templates/workspace/       AGENTS.md and INDEX.md for new workspaces
+├── assets/                    the account icons
 ├── docs/                      this documentation
-├── cli.ts                    the dotagents command: arguments, questions, output
+├── cli.ts                     the dotagents command: reads the arguments, picks the command, prints the help
+├── commands/                  one file per command: its help, its questions, its run
 ├── lib/                       the modules (see below)
 ├── test/                      unit tests (node:test)
 ├── .github/workflows/         CI: skill validation and command tests on three systems
@@ -23,11 +25,11 @@ dotagents/
 
 ## Modules
 
-The command is TypeScript run directly by Node (type stripping, no build step) with two dependencies. `cli.ts` reads the arguments, asks the questions and prints. Everything that decides what a workspace or a machine should look like lives in `lib/`, in a few modules with small interfaces:
+The command is TypeScript run directly by Node (type stripping, no build step) with two dependencies. `cli.ts` reads the arguments and hands them to one of the commands in `commands/`, which asks the questions and calls the modules. Everything that decides what a workspace or a machine should look like lives in `lib/`, in a few modules with small interfaces:
 
 ```mermaid
 flowchart LR
-    cli["cli.ts<br/>arguments, questions, output"]
+    cli["cli.ts + commands/<br/>arguments, questions"]
     ws["workspace.ts<br/>the standard: apply + verify"]
     sk["skills.ts<br/>own + third-party skills"]
     tp["thirdparty.ts<br/>catalog, npx installer"]
@@ -83,6 +85,8 @@ node cli.ts --help      # run without npm link
   - checks that a second run changes nothing.
 
 **Commits** follow [the commit convention](../rules/commit-conventions.md): gitmoji plus Conventional Commits, one line in English, no co-author trailer.
+
+**Adding a command:** write `commands/<name>.ts` exporting a `Command` (name, usage, summary, group, `run`), add it to `COMMANDS` in `cli.ts` (the order is the help's order), and describe it in [Commands](commands.md) and in the table of the README.
 
 **Adding a rule to the workspace standard:**
 
