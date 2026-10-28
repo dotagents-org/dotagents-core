@@ -52,6 +52,9 @@ jobs:
           test -f "$home/.claude-personal/CLAUDE.md"
           ls "$home/.local/bin" | grep -F claude-personal
           dotagents account list
+          dotagents usage
+          dotagents usage --short
+          dotagents usage --json | node -e "JSON.parse(require('fs').readFileSync(0, 'utf8'))"
           dotagents account remove personal
           test -d "$home/.claude-personal"
 

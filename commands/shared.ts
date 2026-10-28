@@ -14,6 +14,8 @@ export type CliArgs = {
   yes?: boolean;
   default?: boolean;
   color?: string;
+  json?: boolean;
+  short?: boolean;
   skills?: string[];
 };
 

@@ -11,6 +11,7 @@ dotagents <command> [options]
 | [`account add <name>`](#dotagents-account-add) | Adds a Claude account: its config folder, the configuration and a `claude-<name>` launcher. |
 | [`account list`](#dotagents-account-list) | Lists the accounts and checks them. |
 | [`account remove <name>`](#dotagents-account-remove) | Forgets an account and its launcher; its folder is kept. |
+| [`usage [--short] [--json]`](#dotagents-usage) | Shows how much of each account's plan is used (5-hour session, week), from Claude Code's cache. |
 | [`new <git-url> [folder]`](#dotagents-new) | Creates a workspace folder (any name; `<name>-workspace` by default), clones the repository into it and applies the standards. |
 | [`init [path]`](#dotagents-init) | Applies the standards to a folder and puts the chosen skills in it. |
 | [`check [path]`](#dotagents-check) | Runs the standards checklist on a workspace, changing nothing. |
@@ -80,6 +81,20 @@ dotagents account remove personal
 ```
 
 Forgets the account and deletes its launcher. The folder, with the sign-in and the history, stays; delete it by hand if you want it gone.
+
+## dotagents usage
+
+```bash
+dotagents usage            # every account: session (5h), week, per-model weeks
+dotagents usage --short    # one line: work 28%·22% │ personal 0%·0%
+dotagents usage --json     # the data, for scripts
+```
+
+Reads the usage Claude Code keeps in each account's state file (`cachedUsageUtilization` in `~/.claude.json`, or `<folder>/.claude.json`). It makes no network call and needs no token. Without accounts, it shows the one in `~/.claude`.
+
+For each window it shows a bar (green below 50%, yellow up to 79%, red from 80%), the percentage and when it resets. Once enough of the window has passed, a note says when it runs out at the current pace, or how much is left at the reset. A window whose reset time has passed shows as reset, never with the old number.
+
+The cache is only as fresh as the last time Claude Code asked for the usage: `/usage` in an account refreshes it. Each account says how old its data is, and data older than 6 hours is marked stale. An account that isn't signed in, has no data yet, or holds the cache of an earlier sign-in says so instead of showing a number.
 
 ## dotagents new
 
@@ -197,6 +212,8 @@ Removes a skill from the catalog. Workspaces that already installed it keep it; 
 | `--wrap` | `init` | Move a repository into `<name>-workspace/` before applying the standards. |
 | `--default` | `account add` | The account in `~/.claude`. |
 | `--color #RRGGBB` | `account add` | The account's color in the listings. |
+| `--short` | `usage` | One line, for a prompt or a status line. |
+| `--json` | `usage` | The data, for scripts. |
 | `--yes` | `init`, `new`, `skills add` | Never ask. |
 | `--no-pull` | `update` | Skip `git pull`. |
 | `--help`, `--version` | | |
