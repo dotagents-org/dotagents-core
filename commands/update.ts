@@ -24,6 +24,7 @@ export const update: Command = {
     else if (state.dryRun) report("would update", repo, "git pull --ff-only");
     else {
       const lockBefore = readLock(repo);
+      const binBefore = readBin(repo);
       const pull = await runWithSpinner("Pulling the repository", "git", ["-C", repo, "pull", "--ff-only"]);
       report(pull.code === 0 ? "ok" : "failed", repo, pull.last);
       if (pull.code !== 0) return finish("Fix the repository (commit, stash or resolve) and run dotagents update again.");
@@ -31,6 +32,12 @@ export const update: Command = {
       if (readLock(repo) !== lockBefore) {
         const npm = await runWithSpinner("Installing dependencies", "npm install --no-audit --no-fund", [], { cwd: repo, shell: true });
         report(npm.code === 0 ? "updated" : "failed", path.join(repo, "node_modules"), npm.code === 0 ? "npm install" : npm.last);
+      }
+      // A new entry file (cli.mjs became cli.ts): the dotagents command still points at the old one
+      // until npm link runs again.
+      if (readBin(repo) !== binBefore) {
+        const link = await runWithSpinner("Linking the dotagents command", "npm link --no-audit --no-fund", [], { cwd: repo, shell: true });
+        report(link.code === 0 ? "updated" : "failed", repo, link.code === 0 ? "npm link: the command points at the new entry file" : link.last);
       }
     }
 
@@ -69,6 +76,15 @@ async function updateThirdParty(ws: string) {
   // user input.
   const res = await runWithSpinner("Updating third-party skills", "npx -y skills update -p -y", [], { cwd: ws, shell: true });
   report(res.code === 0 ? "ok" : "failed", lock, res.last);
+}
+
+// The command's entry file, as package.json names it.
+function readBin(repo: string) {
+  try {
+    return JSON.stringify(JSON.parse(fs.readFileSync(path.join(repo, "package.json"), "utf8")).bin ?? null);
+  } catch {
+    return "";
+  }
 }
 
 function readLock(repo: string) {
