@@ -6,6 +6,7 @@
 import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
+import { projectFiles } from "./claude-code.ts";
 import { createFromTemplate, ensureDir, ensureDirLink, ensureJsonKey, lstat, realpath, samePath } from "./common.ts";
 import { checkItem, checkWarn, report, section } from "./output.ts";
 import { state } from "./state.ts";
@@ -146,7 +147,7 @@ const STANDARD: StandardItem[] = [
         checkItem((agentsMd ?? "").includes(r.name), `AGENTS.md mentions the repository ${r.name}/`, "list it under Repositories, so the agents know where the code is");
       }
       // A CLAUDE.md here makes Claude Code read it instead of AGENTS.md, unless it imports AGENTS.md.
-      const claudeMd = read(path.join(ws, "CLAUDE.md"));
+      const claudeMd = read(projectFiles(ws).instructions);
       // Claude Code expands @path anywhere in the text, not only on a line of its own.
       if (claudeMd !== null && !/(^|[\s(])@(\.\/)?AGENTS\.md(?![\w/-])/m.test(claudeMd)) {
         checkWarn("CLAUDE.md doesn't import AGENTS.md", "with a CLAUDE.md present, Claude Code reads it instead of AGENTS.md; add a line @AGENTS.md to it");
@@ -174,12 +175,12 @@ const STANDARD: StandardItem[] = [
     title: ".claude/",
     apply({ ws }) {
       const rules = path.join(ws, ".agents", "rules");
-      if (fs.existsSync(rules)) ensureDirLink(path.join(ws, ".claude", "rules"), rules, { relative: true });
+      if (fs.existsSync(rules)) ensureDirLink(projectFiles(ws).rules, rules, { relative: true });
       // Plan mode writes its plans into the workspace instead of ~/.claude/plans.
-      ensureJsonKey(path.join(ws, ".claude", "settings.json"), "plansDirectory", PLANS_DIR);
+      ensureJsonKey(projectFiles(ws).settings, "plansDirectory", PLANS_DIR);
     },
     verify({ ws }) {
-      const link = path.join(ws, ".claude", "rules");
+      const link = projectFiles(ws).rules;
       const st = lstat(link);
       if (st) {
         const ok = st.isSymbolicLink() && samePath(realpath(link) ?? "", realpath(path.join(ws, ".agents", "rules")) ?? "?");
@@ -187,7 +188,7 @@ const STANDARD: StandardItem[] = [
       }
       let plansDirectory: unknown;
       try {
-        plansDirectory = JSON.parse(fs.readFileSync(path.join(ws, ".claude", "settings.json"), "utf8")).plansDirectory;
+        plansDirectory = JSON.parse(fs.readFileSync(projectFiles(ws).settings, "utf8")).plansDirectory;
       } catch {}
       checkItem(plansDirectory === PLANS_DIR, `.claude/settings.json sets plansDirectory to ${PLANS_DIR}`, plansDirectory ? `set to ${plansDirectory}` : "not set");
     },

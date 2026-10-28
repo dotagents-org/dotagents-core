@@ -3,6 +3,7 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { defaultConfigDir, userFiles } from "./claude-code.ts";
 import { ensureDirLink, ensureFile, writeGenerated } from "./common.ts";
 import { section, toSlash } from "./output.ts";
 
@@ -19,15 +20,16 @@ export function renderInstructions(repo: string) {
   return text.replaceAll("{{AGENTS_REPO}}", toSlash(repo));
 }
 
-export function installGlobal(repo: string) {
-  const home = os.homedir();
+// Applies the configuration to one Claude Code config folder: ~/.claude by default.
+export function installGlobal(repo: string, configDir = defaultConfigDir()) {
+  const files = userFiles(configDir);
 
   section("Global instructions");
-  writeGenerated(path.join(home, ".claude", "CLAUDE.md"), renderInstructions(repo), { onForeign: "backup" });
+  writeGenerated(files.instructions, renderInstructions(repo), { onForeign: "backup" });
 
   section("Global rules");
-  ensureDirLink(path.join(home, ".claude", "rules"), path.join(repo, "rules"));
+  ensureDirLink(files.rules, path.join(repo, "rules"));
 
   section("Settings");
-  ensureFile(path.join(repo, "claude", "settings.json"), path.join(home, ".claude", "settings.json"));
+  ensureFile(path.join(repo, "claude", "settings.json"), files.settings);
 }
