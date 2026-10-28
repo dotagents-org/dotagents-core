@@ -1,4 +1,5 @@
-// One taskbar button per account on Windows. Every Claude Desktop window carries the package's
+// One taskbar button per account on Windows, and the account's look on the instance: window
+// title and icon, and the notification-area icon. Every Claude Desktop window carries the package's
 // identity, so the taskbar puts every instance under one Claude button. Two things split them:
 // - the account's Start menu shortcut carries an AppUserModelID of its own
 //   (System.AppUserModel.ID, written through the shortcut's property store);
@@ -92,6 +93,7 @@ using System;
 using System.Collections.Generic;
 using System.Management;
 using System.Runtime.InteropServices;
+using System.Text;
 public static class DotagentsTaskbar {
 ${PROPERTY_STORE}
   delegate bool WindowVisitor(IntPtr window, IntPtr state);
@@ -119,6 +121,85 @@ ${PROPERTY_STORE}
   }
 
   static readonly HashSet<IntPtr> tagged = new HashSet<IntPtr>();
+
+  // The account's look: window title and icon, and the notification-area icon.
+  [DllImport("user32.dll", CharSet = CharSet.Unicode)] static extern int GetClassName(IntPtr window, StringBuilder name, int size);
+  [DllImport("user32.dll", CharSet = CharSet.Unicode)] static extern int GetWindowText(IntPtr window, StringBuilder text, int size);
+  [DllImport("user32.dll", CharSet = CharSet.Unicode)] static extern IntPtr SendMessageTimeout(IntPtr window, uint message, IntPtr wParam, string lParam, uint flags, uint timeout, out IntPtr result);
+  [DllImport("user32.dll")] static extern IntPtr SendMessageTimeout(IntPtr window, uint message, IntPtr wParam, IntPtr lParam, uint flags, uint timeout, out IntPtr result);
+  [DllImport("user32.dll", CharSet = CharSet.Unicode)] static extern IntPtr LoadImage(IntPtr instance, string name, uint type, int width, int height, uint load);
+  [DllImport("user32.dll")] static extern int GetSystemMetrics(int index);
+  [DllImport("user32.dll")] public static extern bool SetProcessDPIAware();
+  [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+  public struct NotifyIconData {
+    public int cbSize; public IntPtr hWnd; public uint uID; public uint uFlags; public uint uCallbackMessage; public IntPtr hIcon;
+    [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 128)] public string szTip;
+    public uint dwState; public uint dwStateMask;
+    [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 256)] public string szInfo;
+    public uint uVersion;
+    [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 64)] public string szInfoTitle;
+    public uint dwInfoFlags; public Guid guidItem; public IntPtr hBalloonIcon;
+  }
+  [DllImport("shell32.dll", CharSet = CharSet.Unicode)] static extern bool Shell_NotifyIcon(uint message, ref NotifyIconData data);
+
+  const uint WM_SETTEXT = 0x000C, WM_GETICON = 0x007F, WM_SETICON = 0x0080, SMTO_ABORTIFHUNG = 2, NIM_MODIFY = 1, NIF_ICON = 2, NIF_TIP = 4;
+  static IntPtr bigIcon = IntPtr.Zero, smallIcon = IntPtr.Zero;
+
+  // The account's .ico at the sizes Windows asks for; nothing when the icon isn't an .ico file.
+  public static void LoadIcons(string path) {
+    if (!path.EndsWith(".ico", StringComparison.OrdinalIgnoreCase)) return;
+    bigIcon = LoadImage(IntPtr.Zero, path, 1, GetSystemMetrics(11), GetSystemMetrics(12), 0x10);
+    smallIcon = LoadImage(IntPtr.Zero, path, 1, GetSystemMetrics(49), GetSystemMetrics(50), 0x10);
+  }
+
+  static string ClassOf(IntPtr window) { var b = new StringBuilder(64); GetClassName(window, b, 64); return b.ToString(); }
+
+  // Claude writes "Claude" back into the title and may set its icon again, so this runs on every
+  // pass and only sends what differs.
+  static void DressWindow(IntPtr window, string name) {
+    IntPtr result;
+    var title = new StringBuilder(256);
+    GetWindowText(window, title, 256);
+    if (title.ToString() != name) SendMessageTimeout(window, WM_SETTEXT, IntPtr.Zero, name, SMTO_ABORTIFHUNG, 500, out result);
+    if (bigIcon == IntPtr.Zero) return;
+    SendMessageTimeout(window, WM_GETICON, new IntPtr(1), IntPtr.Zero, SMTO_ABORTIFHUNG, 500, out result);
+    if (result != bigIcon) {
+      SendMessageTimeout(window, WM_SETICON, new IntPtr(1), bigIcon, SMTO_ABORTIFHUNG, 500, out result);
+      SendMessageTimeout(window, WM_SETICON, new IntPtr(0), smallIcon, SMTO_ABORTIFHUNG, 500, out result);
+    }
+  }
+
+  // The notification-area icon belongs to the instance's hidden Electron_NotifyIconHostWindow.
+  // Electron numbers its icons from 3 and a new one gets a higher number, so the highest that
+  // answers is the one showing. NIM_MODIFY with no flags only says whether a number exists.
+  static void DressTray(IntPtr host, string name) {
+    if (smallIcon == IntPtr.Zero) return;
+    var data = new NotifyIconData { cbSize = Marshal.SizeOf(typeof(NotifyIconData)), hWnd = host };
+    uint found = 0;
+    for (uint id = 3; id < 64; id++) {
+      data.uID = id;
+      data.uFlags = 0;
+      if (Shell_NotifyIcon(NIM_MODIFY, ref data)) found = id;
+    }
+    if (found == 0) return;
+    data.uID = found;
+    data.uFlags = NIF_ICON | NIF_TIP;
+    data.hIcon = smallIcon;
+    data.szTip = name;
+    Shell_NotifyIcon(NIM_MODIFY, ref data);
+  }
+
+  // Title and icon on the instance's windows; with tray, its notification-area icon too.
+  public static void Dress(HashSet<uint> processes, string name, bool tray) {
+    EnumWindows(delegate(IntPtr window, IntPtr state) {
+      uint processId;
+      GetWindowThreadProcessId(window, out processId);
+      if (!processes.Contains(processId)) return true;
+      if (ClassOf(window) == "Electron_NotifyIconHostWindow") { if (tray) DressTray(window, name); return true; }
+      if (IsWindowVisible(window) && GetWindow(window, 4) == IntPtr.Zero) DressWindow(window, name);
+      return true;
+    }, IntPtr.Zero);
+  }
 
   // Tags the visible top-level windows of those processes that aren't tagged yet.
   public static void Tag(HashSet<uint> processes, string appId, string name, string icon, string relaunch) {
@@ -150,13 +231,22 @@ $relaunch = '"' + (Join-Path $env:SystemRoot 'System32\wscript.exe') + '" "' + $
 $mutex = New-Object System.Threading.Mutex($false, "Local\\$AppId")
 if (-not $mutex.WaitOne(0)) { exit 0 }
 
+# Icon sizes at the screen's real scale.
+[void][DotagentsTaskbar]::SetProcessDPIAware()
+[DotagentsTaskbar]::LoadIcons($Icon)
+
 $deadline = (Get-Date).AddSeconds($StartupSeconds)
+$pass = 0
 $seen = $false
 while ($true) {
   $processes = [DotagentsTaskbar]::Instance($DataDir)
   if ($processes.Count -gt 0) {
     $seen = $true
     [DotagentsTaskbar]::Tag($processes, $AppId, $DisplayName, $Icon, $relaunch)
+    # The tray icon every fifth pass (10 s): Claude puts its own back when Explorer restarts or
+    # the theme changes.
+    [DotagentsTaskbar]::Dress($processes, $DisplayName, ($pass % 5) -eq 0)
+    $pass++
   } elseif ($seen -or (Get-Date) -gt $deadline) {
     break
   }
