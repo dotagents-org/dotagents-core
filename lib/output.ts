@@ -213,18 +213,44 @@ export function finish(hint = "") {
 }
 
 // Runs fn with its events kept instead of printed, and the run's counters left as they were:
-// how a view other than the terminal (the TUI) shows what a module did.
-export function capture(fn: () => void): Event[] {
-  const events: Event[] = [];
-  const saved = { renderer, problems: state.problems, counts: { ...state.counts }, base: state.base };
+// how a view other than the terminal (the TUI) shows what a module did. dryRun runs it as a
+// preview (true) or for real (false) whatever --dry-run said.
+type CaptureOptions = { dryRun?: boolean };
+
+function swapIn(events: Event[], { dryRun }: CaptureOptions) {
+  const saved = { renderer, dryRun: state.dryRun, problems: state.problems, counts: { ...state.counts }, base: state.base };
   renderer = collect(events);
   state.problems = 0;
   state.counts = {};
+  if (dryRun !== undefined) state.dryRun = dryRun;
+  return () => {
+    renderer = saved.renderer;
+    Object.assign(state, { dryRun: saved.dryRun, problems: saved.problems, counts: saved.counts, base: saved.base });
+  };
+}
+
+export function capture(fn: () => void, options: CaptureOptions = {}): Event[] {
+  const events: Event[] = [];
+  const restore = swapIn(events, options);
   try {
     fn();
   } finally {
-    renderer = saved.renderer;
-    Object.assign(state, { problems: saved.problems, counts: saved.counts, base: saved.base });
+    restore();
   }
   return events;
 }
+
+// The same, for actions that wait on a process (git, npx).
+export async function captureAsync(fn: () => Promise<void>, options: CaptureOptions = {}): Promise<Event[]> {
+  const events: Event[] = [];
+  const restore = swapIn(events, options);
+  try {
+    await fn();
+  } finally {
+    restore();
+  }
+  return events;
+}
+
+// The terminal spinner draws over the screen, so it only turns under the rail renderer.
+export const spinnerAllowed = () => renderer === railRenderer;

@@ -8,7 +8,8 @@ import path from "node:path";
 import { test, type TestContext } from "node:test";
 import { render } from "ink-testing-library";
 import { createElement as h } from "react";
-import { saveAccount } from "../lib/machine-state.ts";
+import { launcherFile } from "../lib/accounts.ts";
+import { registerWorkspace, saveAccount } from "../lib/machine-state.ts";
 import { App } from "../tui/app.ts";
 import { REPO, quiet } from "./helpers.ts";
 
@@ -73,4 +74,46 @@ test("the arrows and tab go round the screens, and the usage --watch view opens 
   app.stdin.write("\t");
   await settle();
   assert.match(app.lastFrame() ?? "", /uuid-b@example\.com/);
+});
+
+// Waits until the frame matches, for actions that finish on their own time.
+async function until(app: ReturnType<typeof render>, pattern: RegExp) {
+  for (let i = 0; i < 50 && !pattern.test(app.lastFrame() ?? ""); i++) await settle();
+  assert.match(app.lastFrame() ?? "", pattern);
+}
+
+test("i on the accounts screen previews the install, n cancels it and y applies it", async (t) => {
+  twoAccounts(t);
+  const launcher = launcherFile("work");
+  const app = render(h(App, { repo: REPO, initial: "accounts" }));
+  t.after(() => app.unmount());
+  app.stdin.write("i");
+  await until(app, /Install, preview:[\s\S]*would create[\s\S]*y apply · n cancel/);
+  assert.ok(!fs.existsSync(launcher));
+  app.stdin.write("n");
+  await settle();
+  assert.doesNotMatch(app.lastFrame() ?? "", /preview/);
+  app.stdin.write("i");
+  await until(app, /y apply/);
+  app.stdin.write("y");
+  await until(app, /Install:[\s\S]*created/);
+  assert.ok(fs.existsSync(launcher));
+  // The checklist is read again: the launchers are there now.
+  assert.match(app.lastFrame() ?? "", /✓ 6 passed/);
+});
+
+test("a on the workspaces screen applies the standards to the picked workspace, after a preview", async (t) => {
+  twoAccounts(t);
+  const ws = fs.mkdtempSync(path.join(os.tmpdir(), "dotagents-tui-ws-"));
+  t.after(() => fs.rmSync(ws, { recursive: true, force: true }));
+  registerWorkspace(ws, ["to-cards"]);
+  const app = render(h(App, { repo: REPO, initial: "workspaces" }));
+  t.after(() => app.unmount());
+  app.stdin.write("a");
+  await until(app, /Apply the standards, preview:[\s\S]*AGENTS\.md/);
+  assert.ok(!fs.existsSync(path.join(ws, "AGENTS.md")));
+  app.stdin.write("y");
+  await until(app, /Apply the standards:[\s\S]*created/);
+  assert.ok(fs.existsSync(path.join(ws, "AGENTS.md")));
+  assert.ok(fs.existsSync(path.join(ws, ".agents", "skills", "to-cards", "SKILL.md")));
 });
