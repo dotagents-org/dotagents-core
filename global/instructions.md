@@ -6,6 +6,7 @@ These apply to Claude Code. The source is `global/instructions.md` in the dotage
 
 - Reply in Brazilian Portuguese.
 - Code, commits and comments follow the language the project already uses.
+- A trailing comment gets exactly one space before `#` or `//` (`code # comment`), never padding to align comments, even where PEP 8 asks for two. This holds in code, docs and command examples.
 
 ## Commits
 
