@@ -36,7 +36,7 @@ flowchart LR
     git["git.ts<br/>.git/info/exclude"]
     gl["global.ts<br/>machine level"]
     cc["claude-code.ts<br/>Claude Code paths"]
-    reg["registry.ts<br/>tracked workspaces"]
+    reg["machine-state.ts<br/>tracked workspaces"]
     common["common.ts<br/>file actions"]
     out["output.ts<br/>events, renderers"]
 
@@ -56,7 +56,7 @@ flowchart LR
 | `lib/git.ts` | `ensureExcluded`, `removeExcluded`, `gitRepoOf`, `isRepoRoot`, `trackedAgentFiles`, `untrackedAgentFiles` | Keeping agent files out of a project's git through `.git/info/exclude`. |
 | `lib/global.ts` | `installGlobal(repo, configDir?)`, `renderInstructions(repo)` | The machine level: instructions, rules and settings, applied to one Claude Code config folder (`~/.claude` by default). |
 | `lib/claude-code.ts` | `defaultConfigDir`, `userFiles(configDir)`, `projectFiles(ws)` | Where Claude Code reads its configuration, at the user level and in a workspace. No other module spells these paths out. |
-| `lib/registry.ts` | `loadWorkspaces`, `registerWorkspace`, `untrackWorkspace` | The tracked workspaces of this machine. |
+| `lib/machine-state.ts` | `loadWorkspaces`, `registerWorkspace`, `untrackWorkspace`, `workspacesFile`, `stateDir` | What dotagents remembers about this machine, outside the repository. Every file has a format version and is checked when read: a broken file, or one from a newer dotagents, stops the command instead of being overwritten. |
 | `lib/common.ts` | file actions (`ensureDirLink`, `ensureFile`, `writeGenerated`, `ensureJsonKey`…), `runWithSpinner`, `parseArgs` | Junctions on Windows and symlinks elsewhere, backups, dry run. |
 | `lib/output.ts` | `report`, `checkItem`, `checkWarn`, `section`, `header`, `finish`, `setRenderer`, `displayPath` | Every result becomes an event for the current renderer: the rail in a terminal, plain lines when piped, a list in the tests. The modules never print. |
 | `lib/state.ts` | `state`, `resetState` | The run: `--dry-run`, the counters behind the summary and the exit code, and the folder paths are shown relative to. |

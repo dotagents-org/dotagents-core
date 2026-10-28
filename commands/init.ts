@@ -4,7 +4,7 @@ import path from "node:path";
 import * as p from "@clack/prompts";
 import { gitRepoOf, isRepoRoot } from "../lib/git.ts";
 import { displayPath, fancy, finish, header, interactive, line, style } from "../lib/output.ts";
-import { registerWorkspace, untrackWorkspace } from "../lib/registry.ts";
+import { registerWorkspace, untrackWorkspace } from "../lib/machine-state.ts";
 import { listSkills, resolveSkills, skillsIn } from "../lib/skills.ts";
 import { state } from "../lib/state.ts";
 import { applyWorkspace, assertWorkspace, wrapRepository } from "../lib/workspace.ts";

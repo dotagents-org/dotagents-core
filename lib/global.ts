@@ -1,13 +1,11 @@
 // `dotagents install`: applies the global configuration to this machine.
 
 import fs from "node:fs";
-import os from "node:os";
 import path from "node:path";
 import { defaultConfigDir, userFiles } from "./claude-code.ts";
 import { ensureDirLink, ensureFile, writeGenerated } from "./common.ts";
 import { section, toSlash } from "./output.ts";
 
-export const configHome = () => process.env.XDG_CONFIG_HOME || path.join(os.homedir(), ".config");
 
 // The global instructions (global/instructions.md) have no machine paths: {{AGENTS_REPO}} becomes this
 // clone's location, and the file for the current platform (global/env/win32.md, linux.md, darwin.md)

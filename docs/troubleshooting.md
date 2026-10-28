@@ -22,6 +22,10 @@ git rm -r --cached AGENTS.md .claude
 
 **A link points to an old location.** The clone or the workspace moved. Run `npm link` in the clone, then `dotagents install` and `dotagents init <workspace>`.
 
+**"workspaces.json is not valid JSON" (or "has an invalid workspace list").** The list of tracked workspaces in `~/.config/dotagents/` (or `$DOTAGENTS_STATE_DIR`) is broken. dotagents stops instead of overwriting it, so no entry is lost. Fix the file, or delete it and run `dotagents init <workspace>` again for each workspace.
+
+**"was written by a newer dotagents".** Another clone, more recent than this one, wrote the state file. Bring this clone up to date with `dotagents update`.
+
 **A `.bak-<date>` file appeared.** dotagents replaced a file it didn't generate and kept the old one next to it. Compare them and delete the backup when you're done.
 
 ## Limits
