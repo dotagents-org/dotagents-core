@@ -51,6 +51,6 @@ dotagents check ~/projects/app-workspace
 dotagents update --all
 ```
 
-Run the agents (Claude Code, Codex, OpenCode) from the workspace root, where `AGENTS.md` and `.agents/` are.
+Run Claude Code from the workspace root, where `AGENTS.md` and `.agents/` are.
 
 Next: [Commands](commands.md) for every option, or [Workspaces](workspaces.md) for what a workspace holds.

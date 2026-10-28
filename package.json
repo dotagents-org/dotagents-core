@@ -2,7 +2,7 @@
   "name": "dotagents",
   "version": "1.0.0",
   "private": true,
-  "description": "Coding agent configuration for Claude Code, Codex and OpenCode: global instructions, rules, skills and workspace standards.",
+  "description": "Claude Code configuration: global instructions, rules, skills and workspace standards.",
   "type": "module",
   "bin": {
     "dotagents": "cli.mjs"

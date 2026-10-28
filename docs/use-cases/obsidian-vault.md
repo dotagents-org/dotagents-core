@@ -1,6 +1,6 @@
 # Use case: an Obsidian vault
 
-A vault of notes in [Obsidian](https://obsidian.md), worked on with Claude Code, Codex or OpenCode: the agents read and write notes, keep a task board, summarize slides, follow the vault's conventions. This page shows how to set the vault up as a dotagents workspace and what to watch out for.
+A vault of notes in [Obsidian](https://obsidian.md), worked on with Claude Code: the agents read and write notes, keep a task board, summarize slides, follow the vault's conventions. This page shows how to set the vault up as a dotagents workspace and what to watch out for.
 
 ## What makes a vault different
 
