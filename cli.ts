@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 // `dotagents`: applies this repository's Claude Code configuration. Works on Windows, Linux and
 // macOS with Node 22.18+, which runs this TypeScript file directly (type stripping, no build).
-// Make it a command with `npm install && npm link` in the clone (the two dependencies,
-// @clack/prompts and picocolors, draw the terminal output and the prompts).
+// Make it a command with `npm install && npm link` in the clone (@clack/prompts and picocolors
+// draw the terminal output and the prompts; ink and react, the full-screen view in tui/).
 //
 // This file only reads the arguments, picks the command and prints the help. Each command
 // lives in commands/<name>.ts.
@@ -21,7 +21,7 @@ import { update } from "./commands/update.ts";
 import { usage } from "./commands/usage.ts";
 import { untrack, workspaces } from "./commands/workspaces.ts";
 import { parseArgs } from "./lib/common.ts";
-import { displayPath, fancy, style } from "./lib/output.ts";
+import { displayPath, fancy, interactive, style } from "./lib/output.ts";
 import { state } from "./lib/state.ts";
 
 // In the order the help lists them.
@@ -46,6 +46,7 @@ function help() {
 
 ${title("Usage")}
   dotagents ${dim("<command> [options]")}
+  dotagents              ${dim("in a terminal, the full-screen view (usage, accounts, workspaces, skills)")}
 
 ${groups.join("\n\n")}
 
@@ -57,6 +58,7 @@ ${title("Options")}
   ${cyan("--color")}      (account add) the account's color, #RRGGBB
   ${cyan("--short")}      (usage) one line, for a prompt or a status line
   ${cyan("--json")}       (usage) the data, for scripts
+  ${cyan("--watch")}      (usage) the full-screen view, updated live
   ${cyan("--no-pull")}    (update) skip git pull, only reapply
   ${cyan("--help")}       show this help
   ${cyan("--version")}    show the version
@@ -82,13 +84,16 @@ function pick(words: string[]) {
 }
 
 const args = parseArgs<CliArgs>(process.argv.slice(2), {
-  booleans: ["all", "default", "dry-run", "help", "json", "no-pull", "short", "version", "wrap", "yes"],
+  booleans: ["all", "default", "dry-run", "help", "json", "no-pull", "short", "version", "watch", "wrap", "yes"],
   lists: ["skills"],
 });
 state.dryRun = Boolean(args["dry-run"]);
 
 if (args.version) {
   console.log(version);
+} else if (!args._.length && !args.help && interactive) {
+  // The full-screen view, loaded only when used, so the commands don't load React.
+  import("./tui/app.ts").then(({ runTui }) => runTui(repo));
 } else if (args.help || !args._.length) {
   console.log(help());
 } else {

@@ -2,7 +2,7 @@
 
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { checkItem, checkWarn, finish, report, section } from "../lib/output.ts";
+import { capture, checkItem, checkWarn, finish, report, section } from "../lib/output.ts";
 import { state } from "../lib/state.ts";
 import { quiet } from "./helpers.ts";
 
@@ -32,4 +32,18 @@ test("finish sets the exit code from the problems counted", (t) => {
   report("failed", "/tmp/b", "no access");
   finish();
   assert.equal(process.exitCode, 1);
+});
+
+test("capture keeps a run's events and leaves the counters as they were", () => {
+  const outer = quiet();
+  report("created", "/tmp/a");
+  const inner = capture(() => {
+    report("failed", "/tmp/b");
+    checkItem(true, "ok");
+  });
+  assert.deepEqual(inner.map((e) => e.kind), ["result", "check"]);
+  assert.equal(outer.length, 1);
+  assert.equal(state.problems, 0);
+  assert.equal(state.counts.created, 1);
+  assert.equal(state.counts.failed, undefined);
 });

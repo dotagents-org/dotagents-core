@@ -18,6 +18,7 @@ dotagents/
 ├── cli.ts                     the dotagents command: reads the arguments, picks the command, prints the help
 ├── commands/                  one file per command: its help, its questions, its run
 ├── lib/                       the modules (see below)
+├── tui/                       the full-screen view: app.ts (frame, tabs, keys) and one file per screen
 ├── test/                      unit tests (node:test)
 ├── .github/workflows/         CI: skill validation and command tests on three systems
 └── package.json
@@ -25,7 +26,7 @@ dotagents/
 
 ## Modules
 
-The command is TypeScript run directly by Node (type stripping, no build step) with two dependencies. `cli.ts` reads the arguments and hands them to one of the commands in `commands/`, which asks the questions and calls the modules. Everything that decides what a workspace or a machine should look like lives in `lib/`, in a few modules with small interfaces:
+The command is TypeScript run directly by Node (type stripping, no build step) with four dependencies: `@clack/prompts` and `picocolors` for the commands, `ink` and `react` for the full-screen view. `cli.ts` reads the arguments and hands them to one of the commands in `commands/`, which asks the questions and calls the modules. Everything that decides what a workspace or a machine should look like lives in `lib/`, in a few modules with small interfaces:
 
 ```mermaid
 flowchart LR
@@ -90,6 +91,10 @@ node cli.ts --help      # run without npm link
   - checks that a second run changes nothing.
 
 **Commits** follow [the commit convention](../rules/commit-conventions.md): gitmoji plus Conventional Commits, one line in English, no co-author trailer.
+
+**The full-screen view (`tui/`)** is a second way to show what `lib/` knows, next to the commands. Each screen is a file in `tui/screens/` that reads from `lib/` and renders with Ink, without JSX (`createElement`), because Node runs `.ts` but doesn't turn JSX into code. What a module reports through events (a checklist, an install) reaches a screen through `capture()`, which keeps the events instead of printing them. The view is loaded only when used, so the commands don't load React.
+
+**Adding a screen:** write `tui/screens/<name>.ts` exporting a `Screen` (id, title, `Component`), add it to `SCREENS` in `tui/app.ts` (the order is the tabs' order and the number keys'), and cover it in `test/tui.test.ts`.
 
 **Adding a command:** write `commands/<name>.ts` exporting a `Command` (name, usage, summary, group, `run`), add it to `COMMANDS` in `cli.ts` (the order is the help's order), and describe it in [Commands](commands.md) and in the table of the README.
 

@@ -16,7 +16,7 @@ Once per machine. WSL counts as a separate machine: it has its own home folder, 
 ```bash
 git clone git@github.com:<you>/dotagents.git
 cd dotagents
-npm install            # the two dependencies
+npm install            # the dependencies
 npm link               # creates the `dotagents` command, pointing to this clone
 dotagents install      # global instructions, rules and settings for this machine
 ```
