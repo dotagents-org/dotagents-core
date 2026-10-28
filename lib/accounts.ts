@@ -7,7 +7,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { CREDENTIAL_VARIABLES, defaultConfigDir, signedIn } from "./claude-code.ts";
-import { ensureDir, isWindows, removeGenerated, samePath, writeGenerated } from "./common.ts";
+import { ensureDir, isWindows, realpath, removeGenerated, samePath, writeGenerated } from "./common.ts";
 import { installGlobal } from "./global.ts";
 import { type Account, accountsFile, loadAccounts, removeAccount, saveAccount } from "./machine-state.ts";
 import { checkItem, checkWarn, displayPath, report, section } from "./output.ts";
@@ -94,6 +94,13 @@ export function dropAccount(name: string) {
   removeAccount(name);
 }
 
+// The folder as Claude Code sees it, plus where it really is when it's a link
+// ("~/.claude → ~/.claude-work").
+export function showFolder(configDir: string) {
+  const real = realpath(configDir);
+  return real && !samePath(real, configDir) ? `${displayPath(configDir)} → ${displayPath(real)}` : displayPath(configDir);
+}
+
 // What `install` applies: the default folder, and every account of this machine.
 export function installAccounts(repo: string) {
   const accounts = loadAccounts();
@@ -107,7 +114,7 @@ export function verifyAccounts() {
   section("Accounts");
   const seen = new Map<string, string>();
   for (const account of loadAccounts()) {
-    checkItem(fs.existsSync(account.configDir), `${account.name}: ${displayPath(account.configDir)} exists`, `create it with: dotagents account add ${account.name}`);
+    checkItem(fs.existsSync(account.configDir), `${account.name}: ${showFolder(account.configDir)} exists`, `create it with: dotagents account add ${account.name}`);
     checkItem(fs.existsSync(launcherFile(account.name)), `${account.name}: launcher ${path.basename(launcherFile(account.name))} exists`, `write it with: dotagents install`);
     const who = signedIn(account.configDir);
     if (!who) {
