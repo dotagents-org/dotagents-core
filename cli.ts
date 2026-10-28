@@ -10,6 +10,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { accountAdd, accountList, accountRemove } from "./commands/account.ts";
 import { check } from "./commands/check.ts";
 import { init } from "./commands/init.ts";
 import { install } from "./commands/install.ts";
@@ -23,7 +24,7 @@ import { displayPath, fancy, style } from "./lib/output.ts";
 import { state } from "./lib/state.ts";
 
 // In the order the help lists them.
-const COMMANDS: Command[] = [install, update, newWorkspace, init, check, workspaces, untrack, skills, skillsAdd, skillsRemove];
+const COMMANDS: Command[] = [install, update, accountAdd, accountList, accountRemove, newWorkspace, init, check, workspaces, untrack, skills, skillsAdd, skillsRemove];
 
 const repo = path.dirname(fileURLToPath(import.meta.url));
 const version = JSON.parse(fs.readFileSync(path.join(repo, "package.json"), "utf8")).version;
@@ -37,7 +38,7 @@ function help() {
     return [`  ${left}${pad}${summary}`, ...more.map((text) => `${" ".repeat(32)}${text}`)].join("\n");
   };
   const title = (t: string) => bold(t.toUpperCase());
-  const groups = (["Machine", "Workspace", "Skills"] as const).map(
+  const groups = (["Machine", "Accounts", "Workspace", "Skills"] as const).map(
     (group) => `${title(group)}\n${COMMANDS.filter((c) => c.group === group).map(cmd).join("\n")}`
   );
   return `${bold(magenta("dotagents"))} ${dim(version)}  Claude Code configuration
@@ -51,6 +52,8 @@ ${title("Options")}
   ${cyan("--dry-run")}    show what would be done, change nothing
   ${cyan("--yes")}        (init) don't ask anything
   ${cyan("--wrap")}       (init) move a repository into <name>-workspace/ first
+  ${cyan("--default")}    (account add) the account in ~/.claude
+  ${cyan("--color")}      (account add) the account's color, #RRGGBB
   ${cyan("--no-pull")}    (update) skip git pull, only reapply
   ${cyan("--help")}       show this help
   ${cyan("--version")}    show the version
@@ -76,7 +79,7 @@ function pick(words: string[]) {
 }
 
 const args = parseArgs<CliArgs>(process.argv.slice(2), {
-  booleans: ["all", "dry-run", "help", "no-pull", "version", "wrap", "yes"],
+  booleans: ["all", "default", "dry-run", "help", "no-pull", "version", "wrap", "yes"],
   lists: ["skills"],
 });
 state.dryRun = Boolean(args["dry-run"]);

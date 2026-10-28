@@ -131,6 +131,7 @@ More in [Getting started](docs/getting-started.md), including WSL and npm withou
 |---|---|
 | [`install`](docs/commands.md#dotagents-install) | Applies the global configuration to this machine. |
 | [`update [--all]`](docs/commands.md#dotagents-update) | Pulls your repository and reinstalls; `--all` also refreshes every workspace. |
+| [`account add <name>`](docs/commands.md#dotagents-account-add) · [`account list`](docs/commands.md#dotagents-account-list) · [`account remove`](docs/commands.md#dotagents-account-remove) | Several Claude accounts on one machine, each with its folder, the configuration and a `claude-<name>` launcher. |
 | [`new <git-url> [folder]`](docs/commands.md#dotagents-new) | Creates a workspace, clones the repository into it and applies the standards. |
 | [`init [path]`](docs/commands.md#dotagents-init) | Applies the standards to a folder, offering to wrap a repository first. |
 | [`check [path]`](docs/commands.md#dotagents-check) | Runs the checklist on a workspace, changing nothing. |

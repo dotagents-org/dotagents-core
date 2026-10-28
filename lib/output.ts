@@ -20,6 +20,17 @@ export const style = pc.createColors(useColor);
 
 export const toSlash = (p: string) => p.replace(/\\/g, "/");
 
+// A color of our own, given as #RRGGBB (an account's color): 24-bit where the terminal supports
+// it, else the closest of the 256 xterm colors. Plain text when colors are off.
+export function paint(hex: string) {
+  if (!useColor) return (text: string) => text;
+  const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
+  const truecolor = /truecolor|24bit/i.test(process.env.COLORTERM ?? "") || Boolean(process.env.WT_SESSION) || process.env.TERM_PROGRAM === "vscode";
+  const cube = (v: number) => Math.round((v / 255) * 5);
+  const code = truecolor ? `38;2;${r};${g};${b}` : `38;5;${16 + 36 * cube(r) + 6 * cube(g) + cube(b)}`;
+  return (text: string) => `\x1b[${code}m${text}\x1b[39m`;
+}
+
 // The rail: ┌ opens a command, │ carries every line, ◇ marks a section, └ closes.
 export const rail = {
   bar: () => style.gray(S_BAR),
@@ -127,7 +138,7 @@ export const railRenderer: Renderer = (event) => {
       line();
       if (state.dryRun) line(style.yellow("Dry run: nothing was changed."));
       if (state.problems) line(style.dim("See the lines marked with ! or ✗ above."));
-      if (event.hint) line(style.dim(event.hint));
+      if (event.hint) for (const hint of event.hint.split("\n")) line(style.dim(hint));
       return console.log(`${rail.end()}  ${icon} ${parts.join(style.gray(" · ")) || "done"}\n`);
     }
   }

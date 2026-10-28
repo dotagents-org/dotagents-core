@@ -5,7 +5,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { test, type TestContext } from "node:test";
-import { loadWorkspaces, registerWorkspace, untrackWorkspace, workspacesFile } from "../lib/machine-state.ts";
+import { loadAccounts, loadWorkspaces, registerWorkspace, removeAccount, saveAccount, untrackWorkspace, workspacesFile } from "../lib/machine-state.ts";
 import { quiet } from "./helpers.ts";
 
 function tempStateDir(t: TestContext) {
@@ -54,4 +54,33 @@ test("a state file from a newer dotagents is not read", (t) => {
   quiet();
   fs.writeFileSync(path.join(dir, "workspaces.json"), JSON.stringify({ version: 2, workspaces: [] }));
   assert.throws(() => loadWorkspaces(), /newer dotagents/);
+});
+
+test("accounts are added once, one of them the default, and removed", (t) => {
+  tempStateDir(t);
+  quiet();
+  assert.deepEqual(loadAccounts(), []);
+  saveAccount({ name: "work", configDir: "/home/me/.claude", color: "#D77655", default: true });
+  saveAccount({ name: "personal", configDir: "/home/me/.claude-personal", color: "#376B80" });
+  saveAccount({ name: "personal", configDir: "/home/me/.claude-personal", color: "#000000" });
+  assert.deepEqual(
+    loadAccounts().map((a) => [a.name, a.color, Boolean(a.default)]),
+    [
+      ["work", "#D77655", true],
+      ["personal", "#000000", false],
+    ]
+  );
+  // A new default takes the mark from the old one.
+  saveAccount({ name: "personal", configDir: "/home/me/.claude-personal", color: "#000000", default: true });
+  assert.deepEqual(loadAccounts().filter((a) => a.default).map((a) => a.name), ["personal"]);
+  assert.equal(removeAccount("work"), true);
+  assert.equal(removeAccount("work"), false);
+  assert.deepEqual(loadAccounts().map((a) => a.name), ["personal"]);
+});
+
+test("an accounts file with a bad entry stops the command", (t) => {
+  const dir = tempStateDir(t);
+  quiet();
+  fs.writeFileSync(path.join(dir, "accounts.json"), JSON.stringify({ version: 1, accounts: [{ name: "x" }] }));
+  assert.throws(() => loadAccounts(), /fix it or delete it/);
 });
