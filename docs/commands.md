@@ -6,8 +6,11 @@ dotagents <command> [options]
 
 | Command | What it does |
 |---|---|
-| [`install`](#dotagents-install) | Applies the global configuration to this machine. |
+| [`install`](#dotagents-install) | Applies the global configuration to this machine, in every account folder. |
 | [`update [--all]`](#dotagents-update) | Pulls this repository and runs `install`; with `--all`, also refreshes every tracked workspace. |
+| [`account add <name>`](#dotagents-account-add) | Adds a Claude account: its config folder, the configuration and a `claude-<name>` launcher. |
+| [`account list`](#dotagents-account-list) | Lists the accounts and checks them. |
+| [`account remove <name>`](#dotagents-account-remove) | Forgets an account and its launcher; its folder is kept. |
 | [`new <git-url> [folder]`](#dotagents-new) | Creates a workspace folder (any name; `<name>-workspace` by default), clones the repository into it and applies the standards. |
 | [`init [path]`](#dotagents-init) | Applies the standards to a folder and puts the chosen skills in it. |
 | [`check [path]`](#dotagents-check) | Runs the standards checklist on a workspace, changing nothing. |
@@ -21,7 +24,7 @@ dotagents <command> [options]
 
 ## dotagents install
 
-Writes the global configuration where Claude Code reads it. See [Global configuration](global-configuration.md) for exactly what goes where.
+Writes the global configuration where Claude Code reads it: in `~/.claude`, and in the folder of every account added with [`account add`](#dotagents-account-add), whose launchers it also rewrites. See [Global configuration](global-configuration.md) for exactly what goes where.
 
 ```bash
 dotagents install --dry-run    # show what would change
@@ -44,6 +47,39 @@ dotagents update --no-pull     # skip the pull and only reapply
   - applies the standards again, which puts back any skill that is missing (useful on a new machine or after cloning a workspace again);
   - runs `npx skills update` when the workspace has third-party skills;
   - warns about skills that were removed from this repository or the catalog, without failing. To drop them from the workspace's record, `untrack` it and run `init` again.
+
+## dotagents account add
+
+```bash
+dotagents account add work --default     # the account in ~/.claude, the one plain claude uses
+dotagents account add personal           # a second account, in ~/.claude-personal
+dotagents account add personal --color '#376B80'
+```
+
+Each Claude account is a Claude Code config folder with its own sign-in, picked through `CLAUDE_CONFIG_DIR`. For an account, `account add`:
+
+- creates its folder: `~/.claude` for the default account, `~/.claude-<name>` for the others;
+- applies the same configuration as `install` to it;
+- writes a launcher, `~/.local/bin/claude-<name>` (`claude-<name>.cmd` on Windows), that clears the variables that would sign in over the folder (`ANTHROPIC_API_KEY`, `CLAUDE_CODE_OAUTH_TOKEN`…), points `CLAUDE_CONFIG_DIR` at the folder and runs `claude`. The default account's launcher clears `CLAUDE_CONFIG_DIR` instead, so Claude Code uses `~/.claude`;
+- records the account in `accounts.json`, next to `workspaces.json`.
+
+Then sign in once with the launcher: `claude-personal auth login`. Running it again changes nothing; a launcher you wrote by hand with the same name is kept as a backup.
+
+- Only one account is the default, and it can't be changed with `account add`: it owns `~/.claude`.
+- `--color #RRGGBB` sets the account's color in the listings. Without it, accounts get `#D77655` and `#376B80`, in the order they are added.
+- `~/.local/bin` has to be on the `PATH`; `account add` says so when it isn't.
+
+## dotagents account list
+
+Lists the accounts (color, default, signed-in e-mail, folder, launcher) and checks them: each folder and launcher exists, each account is signed in, and no two folders are signed in to the same claude.ai account. It also warns when a variable such as `ANTHROPIC_API_KEY` is set in the shell. Exits with 1 when an item fails.
+
+## dotagents account remove
+
+```bash
+dotagents account remove personal
+```
+
+Forgets the account and deletes its launcher. The folder, with the sign-in and the history, stays; delete it by hand if you want it gone.
 
 ## dotagents new
 
@@ -159,6 +195,8 @@ Removes a skill from the catalog. Workspaces that already installed it keep it; 
 | `--skills a,b` | `init`, `new`, `skills add` | Skills to use, or to register. |
 | `--all` | `update`, `skills add` | Every tracked workspace, or every skill of the source. |
 | `--wrap` | `init` | Move a repository into `<name>-workspace/` before applying the standards. |
+| `--default` | `account add` | The account in `~/.claude`. |
+| `--color #RRGGBB` | `account add` | The account's color in the listings. |
 | `--yes` | `init`, `new`, `skills add` | Never ask. |
 | `--no-pull` | `update` | Skip `git pull`. |
 | `--help`, `--version` | | |
@@ -203,5 +241,5 @@ When the output goes to a pipe or a file (CI, scripts), the same information com
 | `NO_COLOR` | Turns colors off. |
 | `FORCE_COLOR` | Forces the terminal output even when it isn't a terminal. |
 | `CI` | Never asks questions. |
-| `DOTAGENTS_STATE_DIR` | Folder of the tracked list (`workspaces.json`). Default: `~/.config/dotagents`. |
+| `DOTAGENTS_STATE_DIR` | Folder of the machine's state: the tracked workspaces (`workspaces.json`) and the accounts (`accounts.json`). Default: `~/.config/dotagents`. |
 | `XDG_CONFIG_HOME` | Base of `~/.config` (the default state folder). |

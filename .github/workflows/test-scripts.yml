@@ -39,6 +39,22 @@ jobs:
           ! grep -E '^(created|updated|skipped|failed)' second.txt
           ! grep -F '{{AGENTS_REPO}}' ~/.claude/CLAUDE.md
 
+      - name: dotagents account sets up two accounts, idempotently
+        run: |
+          home="$RUNNER_TEMP/home"
+          mkdir -p "$home"
+          export HOME="$home" USERPROFILE="$home"
+          dotagents account add work --default
+          dotagents account add personal --dry-run
+          dotagents account add personal
+          dotagents account add personal | tee second.txt
+          ! grep -E '^(created|updated|skipped|failed)' second.txt
+          test -f "$home/.claude-personal/CLAUDE.md"
+          ls "$home/.local/bin" | grep -F claude-personal
+          dotagents account list
+          dotagents account remove personal
+          test -d "$home/.claude-personal"
+
       - name: dotagents init creates a workspace that passes the checklist
         run: |
           ws="$RUNNER_TEMP/ws"

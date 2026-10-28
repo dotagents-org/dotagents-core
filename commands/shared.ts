@@ -12,6 +12,8 @@ export type CliArgs = {
   version?: boolean;
   wrap?: boolean;
   yes?: boolean;
+  default?: boolean;
+  color?: string;
   skills?: string[];
 };
 
@@ -27,7 +29,7 @@ export type Command = {
   summary: string;
   // Extra help lines under the summary.
   more?: string[];
-  group: "Machine" | "Workspace" | "Skills";
+  group: "Machine" | "Accounts" | "Workspace" | "Skills";
   run(ctx: Context): void | Promise<void>;
 };
 

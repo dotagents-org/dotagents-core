@@ -1,6 +1,8 @@
-// What dotagents remembers about this machine, outside the repository: the workspaces tracked
-// since `dotagents init` (until `dotagents untrack`), so `dotagents update --all` can reach all
-// of them. Kept in ~/.config/dotagents/ (or $DOTAGENTS_STATE_DIR).
+// What dotagents remembers about this machine, outside the repository. Kept in
+// ~/.config/dotagents/ (or $DOTAGENTS_STATE_DIR):
+// - workspaces.json: the workspaces tracked since `dotagents init` (until `dotagents untrack`),
+//   so `dotagents update --all` can reach all of them;
+// - accounts.json: the Claude accounts of this machine, each with its config folder.
 //
 // Every file carries a format version and is checked when read. A file that is not valid, or that
 // a newer dotagents wrote, stops the command instead of being read as empty and overwritten.
@@ -49,6 +51,43 @@ function writeStateFile(file: string, version: number, body: Record<string, unkn
   if (state.dryRun) return;
   fs.mkdirSync(path.dirname(file), { recursive: true });
   fs.writeFileSync(file, `${JSON.stringify({ version, ...body }, null, 2)}\n`);
+}
+
+export type Account = { name: string; configDir: string; color: string; default?: boolean };
+
+const ACCOUNTS = { name: "accounts.json", version: 1 };
+
+export const accountsFile = () => path.join(stateDir(), ACCOUNTS.name);
+
+const isAccount = (v: unknown): v is Account => {
+  const a = v as Account;
+  return typeof v === "object" && v !== null && typeof a.name === "string" && typeof a.configDir === "string" && typeof a.color === "string" && (a.default === undefined || typeof a.default === "boolean");
+};
+
+export function loadAccounts(): Account[] {
+  const data = readStateFile(accountsFile(), ACCOUNTS.version);
+  const list = data?.accounts ?? [];
+  if (!Array.isArray(list) || !list.every(isAccount)) throw new Error(`${accountsFile()} has an invalid account list; fix it or delete it`);
+  return list;
+}
+
+// Adds the account or replaces the one with the same name. Only one account is the default.
+export function saveAccount(account: Account) {
+  const all = loadAccounts();
+  if (account.default) for (const a of all) delete a.default;
+  const i = all.findIndex((a) => a.name === account.name);
+  const entry = { ...account };
+  if (!entry.default) delete entry.default;
+  if (i >= 0) all[i] = entry;
+  else all.push(entry);
+  writeStateFile(accountsFile(), ACCOUNTS.version, { accounts: all });
+}
+
+export function removeAccount(name: string) {
+  const all = loadAccounts();
+  const kept = all.filter((a) => a.name !== name);
+  writeStateFile(accountsFile(), ACCOUNTS.version, { accounts: kept });
+  return kept.length < all.length;
 }
 
 export function loadWorkspaces(): TrackedWorkspace[] {
