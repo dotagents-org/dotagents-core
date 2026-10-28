@@ -1,7 +1,7 @@
 // `account add`, `account list` and `account remove`: the Claude accounts of this machine.
 
 import path from "node:path";
-import { dropAccount, launcherDir, launcherFile, setUpAccount, verifyAccounts } from "../lib/accounts.ts";
+import { dropAccount, launcherDir, launcherFile, setUpAccount, showFolder, verifyAccounts } from "../lib/accounts.ts";
 import { signedIn } from "../lib/claude-code.ts";
 import { loadAccounts } from "../lib/machine-state.ts";
 import { displayPath, fancy, finish, header, line, paint, rail, style } from "../lib/output.ts";
@@ -53,7 +53,7 @@ export const accountList: Command = {
       const color = paint(a.color);
       line();
       line(`${color("●")} ${bold(color(a.name.padEnd(width)))}${a.default ? cyan("default  ") : "         "}${who ? email : dim(email)}`);
-      line(`  ${dim(`${displayPath(a.configDir)} · ${path.basename(launcherFile(a.name))}`)}`);
+      line(`  ${dim(`${showFolder(a.configDir)} · ${path.basename(launcherFile(a.name))}`)}`);
     }
     verifyAccounts();
     finish();
