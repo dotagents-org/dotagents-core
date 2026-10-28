@@ -3,7 +3,7 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { ensureDirLink, ensureFile, section, toSlash, writeGenerated } from "./common.mjs";
+import { ensureDirLink, ensureFile, section, toSlash, writeGenerated } from "./common.ts";
 
 export const configHome = () => process.env.XDG_CONFIG_HOME || path.join(os.homedir(), ".config");
 

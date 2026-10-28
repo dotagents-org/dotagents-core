@@ -4,9 +4,9 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { test } from "node:test";
-import { applySkills, listSkills, resolveSkills, skillsIn } from "../lib/skills.mjs";
-import { catalogFile, parseSkill } from "../lib/thirdparty.mjs";
-import { REPO, fakeInstaller, fakeThirdParty, quiet, tempWorkspace } from "./helpers.mjs";
+import { applySkills, listSkills, resolveSkills, skillsIn } from "../lib/skills.ts";
+import { catalogFile, parseSkill } from "../lib/thirdparty.ts";
+import { REPO, fakeInstaller, fakeThirdParty, quiet, tempWorkspace } from "./helpers.ts";
 
 test("own skills and registered third-party skills come from one list", () => {
   const all = listSkills(REPO);

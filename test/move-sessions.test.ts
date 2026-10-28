@@ -7,7 +7,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { test } from "node:test";
-import { REPO } from "./helpers.mjs";
+import { REPO } from "./helpers.ts";
 
 const SCRIPT = path.join(REPO, "skills", "move-sessions", "scripts", "move-sessions.mjs");
 const isWindows = process.platform === "win32";

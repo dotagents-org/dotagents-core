@@ -2,7 +2,7 @@
 
 ## Requirements
 
-- **Node.js 20.12 or newer**, with npm.
+- **Node.js 22.18 or newer**, with npm.
 - **git**, on the PATH.
 - **npx**, which comes with npm, for third-party skills (`npx skills`).
 - Two npm dependencies, installed by `npm install`: [@clack/prompts](https://github.com/bombshell-dev/clack) for the terminal look, the questions and the spinners, and [picocolors](https://github.com/alexeyraspopov/picocolors) for colors.
@@ -23,7 +23,7 @@ dotagents install      # global instructions, rules and settings for this machin
 
 `npm link` copies nothing. It links the package into npm's global folder and creates the `dotagents` command there (`dotagents`, `dotagents.cmd` and `dotagents.ps1` on Windows). Run it again if the clone moves, or after switching to another Node version with nvm, since each Node installation has its own global folder.
 
-Without `npm link`, every command also works as `node cli.mjs <command>` from the clone.
+Without `npm link`, every command also works as `node cli.ts <command>` from the clone.
 
 On Linux with Node from the system package manager, `npm link` may ask for `sudo`. To avoid it, point npm's global folder to your home first:
 
