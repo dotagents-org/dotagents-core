@@ -3,7 +3,7 @@ import path from "node:path";
 import { runWithSpinner } from "../lib/common.ts";
 import { installGlobal } from "../lib/global.ts";
 import { checkWarn, displayPath, fancy, finish, header, line, report, section, style } from "../lib/output.ts";
-import { loadWorkspaces } from "../lib/registry.ts";
+import { loadWorkspaces } from "../lib/machine-state.ts";
 import { listSkills, resolveSkills } from "../lib/skills.ts";
 import { state } from "../lib/state.ts";
 import { applyWorkspace } from "../lib/workspace.ts";

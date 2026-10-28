@@ -2,7 +2,7 @@
 
 import fs from "node:fs";
 import { displayPath, fancy, line, rail, style } from "../lib/output.ts";
-import { loadWorkspaces, registryFile, untrackWorkspace } from "../lib/registry.ts";
+import { loadWorkspaces, untrackWorkspace, workspacesFile } from "../lib/machine-state.ts";
 import { state } from "../lib/state.ts";
 import { type Command, workspaceArg } from "./shared.ts";
 
@@ -19,7 +19,7 @@ export const workspaces: Command = {
     if (!fancy) {
       if (!all.length) console.log(`No workspaces yet. Set one up with: dotagents init <path>`);
       for (const w of all) console.log(`${w.path}${fs.existsSync(w.path) ? "" : "  (missing)"}\n  skills: ${w.skills.join(", ") || "-"}`);
-      return console.log(`\nList kept in ${registryFile()}`);
+      return console.log(`\nList kept in ${workspacesFile()}`);
     }
     if (!all.length) {
       console.log(`${rail.start()}  ${dim("No workspaces tracked yet.")}`);
@@ -34,7 +34,7 @@ export const workspaces: Command = {
       line(`  ${dim("skills:")} ${w.skills.length ? w.skills.map((s) => cyan(s)).join(dim(", ")) : dim("none")}`);
     }
     line();
-    console.log(`${rail.end()}  ${dim(`List kept in ${displayPath(registryFile())}`)}\n`);
+    console.log(`${rail.end()}  ${dim(`List kept in ${displayPath(workspacesFile())}`)}\n`);
   },
 };
 
