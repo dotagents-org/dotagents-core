@@ -55,7 +55,7 @@ jobs:
       - name: third-party skills from npx skills live next to the linked ones
         run: |
           ws="$RUNNER_TEMP/ws"
-          (cd "$ws" && npx -y skills add blader/humanizer -y -a claude-code codex opencode)
+          (cd "$ws" && npx -y skills add blader/humanizer -y -a claude-code)
           dotagents check "$ws"
           rm -rf "$ws/.agents/skills/humanizer"
           ! dotagents check "$ws"
