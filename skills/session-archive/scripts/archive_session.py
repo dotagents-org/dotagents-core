@@ -1,21 +1,19 @@
 #!/usr/bin/env python3
-"""Write a direct, readable transcript of a Claude Code or Codex session.
+"""Write a direct, readable transcript of a Claude Code session.
 
-Reads the raw JSONL transcript that each agent keeps locally:
+Reads the raw JSONL transcript that Claude Code keeps locally:
 
-  Claude Code: ~/.claude/projects/<project-slug>/<session-id>.jsonl
-  Codex:       ~/.codex/sessions/YYYY/MM/DD/rollout-<timestamp>-<session-id>.jsonl
+  ~/.claude/projects/<project-slug>/<session-id>.jsonl
 
 and writes, in order, every user message and assistant reply (verbatim) plus
 a one-line entry per tool call, to:
 
   <project-root>/.artifacts/session-archives/<date>-<session-id>.md
 
-The format is detected from the file itself. Re-running overwrites the file,
-so it is safe to checkpoint mid-session.
+Re-running overwrites the file, so it is safe to checkpoint mid-session.
 
 Usage:
-  archive_session.py --session-id <uuid>          # Claude Code or Codex
+  archive_session.py --session-id <uuid>
   archive_session.py --transcript /path/to/session.jsonl
   archive_session.py                              # newest session for this project
 """
@@ -34,39 +32,18 @@ SYSTEM_REMINDER = re.compile(r"<system-reminder>.*?</system-reminder>", re.DOTAL
 COMMAND_NAME = re.compile(r"<command-name>(.*?)</command-name>", re.DOTALL)
 COMMAND_ARGS = re.compile(r"<command-args>(.*?)</command-args>", re.DOTALL)
 LOCAL_STDOUT = re.compile(r"<local-command-stdout>.*?</local-command-stdout>", re.DOTALL)
-CODEX_REQUEST = re.compile(r"^## My request:\s*$", re.MULTILINE)
-CODEX_CMD = re.compile(r'\bcmd:\s*"((?:[^"\\]|\\.)*)"')
-PATCH_FILE = re.compile(r"^\*\*\* (?:Add|Update|Delete) File: (.+)$", re.MULTILINE)
-# context Codex injects as user-role messages; not typed by the user
-CODEX_INJECTED = ("# AGENTS.md instructions", "<environment_context>", "<skills_instructions>", "<skill>",
-                  "<user_instructions>", "<external_codex_apps", "<turn_aborted>", "<permissions")
 
 
 def find_project_root(start: Path) -> Path:
-    """The skill lives in <root>/{.agents,.claude,.codex}/skills/..."""
+    """The skill lives in <root>/{.agents,.claude}/skills/..."""
     for parent in start.parents:
-        if parent.name in (".agents", ".claude", ".codex"):
+        if parent.name in (".agents", ".claude"):
             return parent.parent
     return Path.cwd()
 
 
 def in_project(cwd: str | None, root: str) -> bool:
     return bool(cwd) and (cwd.lower() == root or cwd.lower().startswith(root + os.sep))
-
-
-def first_json(path: Path) -> dict:
-    with path.open(encoding="utf-8", errors="ignore") as f:
-        for line in f:
-            try:
-                return json.loads(line)
-            except json.JSONDecodeError:
-                continue
-    return {}
-
-
-def codex_meta(path: Path) -> dict:
-    obj = first_json(path)
-    return obj.get("payload") or {} if obj.get("type") == "session_meta" else {}
 
 
 def claude_cwd(path: Path) -> str | None:
@@ -81,20 +58,14 @@ def claude_cwd(path: Path) -> str | None:
     return None
 
 
-def find_transcript(claude_home: Path, codex_home: Path, session_id: str | None, project_root: Path) -> Path | None:
+def find_transcript(claude_home: Path, session_id: str | None, project_root: Path) -> Path | None:
     claude = list((claude_home / "projects").glob("*/*.jsonl"))
-    codex = list((codex_home / "sessions").glob("*/*/*/rollout-*.jsonl"))
     if session_id:
-        hits = [p for p in claude if p.stem == session_id] + [p for p in codex if p.stem.endswith(session_id)]
+        hits = [p for p in claude if p.stem == session_id]
         return max(hits, key=lambda p: p.stat().st_mtime) if hits else None
     root = str(project_root).lower()
-    for p in sorted(claude + codex, key=lambda p: p.stat().st_mtime, reverse=True):
-        if p in codex:
-            meta = codex_meta(p)
-            # subagent threads are separate files; archive only top-level sessions
-            if meta.get("thread_source") != "subagent" and in_project(meta.get("cwd"), root):
-                return p
-        elif in_project(claude_cwd(p), root):
+    for p in sorted(claude, key=lambda p: p.stat().st_mtime, reverse=True):
+        if in_project(claude_cwd(p), root):
             return p
     return None
 
@@ -105,7 +76,7 @@ def one_line(label: str, val: str) -> str:
 
 
 class Session:
-    """What both parsers collect; `markdown()` lays it out the same way."""
+    """What the parser collects; `markdown()` lays it out."""
 
     def __init__(self, session_id: str, agent: str):
         self.session_id, self.agent = session_id, agent
@@ -282,124 +253,21 @@ def parse_claude(path: Path) -> Session:
     return s
 
 
-def codex_user_text(text: str) -> str:
-    # the IDE extension prepends open tabs; keep only what the user typed
-    m = CODEX_REQUEST.search(text or "")
-    return (text[m.end():] if m else text or "").strip()
-
-
-def codex_tool_line(name: str, raw: str) -> str:
-    if name == "exec" and "apply_patch(" in raw:
-        files = PATCH_FILE.findall(raw.replace("\\n", "\n"))
-        return one_line("apply_patch", ", ".join(files)) if files else "- `apply_patch`"
-    if name == "exec":
-        m = CODEX_CMD.search(raw)
-        if m:
-            cmd = m.group(1).encode().decode("unicode_escape", errors="ignore")
-            return one_line("exec", cmd.splitlines()[0] if cmd.strip() else cmd)
-    try:
-        args = json.loads(raw)
-    except (json.JSONDecodeError, TypeError):
-        args = None
-    if isinstance(args, dict):
-        for key in ("description", "cmd", "command", "task_name", "path", "query", "url", "target"):
-            val = args.get(key)
-            if isinstance(val, str) and val:
-                return one_line(name, val)
-            if isinstance(val, list) and val:
-                return one_line(name, " ".join(map(str, val)))
-    if name == "apply_patch":
-        files = PATCH_FILE.findall(raw or "")
-        if files:
-            return one_line(name, ", ".join(files))
-    return f"- `{name}`"
-
-
-def parse_codex(path: Path) -> Session:
-    meta = codex_meta(path)
-    s = Session(meta.get("id") or path.stem, "Codex")
-    tool_lines: dict[str, int] = {}  # call_id -> index of its line in `s.out`
-    with path.open(encoding="utf-8", errors="ignore") as f:
-        # newer Codex logs the typed text as an event; older logs only keep the user-role message
-        user_events = any('"user_message"' in line for line in f)
-    with path.open(encoding="utf-8", errors="ignore") as f:
-        for line in f:
-            try:
-                obj = json.loads(line)
-            except json.JSONDecodeError:
-                continue
-            s.stamp(obj.get("timestamp"))
-            t, p = obj.get("type"), obj.get("payload") or {}
-            pt = p.get("type")
-            if t == "turn_context":
-                s.model = p.get("model") or s.model
-                if p.get("effort"):
-                    s.efforts[p["effort"]] = None
-            elif t == "event_msg" and pt == "thread_settings_applied":
-                s.model = (p.get("thread_settings") or {}).get("model") or s.model
-            elif t == "event_msg" and pt == "user_message":
-                text = codex_user_text(p.get("message") or "")
-                if text:
-                    s.user(text, obj.get("timestamp"))
-            elif t == "event_msg" and pt == "token_count":
-                total = (p.get("info") or {}).get("total_token_usage") or {}
-                if total:
-                    s.tokens = Counter({"in": total.get("input_tokens") or 0, "out": total.get("output_tokens") or 0,
-                                        "cache read": total.get("cached_input_tokens") or 0,
-                                        "reasoning": total.get("reasoning_output_tokens") or 0})
-            elif t == "event_msg" and pt == "web_search_end":
-                s.tools["web_search"] += 1
-                s.out.append(one_line("web_search", p.get("query") or ""))
-            elif t == "response_item" and pt == "message" and p.get("role") == "user" and not user_events:
-                text = "\n".join(c.get("text", "") for c in p.get("content") or []
-                                 if isinstance(c, dict) and c.get("type") in ("input_text", "text")).strip()
-                if text and not text.startswith(CODEX_INJECTED):
-                    s.user(codex_user_text(text), obj.get("timestamp"))
-            elif t == "response_item" and pt == "message" and p.get("role") == "assistant":
-                text = "\n".join(c.get("text", "") for c in p.get("content") or []
-                                 if isinstance(c, dict) and c.get("type") in ("output_text", "text")).strip()
-                if text:
-                    s.assistant_msgs += 1
-                    s.assistant(text)
-            elif t == "response_item" and pt in ("function_call", "custom_tool_call"):
-                name = p.get("name") or "unknown"
-                raw = p.get("arguments") if pt == "function_call" else p.get("input")
-                raw = raw if isinstance(raw, str) else json.dumps(raw or {})
-                s.tools[name] += 1
-                tool_lines[p.get("call_id")] = len(s.out)
-                s.out.append(codex_tool_line(name, raw))
-                for target in PATCH_FILE.findall(raw.replace("\\n", "\n")):
-                    s.changed[target.strip()] = None
-            elif t == "response_item" and pt in ("function_call_output", "custom_tool_call_output"):
-                idx = tool_lines.get(p.get("call_id"))
-                output = p.get("output")
-                if isinstance(output, list):
-                    output = "".join(c.get("text", "") for c in output if isinstance(c, dict))
-                text = output if isinstance(output, str) else ""
-                failed = (pt == "custom_tool_call_output" and text and not text.startswith("Script completed")) \
-                    or re.search(r"Process exited with code [1-9]", text)
-                if idx is not None and failed and not s.out[idx].endswith("**(error)**"):
-                    s.out[idx] += " **(error)**"
-    return s
-
-
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--session-id", help="Claude Code or Codex session UUID (preferred: pass your own).")
+    parser.add_argument("--session-id", help="Claude Code session UUID (preferred: pass your own).")
     parser.add_argument("--transcript", type=Path, help="Explicit path to a session .jsonl transcript.")
     parser.add_argument("--project-root", type=Path, help="Override the detected project root.")
     parser.add_argument("--claude-home", type=Path, default=Path.home() / ".claude", help="Override ~/.claude.")
-    parser.add_argument("--codex-home", type=Path, default=Path(os.environ.get("CODEX_HOME") or Path.home() / ".codex"),
-                        help="Override ~/.codex (defaults to $CODEX_HOME when set).")
     args = parser.parse_args()
 
     project_root = args.project_root or find_project_root(Path(__file__).resolve())
-    transcript = args.transcript or find_transcript(args.claude_home, args.codex_home, args.session_id, project_root)
+    transcript = args.transcript or find_transcript(args.claude_home, args.session_id, project_root)
     if transcript is None or not transcript.is_file():
         print("error: transcript not found; pass --session-id or --transcript", file=sys.stderr)
         return 1
 
-    session = parse_codex(transcript) if codex_meta(transcript) else parse_claude(transcript)
+    session = parse_claude(transcript)
     out = project_root / ".artifacts" / "session-archives" / f"{(session.started or '')[:10]}-{session.session_id}.md"
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(session.markdown(), encoding="utf-8")
