@@ -33,6 +33,9 @@ const localAppData = () => process.env.LOCALAPPDATA ?? path.join(os.homedir(), "
 
 // The execution alias the Claude installer (MSIX) puts on the PATH.
 export const desktopExe = () => path.join(localAppData(), "Microsoft", "WindowsApps", "claude-desktop.exe");
+// The alias is a reparse point that stat can't follow (EACCES), so fs.existsSync says false
+// even when the app is installed: lstat sees it.
+const desktopInstalled = () => Boolean(lstat(desktopExe()));
 // Right under %APPDATA%: Cowork only works with the data folder there.
 export const desktopDataDir = (name: string) => path.join(appData(), `Claude-${name}`);
 // "lovelace" → "Claude Lovelace", "my-work" → "Claude My Work".
@@ -81,7 +84,7 @@ function ensureShortcut(lnk: string, wanted: Shortcut, shortcuts: Shortcuts) {
 // The data folder, the launcher and the shortcut of an account's Desktop app.
 export function applyDesktop(account: { name: string; configDir: string; default?: boolean }, { launcherDir, shortcuts = powershellShortcuts }: { launcherDir: string; shortcuts?: Shortcuts }) {
   section("Desktop");
-  if (!fs.existsSync(desktopExe())) {
+  if (!desktopInstalled()) {
     checkWarn("Claude Desktop isn't installed, so no desktop shortcut", "install it from claude.ai/download and run dotagents install again");
     return;
   }
@@ -106,7 +109,7 @@ export function removeDesktop(name: string, { launcherDir, shortcuts = powershel
 }
 
 export function verifyDesktop(name: string, isDefault = false) {
-  if (!fs.existsSync(desktopExe())) return;
+  if (!desktopInstalled()) return;
   if (!isDefault) checkItem(fs.existsSync(desktopDataDir(name)), `${name}: desktop data folder exists`, "create it with: dotagents install");
   checkItem(fs.existsSync(shortcutFile(name)), `${name}: Start menu shortcut "${appTitle(name)}" exists`, "create it with: dotagents install");
 }

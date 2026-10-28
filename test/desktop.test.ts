@@ -76,6 +76,18 @@ test("every account gets a Start menu shortcut, \"Claude <Name>\"; only the seco
   assert.equal(state.counts.updated, undefined);
 });
 
+test("the app's execution alias counts as installed, though stat can't follow it", { skip: process.platform === "win32" }, (t) => {
+  tempWindowsHome(t, { withDesktop: false });
+  // Like the alias: lstat finds it, fs.existsSync doesn't.
+  fs.mkdirSync(path.dirname(desktopExe()), { recursive: true });
+  fs.symlinkSync(path.join(os.tmpdir(), "nowhere-dotagents"), desktopExe());
+  assert.equal(fs.existsSync(desktopExe()), false);
+  const { saved, desktop } = fakeShortcuts();
+  quiet();
+  setUpAccount(REPO, { name: "personal", desktop });
+  assert.ok(saved.has(shortcutFile("personal")));
+});
+
 test("a dry run makes no folder, launcher or shortcut", (t) => {
   tempWindowsHome(t);
   const { saved, desktop } = fakeShortcuts();
