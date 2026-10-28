@@ -4,14 +4,14 @@ import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
-import { test } from "node:test";
+import { test, type TestContext } from "node:test";
 import { state } from "../lib/common.ts";
 import { resolveSkills } from "../lib/skills.ts";
 import { applyWorkspace, verifyWorkspace, wrapRepository } from "../lib/workspace.ts";
 import { REPO, fakeInstaller, fakeThirdParty, quiet, tempWorkspace } from "./helpers.ts";
 
-const git = (cwd, ...args) => spawnSync("git", ["-C", cwd, ...args], { encoding: "utf8" });
-const read = (...parts) => fs.readFileSync(path.join(...parts), "utf8");
+const git = (cwd: string, ...args: string[]) => spawnSync("git", ["-C", cwd, ...args], { encoding: "utf8" });
+const read = (...parts: string[]) => fs.readFileSync(path.join(...parts), "utf8");
 
 test("an empty folder becomes a workspace that passes the checklist", async (t) => {
   const ws = tempWorkspace(t, "app-workspace");
@@ -55,7 +55,7 @@ test("applying twice changes nothing the second time", async (t) => {
   await applyWorkspace(REPO, ws, resolveSkills(REPO, ["to-cards"]));
   assert.equal(state.counts.created, undefined);
   assert.equal(state.counts.updated, undefined);
-  assert.ok(state.counts.ok > 0);
+  assert.ok((state.counts.ok ?? 0) > 0);
 });
 
 test("a dry run leaves the folder untouched", async (t) => {
@@ -63,7 +63,7 @@ test("a dry run leaves the folder untouched", async (t) => {
   quiet({ dryRun: true });
   await applyWorkspace(REPO, ws, resolveSkills(REPO, ["to-cards"]));
   assert.deepEqual(fs.readdirSync(ws), []);
-  assert.ok(state.counts["would create"] > 0);
+  assert.ok((state.counts["would create"] ?? 0) > 0);
 });
 
 test("a long AGENTS.md is the project's choice, not a failed check", async (t) => {
@@ -134,7 +134,7 @@ test("when the workspace is a git repository, the agent files stay out of it", a
 });
 
 // A repository whose root an earlier init already set up, with one commit of its own.
-async function initializedRepo(t, name = "app") {
+async function initializedRepo(t: TestContext, name = "app") {
   const dir = tempWorkspace(t, name);
   git(dir, "init", "-q");
   fs.writeFileSync(path.join(dir, "main.py"), "print('hi')\n");
@@ -185,7 +185,7 @@ test("wrapping in a dry run moves nothing", async (t) => {
   const ws = wrapRepository(dir);
   assert.ok(!fs.existsSync(ws));
   assert.ok(fs.existsSync(path.join(dir, "AGENTS.md")));
-  assert.ok(state.counts["would move"] > 1);
+  assert.ok((state.counts["would move"] ?? 0) > 1);
 });
 
 test("wrapping refuses a folder that isn't a repository root or a workspace that exists", async (t) => {

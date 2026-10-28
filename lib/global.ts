@@ -11,14 +11,14 @@ export const configHome = () => process.env.XDG_CONFIG_HOME || path.join(os.home
 // clone's location, and the file for the current platform (global/env/win32.md, linux.md, darwin.md)
 // is appended. The template isn't named AGENTS.md, so Claude Code never mistakes it for project instructions.
 
-export function renderInstructions(repo) {
+export function renderInstructions(repo: string) {
   let text = fs.readFileSync(path.join(repo, "global", "instructions.md"), "utf8");
   const envFile = path.join(repo, "global", "env", `${process.platform}.md`);
   if (fs.existsSync(envFile)) text = `${text.trimEnd()}\n\n${fs.readFileSync(envFile, "utf8")}`;
   return text.replaceAll("{{AGENTS_REPO}}", toSlash(repo));
 }
 
-export function installGlobal(repo) {
+export function installGlobal(repo: string) {
   const home = os.homedir();
 
   section("Global instructions");

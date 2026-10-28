@@ -10,7 +10,9 @@ import { configHome } from "./global.ts";
 
 const file = () => path.join(process.env.DOTAGENTS_STATE_DIR || path.join(configHome(), "dotagents"), "workspaces.json");
 
-export function loadWorkspaces() {
+export type TrackedWorkspace = { path: string; skills: string[] };
+
+export function loadWorkspaces(): TrackedWorkspace[] {
   try {
     return JSON.parse(fs.readFileSync(file(), "utf8")).workspaces ?? [];
   } catch {
@@ -18,14 +20,14 @@ export function loadWorkspaces() {
   }
 }
 
-function save(workspaces) {
+function save(workspaces: TrackedWorkspace[]) {
   if (state.dryRun) return;
   fs.mkdirSync(path.dirname(file()), { recursive: true });
   fs.writeFileSync(file(), `${JSON.stringify({ version: 1, workspaces }, null, 2)}\n`);
 }
 
 // Adds the workspace, or merges the new skills into its entry.
-export function registerWorkspace(ws, skills) {
+export function registerWorkspace(ws: string, skills: string[]) {
   const all = loadWorkspaces();
   const entry = all.find((w) => samePath(w.path, ws));
   if (entry) entry.skills = [...new Set([...entry.skills, ...skills])].sort();
@@ -33,7 +35,7 @@ export function registerWorkspace(ws, skills) {
   save(all);
 }
 
-export function untrackWorkspace(ws) {
+export function untrackWorkspace(ws: string) {
   const all = loadWorkspaces();
   const kept = all.filter((w) => !samePath(w.path, ws));
   save(kept);

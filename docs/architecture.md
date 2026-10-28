@@ -63,7 +63,7 @@ Every action is idempotent: it looks at what is there, does nothing when it is a
 
 ```bash
 npm install
-npm test                 # unit tests (node:test)
+npm test                 # type check (tsc, strict) + unit tests (node:test)
 node cli.ts --help      # run without npm link
 ```
 
