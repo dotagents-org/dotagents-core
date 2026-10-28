@@ -1,6 +1,6 @@
 # Skills
 
-Skills follow the [Agent Skills](https://agentskills.io/specification) format: a folder with a `SKILL.md` whose frontmatter has `name` and `description`, plus optional `scripts/`, `references/` and `assets/`. Claude Code reads them from `.claude/skills/`, Codex and OpenCode from `.agents/skills/`. In a workspace both point to the same folder.
+Skills follow the [Agent Skills](https://agentskills.io/specification) format: a folder with a `SKILL.md` whose frontmatter has `name` and `description`, plus optional `scripts/`, `references/` and `assets/`. Claude Code reads them from `.claude/skills/`, which in a workspace is a link to `.agents/skills/`.
 
 ## Two kinds
 
@@ -32,9 +32,9 @@ A third-party skill that isn't in the catalog can still be installed by hand wit
 |---|---|
 | [llm-wiki](../skills/llm-wiki/SKILL.md) | Maintains a Markdown wiki fed by sources (`raw/` → `wiki/`), with ingest, query and lint. |
 | [map-source-files](../skills/map-source-files/SKILL.md) | Builds a File / Location / Responsibility table of a repository's source files. |
-| [move-sessions](../skills/move-sessions/SKILL.md) | Makes past conversations of Claude Code, Codex and OpenCode follow a project folder that moved, so each tool lists them again from the new folder. |
+| [move-sessions](../skills/move-sessions/SKILL.md) | Makes past Claude Code conversations follow a project folder that moved, so Claude Code lists them again from the new folder. |
 | [obsidian-docs](../skills/obsidian-docs/SKILL.md) | Answers questions about Obsidian from the official help, the plugin and theme directory, and the forum. |
-| [session-archive](../skills/session-archive/SKILL.md) | Writes the transcript of a Claude Code or Codex session to `.artifacts/session-archives/`. |
+| [session-archive](../skills/session-archive/SKILL.md) | Writes the transcript of a Claude Code session to `.artifacts/session-archives/`. |
 | [to-cards](../skills/to-cards/SKILL.md) | Turns loose text (a message, an email, meeting notes) into task cards. |
 
 `dotagents skills` lists them with the registered third-party ones.

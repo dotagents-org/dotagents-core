@@ -21,14 +21,14 @@ dotagents <command> [options]
 
 ## dotagents install
 
-Writes the global configuration where each tool reads it. See [Global configuration](global-configuration.md) for exactly what goes where.
+Writes the global configuration where Claude Code reads it. See [Global configuration](global-configuration.md) for exactly what goes where.
 
 ```bash
 dotagents install --dry-run    # show what would change
 dotagents install
 ```
 
-Run it again after editing `global/` or `rules/`, and on Windows also after editing the settings in `claude/` or `opencode/`. On Linux and macOS the settings and the rules are links, so their changes apply right away.
+Run it again after editing `global/` or `rules/`, and on Windows also after editing the settings in `claude/`. On Linux and macOS the settings and the rules are links, so their changes apply right away.
 
 ## dotagents update
 
@@ -204,4 +204,4 @@ When the output goes to a pipe or a file (CI, scripts), the same information com
 | `FORCE_COLOR` | Forces the terminal output even when it isn't a terminal. |
 | `CI` | Never asks questions. |
 | `DOTAGENTS_STATE_DIR` | Folder of the tracked list (`workspaces.json`). Default: `~/.config/dotagents`. |
-| `XDG_CONFIG_HOME` | Base of `~/.config` (OpenCode's folder and the default state folder). |
+| `XDG_CONFIG_HOME` | Base of `~/.config` (the default state folder). |

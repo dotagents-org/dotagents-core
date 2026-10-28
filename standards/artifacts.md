@@ -53,7 +53,7 @@ repeat the logs, loaded whole in every session.
 ### `session-archives/`
 
 - One transcript per session. A Claude Code session uses the session id and is produced by
-  the `session-archive` skill. A session from another origin (claude.ai, Codex, OpenCode)
+  the `session-archive` skill. A session from another origin (claude.ai, Claude Desktop)
   uses `<origin>-<slug>`, as in `2026-10-12-claude-ai-agent-orchestration.md`.
 - Attachments go in a folder with the same name as the `.md`, without the extension.
 - A transcript is a dated record: **immutable** once the session ends. It is a snapshot of
@@ -67,8 +67,8 @@ repeat the logs, loaded whole in every session.
 - **Claude Code** writes its plan-mode plans here on its own: `dotagents init` sets
   `"plansDirectory": ".artifacts/plans"` in the workspace's `.claude/settings.json`. The
   file names are the ones Claude Code generates.
-- **Codex and OpenCode** don't save plans to files by themselves. When asked for a plan, the
-  global `AGENTS.md` tells them to write it here, as `YYYY-MM-DD-<slug>.md`.
+- A plan written outside plan mode (asked for in the conversation) also goes here, as
+  `YYYY-MM-DD-<slug>.md`: the global instructions say so.
 - A plan is a working document while it is being carried out, and a record once it is
   done or dropped. It is not rewritten afterwards: what changed during the work belongs in
   the transcript, and the current state in the documents that describe it.
@@ -79,12 +79,11 @@ repeat the logs, loaded whole in every session.
 
 These keep the documents useful to the agents. They are advice, not checks.
 
-- **A document without a link does not exist for the agent.** None of the three tools reads
+- **A document without a link does not exist for the agent.** Claude Code doesn't read
   `.artifacts/` on its own: link each document from `.artifacts/INDEX.md` (the map, one line per
   document with what it is for) or from `AGENTS.md`.
 - **`AGENTS.md` stays lean** and only states what the agent needs to *do*: every session
-  loads all of it. Codex stops reading after 32 KiB in total, global and project
-  `AGENTS.md` together (`project_doc_max_bytes`). A new fact rewrites the old statement instead of stacking a
+  loads all of it, global and project instructions together. A new fact rewrites the old statement instead of stacking a
   dated note; the history stays in the transcripts.
 - **Each fact lives in one place.** A document that describes the current state is
   rewritten when the state changes.

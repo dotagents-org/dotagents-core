@@ -1,19 +1,19 @@
 # dotagents
 
-**One configuration for Claude Code, Codex and OpenCode, on every machine and in every project.**
+**One Claude Code configuration, on every machine and in every project.**
 
 ![Platforms](https://img.shields.io/badge/platforms-Windows%20%C2%B7%20Linux%20%C2%B7%20macOS-informational)
 ![Node](https://img.shields.io/badge/node-%E2%89%A5%2020.12-339933)
-![Agents](https://img.shields.io/badge/agents-Claude%20Code%20%C2%B7%20Codex%20%C2%B7%20OpenCode-8A2BE2)
+![Agent](https://img.shields.io/badge/agent-Claude%20Code-8A2BE2)
 
-Each coding agent reads its configuration from its own place: `.claude/` and `CLAUDE.md`, `.codex/` and `AGENTS.md`, `.opencode/` and `opencode.json`. Use the three of them across a few projects and two machines, and the copies drift apart: the same skill in three folders, an instruction fixed in one tool and forgotten in the others, a different setup on each machine.
+Claude Code reads its configuration from `~/.claude/` on each machine and from `.claude/`, `CLAUDE.md` or `AGENTS.md` in each project. Use it across a few projects and two machines, and the copies drift apart: the same skill copied into several projects, an instruction fixed on one machine and forgotten on the other, project files leaking into the repository's git.
 
-dotagents keeps all of it in one git repository, yours, and a single command writes or links what each tool expects. You never edit `.claude/`, `.codex/` or `.opencode/` by hand again.
+dotagents keeps all of it in one git repository, yours, and a single command writes or links what Claude Code expects. You never edit `~/.claude/` or a workspace's `.claude/` by hand again.
 
 ## Features
 
-- **One source of truth.** Global instructions, rules, settings and skills are written once and reach all three agents.
-- **Machine setup in one command.** `dotagents install` writes the global configuration where each tool looks for it, on Windows, Linux (WSL included) and macOS.
+- **One source of truth.** Global instructions, rules, settings and skills are written once and reach every machine and workspace.
+- **Machine setup in one command.** `dotagents install` writes the global configuration where Claude Code looks for it, on Windows, Linux (WSL included) and macOS.
 - **Workspaces that keep projects clean.** A project gets its `AGENTS.md`, skills and documentation in a folder that wraps its repositories, so not a single agent file lands in the project's git history, not even a `.gitignore` rule.
 - **Skills, yours and other people's.** Your own skills are linked, so an edit is live everywhere at once; third-party ones come from a catalog and install through [`npx skills`](https://skills.sh).
 - **A checklist you can run.** `dotagents check` verifies a workspace against the standards and exits non-zero when something is off.
@@ -29,7 +29,7 @@ flowchart LR
         direction TB
         global["global/<br/>instructions"]
         rules["rules/"]
-        settings["claude/ · opencode/<br/>settings"]
+        settings["claude/<br/>settings"]
         skills["skills/<br/>+ third-party catalog"]
         standards["standards/ · templates/"]
     end
@@ -37,8 +37,6 @@ flowchart LR
     subgraph machine["the machine"]
         direction TB
         claude["~/.claude/<br/>CLAUDE.md · rules · settings.json"]
-        codex["~/.codex/AGENTS.md"]
-        opencode["~/.config/opencode/<br/>AGENTS.md · opencode.json"]
     end
 
     subgraph workspace["app-workspace/"]
@@ -55,14 +53,12 @@ flowchart LR
 
 ### Inside a workspace
 
-The three agents read the same skills. Your own skills are links back to the clone; third-party ones are installed copies, pinned in `skills-lock.json`.
+Claude Code reads the skills through `.claude/skills`. Your own skills are links back to the clone; third-party ones are installed copies, pinned in `skills-lock.json`.
 
 ```mermaid
 flowchart LR
     cc["Claude Code"] --> cskills[".claude/skills"]
     cskills -- "link" --> askills[".agents/skills/"]
-    cx["Codex"] --> askills
-    oc["OpenCode"] --> askills
     askills -- "link" --> own["&lt;clone&gt;/skills/session-archive"]
     askills -- "npx skills add" --> third["humanizer/<br/>third-party copy"]
 ```
@@ -113,14 +109,14 @@ Then set up a project:
 ```bash
 cd ~/projects
 dotagents new git@github.com:me/app.git    # app-workspace/ with app/ inside; asks which skills to use
-cd app-workspace                           # run Claude Code, Codex or OpenCode here
+cd app-workspace                           # run Claude Code here
 ```
 
 The result:
 
 ```
 app-workspace/
-├── AGENTS.md             project instructions, read by all three agents
+├── AGENTS.md             project instructions, read by Claude Code
 ├── .agents/skills/       the skills this project uses
 ├── .claude/              links to .agents/, plus settings.json
 ├── .artifacts/           plans, session transcripts, docs written by agents and people

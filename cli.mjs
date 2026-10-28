@@ -29,7 +29,7 @@ function help() {
     return [`  ${left}${pad}${desc}`, ...more.map((text) => `${" ".repeat(32)}${text}`)].join("\n");
   };
   const title = (t) => bold(t.toUpperCase());
-  return `${bold(magenta("dotagents"))} ${dim(version)}  coding agent configuration for Claude Code, Codex and OpenCode
+  return `${bold(magenta("dotagents"))} ${dim(version)}  Claude Code configuration
 
 ${title("Usage")}
   dotagents ${dim("<command> [options]")}

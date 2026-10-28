@@ -9,7 +9,6 @@ dotagents/
 │   └── env/                   machine notes appended per platform (win32.md, linux.md, darwin.md)
 ├── rules/                     global rules
 ├── claude/settings.json       → ~/.claude/settings.json
-├── opencode/opencode.json     → ~/.config/opencode/opencode.json
 ├── skills/                    own skills
 │   └── third-party-skills.json  catalog of third-party skills
 ├── standards/                 the .agents/ and .artifacts/ standards
@@ -68,7 +67,7 @@ npm test                 # unit tests (node:test)
 node cli.mjs --help      # run without npm link
 ```
 
-**Unit tests** (`test/`) go through the modules' interfaces on real temporary folders: applying and verifying a workspace, idempotency, dry run, links versus copies, wrapping a repository, third-party skills through a fake installer (no network), git exclusion inside a real repository, the global install with a temporary home folder, and the `move-sessions` script against temporary data folders for the three tools. They run in a couple of seconds.
+**Unit tests** (`test/`) go through the modules' interfaces on real temporary folders: applying and verifying a workspace, idempotency, dry run, links versus copies, wrapping a repository, third-party skills through a fake installer (no network), git exclusion inside a real repository, the global install with a temporary home folder, and the `move-sessions` script against a temporary Claude Code data folder. They run in a couple of seconds.
 
 **CI** runs on every push that touches the code:
 

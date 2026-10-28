@@ -6,7 +6,7 @@
 cd ~/projects
 dotagents new git@github.com:me/app.git
 cd app-workspace
-# start Claude Code, Codex or OpenCode here
+# start Claude Code here
 ```
 
 ## A repository that is already on disk

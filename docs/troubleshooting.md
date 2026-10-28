@@ -27,7 +27,7 @@ git rm -r --cached AGENTS.md .claude
 ## Limits
 
 - **Windows links.** File symlinks need administrator rights or Developer Mode, so files are copied and folders become junctions. Junctions store absolute paths: after moving the clone or a workspace, run the commands again.
-- **Settings changed inside the apps.** On Windows the settings are copies, so a setting changed in Claude Code or OpenCode makes the machine's file differ from the repository's. The next `install` keeps it as a backup and writes the repository's version. To keep the change, copy the file back here and commit. On Linux and macOS the apps write through the link, so the change shows up in `git diff`.
-- **Run the agents from the workspace root.** Inside one of the repositories, the tools look for skills and `AGENTS.md` only up to that repository's root, and don't see the workspace's `.agents/`.
+- **Settings changed inside the apps.** On Windows the settings are copies, so a setting changed in Claude Code makes the machine's file differ from the repository's. The next `install` keeps it as a backup and writes the repository's version. To keep the change, copy the file back here and commit. On Linux and macOS the apps write through the link, so the change shows up in `git diff`.
+- **Run the agents from the workspace root.** Inside one of the repositories, Claude Code looks for skills and `AGENTS.md` only up to that repository's root, and don't see the workspace's `.agents/`.
 - **`npx skills experimental_install`** is how the skills CLI 1.7 restores from the lock. The name may change in later versions.
-- **Hooks, subagents and MCP servers** are described by the `.agents/` standard, but dotagents doesn't generate them for each tool yet.
+- **Hooks, subagents and MCP servers** are described by the `.agents/` standard, but dotagents doesn't generate them yet.
