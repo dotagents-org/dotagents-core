@@ -8,6 +8,7 @@ import os from "node:os";
 import path from "node:path";
 import { CREDENTIAL_VARIABLES, defaultConfigDir, signedIn } from "./claude-code.ts";
 import { ensureDir, isWindows, lstat, realpath, removeGenerated, samePath, writeGenerated } from "./common.ts";
+import { type Shortcuts, applyDesktop, powershellShortcuts, removeDesktop, verifyDesktop } from "./desktop.ts";
 import { installGlobal } from "./global.ts";
 import { type Account, accountsFile, loadAccounts, removeAccount, saveAccount } from "./machine-state.ts";
 import { checkItem, checkWarn, displayPath, report, section } from "./output.ts";
@@ -49,16 +50,26 @@ function launcher(account: Account) {
   ].join("\n");
 }
 
-function applyAccount(repo: string, account: Account) {
+// The second Desktop app (lib/desktop.ts): on Windows by default; the tests pass a fake one
+// everywhere.
+export type DesktopOption = { desktop?: { shortcuts: Shortcuts } | null };
+const desktopDefault = () => (isWindows ? { shortcuts: powershellShortcuts } : null);
+
+function applyAccount(repo: string, account: Account, desktop: { shortcuts: Shortcuts } | null) {
   section(`Account ${account.name}`);
   ensureDir(account.configDir);
   installGlobal(repo, account.configDir);
   section("Launcher");
   writeGenerated(launcherFile(account.name), launcher(account), { comment: isWindows ? "rem" : "#", executable: true, onForeign: "backup" });
+  // The default account keeps the normal Desktop app.
+  if (desktop && !account.default) applyDesktop(account, { launcherDir: launcherDir(), shortcuts: desktop.shortcuts });
 }
 
 // Adds an account, or brings one up to date: its folder, the configuration and the launcher.
-export function setUpAccount(repo: string, { name, isDefault = false, color }: { name: string; isDefault?: boolean; color?: string }) {
+export function setUpAccount(
+  repo: string,
+  { name, isDefault = false, color, desktop = desktopDefault() }: { name: string; isDefault?: boolean; color?: string } & DesktopOption
+) {
   if (!SAFE_ACCOUNT.test(name)) throw new Error(`'${name}' is not a valid account name: use lowercase letters, digits and dashes`);
   if (color !== undefined && !HEX.test(color)) throw new Error(`'${color}' is not a color: use #RRGGBB`);
   const all = loadAccounts();
@@ -73,7 +84,7 @@ export function setUpAccount(repo: string, { name, isDefault = false, color }: {
     color: color ?? prior?.color ?? PALETTE[all.filter((a) => a.name !== name).length % PALETTE.length],
     ...(isDefaultNow ? { default: true } : {}),
   };
-  applyAccount(repo, account);
+  applyAccount(repo, account, desktop);
   section("Accounts");
   const same = prior && JSON.stringify(prior) === JSON.stringify(account);
   if (same) report("ok", accountsFile(), `${name}: ${account.configDir}`);
@@ -85,10 +96,11 @@ export function setUpAccount(repo: string, { name, isDefault = false, color }: {
 
 // Forgets an account: its record and its launcher. The folder, with the sign-in and the
 // history, stays where it is.
-export function dropAccount(name: string) {
+export function dropAccount(name: string, { desktop = desktopDefault() }: DesktopOption = {}) {
   if (!loadAccounts().some((a) => a.name === name)) throw new Error(`There is no account named ${name}`);
   section("Launcher");
   removeGenerated(launcherFile(name));
+  if (desktop) removeDesktop(name, { launcherDir: launcherDir(), shortcuts: desktop.shortcuts });
   section("Accounts");
   report(state.dryRun ? "would update" : "updated", accountsFile(), `removed ${name}; its folder was kept`);
   removeAccount(name);
@@ -103,18 +115,19 @@ export function showFolder(configDir: string) {
 }
 
 // What `install` applies: the default folder, and every account of this machine.
-export function installAccounts(repo: string) {
+export function installAccounts(repo: string, { desktop = desktopDefault() }: DesktopOption = {}) {
   const accounts = loadAccounts();
   if (!accounts.some((a) => samePath(a.configDir, defaultConfigDir()))) installGlobal(repo);
-  for (const account of accounts) applyAccount(repo, account);
+  for (const account of accounts) applyAccount(repo, account, desktop);
 }
 
 // The accounts' checklist: folders and launchers in place, one claude.ai account per folder, and
 // no variable that would sign every folder in as someone else.
-export function verifyAccounts() {
+export function verifyAccounts({ desktop = desktopDefault() }: DesktopOption = {}) {
   section("Accounts");
   const seen = new Map<string, string>();
   for (const account of loadAccounts()) {
+    if (desktop && !account.default) verifyDesktop(account.name);
     checkItem(fs.existsSync(account.configDir), `${account.name}: ${showFolder(account.configDir)} exists`, `create it with: dotagents account add ${account.name}`);
     checkItem(fs.existsSync(launcherFile(account.name)), `${account.name}: launcher ${path.basename(launcherFile(account.name))} exists`, `write it with: dotagents install`);
     const who = signedIn(account.configDir);

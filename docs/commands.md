@@ -79,9 +79,10 @@ Each Claude account is a Claude Code config folder with its own sign-in, picked 
 - creates its folder: `~/.claude` for the default account, `~/.claude-<name>` for the others;
 - applies the same configuration as `install` to it;
 - writes a launcher, `~/.local/bin/claude-<name>` (`claude-<name>.cmd` on Windows), that clears the variables that would sign in over the folder (`ANTHROPIC_API_KEY`, `CLAUDE_CODE_OAUTH_TOKEN`…), points `CLAUDE_CONFIG_DIR` at the folder and runs `claude`. The default account's launcher clears `CLAUDE_CONFIG_DIR` instead, so Claude Code uses `~/.claude`;
-- records the account in `accounts.json`, next to `workspaces.json`.
+- records the account in `accounts.json`, next to `workspaces.json`;
+- on Windows, for an account other than the default one, sets up a second Claude Desktop app: the data folder `%APPDATA%\Claude-<name>`, a launcher `claude-desktop-<name>.vbs` and the Start menu shortcut "Claude <name>". The shortcut starts the app with `--user-data-dir` (its own sign-in and chats) and with the account's `CLAUDE_CONFIG_DIR` (so the Code tab uses the account's folder). Without Claude Desktop installed, it only notes so.
 
-Then sign in once with the launcher: `claude-personal auth login`. Running it again changes nothing; a launcher you wrote by hand with the same name is kept as a backup.
+Then sign in once with the launcher: `claude-personal auth login`. In the second Desktop app, sign in with **e-mail and code**: Google sign-in returns to the normal app. Links `claude://` also open the normal app, and an app update reopens only the normal one. Running it again changes nothing; a launcher you wrote by hand with the same name is kept as a backup.
 
 - Only one account is the default, and it can't be changed with `account add`: it owns `~/.claude`.
 - `--color #RRGGBB` sets the account's color in the listings. Without it, accounts get `#D77655` and `#376B80`, in the order they are added.
@@ -97,7 +98,7 @@ Lists the accounts (color, default, signed-in e-mail, folder, launcher) and chec
 dotagents account remove personal
 ```
 
-Forgets the account and deletes its launcher. The folder, with the sign-in and the history, stays; delete it by hand if you want it gone.
+Forgets the account and deletes its launchers and, on Windows, its Start menu shortcut. The folders (the account's and the Desktop data folder), with the sign-in and the history, stays; delete it by hand if you want it gone.
 
 ## dotagents usage
 
