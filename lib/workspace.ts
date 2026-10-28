@@ -19,9 +19,9 @@ import {
   samePath,
   section,
   state,
-} from "./common.mjs";
-import { AGENT_FILES, ensureExcluded, gitRepoOf, isRepoRoot, removeExcluded, trackedAgentFiles, untrackedAgentFiles } from "./git.mjs";
-import { applySkills, verifySkills } from "./skills.mjs";
+} from "./common.ts";
+import { AGENT_FILES, ensureExcluded, gitRepoOf, isRepoRoot, removeExcluded, trackedAgentFiles, untrackedAgentFiles } from "./git.ts";
+import { applySkills, verifySkills } from "./skills.ts";
 
 // Relative to the workspace root, with forward slashes (Claude Code ignores backslashes on
 // Linux, macOS and WSL).

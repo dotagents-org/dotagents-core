@@ -5,8 +5,8 @@
 
 import fs from "node:fs";
 import path from "node:path";
-import { samePath, state } from "./common.mjs";
-import { configHome } from "./global.mjs";
+import { samePath, state } from "./common.ts";
+import { configHome } from "./global.ts";
 
 const file = () => path.join(process.env.DOTAGENTS_STATE_DIR || path.join(configHome(), "dotagents"), "workspaces.json");
 

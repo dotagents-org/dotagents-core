@@ -9,8 +9,8 @@
 
 import fs from "node:fs";
 import path from "node:path";
-import { checkItem, ensureDirLink, lstat, realpath, report, samePath, state } from "./common.mjs";
-import { loadCatalog, npxInstaller, parseSkill } from "./thirdparty.mjs";
+import { checkItem, ensureDirLink, lstat, realpath, report, samePath, state } from "./common.ts";
+import { loadCatalog, npxInstaller, parseSkill } from "./thirdparty.ts";
 
 // Every skill this repository knows: [{ name, kind: "own" | "third-party", source, description }].
 export function listSkills(repo) {

@@ -2,9 +2,9 @@ name: Test scripts
 
 on:
   push:
-    paths: ["cli.mjs", "package.json", "package-lock.json", "test/**", "lib/**", "templates/**", "global/**", ".github/workflows/test-scripts.yml"]
+    paths: ["cli.ts", "package.json", "package-lock.json", "test/**", "lib/**", "templates/**", "global/**", ".github/workflows/test-scripts.yml"]
   pull_request:
-    paths: ["cli.mjs", "package.json", "package-lock.json", "test/**", "lib/**", "templates/**", "global/**", ".github/workflows/test-scripts.yml"]
+    paths: ["cli.ts", "package.json", "package-lock.json", "test/**", "lib/**", "templates/**", "global/**", ".github/workflows/test-scripts.yml"]
 
 jobs:
   test:

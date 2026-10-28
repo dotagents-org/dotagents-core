@@ -5,9 +5,9 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { test } from "node:test";
-import { state } from "../lib/common.mjs";
-import { installGlobal } from "../lib/global.mjs";
-import { REPO, quiet } from "./helpers.mjs";
+import { state } from "../lib/common.ts";
+import { installGlobal } from "../lib/global.ts";
+import { REPO, quiet } from "./helpers.ts";
 
 function tempHome(t) {
   const home = fs.mkdtempSync(path.join(os.tmpdir(), "dotagents-home-"));

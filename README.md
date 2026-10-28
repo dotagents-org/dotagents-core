@@ -3,7 +3,7 @@
 **One Claude Code configuration, on every machine and in every project.**
 
 ![Platforms](https://img.shields.io/badge/platforms-Windows%20%C2%B7%20Linux%20%C2%B7%20macOS-informational)
-![Node](https://img.shields.io/badge/node-%E2%89%A5%2020.12-339933)
+![Node](https://img.shields.io/badge/node-%E2%89%A5%2022.18-339933)
 ![Agent](https://img.shields.io/badge/agent-Claude%20Code-8A2BE2)
 
 Claude Code reads its configuration from `~/.claude/` on each machine and from `.claude/`, `CLAUDE.md` or `AGENTS.md` in each project. Use it across a few projects and two machines, and the copies drift apart: the same skill copied into several projects, an instruction fixed on one machine and forgotten on the other, project files leaking into the repository's git.
@@ -95,7 +95,7 @@ sequenceDiagram
 
 ## Quick start
 
-You need Node.js 20.12+ and git. Fork or copy this repository to your own GitHub account, then, once per machine:
+You need Node.js 22.18+ and git. Fork or copy this repository to your own GitHub account, then, once per machine:
 
 ```bash
 git clone git@github.com:<you>/dotagents.git

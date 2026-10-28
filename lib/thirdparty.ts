@@ -6,7 +6,7 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { runWithSpinner } from "./common.mjs";
+import { runWithSpinner } from "./common.ts";
 
 // The catalog sits next to my own skills.
 export const catalogFile = (repo) => path.join(repo, "skills", "third-party-skills.json");

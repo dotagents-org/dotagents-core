@@ -1,7 +1,8 @@
 #!/usr/bin/env node
-// `dotagents`: applies this repository's coding agent configuration. Works on Windows, Linux and
-// macOS with Node 20.12+. Make it a command with `npm install && npm link` in the clone (the two
-// dependencies, @clack/prompts and picocolors, draw the terminal output and the prompts).
+// `dotagents`: applies this repository's Claude Code configuration. Works on Windows, Linux and
+// macOS with Node 22.18+, which runs this TypeScript file directly (type stripping, no build).
+// Make it a command with `npm install && npm link` in the clone (the two dependencies,
+// @clack/prompts and picocolors, draw the terminal output and the prompts).
 
 import { spawn, spawnSync } from "node:child_process";
 import fs from "node:fs";
@@ -9,13 +10,13 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import * as p from "@clack/prompts";
-import { checkWarn, displayPath, fancy, finish, header, interactive, line, parseArgs, rail, report, runWithSpinner, section, state, style } from "./lib/common.mjs";
-import { installGlobal } from "./lib/global.mjs";
-import { loadWorkspaces, registerWorkspace, registryFile, untrackWorkspace } from "./lib/registry.mjs";
-import { listSkills, resolveSkills, skillsIn } from "./lib/skills.mjs";
-import { SAFE_NAME, SAFE_SOURCE, catalogFile, discoverSkills, loadCatalog, saveCatalog } from "./lib/thirdparty.mjs";
-import { gitRepoOf, isRepoRoot } from "./lib/git.mjs";
-import { applyWorkspace, assertWorkspace, listRepoInAgentsMd, verifyWorkspace, wrapRepository } from "./lib/workspace.mjs";
+import { checkWarn, displayPath, fancy, finish, header, interactive, line, parseArgs, rail, report, runWithSpinner, section, state, style } from "./lib/common.ts";
+import { installGlobal } from "./lib/global.ts";
+import { loadWorkspaces, registerWorkspace, registryFile, untrackWorkspace } from "./lib/registry.ts";
+import { listSkills, resolveSkills, skillsIn } from "./lib/skills.ts";
+import { SAFE_NAME, SAFE_SOURCE, catalogFile, discoverSkills, loadCatalog, saveCatalog } from "./lib/thirdparty.ts";
+import { gitRepoOf, isRepoRoot } from "./lib/git.ts";
+import { applyWorkspace, assertWorkspace, listRepoInAgentsMd, verifyWorkspace, wrapRepository } from "./lib/workspace.ts";
 
 const repo = path.dirname(fileURLToPath(import.meta.url));
 const version = JSON.parse(fs.readFileSync(path.join(repo, "package.json"), "utf8")).version;
