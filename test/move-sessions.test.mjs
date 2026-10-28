@@ -1,5 +1,5 @@
-// The move-sessions skill's script, run as a process against temporary data folders for the three
-// tools (CLAUDE_CONFIG_DIR, CODEX_HOME, XDG_DATA_HOME), so the real ones are never touched.
+// The move-sessions skill's script, run as a process against a temporary Claude Code data folder
+// (CLAUDE_CONFIG_DIR), so the real one is never touched.
 
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
@@ -13,7 +13,6 @@ const SCRIPT = path.join(REPO, "skills", "move-sessions", "scripts", "move-sessi
 const isWindows = process.platform === "win32";
 const projectName = (dir) => dir.replace(/[^a-zA-Z0-9]/g, "-");
 const gitBash = (dir) => `/${dir[0].toLowerCase()}${dir.slice(2).replace(/\\/g, "/")}`;
-const slashes = (dir) => dir.replace(/\\/g, "/");
 
 function setup(t) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "dotagents-move-"));
@@ -21,8 +20,6 @@ function setup(t) {
   const s = {
     root,
     claude: path.join(root, "claude"),
-    codex: path.join(root, "codex"),
-    data: path.join(root, "data"),
     from: path.join(root, "app"),
     to: path.join(root, "app-workspace"),
   };
@@ -31,14 +28,13 @@ function setup(t) {
   s.run = (...args) =>
     spawnSync(process.execPath, [SCRIPT, ...args], {
       encoding: "utf8",
-      env: { ...process.env, CLAUDE_CONFIG_DIR: s.claude, CODEX_HOME: s.codex, XDG_DATA_HOME: s.data },
+      env: { ...process.env, CLAUDE_CONFIG_DIR: s.claude },
     });
   return s;
 }
 
 const line = (cwd, extra = {}) => JSON.stringify({ type: "user", cwd, ...extra });
 const age = (file) => fs.utimesSync(file, new Date(Date.now() - 60_000), new Date(Date.now() - 60_000));
-const sqlite = async () => (await import("node:sqlite")).DatabaseSync;
 
 function claudeTranscript(s, lines) {
   fs.mkdirSync(s.project, { recursive: true });
@@ -109,90 +105,6 @@ test("a dry run changes nothing", (t) => {
   assert.ok(!fs.existsSync(s.target));
 });
 
-// ── Codex ─────────────────────────────────────────────────────────────────────────────────────
-
-test("codex: rollouts and the threads index point to the new folder", async (t) => {
-  const s = setup(t);
-  const day = path.join(s.codex, "sessions", "2026", "10", "15");
-  fs.mkdirSync(day, { recursive: true });
-  const rollout = path.join(day, "rollout-x.jsonl");
-  const meta = { type: "session_meta", payload: { id: "t1", cwd: s.from, runtime_workspace_roots: [s.from] } };
-  const turn = { type: "turn_context", payload: { cwd: path.join(s.from, "src") } };
-  const msg = { type: "response_item", payload: { text: `cd ${s.from}` } };
-  fs.writeFileSync(rollout, [meta, turn, msg].map((o) => JSON.stringify(o)).join("\n") + "\n");
-  age(rollout);
-
-  const DatabaseSync = await sqlite();
-  const dbFile = path.join(s.codex, "state_5.sqlite");
-  const db = new DatabaseSync(dbFile);
-  db.exec("create table threads (id text primary key, cwd text, rollout_path text)");
-  db.prepare("insert into threads values (?, ?, ?)").run("t1", isWindows ? `\\\\?\\${s.from}` : s.from, rollout);
-  db.prepare("insert into threads values (?, ?, ?)").run("t2", path.join(s.root, "other"), "x");
-  db.close();
-  age(dbFile);
-
-  const res = s.run("--from", s.from, "--to", s.to, "--tools", "codex");
-  assert.equal(res.status, 0, res.stderr);
-
-  const [m, tc, r] = fs.readFileSync(rollout, "utf8").trim().split("\n").map((l) => JSON.parse(l));
-  assert.equal(m.payload.cwd, s.to);
-  assert.deepEqual(m.payload.runtime_workspace_roots, [s.to]);
-  assert.equal(tc.payload.cwd, path.join(s.to, "src"));
-  assert.equal(r.payload.text, `cd ${s.from}`, "message text is never rewritten");
-
-  const after = new DatabaseSync(dbFile, { readOnly: true });
-  const rows = Object.fromEntries(after.prepare("select id, cwd from threads").all().map((x) => [x.id, x.cwd]));
-  after.close();
-  assert.equal(rows.t1, isWindows ? `\\\\?\\${s.to}` : s.to);
-  assert.equal(rows.t2, path.join(s.root, "other"));
-  assert.ok(fs.readdirSync(s.codex).some((f) => f.startsWith("state_5.sqlite.bak-")), "a backup of the database is kept");
-});
-
-// ── OpenCode ──────────────────────────────────────────────────────────────────────────────────
-
-test("opencode: sessions and projects point to the new folder", async (t) => {
-  const s = setup(t);
-  const dir = path.join(s.data, "opencode");
-  fs.mkdirSync(dir, { recursive: true });
-  const DatabaseSync = await sqlite();
-  const dbFile = path.join(dir, "opencode.db");
-  const db = new DatabaseSync(dbFile);
-  db.exec("create table session (id text primary key, directory text, title text)");
-  db.exec("create table project (id text primary key, worktree text)");
-  db.exec("create table project_directory (project_id text, directory text)");
-  db.prepare("insert into session values (?, ?, ?)").run("s1", slashes(s.from), "chat");
-  db.prepare("insert into project values (?, ?)").run("p1", slashes(path.join(s.from, "repo")));
-  db.prepare("insert into project values (?, ?)").run("global", "/");
-  db.prepare("insert into project_directory values (?, ?)").run("p1", slashes(path.join(s.from, "repo")));
-  db.close();
-  age(dbFile);
-
-  const res = s.run("--from", s.from, "--to", s.to, "--tools", "opencode");
-  assert.equal(res.status, 0, res.stderr);
-
-  const after = new DatabaseSync(dbFile, { readOnly: true });
-  assert.equal(after.prepare("select directory d from session").get().d, slashes(s.to));
-  assert.equal(after.prepare("select worktree w from project where id = 'p1'").get().w, slashes(path.join(s.to, "repo")));
-  assert.equal(after.prepare("select worktree w from project where id = 'global'").get().w, "/");
-  assert.equal(after.prepare("select directory d from project_directory").get().d, slashes(path.join(s.to, "repo")));
-  after.close();
-});
-
-test("an open tool database stops its part of the move", async (t) => {
-  const s = setup(t);
-  const dir = path.join(s.data, "opencode");
-  fs.mkdirSync(dir, { recursive: true });
-  const DatabaseSync = await sqlite();
-  const db = new DatabaseSync(path.join(dir, "opencode.db"));
-  db.exec("create table session (id text primary key, directory text)");
-  db.prepare("insert into session values (?, ?)").run("s1", slashes(s.from));
-  db.close(); // just written: looks open
-
-  const res = s.run("--from", s.from, "--to", s.to, "--tools", "opencode");
-  assert.equal(res.status, 1);
-  assert.match(res.stderr, /close opencode/);
-});
-
 // ── Across systems ────────────────────────────────────────────────────────────────────────────
 
 test("claude: conversations move from another system's ~/.claude, Windows paths included", (t) => {
@@ -205,7 +117,7 @@ test("claude: conversations move from another system's ~/.claude, Windows paths 
   fs.writeFileSync(file, [line(winFrom), line("d:\\work\\app\\src"), line("/d/work/app"), line("D:\\elsewhere")].join("\n") + "\n");
   age(file);
 
-  const res = s.run("--from", winFrom, "--to", s.to, "--from-claude-dir", otherClaude, "--tools", "claude");
+  const res = s.run("--from", winFrom, "--to", s.to, "--from-claude-dir", otherClaude);
   assert.equal(res.status, 0, res.stderr);
 
   assert.ok(!fs.existsSync(file), "the conversation left the other system");

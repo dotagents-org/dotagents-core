@@ -1,25 +1,22 @@
 #!/usr/bin/env node
-// Makes the conversations of Claude Code, Codex and OpenCode follow a project folder that moved,
-// so each tool lists them again from the new folder. No dependencies; Node 18+ for Claude Code,
-// Node 22.13+ for Codex and OpenCode (their stores are SQLite, read with node:sqlite).
+// Makes the conversations of Claude Code follow a project folder that moved, so it lists them
+// again from the new folder. No dependencies; Node 18+.
 //
 // Usage:
 //   node move-sessions.mjs --from <old folder> --to <new folder> [--subdirs-to <folder>]
-//                          [--tools claude,codex,opencode] [--dry-run]
+//                          [--from-claude-dir <dir>] [--dry-run]
 //
 //   --from         the folder the conversations were started in (it may no longer exist)
 //   --to           the folder they should belong to now
 //   --subdirs-to   where subfolders of --from live now (default: --to). Example: a clone moved into
 //                  a workspace maps its root to the workspace (--to) and its subfolders to the clone
 //                  inside it (--subdirs-to <workspace>/<clone>).
-//   --tools        which tools to handle (default: every one whose data is found)
 //   --from-claude-dir  read Claude Code conversations from another system's ~/.claude, to move
 //                  them across systems (Windows to WSL: /mnt/c/Users/<you>/.claude). --from may
 //                  then be a Windows path even when this runs on Linux.
 //   --dry-run      report what would change, change nothing
 //
-// Data locations, overridable for tests: CLAUDE_CONFIG_DIR (~/.claude), CODEX_HOME (~/.codex),
-// XDG_DATA_HOME (~/.local/share, for opencode/).
+// Data location, overridable for tests: CLAUDE_CONFIG_DIR (~/.claude).
 //
 // Safe to run again: nothing already moved is moved twice, and Claude Code transcripts already in
 // the new project are merged line by line (it writes title and cost records to the old project
@@ -38,7 +35,7 @@ for (let i = 2; i < process.argv.length; i++) {
   else if (a.startsWith("--")) args[a.slice(2)] = process.argv[++i];
 }
 if (!args.from || !args.to) {
-  console.error("Usage: node move-sessions.mjs --from <old folder> --to <new folder> [--subdirs-to <folder>] [--tools claude,codex,opencode] [--from-claude-dir <dir>] [--dry-run]");
+  console.error("Usage: node move-sessions.mjs --from <old folder> --to <new folder> [--subdirs-to <folder>] [--from-claude-dir <dir>] [--dry-run]");
   process.exit(2);
 }
 
@@ -55,23 +52,14 @@ const dirs = {
   claude: process.env.CLAUDE_CONFIG_DIR || path.join(home, ".claude"),
   // Where the conversations are read from: another system's ~/.claude when they move across systems.
   claudeFrom: args["from-claude-dir"] ? path.resolve(args["from-claude-dir"]) : null,
-  codex: process.env.CODEX_HOME || path.join(home, ".codex"),
-  opencode: path.join(process.env.XDG_DATA_HOME || path.join(home, ".local", "share"), "opencode"),
 };
-const TOOLS = ["claude", "codex", "opencode"];
-const wanted = args.tools ? args.tools.split(",").map((t) => t.trim()) : TOOLS;
-const unknown = wanted.filter((t) => !TOOLS.includes(t));
-if (unknown.length) {
-  console.error(`Unknown tool: ${unknown.join(", ")}. Use claude, codex, opencode.`);
-  process.exit(2);
-}
 
 const say = (tool, msg) => console.log(`${tool.padEnd(9)}${args.dryRun ? "would " : ""}${msg}`);
 
 // ── Paths ─────────────────────────────────────────────────────────────────────────────────────
 // A folder appears in many spellings: native (D:\a), the other drive-letter case, forward
-// slashes (D:/a, OpenCode's form), Git Bash (/d/a) and Windows' extended prefix (\\?\D:\a, in
-// Codex's database). Each spelling maps to the same spelling of the new folder.
+// slashes (D:/a), Git Bash (/d/a) and Windows' extended prefix (\\?\D:\a). Each spelling maps to
+// the same spelling of the new folder.
 
 const windowsStyles = [
   (p) => p,
@@ -103,7 +91,7 @@ function mapPath(p) {
   return null;
 }
 
-// Rewrites, in a parsed JSON value, the string values (or string arrays) of the given keys.
+// Rewrites, in a parsed JSON value, the string values of the given keys.
 function rewriteKeys(value, keys) {
   let count = 0;
   const walk = (v) => {
@@ -111,15 +99,8 @@ function rewriteKeys(value, keys) {
     if (!v || typeof v !== "object") return;
     for (const [k, val] of Object.entries(v)) {
       if (keys.has(k)) {
-        if (Array.isArray(val)) {
-          val.forEach((item, i) => {
-            const m = mapPath(item);
-            if (m !== null) (val[i] = m), count++;
-          });
-        } else {
-          const m = mapPath(val);
-          if (m !== null) (v[k] = m), count++;
-        }
+        const m = mapPath(val);
+        if (m !== null) (v[k] = m), count++;
       }
       walk(v[k]);
     }
@@ -153,65 +134,6 @@ const recentlyChanged = (file) => fs.existsSync(file) && Date.now() - fs.statSyn
 function stopIfOpen(tool, message) {
   if (!args.dryRun) throw new Error(message);
   console.log(`${tool.padEnd(9)}note: ${message} (before the real run)`);
-}
-
-function walkFiles(dir, match, out = []) {
-  if (!fs.existsSync(dir)) return out;
-  for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
-    const full = path.join(dir, e.name);
-    if (e.isDirectory()) walkFiles(full, match, out);
-    else if (match(e.name)) out.push(full);
-  }
-  return out;
-}
-
-// SQLite through node:sqlite, loaded only when needed, with its experimental warning silenced.
-async function openDb(file) {
-  process.removeAllListeners("warning");
-  let DatabaseSync;
-  try {
-    ({ DatabaseSync } = await import("node:sqlite"));
-  } catch {
-    throw new Error(`Node ${process.versions.node} has no node:sqlite; Codex and OpenCode need Node 22.13+`);
-  }
-  return new DatabaseSync(file);
-}
-
-// Rewrites the given columns of a database. A consistent copy is saved first (VACUUM INTO).
-async function rewriteDb(tool, file, columns) {
-  if (recentlyChanged(file) || recentlyChanged(`${file}-wal`)) {
-    stopIfOpen(tool, `${file} changed in the last 10 seconds: close ${tool} and run this again`);
-  }
-  const db = await openDb(file);
-  try {
-    const changes = [];
-    for (const [table, column, key] of columns) {
-      const cols = db.prepare(`pragma table_info("${table}")`).all().map((c) => c.name);
-      // rowid is SQLite's implicit key: tables without an id column still have it.
-      if (!cols.includes(column) || (key !== "rowid" && !cols.includes(key))) continue;
-      for (const row of db.prepare(`select "${key}" as k, "${column}" as v from "${table}"`).all()) {
-        const m = mapPath(row.v);
-        if (m !== null) changes.push({ table, column, key, k: row.k, v: m });
-      }
-    }
-    const summary = Object.entries(group(changes)).map(([k, v]) => `${v.length} ${k}`);
-    say(tool, `update ${path.basename(file)}: ${summary.join(", ") || "nothing to change"}`);
-    if (!changes.length || args.dryRun) return;
-    const backup = `${file}.bak-${new Date().toISOString().replace(/[:.]/g, "-")}`;
-    db.exec(`VACUUM INTO '${backup.replace(/'/g, "''")}'`);
-    db.exec("BEGIN");
-    for (const c of changes) db.prepare(`update "${c.table}" set "${c.column}" = ? where "${c.key}" = ?`).run(c.v, c.k);
-    db.exec("COMMIT");
-    say(tool, `  backup: ${path.basename(backup)}`);
-  } finally {
-    db.close();
-  }
-}
-
-function group(changes) {
-  const out = {};
-  for (const c of changes) (out[`${c.table}.${c.column}`] ??= []).push(c);
-  return out;
 }
 
 // ── Claude Code ───────────────────────────────────────────────────────────────────────────────
@@ -282,71 +204,12 @@ async function claude() {
   }
 }
 
-// ── Codex ─────────────────────────────────────────────────────────────────────────────────────
-// Rollouts (sessions/YYYY/MM/DD/*.jsonl, archived_sessions/*.jsonl) record the folder in
-// session_meta and turn_context; state_*.sqlite indexes the threads by it, which is what
-// `codex resume` filters on. Both are rewritten in place.
-
-async function codex() {
-  const rollouts = [...walkFiles(path.join(dirs.codex, "sessions"), (n) => n.endsWith(".jsonl")), ...walkFiles(path.join(dirs.codex, "archived_sessions"), (n) => n.endsWith(".jsonl"))];
-  const keys = new Set(["cwd", "workdir", "runtime_workspace_roots"]);
-  let touched = 0;
-  for (const file of rollouts) {
-    const original = fs.readFileSync(file, "utf8");
-    const { text, count } = rewriteJsonl(original, keys);
-    if (!count) continue;
-    if (recentlyChanged(file)) stopIfOpen("codex", `${path.basename(file)} changed in the last 10 seconds: close Codex and run this again`);
-    touched++;
-    say("codex", `update ${path.basename(file)}: ${count} paths`);
-    if (!args.dryRun) {
-      fs.writeFileSync(`${file}.tmp`, text);
-      fs.renameSync(`${file}.tmp`, file);
-    }
-  }
-  if (!touched) say("codex", "nothing: no rollout under the old folder");
-  const dbs = fs.existsSync(dirs.codex) ? fs.readdirSync(dirs.codex).filter((n) => /^state_\d+\.sqlite$/.test(n)) : [];
-  for (const db of dbs) {
-    await rewriteDb("codex", path.join(dirs.codex, db), [
-      ["threads", "cwd", "id"],
-      ["project_roots", "path", "rowid"],
-    ]);
-  }
-}
-
-// ── OpenCode ──────────────────────────────────────────────────────────────────────────────────
-// Everything lives in opencode.db: sessions by directory, projects by worktree.
-
-async function opencode() {
-  const file = path.join(dirs.opencode, "opencode.db");
-  await rewriteDb("opencode", file, [
-    ["session", "directory", "id"],
-    ["project", "worktree", "id"],
-    ["project_directory", "directory", "rowid"],
-    ["workspace", "directory", "id"],
-  ]);
-}
-
 // ── Run ───────────────────────────────────────────────────────────────────────────────────────
 
-const handlers = { claude, codex, opencode };
-const present = {
-  claude: () => fs.existsSync(path.join(dirs.claudeFrom ?? dirs.claude, "projects")),
-  codex: () => fs.existsSync(dirs.codex),
-  opencode: () => fs.existsSync(path.join(dirs.opencode, "opencode.db")),
-};
-
-let failed = false;
-for (const tool of wanted) {
-  if (!present[tool]()) {
-    if (args.tools) say(tool, `nothing: no data in ${dirs[tool]}`);
-    continue;
-  }
-  try {
-    await handlers[tool]();
-  } catch (err) {
-    failed = true;
-    console.error(`${tool.padEnd(9)}error: ${err.message}`);
-  }
+try {
+  await claude();
+} catch (err) {
+  console.error(`${"claude".padEnd(9)}error: ${err.message}`);
+  process.exitCode = 1;
 }
-console.log(`\n${args.dryRun ? "Dry run: nothing changed. " : ""}Resume from the new folder: cd "${to}", then claude --resume, codex resume or opencode.`);
-process.exitCode = failed ? 1 : 0;
+console.log(`\n${args.dryRun ? "Dry run: nothing changed. " : ""}Resume from the new folder: cd "${to}", then claude --resume.`);
