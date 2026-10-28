@@ -20,23 +20,21 @@ function tempHome(t) {
   return home;
 }
 
-test("install writes the instructions for the three tools with this clone's path", (t) => {
+test("install writes the global instructions with this clone's path", (t) => {
   const home = tempHome(t);
   quiet();
   installGlobal(REPO);
   assert.equal(state.problems, 0);
-  for (const file of [".claude/CLAUDE.md", ".codex/AGENTS.md", ".config/opencode/AGENTS.md"]) {
-    const text = fs.readFileSync(path.join(home, file), "utf8");
-    assert.ok(!text.includes("{{AGENTS_REPO}}"), `${file} still has the placeholder`);
-    assert.ok(text.includes(REPO.replace(/\\/g, "/")), `${file} doesn't mention the clone`);
-  }
+  const text = fs.readFileSync(path.join(home, ".claude", "CLAUDE.md"), "utf8");
+  assert.ok(!text.includes("{{AGENTS_REPO}}"), "CLAUDE.md still has the placeholder");
+  assert.ok(text.includes(REPO.replace(/\\/g, "/")), "CLAUDE.md doesn't mention the clone");
 });
 
 test("a second install changes nothing, even when a copy was saved with CRLF", (t) => {
   const home = tempHome(t);
   quiet();
   installGlobal(REPO);
-  const settings = path.join(home, ".config", "opencode", "opencode.json");
+  const settings = path.join(home, ".claude", "settings.json");
   const text = fs.readFileSync(settings, "utf8");
   if (!fs.lstatSync(settings).isSymbolicLink()) fs.writeFileSync(settings, text.replace(/\n/g, "\r\n"));
   quiet();
