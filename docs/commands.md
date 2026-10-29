@@ -287,6 +287,7 @@ When the output goes to a pipe or a file (CI, scripts), the same information com
 | Variable | Effect |
 |---|---|
 | `NO_COLOR` | Turns colors off. `TERM=dumb` does too. |
+| `DOTAGENTS_THEME` | `light` or `dark`: the background the colors are picked for. Without it, `COLORFGBG` when the terminal sets it, else dark. |
 | `FORCE_COLOR` | Sets the colors, with or without a terminal, over `NO_COLOR`: `0` turns them off, `1` is 16 colors, `2` is 256, `3` is 24-bit. With a value other than `0`, piped output keeps the terminal look. |
 | `CI` | Never asks questions. |
 | `DOTAGENTS_STATE_DIR` | Folder of the machine's state: the tracked workspaces (`workspaces.json`) and the profiles (`profiles.json`). Default: `~/.config/dotagents`. |

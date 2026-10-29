@@ -51,9 +51,9 @@ const ICON: Record<string, { icon: string; color: string }> = {
   moved: { icon: "→", color: theme.passed },
   skipped: { icon: "!", color: theme.warning },
   failed: { icon: "✗", color: theme.failed },
-  "would create": { icon: "+", color: theme.thirdParty },
-  "would update": { icon: "~", color: theme.thirdParty },
-  "would move": { icon: "→", color: theme.thirdParty },
+  "would create": { icon: "+", color: theme.muted },
+  "would update": { icon: "~", color: theme.muted },
+  "would move": { icon: "→", color: theme.muted },
 };
 
 // The preview or the result of an action: what changes (or would), and a summary.

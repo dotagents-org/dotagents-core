@@ -17,7 +17,7 @@ function Profile({ a, now }: { a: ProfileUsage; now: Date }) {
   return h(
     Box,
     { flexDirection: "column", marginBottom: 1 },
-    h(Text, null, h(Text, { color: a.color }, "◇ "), h(Text, { color: a.color, bold: true }, a.name), a.default ? h(Text, { color: theme.thirdParty }, "  ● default") : null),
+    h(Text, null, h(Text, { color: a.color }, "◇ "), h(Text, { color: a.color, bold: true }, a.name), a.default ? h(Text, { color: theme.muted }, "  ● default") : null),
     note
       ? h(Text, { color: theme.muted }, `  ${note}`)
       : a.windows.map((w) => {
