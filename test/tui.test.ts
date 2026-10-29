@@ -111,8 +111,9 @@ test("i on the profiles screen previews the install, n cancels it and y applies 
   app.stdin.write("y");
   await until(app, /Install:[\s\S]*created/);
   assert.ok(fs.existsSync(launcher));
-  // The checklist is read again: the launchers are there now.
-  assert.match(plain(app), /✓ 6 passed/);
+  // The checklist is read again: the launchers are there now. On Windows each profile's settings
+  // copy adds an item ("matches the repository").
+  assert.match(plain(app), new RegExp(`✓ ${process.platform === "win32" ? 8 : 6} passed`));
 });
 
 test("a on the workspaces screen applies the standards to the picked workspace, after a preview", async (t) => {
