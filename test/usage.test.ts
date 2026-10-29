@@ -5,7 +5,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { test, type TestContext } from "node:test";
-import { profileUsage, bar, normalize, pace } from "../lib/usage.ts";
+import { profileUsage, bar, normalize, pace } from "../core/usage.ts";
 
 const NOW = new Date("2026-10-28T12:00:00Z");
 const at = (iso: string) => new Date(iso);

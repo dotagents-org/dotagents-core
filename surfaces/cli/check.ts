@@ -1,6 +1,6 @@
-import { finish, header } from "../lib/output.ts";
-import { state } from "../lib/state.ts";
-import { assertWorkspace, verifyWorkspace } from "../lib/workspace.ts";
+import { finish, header } from "../../core/output.ts";
+import { state } from "../../core/state.ts";
+import { assertWorkspace, verifyWorkspace } from "../../core/workspace.ts";
 import { type Command, workspaceArg } from "./shared.ts";
 
 export const check: Command = {

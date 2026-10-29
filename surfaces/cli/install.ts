@@ -1,5 +1,5 @@
-import { installProfiles } from "../lib/profiles.ts";
-import { finish, header } from "../lib/output.ts";
+import { installProfiles } from "../../core/profiles.ts";
+import { finish, header } from "../../core/output.ts";
 import type { Command } from "./shared.ts";
 
 export const install: Command = {

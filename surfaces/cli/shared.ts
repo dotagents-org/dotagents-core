@@ -33,6 +33,9 @@ export type Command = {
   // Extra help lines under the summary.
   more?: string[];
   group: "Machine" | "Profiles" | "Workspace" | "Skills";
+  // The full-screen view's screen these arguments open instead of running (usage --watch). cli.ts
+  // opens it: a surface never loads another one.
+  view?(args: CliArgs): string | null;
   run(ctx: Context): void | Promise<void>;
 };
 

@@ -5,11 +5,11 @@
 import fs from "node:fs";
 import { Box, Text, useInput } from "ink";
 import { createElement as h, useEffect, useMemo, useState } from "react";
-import { loadWorkspaces } from "../../lib/machine-state.ts";
-import { capture, displayPath } from "../../lib/output.ts";
-import { state } from "../../lib/state.ts";
-import { listSkills, resolveSkills } from "../../lib/skills.ts";
-import { applyWorkspace, verifyWorkspace } from "../../lib/workspace.ts";
+import { loadWorkspaces } from "../../../core/machine-state.ts";
+import { capture, displayPath } from "../../../core/output.ts";
+import { state } from "../../../core/state.ts";
+import { listSkills, resolveSkills } from "../../../core/skills.ts";
+import { applyWorkspace, verifyWorkspace } from "../../../core/workspace.ts";
 import { ActionView, useAction } from "../action.ts";
 import { type Screen, type ScreenProps, theme } from "../screen.ts";
 import { Checks } from "./checks.ts";

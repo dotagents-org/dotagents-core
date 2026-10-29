@@ -7,10 +7,10 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { test, type TestContext } from "node:test";
-import { dropProfile, launcherDir, setUpProfile } from "../lib/profiles.ts";
-import { type Shortcut, type Shortcuts, profileIcon, appTitle, desktopDataDir, desktopExe, desktopLauncherFile, powershellShortcuts, shortcutFile } from "../lib/desktop.ts";
-import { state } from "../lib/state.ts";
-import { taskbarWatcher, taskbarWatcherFile } from "../lib/taskbar.ts";
+import { dropProfile, launcherDir, setUpProfile } from "../core/profiles.ts";
+import { type Shortcut, type Shortcuts, profileIcon, appTitle, desktopDataDir, desktopExe, desktopLauncherFile, powershellShortcuts, shortcutFile } from "../core/desktop.ts";
+import { state } from "../core/state.ts";
+import { taskbarWatcher, taskbarWatcherFile } from "../core/taskbar.ts";
 import { REPO, quiet } from "./helpers.ts";
 
 function tempWindowsHome(t: TestContext, { withDesktop = true } = {}) {

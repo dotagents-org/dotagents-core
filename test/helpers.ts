@@ -3,10 +3,10 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import type { TestContext } from "node:test";
-import { collect, setRenderer, type Event } from "../lib/output.ts";
-import { resetState } from "../lib/state.ts";
-import type { Skill } from "../lib/skills.ts";
-import type { Installer } from "../lib/thirdparty.ts";
+import { collect, setRenderer, type Event } from "../core/output.ts";
+import { resetState } from "../core/state.ts";
+import type { Skill } from "../core/skills.ts";
+import type { Installer } from "../core/thirdparty.ts";
 
 // The real repository: templates and own skills come from it.
 export const REPO = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");

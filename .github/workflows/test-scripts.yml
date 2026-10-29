@@ -2,9 +2,9 @@ name: Test scripts
 
 on:
   push:
-    paths: ["cli.ts", "commands/**", "tui/**", "tui/**", "tsconfig.json", "package.json", "package-lock.json", "test/**", "lib/**", "templates/**", "global/**", ".github/workflows/test-scripts.yml"]
+    paths: ["cli.ts", "core/**", "surfaces/**", "tsconfig.json", "package.json", "package-lock.json", "test/**", "templates/**", "global/**", ".github/workflows/test-scripts.yml"]
   pull_request:
-    paths: ["cli.ts", "commands/**", "tsconfig.json", "package.json", "package-lock.json", "test/**", "lib/**", "templates/**", "global/**", ".github/workflows/test-scripts.yml"]
+    paths: ["cli.ts", "core/**", "surfaces/**", "tsconfig.json", "package.json", "package-lock.json", "test/**", "templates/**", "global/**", ".github/workflows/test-scripts.yml"]
 
 jobs:
   test:

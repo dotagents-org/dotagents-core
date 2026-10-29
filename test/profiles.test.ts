@@ -6,9 +6,9 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { test, type TestContext } from "node:test";
-import { dropProfile, installProfiles, launcherFile, setUpProfile, showFolder, verifyProfiles } from "../lib/profiles.ts";
-import { loadProfiles } from "../lib/machine-state.ts";
-import { state } from "../lib/state.ts";
+import { dropProfile, installProfiles, launcherFile, setUpProfile, showFolder, verifyProfiles } from "../core/profiles.ts";
+import { loadProfiles } from "../core/machine-state.ts";
+import { state } from "../core/state.ts";
 import { REPO, quiet } from "./helpers.ts";
 
 const isWindows = process.platform === "win32";

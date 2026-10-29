@@ -2,27 +2,27 @@
 // `dotagents`: applies this repository's Claude Code configuration. Works on Windows, Linux and
 // macOS with Node 22.18+, which runs this TypeScript file directly (type stripping, no build).
 // Make it a command with `npm install && npm link` in the clone (@clack/prompts and picocolors
-// draw the terminal output and the prompts; ink and react, the full-screen view in tui/).
+// draw the terminal output and the prompts; ink and react, the full-screen view in surfaces/tui/).
 //
 // This file only reads the arguments, picks the command and prints the help. Each command
-// lives in commands/<name>.ts.
+// lives in surfaces/cli/<name>.ts, and uses the modules in core/.
 
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { profileAdd, profileList, profileRemove } from "./commands/profile.ts";
-import { check } from "./commands/check.ts";
-import { init } from "./commands/init.ts";
-import { install } from "./commands/install.ts";
-import { newWorkspace } from "./commands/new.ts";
-import type { CliArgs, Command } from "./commands/shared.ts";
-import { skills, skillsAdd, skillsRemove } from "./commands/skills.ts";
-import { update } from "./commands/update.ts";
-import { usage } from "./commands/usage.ts";
-import { untrack, workspaces } from "./commands/workspaces.ts";
-import { parseArgs } from "./lib/common.ts";
-import { displayPath, fancy, interactive, style } from "./lib/output.ts";
-import { state } from "./lib/state.ts";
+import { profileAdd, profileList, profileRemove } from "./surfaces/cli/profile.ts";
+import { check } from "./surfaces/cli/check.ts";
+import { init } from "./surfaces/cli/init.ts";
+import { install } from "./surfaces/cli/install.ts";
+import { newWorkspace } from "./surfaces/cli/new.ts";
+import type { CliArgs, Command } from "./surfaces/cli/shared.ts";
+import { skills, skillsAdd, skillsRemove } from "./surfaces/cli/skills.ts";
+import { update } from "./surfaces/cli/update.ts";
+import { usage } from "./surfaces/cli/usage.ts";
+import { untrack, workspaces } from "./surfaces/cli/workspaces.ts";
+import { parseArgs } from "./core/common.ts";
+import { displayPath, fancy, interactive, style } from "./core/output.ts";
+import { state } from "./core/state.ts";
 
 // In the order the help lists them.
 const COMMANDS: Command[] = [install, update, profileAdd, profileList, profileRemove, usage, newWorkspace, init, check, workspaces, untrack, skills, skillsAdd, skillsRemove];
@@ -94,14 +94,17 @@ if (args.version) {
   console.log(version);
 } else if (!args._.length && !args.help && interactive) {
   // The full-screen view, loaded only when used, so the commands don't load React.
-  import("./tui/app.ts").then(({ runTui }) => runTui(repo));
+  import("./surfaces/tui/app.ts").then(({ runTui }) => runTui(repo));
 } else if (args.help || !args._.length) {
   console.log(help());
 } else {
   Promise.resolve()
     .then(() => {
       const { command, positional } = pick(args._);
-      return command.run({ repo, args, positional });
+      const screen = command.view?.(args);
+      if (!screen) return command.run({ repo, args, positional });
+      if (!interactive) throw new Error(`${command.name} opens the full-screen view, which needs a terminal`);
+      return import("./surfaces/tui/app.ts").then(({ runTui }) => runTui(repo, screen));
     })
     .catch((err) => {
       console.error(fancy ? `${red("✗")} ${bold("dotagents:")} ${err.message}` : `dotagents: ${err.message}`);

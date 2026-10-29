@@ -3,10 +3,10 @@
 
 import { Box, Text } from "ink";
 import { createElement as h } from "react";
-import { PALETTE } from "../../lib/profiles.ts";
-import { defaultConfigDir } from "../../lib/claude-code.ts";
-import { loadProfiles } from "../../lib/machine-state.ts";
-import { type ProfileUsage, profileUsage, bar, freshnessText, levelOf, paceText, resetText, stateNote, windowLabel } from "../../lib/usage.ts";
+import { PALETTE } from "../../../core/profiles.ts";
+import { defaultConfigDir } from "../../../core/claude-code.ts";
+import { loadProfiles } from "../../../core/machine-state.ts";
+import { type ProfileUsage, profileUsage, bar, freshnessText, levelOf, paceText, resetText, stateNote, windowLabel } from "../../../core/usage.ts";
 import { type Screen, type ScreenProps, theme } from "../screen.ts";
 
 const LABEL = 14;

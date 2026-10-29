@@ -1,9 +1,9 @@
 // `workspaces` lists the tracked workspaces; `untrack` drops one from the list.
 
 import fs from "node:fs";
-import { displayPath, fancy, line, rail, style } from "../lib/output.ts";
-import { loadWorkspaces, untrackWorkspace, workspacesFile } from "../lib/machine-state.ts";
-import { state } from "../lib/state.ts";
+import { displayPath, fancy, line, rail, style } from "../../core/output.ts";
+import { loadWorkspaces, untrackWorkspace, workspacesFile } from "../../core/machine-state.ts";
+import { state } from "../../core/state.ts";
 import { type Command, workspaceArg } from "./shared.ts";
 
 const { bold, dim, cyan, green, red, yellow } = style;

@@ -2,12 +2,12 @@ import { spawn, spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import * as p from "@clack/prompts";
-import { gitRepoOf, isRepoRoot } from "../lib/git.ts";
-import { displayPath, fancy, finish, header, interactive, line, style } from "../lib/output.ts";
-import { registerWorkspace, untrackWorkspace } from "../lib/machine-state.ts";
-import { listSkills, resolveSkills, skillsIn } from "../lib/skills.ts";
-import { state } from "../lib/state.ts";
-import { applyWorkspace, assertWorkspace, wrapRepository } from "../lib/workspace.ts";
+import { gitRepoOf, isRepoRoot } from "../../core/git.ts";
+import { displayPath, fancy, finish, header, interactive, line, style } from "../../core/output.ts";
+import { registerWorkspace, untrackWorkspace } from "../../core/machine-state.ts";
+import { listSkills, resolveSkills, skillsIn } from "../../core/skills.ts";
+import { state } from "../../core/state.ts";
+import { applyWorkspace, assertWorkspace, wrapRepository } from "../../core/workspace.ts";
 import { type Command, type Context, expandHome, fitHint, workspaceArg } from "./shared.ts";
 
 const { bold, dim } = style;
