@@ -5,7 +5,7 @@
 // `refresh` change. A future feature is one more screen.
 
 import type { ReactNode } from "react";
-import { ROLES } from "../../core/theme.ts";
+import { ROLES, type Role, backgroundOf, readableOn } from "../../core/theme.ts";
 
 export type ScreenProps = {
   repo: string;
@@ -23,15 +23,18 @@ export type Screen = {
   Component: (props: ScreenProps) => ReactNode;
 };
 
-// The roles of core/theme.ts, as Ink color names; Ink takes #RRGGBB too, so the profile colors go
-// through as they are.
+// The roles of core/theme.ts in the background's hex; Ink brings them down to the terminal's color
+// level, which cli.ts sets from colorLevel() before loading the view. Profile colors go through
+// readableOn().
+const bg = backgroundOf();
+const role = (name: Role) => ROLES[name][bg];
 export const theme = {
-  accent: ROLES.brand,
-  muted: ROLES.muted,
-  own: ROLES.ok,
-  thirdParty: ROLES.info,
-  level: { ok: ROLES.ok, warn: ROLES.warn, high: ROLES.high },
-  passed: ROLES.ok,
-  failed: ROLES.high,
-  warning: ROLES.warn,
+  text: role("text"),
+  muted: role("muted"),
+  track: role("track"),
+  level: { ok: role("ok"), warn: role("warn"), high: role("high") },
+  passed: role("ok"),
+  failed: role("high"),
+  warning: role("warn"),
+  profile: (hex: string) => readableOn(hex, bg),
 } as const;

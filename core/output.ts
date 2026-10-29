@@ -11,7 +11,7 @@ import path from "node:path";
 import { S_BAR, S_BAR_END, S_BAR_START, S_STEP_SUBMIT } from "@clack/prompts";
 import pc from "picocolors";
 import { state } from "./state.ts";
-import { SYMBOLS, colorLevel, hexColor } from "./theme.ts";
+import { SYMBOLS, backgroundOf, colorLevel, painter } from "./theme.ts";
 
 // The color level (core/theme.ts). The terminal look is on in a terminal, or when FORCE_COLOR
 // asks for colors without one; FORCE_COLOR=0 keeps it plain.
@@ -23,8 +23,9 @@ export const style = pc.createColors(level > 0);
 
 export const toSlash = (p: string) => p.replace(/\\/g, "/");
 
-// A color of our own, given as #RRGGBB (a profile's color).
-export const paint = (hex: string) => hexColor(hex, level);
+// The roles of core/theme.ts for this terminal, and a profile's color in its readable variant.
+export const ink = painter(level, backgroundOf());
+export const paint = (hex: string) => ink.profile(hex);
 
 // The rail: ┌ opens a command, │ carries every line, ◇ marks a section, └ closes.
 export const rail = {

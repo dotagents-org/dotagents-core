@@ -24,6 +24,14 @@ import { untrack, workspaces } from "./surfaces/cli/workspaces.ts";
 import { parseArgs } from "./core/common.ts";
 import { displayPath, fancy, interactive, style } from "./core/output.ts";
 import { state } from "./core/state.ts";
+import { colorLevel } from "./core/theme.ts";
+
+// The full-screen view draws with Ink, whose colors follow FORCE_COLOR: set it from colorLevel()
+// first, so the view and the commands agree (NO_COLOR, TERM=dumb, the terminal's depth).
+const loadView = () => {
+  process.env.FORCE_COLOR = String(colorLevel());
+  return import("./surfaces/tui/app.ts");
+};
 
 // In the order the help lists them.
 const COMMANDS: Command[] = [install, update, settingsPull, profileAdd, profileList, profileRemove, usage, newWorkspace, init, check, workspaces, untrack, skills, skillsAdd, skillsRemove];
@@ -96,7 +104,7 @@ if (args.version) {
   console.log(version);
 } else if (!args._.length && !args.help && interactive) {
   // The full-screen view, loaded only when used, so the commands don't load React.
-  import("./surfaces/tui/app.ts").then(({ runTui }) => runTui(repo));
+  loadView().then(({ runTui }) => runTui(repo));
 } else if (args.help || !args._.length) {
   console.log(help());
 } else {
@@ -106,7 +114,7 @@ if (args.version) {
       const screen = command.view?.(args);
       if (!screen) return command.run({ repo, args, positional });
       if (!interactive) throw new Error(`${command.name} opens the full-screen view, which needs a terminal`);
-      return import("./surfaces/tui/app.ts").then(({ runTui }) => runTui(repo, screen));
+      return loadView().then(({ runTui }) => runTui(repo, screen));
     })
     .catch((err) => {
       console.error(fancy ? `${red("✗")} ${bold("dotagents:")} ${err.message}` : `dotagents: ${err.message}`);

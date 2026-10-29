@@ -46,7 +46,7 @@ export function App({ repo, initial = SCREENS[0].id }: { repo: string; initial?:
   return h(
     Box,
     { flexDirection: "column", paddingX: 1 },
-    h(Text, null, h(Text, { backgroundColor: theme.accent, color: "white", bold: true }, " dotagents "), h(Text, { color: theme.muted }, ` ${version}`)),
+    h(Text, null, h(Text, { inverse: true }, " dotagents "), h(Text, { color: theme.muted }, ` ${version}`)),
     h(
       Box,
       { marginY: 1 },

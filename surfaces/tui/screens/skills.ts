@@ -13,7 +13,7 @@ function SkillsScreen({ repo, refresh, rows }: ScreenProps) {
     h(
       Box,
       { key: s.name },
-      h(Box, { width, flexShrink: 0 }, h(Text, { color: s.kind === "own" ? theme.own : theme.thirdParty }, s.name)),
+      h(Box, { width, flexShrink: 0 }, h(Text, { color: s.kind === "own" ? theme.text : theme.muted }, s.name)),
       h(Text, { color: theme.muted, wrap: "truncate-end" }, s.kind === "own" ? s.description : `${s.description} · from ${s.source}`)
     );
   const own = all.filter((s) => s.kind === "own");

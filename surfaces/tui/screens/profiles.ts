@@ -47,7 +47,7 @@ function ProfilesScreen({ repo, refresh }: ScreenProps) {
           null,
           h(Text, { color: a.color }, "● "),
           h(Text, { color: a.color, bold: true }, a.name.padEnd(width)),
-          h(Text, { color: theme.thirdParty }, a.default ? "default  " : "         "),
+          h(Text, { color: theme.muted }, a.default ? "[default]  " : "           "),
           who ? who.email : h(Text, { color: theme.muted }, "not signed in")
         ),
         h(Text, { color: theme.muted }, `  ${showFolder(a.configDir)} · ${path.basename(launcherFile(a.name))}`)
