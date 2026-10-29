@@ -113,6 +113,12 @@ export function showFolder(configDir: string) {
   return real ? `${displayPath(configDir)} → ${displayPath(real)}` : displayPath(configDir);
 }
 
+// Every config folder dotagents configures: each profile's, and ~/.claude when no profile is there.
+export function configDirs() {
+  const dirs = loadProfiles().map((p) => p.configDir);
+  return dirs.some((d) => samePath(d, defaultConfigDir())) ? dirs : [defaultConfigDir(), ...dirs];
+}
+
 // What `install` applies: the default folder, and every profile of this machine.
 export function installProfiles(repo: string, { desktop = desktopDefault() }: DesktopOption = {}) {
   if (migrateLegacyProfiles()) {

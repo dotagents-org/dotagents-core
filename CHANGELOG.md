@@ -14,6 +14,7 @@ What changed for someone who updates a clone. The format follows [Keep a Changel
 
 ### Added
 
+- **The same configuration in every profile.** On Windows, `install` no longer overwrites a settings copy that `/config` changed: it keeps it and says so, and `dotagents settings pull` brings the change into the repository. `claude/global-config.json` sets the `/config` options Claude Code keeps in `.claude.json` (`copyOnSelect`, `diffTool`…) in every profile. `profile list` warns about a profile that differs and about changes to these files not committed yet.
 - **Profiles:** several Claude sign-ins on one machine, each with its config folder, the same configuration and a `claude-<name>` launcher (`profile add`, `profile list`, `profile remove`). `profile list` fails when two profiles hold the same account.
 - **`dotagents usage`:** how much of each profile's plan is used (5-hour session, week, per-model weeks), from Claude Code's own cache, with no network. `--short` for one line, `--json` for scripts, `--watch` for the live view.
 - **The full-screen view:** `dotagents` with no command, in a terminal, opens Usage, Profiles, Workspaces and Skills screens, with install and apply actions after a preview.

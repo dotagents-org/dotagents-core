@@ -4,7 +4,8 @@
 import { Box, Text, useInput } from "ink";
 import { createElement as h, useMemo } from "react";
 import path from "node:path";
-import { installProfiles, launcherFile, showFolder, verifyProfiles } from "../../../core/profiles.ts";
+import { verifyGlobal } from "../../../core/global.ts";
+import { configDirs, installProfiles, launcherFile, showFolder, verifyProfiles } from "../../../core/profiles.ts";
 import { signedIn } from "../../../core/claude-code.ts";
 import { loadProfiles } from "../../../core/machine-state.ts";
 import { capture } from "../../../core/output.ts";
@@ -23,7 +24,14 @@ function ProfilesScreen({ repo, refresh }: ScreenProps) {
   // Read again after an install, so the checklist shows what it fixed.
   const done = install.stage === "done";
   const profiles = useMemo(() => loadProfiles(), [refresh, done]);
-  const events = useMemo(() => capture(verifyProfiles), [refresh, done]);
+  const events = useMemo(
+    () =>
+      capture(() => {
+        verifyProfiles();
+        verifyGlobal(repo, configDirs());
+      }),
+    [refresh, done]
+  );
   if (!profiles.length) return h(Text, { color: theme.muted }, "No profiles yet. Add the one in ~/.claude with: dotagents profile add <name> --default");
   const width = Math.max(...profiles.map((a) => a.name.length)) + 2;
   return h(

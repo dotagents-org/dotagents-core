@@ -8,6 +8,7 @@ dotagents <command> [options]
 |---|---|
 | [`install`](#dotagents-install) | Applies the global configuration to this machine, in every profile folder. |
 | [`update [--all]`](#dotagents-update) | Pulls this repository and runs `install`; with `--all`, also refreshes every tracked workspace. |
+| [`settings pull [--from <profile>]`](#dotagents-settings-pull) | Brings a settings change made in a profile (a Windows copy) into this repository. |
 | [`profile add <name>`](#dotagents-profile-add) | Adds a Claude profile: its config folder, the configuration and a `claude-<name>` launcher. |
 | [`profile list`](#dotagents-profile-list) | Lists the profiles and checks them. |
 | [`profile remove <name>`](#dotagents-profile-remove) | Forgets a profile and its launcher; its folder is kept. |
@@ -66,6 +67,15 @@ dotagents update --no-pull     # skip the pull and only reapply
   - runs `npx skills update` when the workspace has third-party skills;
   - warns about skills that were removed from this repository or the catalog, without failing. To drop them from the workspace's record, `untrack` it and run `init` again.
 
+## dotagents settings pull
+
+```bash
+dotagents settings pull                  # the one profile whose settings changed
+dotagents settings pull --from personal  # when several changed in different ways
+```
+
+On Windows each profile has a copy of `claude/settings.json`, and `/config` writes to that copy. `install` remembers what it last copied, so it can tell a copy that only fell behind the repository (it updates it) from one changed in the profile (it keeps it and says so). `settings pull` copies the changed one into the repository; commit it, and the next `install` takes it to the other profiles. With several profiles changed in different ways it stops and asks for `--from`. On Linux and macOS the profiles link to the repository's file, so there is nothing to pull.
+
 ## dotagents profile add
 
 ```bash
@@ -90,7 +100,7 @@ Then sign in once with the launcher: `claude-personal auth login`. In the second
 
 ## dotagents profile list
 
-Lists the profiles (color, default, signed-in e-mail, folder, launcher) and checks them: each folder and launcher exists, each profile is signed in, and no two folders are signed in to the same claude.ai account. It also warns when a variable such as `ANTHROPIC_API_KEY` is set in the shell. Exits with 1 when an item fails.
+Lists the profiles (color, default, signed-in e-mail, folder, launcher) and checks them: each folder and launcher exists, each profile is signed in, and no two folders are signed in to the same claude.ai account. It also warns when a variable such as `ANTHROPIC_API_KEY` is set in the shell, and checks the shared configuration: a settings copy (Windows) changed in a profile or behind the repository, a [`claude/global-config.json`](global-configuration.md) option changed in a profile, and changes to either file not committed yet. Exits with 1 when an item fails.
 
 ## dotagents profile remove
 
@@ -236,6 +246,7 @@ Removes a skill from the catalog. Workspaces that already installed it keep it; 
 | `--watch` | `usage` | The full-screen view, updated live. |
 | `--yes` | `init`, `new`, `skills add` | Never ask. |
 | `--no-pull` | `update` | Skip `git pull`. |
+| `--from <profile>` | `settings pull` | The profile to take the settings from. |
 | `--help`, `--version` | | |
 
 Paths can be written with `~` for the home folder, also in PowerShell and cmd, which don't expand it themselves. The short paths dotagents prints can be pasted back.
