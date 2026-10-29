@@ -6,6 +6,7 @@
 
 import fs from "node:fs";
 import { signedIn, stateFile } from "./claude-code.ts";
+import type { Role } from "./theme.ts";
 
 export type UsageWindow = {
   kind: "session" | "week" | "model-week";
@@ -114,60 +115,132 @@ export function pace(w: UsageWindow, now: Date): { runsOutAt: Date } | { leftAtR
   return { leftAtReset: Math.round(100 - atReset) };
 }
 
-const EIGHTHS = ["", "▏", "▎", "▍", "▌", "▋", "▊", "▉"];
-
-// A fixed-width bar, in eighths of a cell; the empty part is a dotted track.
-export function bar(pct: number, width = 30) {
-  const eighths = Math.round((Math.max(0, Math.min(100, pct)) / 100) * width * 8);
-  const full = Math.floor(eighths / 8);
-  const part = EIGHTHS[eighths % 8];
-  return "█".repeat(full) + part + "·".repeat(width - full - (part ? 1 : 0));
+// A bar of a fixed width: the used cells, a one-cell gap, the rest of the track. The width is the
+// same at every percentage: something used shows at least one cell, and below 100% the gap and one
+// cell of track stay, so 91% never looks full.
+export function bar(pct: number, width: number) {
+  const p = Math.max(0, Math.min(100, pct));
+  if (p >= 100) return { used: width, rest: 0 };
+  if (p <= 0) return { used: 0, rest: width };
+  const used = Math.max(1, Math.min(Math.round((p / 100) * width), width - 2));
+  return { used, rest: width - used - 1 };
 }
 
-// ── Words for the views (the usage command and the TUI show the same thing) ──────────────────
+// ── The views (the usage command, its short form and the full-screen view show the same) ────
+// The core draws nothing: it gives each line as segments, text with a role, and each surface
+// paints them its own way.
 
-// Below half, up to 79%, from 80%: green, yellow, red in both views.
-export const levelOf = (pct: number) => (pct >= 80 ? "high" : pct >= 50 ? "warn" : "ok");
+export type Segment = { text: string; role?: Role; bold?: boolean; profile?: string };
+export type Line = Segment[];
 
-export const windowLabel = (w: UsageWindow) => (w.kind === "session" ? "Session (5h)" : w.kind === "week" ? "Week" : `${w.model} week`);
+// Below 70%, from 70%, from 90%. The digits carry the level; color and weight repeat it.
+export const levelOf = (pct: number): "ok" | "warn" | "high" => (pct >= 90 ? "high" : pct >= 70 ? "warn" : "ok");
+
+export const windowLabel = (w: UsageWindow) => (w.kind === "session" ? "5h" : w.kind === "week" ? "7d" : (w.model ?? "model"));
 
 const hhmm = (d: Date) => d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
-const day = (d: Date) => `${d.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" })} ${hhmm(d)}`;
+const dayTime = (d: Date) => `${d.toLocaleDateString("en-GB", { weekday: "short" })} ${hhmm(d)}`;
 
+// "<1m", "58m", "3h 17m", "4d 18h".
 export function span(ms: number) {
-  const minutes = Math.round(ms / 60_000);
-  if (minutes < 1) return "less than a minute";
-  if (minutes < 60) return `${minutes} min`;
+  const minutes = Math.floor(ms / 60_000);
+  if (minutes < 1) return "<1m";
+  if (minutes < 60) return `${minutes}m`;
   const hours = Math.floor(minutes / 60);
-  if (hours < 48) return `${hours}h${String(minutes % 60).padStart(2, "0")}`;
-  return `${Math.floor(hours / 24)} days`;
+  if (hours < 24) return `${hours}h ${minutes % 60}m`;
+  return `${Math.floor(hours / 24)}d ${hours % 24}h`;
 }
 
-export function resetText(w: UsageWindow, now: Date) {
-  if (w.reset || !w.resetsAt) return w.kind === "session" ? "no window open" : "reset";
-  if (w.kind === "session") return `resets ${hhmm(w.resetsAt)} · in ${span(w.resetsAt.getTime() - now.getTime())}`;
-  return `resets ${day(w.resetsAt)}`;
-}
+const BAR_WIDTH = 32;
+const SHORT_BAR_WIDTH = 8;
 
-// The pace as a sentence, and whether it is a warning.
-export function paceText(w: UsageWindow, now: Date): { text: string; warn: boolean } | null {
-  const p = pace(w, now);
-  if (!p) return null;
-  if ("runsOutAt" in p) return { text: `⚠ at this pace, runs out at ${w.kind === "session" ? hhmm(p.runsOutAt) : day(p.runsOutAt)}`, warn: true };
-  return { text: `~${p.leftAtReset}% left at reset`, warn: false };
-}
+const barSegments = (pct: number, width: number, role: Role): Segment[] => {
+  const { used, rest } = bar(pct, width);
+  return [
+    ...(used ? [{ text: "━".repeat(used), role }] : []),
+    ...(used && rest ? [{ text: " " }] : []),
+    ...(rest ? [{ text: "─".repeat(rest), role: "track" as Role }] : []),
+  ];
+};
 
-// How old the profile's data is, and whether that's too old.
-export function freshnessText(a: ProfileUsage, now: Date): { text: string; warn: boolean } | null {
-  if (!a.fetchedAt) return null;
-  const when = `data from ${hhmm(a.fetchedAt)} · ${span(now.getTime() - a.fetchedAt.getTime())} ago`;
-  return a.state === "stale" ? { text: `⚠ ${when}, stale: run /usage in this profile`, warn: true } : { text: when, warn: false };
-}
+const pctSegment = (pct: number, role: Role): Segment => ({ text: `${String(pct).padStart(3)}%`, role, bold: true });
 
-// What a profile without numbers says instead.
-export function stateNote(a: ProfileUsage) {
-  if (a.state === "not-signed-in") return `not signed in · sign in with: claude-${a.name} auth login`;
-  if (a.state === "no-data") return "no data yet · run /usage in this profile";
-  if (a.state === "other-account") return "the cache is from an earlier sign-in · run /usage in this profile";
+// What a profile without numbers says.
+function stateNote(a: ProfileUsage) {
+  if (a.state === "not-signed-in") return `not signed in, sign in with: claude-${a.name} auth login`;
+  if (a.state === "no-data") return "no data yet, run /usage in this profile";
+  if (a.state === "other-account") return "the cache is from an earlier sign-in, run /usage in this profile";
   return null;
+}
+
+const nameSegment = (a: ProfileUsage): Segment => ({ text: a.name, bold: true, profile: a.color });
+
+// The usage view: per profile, its name, [default] and the age of the data; then one line per
+// window, the labels in one column for every profile: the bar, the percentage and the reset.
+export function usageLines(list: ProfileUsage[], now: Date): Line[] {
+  const labelWidth = Math.max(2, ...list.flatMap((a) => a.windows.map((w) => windowLabel(w).length))) + 3;
+  const lines: Line[] = [];
+  for (const a of list) {
+    if (lines.length) lines.push([]);
+    const stale = a.state === "stale";
+    const head: Line = [nameSegment(a)];
+    if (a.default) head.push({ text: "  " }, { text: "[default]", role: "muted" });
+    const note = stateNote(a);
+    if (note) {
+      lines.push([...head, { text: "  " }, { text: note, role: "muted" }]);
+      continue;
+    }
+    if (a.fetchedAt) {
+      const age = `${span(now.getTime() - a.fetchedAt.getTime())} ago`;
+      head.push({ text: "  " }, stale ? { text: `${age}, stale: run /usage in this profile`, role: "warn" } : { text: age, role: "muted" });
+    }
+    lines.push(head);
+    for (const w of a.windows) {
+      const level: Role = stale ? "muted" : levelOf(w.pct);
+      const reset = w.reset || !w.resetsAt ? (w.kind === "session" ? "no window open" : "reset") : `resets ${span(w.resetsAt.getTime() - now.getTime())}`;
+      lines.push([
+        { text: `  ${windowLabel(w).padEnd(labelWidth)}` },
+        ...barSegments(w.pct, BAR_WIDTH, level),
+        { text: "  " },
+        pctSegment(w.pct, level),
+        { text: "  " },
+        { text: reset, role: !stale && w.pct >= 70 && !w.reset ? level : "muted" },
+      ]);
+      const p = stale ? null : pace(w, now);
+      if (p && "runsOutAt" in p)
+        lines.push([{ text: `  ${" ".repeat(labelWidth)}` }, { text: `runs out ${w.kind === "session" ? hhmm(p.runsOutAt) : dayTime(p.runsOutAt)} at this pace`, role: "warn" }]);
+    }
+  }
+  return lines;
+}
+
+// The short view, for a status line: one line per profile, the 5h and 7d windows with 8-cell
+// bars, and the reset only from 70%, in a column of fixed width so the 7d lines up.
+export function shortLines(list: ProfileUsage[], now: Date): Line[] {
+  const nameWidth = Math.max(...list.map((a) => a.name.length)) + 2;
+  return list.map((a) => {
+    const line: Line = [nameSegment(a), { text: " ".repeat(nameWidth - a.name.length) }];
+    if (a.state !== "ok" && a.state !== "stale") return [...line, { text: a.state === "not-signed-in" ? "not signed in" : a.state === "no-data" ? "no data" : "other account", role: "muted" }];
+    const stale = a.state === "stale";
+    const kinds = ["session", "week"] as const;
+    kinds.forEach((kind, i) => {
+      const w = a.windows.find((x) => x.kind === kind);
+      line.push({ text: `${kind === "session" ? "5h" : "7d"} ` });
+      if (!w) {
+        line.push({ text: "-".padEnd(SHORT_BAR_WIDTH + 5), role: "muted" });
+        if (i < kinds.length - 1) line.push({ text: " ".repeat(11) });
+      } else {
+        const level: Role = stale ? "muted" : levelOf(w.pct);
+        line.push(...barSegments(w.pct, SHORT_BAR_WIDTH, level), { text: " " }, pctSegment(w.pct, level));
+        const showReset = !stale && w.pct >= 70 && w.resetsAt && !w.reset;
+        const reset = showReset ? ` ↻ ${span(w.resetsAt!.getTime() - now.getTime()).replace(" ", "")}` : "";
+        if (i < kinds.length - 1) {
+          if (reset) line.push({ text: reset, role: level });
+          line.push({ text: " ".repeat(8 - reset.length + 3) });
+        } else if (reset) line.push({ text: reset, role: level });
+      }
+    });
+    if (stale) line.push({ text: "  stale", role: "muted" });
+    return line;
+  });
 }

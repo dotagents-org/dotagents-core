@@ -23,6 +23,8 @@ What changed for someone who updates a clone. The format follows [Keep a Changel
 
 ### Changed
 
+- **The look follows the new identity** (Vercel's Geist palette, no accent): colors per background (`DOTAGENTS_THEME=light|dark`, else `COLORFGBG`, else dark), a profile's name in a readable variant of its color, exact 256 and 16 color mapping.
+- **`usage` has a new layout:** no rail or dots, `5h`/`7d` labels, a thin bar of constant width, the percentage in bold, levels at 70% and 90% (were 50% and 80%), durations like `3h 17m`. **`usage --short` changed format** for status lines: one line per profile with 8-cell bars (`work  5h ━━━━━━ ─  72% ↻ 3h17m   7d …`).
 - Subagents run on Sonnet by default (`CLAUDE_CODE_SUBAGENT_MODEL` in the shared settings).
 - The terminal output goes through one renderer, and each command lives in its own file.
 

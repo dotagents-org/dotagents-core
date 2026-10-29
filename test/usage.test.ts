@@ -5,7 +5,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { test, type TestContext } from "node:test";
-import { profileUsage, bar, normalize, pace } from "../core/usage.ts";
+import { type ProfileUsage, bar, levelOf, normalize, pace, profileUsage, shortLines, span, usageLines } from "../core/usage.ts";
 
 const NOW = new Date("2026-10-28T12:00:00Z");
 const at = (iso: string) => new Date(iso);
@@ -72,12 +72,78 @@ test("the pace says when a window runs out, or how much is left at reset", () =>
   assert.equal(pace({ kind: "week", pct: 0, resetsAt: at("2026-11-03T21:59:59Z"), reset: false }, NOW), null);
 });
 
-test("the bar has a fixed width and eighth-of-a-cell steps", () => {
-  assert.equal(bar(0, 10), "··········");
-  assert.equal(bar(100, 10), "██████████");
-  assert.equal(bar(50, 10), "█████·····");
-  assert.equal(bar(55, 10), "█████▌····");
-  assert.equal([...bar(93, 30)].length, 30);
+test("the bar has the same width at every percentage: used, a gap, the rest", () => {
+  for (const width of [8, 32])
+    for (let pct = 0; pct <= 100; pct++) {
+      const { used, rest } = bar(pct, width);
+      assert.equal(used + rest + (used && rest ? 1 : 0), width, `${pct}% at ${width}`);
+      if (pct > 0) assert.ok(used >= 1, `${pct}% shows`);
+    }
+  assert.deepEqual(bar(0, 8), { used: 0, rest: 8 });
+  assert.deepEqual(bar(100, 8), { used: 8, rest: 0 });
+  assert.deepEqual(bar(72, 8), { used: 6, rest: 1 });
+  assert.deepEqual(bar(91, 8), { used: 6, rest: 1 }, "near the top the gap and one cell of track stay");
+  assert.deepEqual(bar(72, 32), { used: 23, rest: 8 });
+});
+
+test("the level turns at 70% and 90%", () => {
+  assert.equal(levelOf(69), "ok");
+  assert.equal(levelOf(70), "warn");
+  assert.equal(levelOf(89), "warn");
+  assert.equal(levelOf(90), "high");
+});
+
+test("durations are short: <1m, 58m, 3h 17m, 4d 18h", () => {
+  assert.equal(span(20_000), "<1m");
+  assert.equal(span(58 * 60_000), "58m");
+  assert.equal(span((3 * 60 + 17) * 60_000), "3h 17m");
+  assert.equal(span(((4 * 24 + 18) * 60 + 5) * 60_000), "4d 18h");
+});
+
+const text = (lines: { text: string }[][]) => lines.map((l) => l.map((s) => s.text).join("")).join("\n");
+
+const sample: ProfileUsage[] = [
+  {
+    name: "work",
+    color: "#D77655",
+    default: true,
+    state: "ok",
+    fetchedAt: at("2026-10-28T11:56:00Z"),
+    windows: [
+      { kind: "session", pct: 72, resetsAt: at("2026-10-28T15:17:00Z"), reset: false },
+      { kind: "week", pct: 48, resetsAt: at("2026-11-02T05:00:00Z"), reset: false },
+      { kind: "model-week", model: "Fable", pct: 59, resetsAt: at("2026-11-02T05:00:00Z"), reset: false },
+    ],
+  },
+  { name: "personal", color: "#376B80", state: "not-signed-in", fetchedAt: null, windows: [] },
+];
+
+test("the usage view: the profile, then one aligned line per window, with no rail, dots or icons", () => {
+  const out = text(usageLines(sample, NOW));
+  assert.match(out, /^work {2}\[default\] {2}4m ago$/m);
+  assert.match(out, /^ {2}5h {6}━{23} ─{8} {3}72% {2}resets 3h 17m$/m);
+  assert.match(out, /^ {2}Fable {3}━+ ─+ {3}59%/m);
+  assert.match(out, /^personal {2}not signed in, sign in with: claude-personal auth login$/m);
+  assert.doesNotMatch(out, /[◇·⚠└●!]/);
+  // The labels of every profile share one column.
+  const starts = out.split("\n").filter((l) => l.includes("━")).map((l) => l.indexOf("━"));
+  assert.equal(new Set(starts).size, 1);
+});
+
+test("from 70% the reset takes the level's color; below, it's muted, and so is a stale profile", () => {
+  const segs = usageLines(sample, NOW).flat();
+  assert.equal(segs.find((s) => s.text === "resets 3h 17m")?.role, "warn");
+  assert.equal(segs.find((s) => s.text.startsWith("resets 4d"))?.role, "muted");
+  assert.equal(segs.find((s) => s.text.trim() === "72%")?.bold, true);
+  const stale = usageLines([{ ...sample[0], state: "stale", fetchedAt: at("2026-10-28T02:00:00Z") }], NOW).flat();
+  assert.ok(stale.some((s) => s.text.includes("stale") && s.role === "warn"));
+  assert.ok(stale.filter((s) => s.text.includes("━")).every((s) => s.role === "muted"));
+});
+
+test("the short view: one line per profile, 5h and 7d with 8-cell bars, the reset only from 70%", () => {
+  const out = text(shortLines(sample, NOW));
+  assert.equal(out.split("\n")[0], "work      5h ━━━━━━ ─  72% ↻ 3h17m   7d ━━━━ ───  48%");
+  assert.equal(out.split("\n")[1], "personal  not signed in");
 });
 
 function tempProfile(t: TestContext, stateFile: unknown) {

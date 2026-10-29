@@ -113,17 +113,38 @@ Forgets the profile and deletes its launchers and, on Windows, its Start menu sh
 ## dotagents usage
 
 ```bash
-dotagents usage            # every profile: session (5h), week, per-model weeks
-dotagents usage --short    # one line: work 28%·22% │ personal 0%·0%
+dotagents usage            # every profile: the 5-hour window, the week, per-model weeks
+dotagents usage --short    # one line per profile, for a status line
 dotagents usage --json     # the data, for scripts
 dotagents usage --watch    # the full-screen view on the usage screen, updated live
 ```
 
 Reads the usage Claude Code keeps in each profile's state file (`cachedUsageUtilization` in `~/.claude.json`, or `<folder>/.claude.json`). It makes no network call and needs no token. Without profiles, it shows the one in `~/.claude`.
 
-For each window it shows a bar (green below 50%, yellow up to 79%, red from 80%), the percentage and when it resets. Once enough of the window has passed, a note says when it runs out at the current pace, or how much is left at the reset. A window whose reset time has passed shows as reset, never with the old number.
+```
+ dotagents  usage
 
-The cache is only as fresh as the last time Claude Code asked for the usage: `/usage` in a profile refreshes it. Each profile says how old its data is, and data older than 6 hours is marked stale. A profile that isn't signed in, has no data yet, or holds the cache of an earlier sign-in says so instead of showing a number.
+work  [default]  4m ago
+  5h      ━━━━━━━━━━━━━━━━━━━━━━━ ────────   72%  resets 3h 17m
+  7d      ━━━━━━━━━━━━━━━ ────────────────   48%  resets 4d 18h
+          runs out Fri 12:02 at this pace
+  Fable   ━━━━━━━━━━━━━━━━━━━ ────────────   59%  resets 4d 18h
+
+2 profiles, local data, no network
+```
+
+Each profile shows its name, `[default]` and how old its data is; then one line per window (`5h`, `7d`, and a model's own week): a bar, the percentage and when it resets. The percentage is green below 70%, yellow from 70% and red from 90%, and from 70% the reset takes that color too; the digits say it without color. A note says when a window runs out at the current pace. A window whose reset time has passed shows as reset, never with the old number.
+
+`--short` prints one line per profile with the 5-hour and weekly windows, 8-cell bars, and the time to the reset from 70%:
+
+```
+work      5h ━━━━━━ ─  72% ↻ 3h17m   7d ━━━━ ───  48%
+personal  5h ━━━━━━ ─  91% ↻ 58m     7d ━━ ─────  30%
+```
+
+For a status line, which isn't a terminal, keep the colors with `FORCE_COLOR=3 dotagents usage --short` (`2` where the terminal has no 24-bit color). Piped, `usage` prints one plain line per window instead: `<profile> <window> <pct> <reset, ISO> fetched <ISO>`, with `(stale)` on old data.
+
+Claude Code writes the cache when it asks for the usage, which happens during sessions and on `/usage`. Data older than 6 hours is marked stale and drawn muted. A profile that isn't signed in, has no data yet, or holds the cache of an earlier sign-in says so instead of showing a number.
 
 ## dotagents new
 

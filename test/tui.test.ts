@@ -56,7 +56,7 @@ test("the usage screen shows every profile, and the number keys switch screens",
   t.after(() => app.unmount());
   let frame = plain(app);
   for (const tab of ["1 Usage", "2 Profiles", "3 Workspaces", "4 Skills"]) assert.ok(frame.includes(tab), tab);
-  assert.match(frame, /work[\s\S]*Session \(5h\)[\s\S]*93%/);
+  assert.match(frame, /work[\s\S]*5h +━+ ─ +93%/);
   assert.match(frame, /personal[\s\S]*12%/);
 
   app.stdin.write("2");
@@ -83,7 +83,7 @@ test("the arrows and tab go round the screens, and the usage --watch view opens 
   assert.match(plain(app), /session-archive/);
   app.stdin.write("\u001B[C"); // →, from the last screen back to the first
   await settle();
-  assert.match(plain(app), /Session \(5h\)/);
+  assert.match(plain(app), /5h +━/);
   app.stdin.write("\t");
   await settle();
   assert.match(plain(app), /uuid-b@example\.com/);
