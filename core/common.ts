@@ -9,7 +9,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { spawn, type SpawnOptions } from "node:child_process";
 import { spinner } from "@clack/prompts";
-import { fancy, report, spinnerAllowed, style } from "./output.ts";
+import { fancy, report, spinnerAllowed, tone } from "./output.ts";
 import { state } from "./state.ts";
 
 export const isWindows = process.platform === "win32";
@@ -46,7 +46,7 @@ export function runWithSpinner(
     child.stderr.on("data", (d) => (output += d));
     const done = (code: number | null) => {
       const last = output.replace(/\x1b\[[0-9;?]*[A-Za-z]/g, "").trim().split(/\r?\n/).pop() ?? "";
-      if (spin) code === 0 ? spin.stop(style.dim(message)) : spin.error(message);
+      if (spin) code === 0 ? spin.stop(tone.muted(message)) : spin.error(message);
       resolve({ code: code ?? 1, last });
     };
     child.on("error", (err) => {

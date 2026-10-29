@@ -3,13 +3,13 @@
 
 import path from "node:path";
 import * as p from "@clack/prompts";
-import { displayPath, fancy, finish, header, interactive, line, rail, report, section, style } from "../../core/output.ts";
+import { brand, displayPath, fancy, finish, header, interactive, line, report, section, tone } from "../../core/output.ts";
 import { listSkills } from "../../core/skills.ts";
 import { state } from "../../core/state.ts";
 import { SAFE_NAME, SAFE_SOURCE, catalogFile, discoverSkills, loadCatalog, saveCatalog } from "../../core/thirdparty.ts";
 import { type Command, fitHint, wrap } from "./shared.ts";
 
-const { bold, dim, cyan, green, gray } = style;
+const { bold, muted } = tone;
 
 export const skills: Command = {
   name: "skills",
@@ -31,22 +31,22 @@ export const skills: Command = {
     const columns = Math.max(60, process.stdout.columns || 100);
     const row = (name: string, text: string, color: (text: string) => string) => {
       const lines = wrap(text, columns - width - 6);
-      line(`${color(name.padEnd(width))}${dim(lines[0] ?? "")}`);
-      for (const rest of lines.slice(1)) line(`${" ".repeat(width)}${dim(rest)}`);
+      line(`  ${color(name.padEnd(width))}${muted(lines[0] ?? "")}`);
+      for (const rest of lines.slice(1)) line(`  ${" ".repeat(width)}${muted(rest)}`);
     };
-    console.log(`${rail.start()}  ${bold(`${own.length} skills`)} ${dim(`in ${displayPath(path.join(repo, "skills"))}`)}`);
+    console.log(`${brand()}  ${bold("skills")}`);
     line();
-    for (const s of own) row(s.name, s.description, green);
+    line(`${bold(`${own.length} own`)}  ${muted(`in ${displayPath(path.join(repo, "skills"))}`)}`);
+    for (const s of own) row(s.name, s.description, bold);
     line();
-    console.log(`${style.cyan("◇")}  ${bold(`${thirdParty.length} third-party`)} ${dim("registered in skills/third-party-skills.json, installed with npx skills")}`);
-    if (!thirdParty.length) line(dim("None yet. Register one with: dotagents skills add <owner/repo>"));
+    line(`${bold(`${thirdParty.length} third-party`)}  ${muted("registered in skills/third-party-skills.json, installed with npx skills")}`);
+    if (!thirdParty.length) line(muted("  None yet. Register one with: dotagents skills add <owner/repo>"));
     for (const s of thirdParty) {
-      row(s.name, s.description, cyan);
-      line(`${" ".repeat(width)}${gray(`from ${s.source}`)}`);
+      row(s.name, s.description, (text) => text);
+      line(`  ${" ".repeat(width)}${muted(`from ${s.source}`)}`);
     }
     line();
-    console.log(`${rail.end()}  ${dim("Use in a workspace:")} dotagents init ${dim("<path>")} --skills ${dim("<name>")}
-`);
+    console.log(`${muted("Use in a workspace:")} dotagents init ${muted("<path>")} --skills ${muted("<name>")}\n`);
   },
 };
 

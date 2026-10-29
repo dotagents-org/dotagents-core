@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 // `dotagents`: applies this repository's Claude Code configuration. Works on Windows, Linux and
 // macOS with Node 22.18+, which runs this TypeScript file directly (type stripping, no build).
-// Make it a command with `npm install && npm link` in the clone (@clack/prompts and picocolors
-// draw the terminal output and the prompts; ink and react, the full-screen view in surfaces/tui/).
+// Make it a command with `npm install && npm link` in the clone (@clack/prompts for the
+// prompts; ink and react, the full-screen view in surfaces/tui/; the colors are core/theme.ts).
 //
 // This file only reads the arguments, picks the command and prints the help. Each command
 // lives in surfaces/cli/<name>.ts, and uses the modules in core/.
@@ -22,7 +22,7 @@ import { update } from "./surfaces/cli/update.ts";
 import { usage } from "./surfaces/cli/usage.ts";
 import { untrack, workspaces } from "./surfaces/cli/workspaces.ts";
 import { parseArgs } from "./core/common.ts";
-import { displayPath, fancy, interactive, style } from "./core/output.ts";
+import { brand, displayPath, fancy, interactive, tone } from "./core/output.ts";
 import { state } from "./core/state.ts";
 import { colorLevel } from "./core/theme.ts";
 
@@ -38,11 +38,11 @@ const COMMANDS: Command[] = [install, update, settingsPull, profileAdd, profileL
 
 const repo = path.dirname(fileURLToPath(import.meta.url));
 const version = JSON.parse(fs.readFileSync(path.join(repo, "package.json"), "utf8")).version;
-const { bold, dim, cyan, red, magenta, gray } = style;
+const { bold, muted, high } = tone;
 
 function help() {
   const cmd = ({ name, usage, summary, more = [] }: Command) => {
-    const left = `${cyan(name)}${usage ? ` ${dim(usage)}` : ""}`;
+    const left = `${bold(name)}${usage ? ` ${muted(usage)}` : ""}`;
     const width = name.length + (usage ? usage.length + 1 : 0);
     const pad = " ".repeat(Math.max(2, 30 - width));
     return [`  ${left}${pad}${summary}`, ...more.map((text) => `${" ".repeat(32)}${text}`)].join("\n");
@@ -51,37 +51,37 @@ function help() {
   const groups = (["Machine", "Profiles", "Workspace", "Skills"] as const).map(
     (group) => `${title(group)}\n${COMMANDS.filter((c) => c.group === group).map(cmd).join("\n")}`
   );
-  return `${bold(magenta("dotagents"))} ${dim(version)}  Claude Code configuration
+  return `${brand()} ${muted(version)}  Claude Code configuration
 
 ${title("Usage")}
-  dotagents ${dim("<command> [options]")}
-  dotagents              ${dim("in a terminal, the full-screen view (usage, profiles, workspaces, skills)")}
+  dotagents ${muted("<command> [options]")}
+  dotagents              ${muted("in a terminal, the full-screen view (usage, profiles, workspaces, skills)")}
 
 ${groups.join("\n\n")}
 
 ${title("Options")}
-  ${cyan("--dry-run")}    show what would be done, change nothing
-  ${cyan("--yes")}        (init) don't ask anything
-  ${cyan("--wrap")}       (init) move a repository into <name>-workspace/ first
-  ${cyan("--default")}    (profile add) the profile in ~/.claude
-  ${cyan("--color")}      (profile add) the profile's color, #RRGGBB
-  ${cyan("--short")}      (usage) one line, for a prompt or a status line
-  ${cyan("--json")}       (usage) the data, for scripts
-  ${cyan("--watch")}      (usage) the full-screen view, updated live
-  ${cyan("--no-pull")}    (update) skip git pull, only reapply
-  ${cyan("--from")}       (settings pull) the profile to take the settings from
-  ${cyan("--help")}       show this help
-  ${cyan("--version")}    show the version
+  ${bold("--dry-run")}    show what would be done, change nothing
+  ${bold("--yes")}        (init) don't ask anything
+  ${bold("--wrap")}       (init) move a repository into <name>-workspace/ first
+  ${bold("--default")}    (profile add) the profile in ~/.claude
+  ${bold("--color")}      (profile add) the profile's color, #RRGGBB
+  ${bold("--short")}      (usage) one line, for a prompt or a status line
+  ${bold("--json")}       (usage) the data, for scripts
+  ${bold("--watch")}      (usage) the full-screen view, updated live
+  ${bold("--no-pull")}    (update) skip git pull, only reapply
+  ${bold("--from")}       (settings pull) the profile to take the settings from
+  ${bold("--help")}       show this help
+  ${bold("--version")}    show the version
 
 ${title("Examples")}
-  ${gray("$")} dotagents new git@github.com:me/app.git
-  ${gray("$")} dotagents init
-  ${gray("$")} dotagents init ~/projects/app --skills session-archive,to-cards
-  ${gray("$")} dotagents check ~/projects/app
-  ${gray("$")} dotagents update --all
+  ${muted("$")} dotagents new git@github.com:me/app.git
+  ${muted("$")} dotagents init
+  ${muted("$")} dotagents init ~/projects/app --skills session-archive,to-cards
+  ${muted("$")} dotagents check ~/projects/app
+  ${muted("$")} dotagents update --all
 
-${dim("Repository:")} ${displayPath(repo)}
-${dim("Third-party skills:")} npx skills add <owner/repo> ${dim("(at the workspace root)")}`;
+${muted("Repository:")} ${displayPath(repo)}
+${muted("Third-party skills:")} npx skills add <owner/repo> ${muted("(at the workspace root)")}`;
 }
 
 // "skills add x" → the two-word command with ["x"]; "check x" → the one-word command.
@@ -117,7 +117,7 @@ if (args.version) {
       return loadView().then(({ runTui }) => runTui(repo, screen));
     })
     .catch((err) => {
-      console.error(fancy ? `${red("✗")} ${bold("dotagents:")} ${err.message}` : `dotagents: ${err.message}`);
+      console.error(fancy ? `${high("✗")} ${bold("dotagents:")} ${err.message}` : `dotagents: ${err.message}`);
       process.exitCode = 1;
     });
 }
