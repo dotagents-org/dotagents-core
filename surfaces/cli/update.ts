@@ -2,20 +2,20 @@ import fs from "node:fs";
 import path from "node:path";
 import { runWithSpinner } from "../../core/common.ts";
 import { installProfiles } from "../../core/profiles.ts";
-import { checkWarn, displayPath, fancy, finish, header, line, report, section, style } from "../../core/output.ts";
+import { checkWarn, displayPath, fancy, finish, header, line, report, section, tone } from "../../core/output.ts";
 import { loadWorkspaces } from "../../core/machine-state.ts";
 import { listSkills, resolveSkills } from "../../core/skills.ts";
 import { state } from "../../core/state.ts";
 import { applyWorkspace } from "../../core/workspace.ts";
 import type { Command } from "./shared.ts";
 
-const { bold, magenta } = style;
+const { bold } = tone;
 
 export const update: Command = {
   name: "update",
   usage: "[--all]",
   summary: "git pull this repository and run install",
-  more: [`with ${style.cyan("--all")}, also refresh every tracked workspace`, "and update its third-party skills"],
+  more: [`with ${bold("--all")}, also refresh every tracked workspace`, "and update its third-party skills"],
   group: "Machine",
   async run({ repo, args }) {
     header("update", args.all ? "all tracked workspaces" : "");
@@ -50,7 +50,7 @@ export const update: Command = {
       for (const w of loadWorkspaces()) {
         if (fancy) {
           line();
-          console.log(`${magenta("◆")}  ${bold(displayPath(w.path))}`);
+          console.log(bold(displayPath(w.path)));
         }
         if (!fs.existsSync(w.path)) {
           report("skipped", w.path, "folder not found; stop tracking it with: dotagents untrack");

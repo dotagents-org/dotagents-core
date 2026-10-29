@@ -5,7 +5,7 @@
 - **Node.js 22.18 or newer**, with npm.
 - **git**, on the PATH.
 - **npx**, which comes with npm, for third-party skills (`npx skills`).
-- Two npm dependencies, installed by `npm install`: [@clack/prompts](https://github.com/bombshell-dev/clack) for the terminal look, the questions and the spinners, and [picocolors](https://github.com/alexeyraspopov/picocolors) for colors.
+- npm dependencies, installed by `npm install`: [@clack/prompts](https://github.com/bombshell-dev/clack) for the questions and the spinners, and [Ink](https://github.com/vadimdemedes/ink) with React for the full-screen view.
 
 No administrator rights are needed on Windows: folders are linked with junctions, and files are copied.
 

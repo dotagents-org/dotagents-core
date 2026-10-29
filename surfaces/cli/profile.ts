@@ -5,10 +5,10 @@ import { verifyGlobal } from "../../core/global.ts";
 import { configDirs, dropProfile, launcherDir, launcherFile, setUpProfile, showFolder, verifyProfiles } from "../../core/profiles.ts";
 import { signedIn } from "../../core/claude-code.ts";
 import { loadProfiles } from "../../core/machine-state.ts";
-import { displayPath, fancy, finish, header, line, paint, rail, style } from "../../core/output.ts";
+import { displayPath, fancy, finish, header, line, paint, tone } from "../../core/output.ts";
 import type { Command } from "./shared.ts";
 
-const { bold, dim, cyan } = style;
+const { bold, muted } = tone;
 
 const onPath = (dir: string) => (process.env.PATH ?? "").split(path.delimiter).some((p) => path.resolve(p) === path.resolve(dir));
 
@@ -40,7 +40,7 @@ export const profileList: Command = {
     const profiles = loadProfiles();
     if (!profiles.length) {
       const hint = "No profiles yet. Add the one in ~/.claude with: dotagents profile add <name> --default";
-      return console.log(fancy ? `${rail.start()}  ${dim(hint)}\n${rail.end()}\n` : hint);
+      return console.log(fancy ? muted(hint) : hint);
     }
     header("profile list", `${profiles.length} profile${profiles.length === 1 ? "" : "s"}`);
     const width = Math.max(...profiles.map((a) => a.name.length)) + 2;
@@ -53,8 +53,8 @@ export const profileList: Command = {
       }
       const color = paint(a.color);
       line();
-      line(`${color("●")} ${bold(color(a.name.padEnd(width)))}${a.default ? cyan("default  ") : "         "}${who ? email : dim(email)}`);
-      line(`  ${dim(`${showFolder(a.configDir)} · ${path.basename(launcherFile(a.name))}`)}`);
+      line(`${bold(color(a.name.padEnd(width)))}${a.default ? muted("[default]  ") : "           "}${who ? email : muted(email)}`);
+      line(`  ${muted(`${showFolder(a.configDir)}  ${path.basename(launcherFile(a.name))}`)}`);
     }
     verifyProfiles();
     verifyGlobal(repo, configDirs());

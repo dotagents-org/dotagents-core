@@ -3,14 +3,14 @@ import fs from "node:fs";
 import path from "node:path";
 import * as p from "@clack/prompts";
 import { gitRepoOf, isRepoRoot } from "../../core/git.ts";
-import { displayPath, fancy, finish, header, interactive, line, style } from "../../core/output.ts";
+import { brand, displayPath, fancy, finish, header, interactive, line, tone } from "../../core/output.ts";
 import { registerWorkspace, untrackWorkspace } from "../../core/machine-state.ts";
 import { listSkills, resolveSkills, skillsIn } from "../../core/skills.ts";
 import { state } from "../../core/state.ts";
 import { applyWorkspace, assertWorkspace, wrapRepository } from "../../core/workspace.ts";
 import { type Command, type Context, expandHome, fitHint, workspaceArg } from "./shared.ts";
 
-const { bold, dim } = style;
+const { bold, muted: dim } = tone;
 
 export const init: Command = {
   name: "init",
@@ -77,7 +77,7 @@ async function askInit(ctx: Context, defaultWs: string, { opened = false } = {})
     return value as Exclude<T, symbol>;
   };
 
-  if (!opened) p.intro(`${style.bgMagenta(style.white(style.bold(" dotagents ")))} ${bold("init")}`);
+  if (!opened) p.intro(`${brand()}  ${bold("init")}`);
 
   let ws = defaultWs;
   if (ctx.positional[0] === undefined && !opened) {
@@ -117,7 +117,7 @@ async function askInit(ctx: Context, defaultWs: string, { opened = false } = {})
     await p.multiselect({
       message: `Which skills should ${bold(displayPath(ws))} use?`,
       options: listSkills(repo).map((s) => {
-        const label = s.kind === "own" ? s.name : `${s.name} ${dim(`· ${s.source}`)}`;
+        const label = s.kind === "own" ? s.name : `${s.name}  ${dim(s.source)}`;
         const here = s.kind === "own" ? "already linked" : "already installed";
         return { value: s.name, label, hint: present.includes(s.name) ? here : fitHint(s.description, label) };
       }),

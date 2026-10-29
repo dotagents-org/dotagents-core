@@ -27,7 +27,7 @@ dotagents/
 
 ## Modules
 
-The command is TypeScript run directly by Node (type stripping, no build step) with four dependencies: `@clack/prompts` and `picocolors` for the commands, `ink` and `react` for the full-screen view. `cli.ts` reads the arguments and hands them to one of the commands in `surfaces/cli/`, which asks the questions and calls the modules. Everything that decides what a workspace or a machine should look like lives in `core/`, in a few modules with small interfaces.
+The command is TypeScript run directly by Node (type stripping, no build step) with three dependencies: `@clack/prompts` for the questions and the spinners, `ink` and `react` for the full-screen view. The colors come from `core/theme.ts`. `cli.ts` reads the arguments and hands them to one of the commands in `surfaces/cli/`, which asks the questions and calls the modules. Everything that decides what a workspace or a machine should look like lives in `core/`, in a few modules with small interfaces.
 
 **Core and surfaces.** `core/` holds the data and the actions and draws nothing. A surface is a way in: the commands (`surfaces/cli/`), the full-screen view (`surfaces/tui/`), and later the VS Code extension, the tray, the dashboard, the MCP server. Each surface uses `core/` and never another surface; `cli.ts`, at the root, is the one place that picks a surface, as when `usage --watch` opens the full-screen view (a command's `view`). `test/boundaries.test.ts` fails when an import breaks the rule.
 

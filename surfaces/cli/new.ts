@@ -2,13 +2,13 @@ import fs from "node:fs";
 import path from "node:path";
 import * as p from "@clack/prompts";
 import { runWithSpinner } from "../../core/common.ts";
-import { displayPath, finish, header, interactive, report, section, style } from "../../core/output.ts";
+import { brand, displayPath, finish, header, interactive, report, section, tone } from "../../core/output.ts";
 import { state } from "../../core/state.ts";
 import { assertWorkspace, listRepoInAgentsMd } from "../../core/workspace.ts";
 import { initWorkspace } from "./init.ts";
 import { type Command, expandHome } from "./shared.ts";
 
-const { bold } = style;
+const { bold } = tone;
 
 // Creates a workspace around a repository: <name>-workspace/ holds the agent files and
 // <name>-workspace/<name>/ the clone, so the project repository never sees them. With an
@@ -36,7 +36,7 @@ export const newWorkspace: Command = {
     let folder = ctx.positional[1];
     const asked = folder === undefined && interactive && !args.yes;
     if (asked) {
-      p.intro(`${style.bgMagenta(style.white(style.bold(" dotagents ")))} ${bold("new")}`);
+      p.intro(`${brand()}  ${bold("new")}`);
       const answer = await p.text({
         message: "Workspace folder name?",
         placeholder: `${name}-workspace`,
