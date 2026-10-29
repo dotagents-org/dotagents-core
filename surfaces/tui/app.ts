@@ -1,11 +1,16 @@
-// The full-screen view of dotagents: a header, one tab per screen, the active screen and the
-// keys. `dotagents` with no arguments opens it in a terminal; `dotagents usage --watch` opens it
+// The full-screen view of dotagents: a header (the face, the badge, the version), one tab per
+// screen, the active screen and the keys. `dotagents` with no arguments opens it in a terminal; `dotagents usage --watch` opens it
 // on the usage screen. Built with Ink, without JSX: Node runs .ts but doesn't turn JSX into code.
 
 import fs from "node:fs";
 import path from "node:path";
 import { Box, Text, render, useApp, useInput, useStdout } from "ink";
 import { createElement as h, useEffect, useState } from "react";
+import { PALETTE } from "../../core/profiles.ts";
+import { defaultConfigDir } from "../../core/claude-code.ts";
+import { loadProfiles } from "../../core/machine-state.ts";
+import { FACES, FACE_SQUARE, ROLES } from "../../core/theme.ts";
+import { faceOf, profileUsage } from "../../core/usage.ts";
 import { type Screen, theme } from "./screen.ts";
 import { profilesScreen } from "./screens/profiles.ts";
 import { skillsScreen } from "./screens/skills.ts";
@@ -43,17 +48,27 @@ export function App({ repo, initial = SCREENS[0].id }: { repo: string; initial?:
   });
   const version = JSON.parse(fs.readFileSync(path.join(repo, "package.json"), "utf8")).version;
   const screen = SCREENS[index];
+  const profiles = loadProfiles();
+  const usage = (profiles.length ? profiles : [{ name: "claude", color: PALETTE[0], default: true, configDir: defaultConfigDir() }]).map((p) => profileUsage(p, now));
+  const face = FACES[faceOf(usage, now)];
   return h(
     Box,
     { flexDirection: "column", paddingX: 1 },
-    h(Text, null, h(Text, { inverse: true }, " dotagents "), h(Text, { color: theme.muted }, ` ${version}`)),
+    h(
+      Text,
+      null,
+      h(Text, { backgroundColor: FACE_SQUARE, color: ROLES[face.role].dark }, ` ${face.eyes} `),
+      " ",
+      h(Text, { inverse: true }, " dotagents "),
+      h(Text, { color: theme.muted }, `  ${version}`)
+    ),
     h(
       Box,
       { marginY: 1 },
       ...SCREENS.map((s, i) => h(Text, { key: s.id, inverse: i === index, color: i === index ? undefined : theme.muted }, ` ${i + 1} ${s.title} `))
     ),
     h(screen.Component, { key: screen.id, repo, now, refresh, rows }),
-    h(Box, { marginTop: 1 }, h(Text, { color: theme.muted }, `tab ←→ screens · 1-${SCREENS.length} jump · ↑↓ select · r reload · q quit`))
+    h(Box, { marginTop: 1 }, h(Text, { color: theme.muted }, `tab ←→ screens   1-${SCREENS.length} jump   ↑↓ select   r reload   q quit`))
   );
 }
 

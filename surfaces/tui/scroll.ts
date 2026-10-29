@@ -26,6 +26,6 @@ export function ScrollList({ lines, rows }: { lines: ReactNode[]; rows: number }
     { flexDirection: "column" },
     h(Text, { color: theme.muted }, start > 0 ? `↑ ${start} more` : " "),
     ...lines.slice(start, start + visible),
-    h(Text, { color: theme.muted }, start < last ? `↓ ${lines.length - start - visible} more · ↑↓ scroll` : " ")
+    h(Text, { color: theme.muted }, start < last ? `↓ ${lines.length - start - visible} more   ↑↓ scroll` : " ")
   );
 }

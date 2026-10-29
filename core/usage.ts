@@ -214,6 +214,17 @@ export function usageLines(list: ProfileUsage[], now: Date): Line[] {
   return lines;
 }
 
+// The face the usage calls for: at the limit (a window from 90%), warn (from 70%, or a pace that
+// runs out before the reset), asleep (no profile with fresh data) or ok.
+export function faceOf(list: ProfileUsage[], now: Date): "limit" | "warn" | "asleep" | "ok" {
+  const live = list.filter((a) => a.state === "ok");
+  if (!live.length) return "asleep";
+  const windows = live.flatMap((a) => a.windows);
+  if (windows.some((w) => w.pct >= 90)) return "limit";
+  if (windows.some((w) => w.pct >= 70 || "runsOutAt" in (pace(w, now) ?? {}))) return "warn";
+  return "ok";
+}
+
 // The short view, for a status line: one line per profile, the 5h and 7d windows with 8-cell
 // bars, and the reset only from 70%, in a column of fixed width so the 7d lines up.
 export function shortLines(list: ProfileUsage[], now: Date): Line[] {

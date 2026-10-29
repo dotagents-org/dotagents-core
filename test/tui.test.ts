@@ -64,13 +64,13 @@ test("the usage screen shows every profile, and the number keys switch screens",
   frame = plain(app);
   assert.match(frame, /uuid-a@example\.com/);
   // The profiles' checklist, from verifyProfiles through capture: these profiles have no launcher.
-  assert.match(frame, /✗ 4 passed · 2 failed[\s\S]*launcher claude-work(\.cmd)? exists/);
+  assert.match(frame, /✗ 4 passed, 2 failed[\s\S]*launcher claude-work(\.cmd)? exists/);
 
   app.stdin.write("4");
   await settle();
   assert.match(plain(app), /session-archive/);
   // More skills than lines: the list scrolls instead of growing past the terminal.
-  assert.match(plain(app), /↓ \d+ more · ↑↓ scroll/);
+  assert.match(plain(app), /↓ \d+ more   ↑↓ scroll/);
   app.stdin.write("\u001B[B"); // ↓
   await settle();
   assert.match(plain(app), /↑ 1 more/);
@@ -101,7 +101,7 @@ test("i on the profiles screen previews the install, n cancels it and y applies 
   const app = render(h(App, { repo: REPO, initial: "profiles" }));
   t.after(() => app.unmount());
   app.stdin.write("i");
-  await until(app, /Install, preview:[\s\S]*would create[\s\S]*y apply · n cancel/);
+  await until(app, /Install, preview:[\s\S]*would create[\s\S]*y apply   n cancel/);
   assert.ok(!fs.existsSync(launcher));
   app.stdin.write("n");
   await settle();
@@ -130,4 +130,15 @@ test("a on the workspaces screen applies the standards to the picked workspace, 
   await until(app, /Apply the standards:[\s\S]*created/);
   assert.ok(fs.existsSync(path.join(ws, "AGENTS.md")));
   assert.ok(fs.existsSync(path.join(ws, ".agents", "skills", "to-cards", "SKILL.md")));
+});
+
+test("the frame has the face, the badge and the keys, with no dots between them", async (t) => {
+  twoProfiles(t);
+  const app = render(h(App, { repo: REPO }));
+  t.after(() => app.unmount());
+  await settle();
+  const frame = plain(app);
+  assert.match(frame, /^ *> < +dotagents +\d+\.\d+\.\d+/, "a window at 93% puts the face at the limit");
+  assert.match(frame, /tab ←→ screens {3}1-\d jump/);
+  assert.doesNotMatch(frame, /[·◇●└]/);
 });

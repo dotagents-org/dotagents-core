@@ -19,15 +19,15 @@ export function Checks({ events }: { events: Event[] }) {
       null,
       h(Text, { color: failed ? theme.failed : theme.passed }, failed ? "✗ " : "✓ "),
       `${passed} passed`,
-      failed ? h(Text, { color: theme.failed }, ` · ${failed} failed`) : null,
-      problems.length > failed ? h(Text, { color: theme.warning }, ` · ${problems.length - failed} to note`) : null
+      failed ? h(Text, { color: theme.failed }, `, ${failed} failed`) : null,
+      problems.length > failed ? h(Text, { color: theme.warning }, `, ${problems.length - failed} to note`) : null
     ),
     ...problems.map((e, i) =>
       h(
         Box,
         { key: i, flexDirection: "column" },
-        e.kind === "check" ? h(Text, { color: theme.failed }, `  ✗ ${e.text}`) : e.kind === "warning" ? h(Text, { color: theme.warning }, `  ! ${e.text}`) : null,
-        "detail" in e && e.detail ? h(Text, { color: theme.muted }, `    └ ${e.detail}`) : null
+        e.kind === "check" ? h(Text, { color: theme.failed }, `  ✗ ${e.text}`) : e.kind === "warning" ? h(Text, { color: theme.warning }, `  ▲ ${e.text}`) : null,
+        "detail" in e && e.detail ? h(Text, { color: theme.muted }, `    ${e.detail}`) : null
       )
     )
   );

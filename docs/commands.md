@@ -26,7 +26,7 @@ dotagents <command> [options]
 
 ## The full-screen view
 
-In a terminal, `dotagents` with no command opens a full-screen view with one tab per screen: **Usage** (live, the same as `dotagents usage`), **Profiles** (the same as `profile list`, with its checklist), **Workspaces** (↑↓ picks one, and its `check` shows below) and **Skills**. `dotagents usage --watch` opens it on the usage screen.
+In a terminal, `dotagents` with no command opens a full-screen view. Its header has the face of the dotagents symbol, whose eyes follow the usage: `• •` all fine, `• •` in yellow from 70% (or a pace that runs out before the reset), `> <` in red from 90%, `– –` without fresh data. Below it, one tab per screen: **Usage** (live, the same as `dotagents usage`), **Profiles** (the same as `profile list`, with its checklist), **Workspaces** (↑↓ picks one, and its `check` shows below) and **Skills**. `dotagents usage --watch` opens it on the usage screen.
 
 | Key | Does |
 |---|---|
