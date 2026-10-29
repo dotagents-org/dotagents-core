@@ -1,10 +1,10 @@
 // `usage`: how much of each profile's plan is used, from Claude Code's own cache.
 
-import { PALETTE } from "../lib/profiles.ts";
-import { defaultConfigDir } from "../lib/claude-code.ts";
-import { loadProfiles } from "../lib/machine-state.ts";
-import { fancy, header, interactive, line, paint, rail, style } from "../lib/output.ts";
-import { type ProfileUsage, type UsageWindow, profileUsage, bar, freshnessText, levelOf, paceText, resetText, stateNote, windowLabel } from "../lib/usage.ts";
+import { PALETTE } from "../../core/profiles.ts";
+import { defaultConfigDir } from "../../core/claude-code.ts";
+import { loadProfiles } from "../../core/machine-state.ts";
+import { fancy, header, line, paint, rail, style } from "../../core/output.ts";
+import { type ProfileUsage, type UsageWindow, profileUsage, bar, freshnessText, levelOf, paceText, resetText, stateNote, windowLabel } from "../../core/usage.ts";
 import type { Command } from "./shared.ts";
 
 const { bold, dim, cyan, gray, green, yellow, red } = style;
@@ -74,12 +74,8 @@ export const usage: Command = {
   summary: "show how much of each profile's plan is used",
   more: ["from Claude Code's cache, no network;", "/usage in a profile refreshes it"],
   group: "Profiles",
-  async run({ repo, args }) {
-    if (args.watch) {
-      if (!interactive) throw new Error("--watch needs a terminal; use --json or --short in scripts");
-      const { runTui } = await import("../tui/app.ts");
-      return runTui(repo, "usage");
-    }
+  view: (args) => (args.watch ? "usage" : null),
+  run({ args }) {
     const now = new Date();
     const profiles = loadProfiles();
     // Without profiles, the one in ~/.claude.

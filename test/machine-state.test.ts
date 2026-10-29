@@ -5,8 +5,8 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { test, type TestContext } from "node:test";
-import { loadProfiles, loadWorkspaces, migrateLegacyProfiles, profilesFile, registerWorkspace, removeProfile, saveProfile, untrackWorkspace, workspacesFile } from "../lib/machine-state.ts";
-import { state } from "../lib/state.ts";
+import { loadProfiles, loadWorkspaces, migrateLegacyProfiles, profilesFile, registerWorkspace, removeProfile, saveProfile, untrackWorkspace, workspacesFile } from "../core/machine-state.ts";
+import { state } from "../core/state.ts";
 import { quiet } from "./helpers.ts";
 
 function tempStateDir(t: TestContext) {

@@ -4,10 +4,10 @@
 import { Box, Text, useInput } from "ink";
 import { createElement as h, useMemo } from "react";
 import path from "node:path";
-import { installProfiles, launcherFile, showFolder, verifyProfiles } from "../../lib/profiles.ts";
-import { signedIn } from "../../lib/claude-code.ts";
-import { loadProfiles } from "../../lib/machine-state.ts";
-import { capture } from "../../lib/output.ts";
+import { installProfiles, launcherFile, showFolder, verifyProfiles } from "../../../core/profiles.ts";
+import { signedIn } from "../../../core/claude-code.ts";
+import { loadProfiles } from "../../../core/machine-state.ts";
+import { capture } from "../../../core/output.ts";
 import { type Screen, type ScreenProps, theme } from "../screen.ts";
 import { ActionView, useAction } from "../action.ts";
 import { Checks } from "./checks.ts";

@@ -3,7 +3,7 @@
 
 import { Box, Text } from "ink";
 import { createElement as h } from "react";
-import type { Event } from "../../lib/output.ts";
+import type { Event } from "../../../core/output.ts";
 import { theme } from "../screen.ts";
 
 export function Checks({ events }: { events: Event[] }) {

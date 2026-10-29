@@ -2,8 +2,8 @@
 
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { capture, captureAsync, checkItem, checkWarn, finish, report, section } from "../lib/output.ts";
-import { state } from "../lib/state.ts";
+import { capture, captureAsync, checkItem, checkWarn, finish, report, section } from "../core/output.ts";
+import { state } from "../core/state.ts";
 import { quiet } from "./helpers.ts";
 
 test("results, checks and warnings become events and counters", () => {

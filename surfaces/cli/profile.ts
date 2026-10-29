@@ -1,10 +1,10 @@
 // `profile add`, `profile list` and `profile remove`: the Claude profiles of this machine.
 
 import path from "node:path";
-import { dropProfile, launcherDir, launcherFile, setUpProfile, showFolder, verifyProfiles } from "../lib/profiles.ts";
-import { signedIn } from "../lib/claude-code.ts";
-import { loadProfiles } from "../lib/machine-state.ts";
-import { displayPath, fancy, finish, header, line, paint, rail, style } from "../lib/output.ts";
+import { dropProfile, launcherDir, launcherFile, setUpProfile, showFolder, verifyProfiles } from "../../core/profiles.ts";
+import { signedIn } from "../../core/claude-code.ts";
+import { loadProfiles } from "../../core/machine-state.ts";
+import { displayPath, fancy, finish, header, line, paint, rail, style } from "../../core/output.ts";
 import type { Command } from "./shared.ts";
 
 const { bold, dim, cyan } = style;

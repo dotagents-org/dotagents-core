@@ -4,7 +4,7 @@
 
 import { Box, Text } from "ink";
 import { createElement as h, useState } from "react";
-import { type Event, captureAsync, displayPath } from "../lib/output.ts";
+import { type Event, captureAsync, displayPath } from "../../core/output.ts";
 import { theme } from "./screen.ts";
 
 export type Action = {

@@ -1,10 +1,10 @@
 import fs from "node:fs";
 import path from "node:path";
 import * as p from "@clack/prompts";
-import { runWithSpinner } from "../lib/common.ts";
-import { displayPath, finish, header, interactive, report, section, style } from "../lib/output.ts";
-import { state } from "../lib/state.ts";
-import { assertWorkspace, listRepoInAgentsMd } from "../lib/workspace.ts";
+import { runWithSpinner } from "../../core/common.ts";
+import { displayPath, finish, header, interactive, report, section, style } from "../../core/output.ts";
+import { state } from "../../core/state.ts";
+import { assertWorkspace, listRepoInAgentsMd } from "../../core/workspace.ts";
 import { initWorkspace } from "./init.ts";
 import { type Command, expandHome } from "./shared.ts";
 

@@ -2,7 +2,7 @@
 
 import { Box, Text } from "ink";
 import { createElement as h, useMemo } from "react";
-import { listSkills } from "../../lib/skills.ts";
+import { listSkills } from "../../../core/skills.ts";
 import { type Screen, type ScreenProps, theme } from "../screen.ts";
 import { ScrollList } from "../scroll.ts";
 

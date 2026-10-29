@@ -8,9 +8,9 @@ import path from "node:path";
 import { test, type TestContext } from "node:test";
 import { render } from "ink-testing-library";
 import { createElement as h } from "react";
-import { launcherFile } from "../lib/profiles.ts";
-import { registerWorkspace, saveProfile } from "../lib/machine-state.ts";
-import { App } from "../tui/app.ts";
+import { launcherFile } from "../core/profiles.ts";
+import { registerWorkspace, saveProfile } from "../core/machine-state.ts";
+import { App } from "../surfaces/tui/app.ts";
 import { REPO, quiet } from "./helpers.ts";
 
 const settle = () => new Promise((resolve) => setTimeout(resolve, 60));

@@ -3,10 +3,10 @@
 
 import path from "node:path";
 import * as p from "@clack/prompts";
-import { displayPath, fancy, finish, header, interactive, line, rail, report, section, style } from "../lib/output.ts";
-import { listSkills } from "../lib/skills.ts";
-import { state } from "../lib/state.ts";
-import { SAFE_NAME, SAFE_SOURCE, catalogFile, discoverSkills, loadCatalog, saveCatalog } from "../lib/thirdparty.ts";
+import { displayPath, fancy, finish, header, interactive, line, rail, report, section, style } from "../../core/output.ts";
+import { listSkills } from "../../core/skills.ts";
+import { state } from "../../core/state.ts";
+import { SAFE_NAME, SAFE_SOURCE, catalogFile, discoverSkills, loadCatalog, saveCatalog } from "../../core/thirdparty.ts";
 import { type Command, fitHint, wrap } from "./shared.ts";
 
 const { bold, dim, cyan, green, gray } = style;
