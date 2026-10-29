@@ -6,7 +6,8 @@ import os from "node:os";
 import path from "node:path";
 import { test, type TestContext } from "node:test";
 import { state } from "../core/state.ts";
-import { installGlobal } from "../core/global.ts";
+import { GLOBAL_CONFIG_KEYS, installGlobal, pullSettings, verifyGlobal } from "../core/global.ts";
+import { execFileSync } from "node:child_process";
 import { REPO, quiet } from "./helpers.ts";
 
 function tempHome(t: TestContext) {
@@ -64,4 +65,112 @@ test("install can target another config folder, for a second profile, and leaves
   assert.ok(fs.existsSync(path.join(other, "rules", "commit-conventions.md")));
   assert.ok(fs.existsSync(path.join(other, "settings.json")));
   assert.ok(!fs.existsSync(path.join(home, ".claude")));
+});
+
+// A clone of our own to change: the files install reads, under git.
+function tempRepo(t: TestContext) {
+  const repo = fs.mkdtempSync(path.join(os.tmpdir(), "dotagents-repo-"));
+  t.after(() => fs.rmSync(repo, { recursive: true, force: true }));
+  for (const dir of ["global", "rules", "claude"]) fs.cpSync(path.join(REPO, dir), path.join(repo, dir), { recursive: true });
+  const git = (...args: string[]) => execFileSync("git", ["-C", repo, ...args], { stdio: "ignore" });
+  git("init", "-q");
+  git("-c", "user.name=t", "-c", "user.email=t@example.com", "add", "-A");
+  git("-c", "user.name=t", "-c", "user.email=t@example.com", "commit", "-q", "-m", "init");
+  return repo;
+}
+
+const settingsOf = (dir: string) => JSON.parse(fs.readFileSync(path.join(dir, "settings.json"), "utf8"));
+const setKey = (file: string, key: string, value: unknown) => {
+  const data = fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, "utf8")) : {};
+  fs.writeFileSync(file, `${JSON.stringify({ ...data, [key]: value }, null, 2)}\n`);
+};
+
+test("a settings copy follows the repository, but a change made in the profile is kept and reported", (t) => {
+  const home = tempHome(t);
+  const repo = tempRepo(t);
+  const [a, b] = [path.join(home, ".claude"), path.join(home, ".claude-b")];
+  quiet();
+  for (const dir of [a, b]) installGlobal(repo, dir, { copy: true });
+  assert.ok(!fs.lstatSync(path.join(a, "settings.json")).isSymbolicLink());
+
+  // The repository changes: both copies follow.
+  setKey(path.join(repo, "claude", "settings.json"), "verbose", true);
+  quiet();
+  for (const dir of [a, b]) installGlobal(repo, dir, { copy: true });
+  assert.equal(settingsOf(a).verbose, true);
+  assert.equal(settingsOf(b).verbose, true);
+
+  // /config changes the copy in one profile: install keeps it and says so.
+  setKey(path.join(a, "settings.json"), "showTurnDuration", false);
+  const events = quiet();
+  installGlobal(repo, a, { copy: true });
+  assert.equal(settingsOf(a).showTurnDuration, false);
+  assert.ok(events.some((e) => e.kind === "result" && e.status === "skipped" && /settings pull/.test(e.detail)));
+  const checks = quiet();
+  verifyGlobal(repo, [a, b]);
+  assert.ok(checks.some((e) => e.kind === "warning" && /changed in this profile/.test(e.text)));
+
+  // settings pull takes it into the repository, and the next install brings it to the other profile.
+  quiet();
+  pullSettings(repo, [a, b]);
+  assert.equal(JSON.parse(fs.readFileSync(path.join(repo, "claude", "settings.json"), "utf8")).showTurnDuration, false);
+  quiet();
+  for (const dir of [a, b]) installGlobal(repo, dir, { copy: true });
+  assert.equal(settingsOf(b).showTurnDuration, false);
+  assert.equal(state.counts.skipped, undefined);
+});
+
+test("settings pull refuses two profiles changed in different ways, unless told which one", (t) => {
+  const home = tempHome(t);
+  const repo = tempRepo(t);
+  const [a, b] = [path.join(home, ".claude"), path.join(home, ".claude-b")];
+  quiet();
+  for (const dir of [a, b]) installGlobal(repo, dir, { copy: true });
+  setKey(path.join(a, "settings.json"), "verbose", true);
+  setKey(path.join(b, "settings.json"), "verbose", false);
+  quiet();
+  assert.throws(() => pullSettings(repo, [a, b]), /changed differently/);
+  quiet();
+  pullSettings(repo, [a, b], { from: b });
+  assert.equal(JSON.parse(fs.readFileSync(path.join(repo, "claude", "settings.json"), "utf8")).verbose, false);
+});
+
+test("the global config keys go into each profile's .claude.json, leaving the rest of it alone", (t) => {
+  const home = tempHome(t);
+  const repo = tempRepo(t);
+  const other = path.join(home, ".claude-b");
+  fs.writeFileSync(path.join(repo, "claude", "global-config.json"), JSON.stringify({ copyOnSelect: false, oauthAccount: { x: 1 } }));
+  // Claude Code has run in the default profile only: ~/.claude.json exists, .claude-b/.claude.json doesn't.
+  fs.writeFileSync(path.join(home, ".claude.json"), JSON.stringify({ numStartups: 3, copyOnSelect: true }));
+  const events = quiet();
+  installGlobal(repo, undefined, { copy: true });
+  installGlobal(repo, other, { copy: true });
+  const config = JSON.parse(fs.readFileSync(path.join(home, ".claude.json"), "utf8"));
+  assert.deepEqual(config, { numStartups: 3, copyOnSelect: false });
+  assert.ok(!fs.existsSync(path.join(other, ".claude.json")), "a profile Claude Code never ran in gets no .claude.json");
+  assert.ok(events.some((e) => e.kind === "result" && e.status === "skipped" && /oauthAccount/.test(e.detail)), "keys outside the list are refused");
+  assert.ok(GLOBAL_CONFIG_KEYS.includes("copyOnSelect"));
+
+  // /config changes it in the profile: the checklist says so, install puts the repository's value back.
+  setKey(path.join(home, ".claude.json"), "copyOnSelect", true);
+  const checks = quiet();
+  verifyGlobal(repo, [path.join(home, ".claude")]);
+  assert.ok(checks.some((e) => e.kind === "warning" && /copyOnSelect/.test(e.text)));
+  quiet();
+  installGlobal(repo, undefined, { copy: true });
+  assert.equal(JSON.parse(fs.readFileSync(path.join(home, ".claude.json"), "utf8")).copyOnSelect, false);
+});
+
+test("the checklist warns about settings changed in the repository and not committed", (t) => {
+  const home = tempHome(t);
+  const repo = tempRepo(t);
+  quiet();
+  installGlobal(repo, path.join(home, ".claude"));
+  let checks = quiet();
+  verifyGlobal(repo, [path.join(home, ".claude")]);
+  assert.ok(!checks.some((e) => e.kind === "warning"));
+  setKey(path.join(repo, "claude", "settings.json"), "verbose", true);
+  checks = quiet();
+  verifyGlobal(repo, [path.join(home, ".claude")]);
+  assert.ok(checks.some((e) => e.kind === "warning" && /not committed/.test(e.text)));
 });

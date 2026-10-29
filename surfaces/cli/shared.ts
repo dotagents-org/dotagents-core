@@ -6,6 +6,7 @@ import path from "node:path";
 export type CliArgs = {
   _: string[];
   all?: boolean;
+  from?: string;
   "dry-run"?: boolean;
   help?: boolean;
   "no-pull"?: boolean;

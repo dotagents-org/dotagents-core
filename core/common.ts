@@ -89,7 +89,7 @@ function linkPointsTo(link: string, target: string) {
   }
 }
 
-function removeLink(link: string) {
+export function removeLink(link: string) {
   // Deletes only the link, never the target's contents. Junctions need rmdir on Windows.
   try {
     fs.unlinkSync(link);
@@ -104,13 +104,13 @@ function timestamp() {
   return `${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}`;
 }
 
-function backup(file: string) {
+export function backup(file: string) {
   const dest = `${file}.bak-${timestamp()}`;
   fs.renameSync(file, dest);
   return path.basename(dest);
 }
 
-function mkdirFor(file: string) {
+export function mkdirFor(file: string) {
   fs.mkdirSync(path.dirname(file), { recursive: true });
 }
 

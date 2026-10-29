@@ -131,6 +131,7 @@ More in [Getting started](docs/getting-started.md), including WSL and npm withou
 |---|---|
 | [`install`](docs/commands.md#dotagents-install) | Applies the global configuration to this machine. |
 | [`update [--all]`](docs/commands.md#dotagents-update) | Pulls your repository and reinstalls; `--all` also refreshes every workspace. |
+| [`settings pull`](docs/commands.md#dotagents-settings-pull) | Brings a settings change made in a profile (Windows copies) back into the repository. |
 | [`profile add <name>`](docs/commands.md#dotagents-profile-add) · [`profile list`](docs/commands.md#dotagents-profile-list) · [`profile remove`](docs/commands.md#dotagents-profile-remove) | Several Claude profiles on one machine, each with its folder, the configuration and a `claude-<name>` launcher. |
 | [`usage`](docs/commands.md#dotagents-usage) | How much of each profile's plan is used, from Claude Code's cache, without network. |
 | `dotagents` (in a terminal) | [The full-screen view](docs/commands.md#the-full-screen-view): usage, profiles, workspaces and skills. |

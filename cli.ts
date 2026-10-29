@@ -16,6 +16,7 @@ import { init } from "./surfaces/cli/init.ts";
 import { install } from "./surfaces/cli/install.ts";
 import { newWorkspace } from "./surfaces/cli/new.ts";
 import type { CliArgs, Command } from "./surfaces/cli/shared.ts";
+import { settingsPull } from "./surfaces/cli/settings.ts";
 import { skills, skillsAdd, skillsRemove } from "./surfaces/cli/skills.ts";
 import { update } from "./surfaces/cli/update.ts";
 import { usage } from "./surfaces/cli/usage.ts";
@@ -25,7 +26,7 @@ import { displayPath, fancy, interactive, style } from "./core/output.ts";
 import { state } from "./core/state.ts";
 
 // In the order the help lists them.
-const COMMANDS: Command[] = [install, update, profileAdd, profileList, profileRemove, usage, newWorkspace, init, check, workspaces, untrack, skills, skillsAdd, skillsRemove];
+const COMMANDS: Command[] = [install, update, settingsPull, profileAdd, profileList, profileRemove, usage, newWorkspace, init, check, workspaces, untrack, skills, skillsAdd, skillsRemove];
 
 const repo = path.dirname(fileURLToPath(import.meta.url));
 const version = JSON.parse(fs.readFileSync(path.join(repo, "package.json"), "utf8")).version;
@@ -60,6 +61,7 @@ ${title("Options")}
   ${cyan("--json")}       (usage) the data, for scripts
   ${cyan("--watch")}      (usage) the full-screen view, updated live
   ${cyan("--no-pull")}    (update) skip git pull, only reapply
+  ${cyan("--from")}       (settings pull) the profile to take the settings from
   ${cyan("--help")}       show this help
   ${cyan("--version")}    show the version
 

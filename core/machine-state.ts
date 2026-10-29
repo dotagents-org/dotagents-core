@@ -3,7 +3,9 @@
 // - workspaces.json: the workspaces tracked since `dotagents init` (until `dotagents untrack`),
 //   so `dotagents update --all` can reach all of them;
 // - profiles.json: the Claude profiles of this machine, each with its config folder (accounts.json
-//   before 2.0.0, read and moved by the first write).
+//   before 2.0.0, read and moved by the first write);
+// - copies.json: what install last copied to each settings copy (Windows), so it can tell a change
+//   made in the repository from one made in the profile.
 //
 // Every file carries a format version and is checked when read. A file that is not valid, or that
 // a newer dotagents wrote, stops the command instead of being read as empty and overwritten.
@@ -131,4 +133,25 @@ export function untrackWorkspace(ws: string) {
   const kept = all.filter((w) => !samePath(w.path, ws));
   writeStateFile(workspacesFile(), WORKSPACES.version, { workspaces: kept });
   return kept.length < all.length;
+}
+
+const COPIES = { name: "copies.json", version: 1 };
+
+export const copiesFile = () => path.join(stateDir(), COPIES.name);
+
+// Destination path → digest of the text install last copied there.
+export function loadCopies(): Record<string, string> {
+  const data = readStateFile(copiesFile(), COPIES.version);
+  const copies = data?.copies ?? {};
+  if (typeof copies !== "object" || copies === null || Array.isArray(copies) || !Object.values(copies).every((v) => typeof v === "string"))
+    throw new Error(`${copiesFile()} has an invalid copy list; fix it or delete it`);
+  return copies as Record<string, string>;
+}
+
+export function recordCopy(dest: string, digest: string) {
+  const copies = loadCopies();
+  const key = path.resolve(dest);
+  if (copies[key] === digest) return;
+  copies[key] = digest;
+  writeStateFile(copiesFile(), COPIES.version, { copies });
 }

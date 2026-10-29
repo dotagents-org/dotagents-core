@@ -1,7 +1,8 @@
 // `profile add`, `profile list` and `profile remove`: the Claude profiles of this machine.
 
 import path from "node:path";
-import { dropProfile, launcherDir, launcherFile, setUpProfile, showFolder, verifyProfiles } from "../../core/profiles.ts";
+import { verifyGlobal } from "../../core/global.ts";
+import { configDirs, dropProfile, launcherDir, launcherFile, setUpProfile, showFolder, verifyProfiles } from "../../core/profiles.ts";
 import { signedIn } from "../../core/claude-code.ts";
 import { loadProfiles } from "../../core/machine-state.ts";
 import { displayPath, fancy, finish, header, line, paint, rail, style } from "../../core/output.ts";
@@ -35,7 +36,7 @@ export const profileList: Command = {
   usage: "",
   summary: "list the profiles and check them",
   group: "Profiles",
-  run() {
+  run({ repo }) {
     const profiles = loadProfiles();
     if (!profiles.length) {
       const hint = "No profiles yet. Add the one in ~/.claude with: dotagents profile add <name> --default";
@@ -56,6 +57,7 @@ export const profileList: Command = {
       line(`  ${dim(`${showFolder(a.configDir)} · ${path.basename(launcherFile(a.name))}`)}`);
     }
     verifyProfiles();
+    verifyGlobal(repo, configDirs());
     finish();
   },
 };
