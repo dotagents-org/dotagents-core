@@ -59,7 +59,7 @@ dotagents update --all         # also refresh every tracked workspace
 dotagents update --no-pull     # skip the pull and only reapply
 ```
 
-- When the pull changes `package-lock.json`, it runs `npm install` before going on, so the next run can start. When it changes the command's entry file (`bin` in `package.json`), it runs `npm link` too, so `dotagents` keeps working.
+- When the pull changes `package-lock.json`, it runs `npm install` before going on, so the next run can start. When it changes the command's entry file (`bin` in `package.json`), it runs `npm link` too, so `dotagents` keeps working. When it changes the version, it says so (`version 1.0.0 → 2.0.0`) and points to [`CHANGELOG.md`](../CHANGELOG.md), which lists what changed and what to do.
 - If the pull fails (local changes, diverged history), it stops and asks you to fix the repository first.
 - With `--all`, for each tracked workspace it:
   - applies the standards again, which puts back any skill that is missing (useful on a new machine or after cloning a workspace again);

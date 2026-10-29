@@ -25,9 +25,12 @@ export const update: Command = {
     else {
       const lockBefore = readLock(repo);
       const binBefore = readBin(repo);
+      const versionBefore = readVersion(repo);
       const pull = await runWithSpinner("Pulling the repository", "git", ["-C", repo, "pull", "--ff-only"]);
       report(pull.code === 0 ? "ok" : "failed", repo, pull.last);
       if (pull.code !== 0) return finish("Fix the repository (commit, stash or resolve) and run dotagents update again.");
+      const note = versionNote(versionBefore, readVersion(repo));
+      if (note) report("updated", path.join(repo, "CHANGELOG.md"), note);
       // New dependencies from the pull: install them now, or the next run can't start.
       if (readLock(repo) !== lockBefore) {
         const npm = await runWithSpinner("Installing dependencies", "npm install --no-audit --no-fund", [], { cwd: repo, shell: true });
@@ -76,6 +79,20 @@ async function updateThirdParty(ws: string) {
   // user input.
   const res = await runWithSpinner("Updating third-party skills", "npx -y skills update -p -y", [], { cwd: ws, shell: true });
   report(res.code === 0 ? "ok" : "failed", lock, res.last);
+}
+
+// What a pull that changed the version says; null when it didn't, or can't tell.
+export function versionNote(before: string, after: string) {
+  return before && after && before !== after ? `version ${before} → ${after}: see CHANGELOG.md` : null;
+}
+
+function readVersion(repo: string): string {
+  try {
+    const version = JSON.parse(fs.readFileSync(path.join(repo, "package.json"), "utf8")).version;
+    return typeof version === "string" ? version : "";
+  } catch {
+    return "";
+  }
 }
 
 // The command's entry file, as package.json names it.
