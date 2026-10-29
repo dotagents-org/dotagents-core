@@ -106,6 +106,19 @@ node cli.ts --help      # run without npm link
 
 **Adding a screen:** write `surfaces/tui/screens/<name>.ts` exporting a `Screen` (id, title, `Component`), add it to `SCREENS` in `surfaces/tui/app.ts` (the order is the tabs' order and the number keys'), and cover it in `test/tui.test.ts`.
 
+**The brand and the README's captures:**
+
+- `assets/dotagents.svg` is the symbol, the face `..` on a `#171717` square.
+- `assets/face/` holds one SVG per state of the face (ok, working, warn, limit, asleep, done, error), for the graphic surfaces.
+- `assets/dotagents-lockup-light.svg` and `-dark.svg` are the symbol with "dotagents" in Geist Mono 600, the text as outlines, since GitHub shows SVGs through `<img>`, which loads no web fonts. To make them again, download the font and run `scripts/lockup.py` with fontTools:
+
+  ```bash
+  curl -sA "Mozilla/4.0" "https://fonts.googleapis.com/css2?family=Geist+Mono:wght@600" | grep -o 'https://[^)]*' | head -1 | xargs curl -so /tmp/geistmono600.ttf
+  uvx --from fonttools python -I scripts/lockup.py /tmp/geistmono600.ttf assets
+  ```
+
+- `docs/media/` holds the captures at the top of the README, drawn by `npm run media` (`scripts/media.ts`) from the same lines `usage` prints, for sample profiles at a fixed moment. `test/media.test.ts` fails when they no longer match the views: run `npm run media` after changing the views or the theme.
+
 **Changing a profile icon:** edit `assets/claude-<name>.svg`, then rebuild the `.ico` (16 to 256 px) and run `dotagents install` on Windows:
 
 ```bash

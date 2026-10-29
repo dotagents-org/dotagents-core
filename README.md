@@ -1,10 +1,33 @@
-# dotagents
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/dotagents-lockup-dark.svg">
+    <img alt="dotagents" src="assets/dotagents-lockup-light.svg" width="320">
+  </picture>
+</p>
 
-**One Claude Code configuration, on every machine and in every project.**
+<p align="center"><b>One Claude Code configuration, on every machine and in every project.</b></p>
 
-![Platforms](https://img.shields.io/badge/platforms-Windows%20%C2%B7%20Linux%20%C2%B7%20macOS-informational)
-![Node](https://img.shields.io/badge/node-%E2%89%A5%2022.18-339933)
-![Agent](https://img.shields.io/badge/agent-Claude%20Code-8A2BE2)
+<p align="center">
+  <a href="#features">Features</a>&nbsp;&nbsp;&nbsp;
+  <a href="#how-it-works">How it works</a>&nbsp;&nbsp;&nbsp;
+  <a href="#quick-start">Quick start</a>&nbsp;&nbsp;&nbsp;
+  <a href="#commands-at-a-glance">Commands</a>&nbsp;&nbsp;&nbsp;
+  <a href="docs/README.md">Documentation</a>&nbsp;&nbsp;&nbsp;
+  <a href="CHANGELOG.md">Changelog</a>
+</p>
+
+<p align="center">
+  <img alt="Windows, Linux, macOS" src="https://img.shields.io/badge/platforms-Windows%2C%20Linux%2C%20macOS-171717">
+  <img alt="Node 22.18 or later" src="https://img.shields.io/badge/node-%E2%89%A5%2022.18-171717">
+  <img alt="Claude Code" src="https://img.shields.io/badge/agent-Claude%20Code-171717">
+</p>
+
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/media/usage-dark.svg">
+    <img alt="dotagents usage: the 5-hour and weekly windows of two profiles, with thin bars and percentages" src="docs/media/usage-light.svg" width="640">
+  </picture>
+</p>
 
 Claude Code reads its configuration from `~/.claude/` on each machine and from `.claude/`, `CLAUDE.md` or `AGENTS.md` in each project. Use it across a few projects and two machines, and the copies drift apart: the same skill copied into several projects, an instruction fixed on one machine and forgotten on the other, project files leaking into the repository's git.
 
