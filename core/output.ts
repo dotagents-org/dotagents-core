@@ -3,33 +3,28 @@
 //
 // Renderers: in a terminal, the @clack/prompts look (one vertical rail from ┌ to └), icons,
 // colors and short paths; piped or redirected (CI, scripts), plain "<status> <path> (<detail>)"
-// lines that are easy to grep; in the tests, a list that collects the events. NO_COLOR turns
-// colors off, FORCE_COLOR turns the terminal output on.
+// lines that are easy to grep; in the tests, a list that collects the events. The colors follow
+// core/theme.ts: NO_COLOR turns them off, FORCE_COLOR sets them.
 
 import os from "node:os";
 import path from "node:path";
 import { S_BAR, S_BAR_END, S_BAR_START, S_STEP_SUBMIT } from "@clack/prompts";
 import pc from "picocolors";
 import { state } from "./state.ts";
+import { SYMBOLS, colorLevel, hexColor } from "./theme.ts";
 
-export const fancy = Boolean(process.stdout.isTTY) || Boolean(process.env.FORCE_COLOR);
+// The color level (core/theme.ts). The terminal look is on in a terminal, or when FORCE_COLOR
+// asks for colors without one; FORCE_COLOR=0 keeps it plain.
+const level = colorLevel();
+export const fancy = Boolean(process.stdout.isTTY) || (Boolean(process.env.FORCE_COLOR) && level > 0);
 // Prompts need a real keyboard, not just a colored output.
 export const interactive = Boolean(process.stdin.isTTY && process.stdout.isTTY) && !process.env.CI;
-const useColor = process.env.FORCE_COLOR ? true : fancy && !process.env.NO_COLOR;
-export const style = pc.createColors(useColor);
+export const style = pc.createColors(level > 0);
 
 export const toSlash = (p: string) => p.replace(/\\/g, "/");
 
-// A color of our own, given as #RRGGBB (a profile's color): 24-bit where the terminal supports
-// it, else the closest of the 256 xterm colors. Plain text when colors are off.
-export function paint(hex: string) {
-  if (!useColor) return (text: string) => text;
-  const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
-  const truecolor = /truecolor|24bit/i.test(process.env.COLORTERM ?? "") || Boolean(process.env.WT_SESSION) || process.env.TERM_PROGRAM === "vscode";
-  const cube = (v: number) => Math.round((v / 255) * 5);
-  const code = truecolor ? `38;2;${r};${g};${b}` : `38;5;${16 + 36 * cube(r) + 6 * cube(g) + cube(b)}`;
-  return (text: string) => `\x1b[${code}m${text}\x1b[39m`;
-}
+// A color of our own, given as #RRGGBB (a profile's color).
+export const paint = (hex: string) => hexColor(hex, level);
 
 // The rail: ┌ opens a command, │ carries every line, ◇ marks a section, └ closes.
 export const rail = {
@@ -40,15 +35,15 @@ export const rail = {
 export const line = (text = "") => console.log(text ? `${rail.bar()}  ${text}` : rail.bar());
 
 const STATUS = {
-  ok: { icon: "✓", color: style.gray },
-  created: { icon: "+", color: style.green },
-  updated: { icon: "~", color: style.yellow },
-  skipped: { icon: "!", color: style.yellow },
-  failed: { icon: "✗", color: style.red },
-  "would create": { icon: "+", color: style.cyan },
-  "would update": { icon: "~", color: style.cyan },
-  moved: { icon: "→", color: style.green },
-  "would move": { icon: "→", color: style.cyan },
+  ok: { icon: SYMBOLS.passed, color: style.gray },
+  created: { icon: SYMBOLS.created, color: style.green },
+  updated: { icon: SYMBOLS.updated, color: style.yellow },
+  skipped: { icon: SYMBOLS.warning, color: style.yellow },
+  failed: { icon: SYMBOLS.failed, color: style.red },
+  "would create": { icon: SYMBOLS.created, color: style.cyan },
+  "would update": { icon: SYMBOLS.updated, color: style.cyan },
+  moved: { icon: SYMBOLS.moved, color: style.green },
+  "would move": { icon: SYMBOLS.moved, color: style.cyan },
 } satisfies Record<string, { icon: string; color: (text: string) => string }>;
 
 export type Status = keyof typeof STATUS;
