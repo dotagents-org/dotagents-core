@@ -1,10 +1,10 @@
-// `usage`: how much of each account's plan is used, from Claude Code's own cache.
+// `usage`: how much of each profile's plan is used, from Claude Code's own cache.
 
-import { PALETTE } from "../lib/accounts.ts";
+import { PALETTE } from "../lib/profiles.ts";
 import { defaultConfigDir } from "../lib/claude-code.ts";
-import { loadAccounts } from "../lib/machine-state.ts";
+import { loadProfiles } from "../lib/machine-state.ts";
 import { fancy, header, interactive, line, paint, rail, style } from "../lib/output.ts";
-import { type AccountUsage, type UsageWindow, accountUsage, bar, freshnessText, levelOf, paceText, resetText, stateNote, windowLabel } from "../lib/usage.ts";
+import { type ProfileUsage, type UsageWindow, profileUsage, bar, freshnessText, levelOf, paceText, resetText, stateNote, windowLabel } from "../lib/usage.ts";
 import type { Command } from "./shared.ts";
 
 const { bold, dim, cyan, gray, green, yellow, red } = style;
@@ -12,7 +12,7 @@ const { bold, dim, cyan, gray, green, yellow, red } = style;
 const LEVEL = { ok: green, warn: yellow, high: red };
 const level = (pct: number) => LEVEL[levelOf(pct)];
 
-function railView(list: AccountUsage[], now: Date) {
+function railView(list: ProfileUsage[], now: Date) {
   header("usage");
   const width = 14;
   for (const a of list) {
@@ -38,11 +38,11 @@ function railView(list: AccountUsage[], now: Date) {
     if (fresh) line(fresh.warn ? yellow(`└ ${fresh.text}`) : dim(`└ ${fresh.text}`));
   }
   line();
-  console.log(`${rail.end()}  ${dim(`${list.length} account${list.length === 1 ? "" : "s"} · local data, no network`)}\n`);
+  console.log(`${rail.end()}  ${dim(`${list.length} profile${list.length === 1 ? "" : "s"} · local data, no network`)}\n`);
 }
 
-// One line per window, easy to grep: "<account> <window> <pct> <resets at> fetched <at>".
-function plainView(list: AccountUsage[]) {
+// One line per window, easy to grep: "<profile> <window> <pct> <resets at> fetched <at>".
+function plainView(list: ProfileUsage[]) {
   const width = Math.max(...list.map((a) => a.name.length)) + 2;
   for (const a of list) {
     if (a.state !== "ok" && a.state !== "stale") {
@@ -57,7 +57,7 @@ function plainView(list: AccountUsage[]) {
 }
 
 // "work 21%·20% │ personal 0%·0%": session · week, for a prompt or a status line.
-function shortView(list: AccountUsage[]) {
+function shortView(list: ProfileUsage[]) {
   const pct = (w?: UsageWindow) => (w ? level(w.pct)(`${w.pct}%`) : dim("-"));
   return list
     .map((a) => {
@@ -71,9 +71,9 @@ function shortView(list: AccountUsage[]) {
 export const usage: Command = {
   name: "usage",
   usage: "[--watch] [--short] [--json]",
-  summary: "show how much of each account's plan is used",
-  more: ["from Claude Code's cache, no network;", "/usage in an account refreshes it"],
-  group: "Accounts",
+  summary: "show how much of each profile's plan is used",
+  more: ["from Claude Code's cache, no network;", "/usage in a profile refreshes it"],
+  group: "Profiles",
   async run({ repo, args }) {
     if (args.watch) {
       if (!interactive) throw new Error("--watch needs a terminal; use --json or --short in scripts");
@@ -81,9 +81,9 @@ export const usage: Command = {
       return runTui(repo, "usage");
     }
     const now = new Date();
-    const accounts = loadAccounts();
-    // Without accounts, the one in ~/.claude.
-    const list = (accounts.length ? accounts : [{ name: "claude", color: PALETTE[0], default: true, configDir: defaultConfigDir() }]).map((a) => accountUsage(a, now));
+    const profiles = loadProfiles();
+    // Without profiles, the one in ~/.claude.
+    const list = (profiles.length ? profiles : [{ name: "claude", color: PALETTE[0], default: true, configDir: defaultConfigDir() }]).map((a) => profileUsage(a, now));
     if (args.json) return console.log(JSON.stringify(list, null, 2));
     if (args.short) return console.log(shortView(list));
     if (!fancy) return plainView(list);

@@ -1,10 +1,10 @@
-// A Claude Desktop app per account, on Windows: the app takes --user-data-dir (an Electron flag,
-// not documented by Anthropic), so each account other than the default gets its own data folder.
-// Every account gets a Start menu shortcut, "Claude <Name>"; the default account's opens the
+// A Claude Desktop app per profile, on Windows: the app takes --user-data-dir (an Electron flag,
+// not documented by Anthropic), so each profile other than the default gets its own data folder.
+// Every profile gets a Start menu shortcut, "Claude <Name>"; the default profile's opens the
 // normal app.
 //
 // The shortcut runs a small .vbs launcher, so no console window flashes: it sets
-// CLAUDE_CONFIG_DIR, for the Code tab inside the app to use the account's folder, and starts
+// CLAUDE_CONFIG_DIR, for the Code tab inside the app to use the profile's folder, and starts
 // the app through its execution alias. Shortcuts are written through an adapter: PowerShell on
 // Windows, a fake one in the tests.
 //
@@ -21,7 +21,7 @@ import { checkItem, checkWarn, report, section } from "./output.ts";
 import { state } from "./state.ts";
 import { SHORTCUT_APP_ID_CS, appIdFor, taskbarWatcher, taskbarWatcherFile } from "./taskbar.ts";
 
-// appId: the AppUserModelID that gives the account its own taskbar button (lib/taskbar.ts).
+// appId: the AppUserModelID that gives the profile its own taskbar button (lib/taskbar.ts).
 export type Shortcut = { target: string; args: string; description: string; icon: string; appId: string };
 
 // Reads and writes .lnk files. read returns null when the file doesn't exist.
@@ -47,9 +47,9 @@ export const desktopLauncherFile = (launcherDir: string, name: string) => path.j
 
 const MARK = (name: string) => `dotagents:${name}`;
 
-// The default account opens the normal app, with CLAUDE_CONFIG_DIR cleared (~/.claude); the
+// The default profile opens the normal app, with CLAUDE_CONFIG_DIR cleared (~/.claude); the
 // others their own data folder and config folder.
-// Then it starts the taskbar watcher, hidden, for the account's own button (lib/taskbar.ts).
+// Then it starts the taskbar watcher, hidden, for the profile's own button (lib/taskbar.ts).
 function vbsLauncher(repo: string, launcherDir: string, name: string, configDir: string, isDefault: boolean) {
   const q = (s: string) => s.replace(/"/g, '""');
   const arg = (flag: string, value: string) => ` -${flag} ""${q(value)}""`;
@@ -61,7 +61,7 @@ function vbsLauncher(repo: string, launcherDir: string, name: string, configDir:
     arg("Launcher", desktopLauncherFile(launcherDir, name)) +
     (isDefault ? "" : arg("DataDir", desktopDataDir(name)));
   return [
-    `' Claude Desktop as the ${name} account.`,
+    `' Claude Desktop as the ${name} profile.`,
     'Set shell = CreateObject("WScript.Shell")',
     // Removed, never set empty: an empty CLAUDE_CONFIG_DIR makes Claude Code use the current folder.
     // Remove fails when the variable isn't set, hence On Error Resume Next around it.
@@ -76,18 +76,18 @@ function vbsLauncher(repo: string, launcherDir: string, name: string, configDir:
 
 const wscript = () => path.join(process.env.SystemRoot ?? "C:\\Windows", "System32", "wscript.exe");
 
-// The account's own icon, assets/claude-<name>.ico in this repository, when there is one; else
+// The profile's own icon, assets/claude-<name>.ico in this repository, when there is one; else
 // the app's. Shortcuts only take .ico (or an .exe), so the .svg next to it is the source.
-export function accountIcon(repo: string, name: string) {
+export function profileIcon(repo: string, name: string) {
   const ico = path.join(repo, "assets", `claude-${name}.ico`);
   return fs.existsSync(ico) ? `${ico},0` : `${desktopExe()},0`;
 }
 
 // The same icon for a window's taskbar button, which takes an .ico file as a plain path.
-const windowIcon = (repo: string, name: string) => accountIcon(repo, name).replace(/\.ico,0$/i, ".ico");
+const windowIcon = (repo: string, name: string) => profileIcon(repo, name).replace(/\.ico,0$/i, ".ico");
 
 function shortcutFor(repo: string, name: string, launcherDir: string): Shortcut {
-  return { target: wscript(), args: `"${desktopLauncherFile(launcherDir, name)}"`, description: MARK(name), icon: accountIcon(repo, name), appId: appIdFor(name) };
+  return { target: wscript(), args: `"${desktopLauncherFile(launcherDir, name)}"`, description: MARK(name), icon: profileIcon(repo, name), appId: appIdFor(name) };
 }
 
 const sameShortcut = (a: Shortcut, b: Shortcut) =>
@@ -107,10 +107,10 @@ function ensureShortcut(lnk: string, wanted: Shortcut, shortcuts: Shortcuts) {
   report(current ? "updated" : "created", lnk);
 }
 
-// The data folder, the launcher and the shortcut of an account's Desktop app.
+// The data folder, the launcher and the shortcut of a profile's Desktop app.
 export function applyDesktop(
   repo: string,
-  account: { name: string; configDir: string; default?: boolean },
+  profile: { name: string; configDir: string; default?: boolean },
   { launcherDir, shortcuts = powershellShortcuts }: { launcherDir: string; shortcuts?: Shortcuts }
 ) {
   section("Desktop");
@@ -119,13 +119,13 @@ export function applyDesktop(
     return;
   }
   // Made before the first start: a folder the app creates itself lands in its MSIX container.
-  if (!account.default) ensureDir(desktopDataDir(account.name));
+  if (!profile.default) ensureDir(desktopDataDir(profile.name));
   writeGenerated(taskbarWatcherFile(launcherDir), taskbarWatcher(), { comment: "#", onForeign: "backup" });
-  writeGenerated(desktopLauncherFile(launcherDir, account.name), vbsLauncher(repo, launcherDir, account.name, account.configDir, Boolean(account.default)), {
+  writeGenerated(desktopLauncherFile(launcherDir, profile.name), vbsLauncher(repo, launcherDir, profile.name, profile.configDir, Boolean(profile.default)), {
     comment: "'",
     onForeign: "backup",
   });
-  ensureShortcut(shortcutFile(account.name), shortcutFor(repo, account.name, launcherDir), shortcuts);
+  ensureShortcut(shortcutFile(profile.name), shortcutFor(repo, profile.name, launcherDir), shortcuts);
 }
 
 // Removes the launcher and the shortcut; the data folder, with the sign-in, stays.

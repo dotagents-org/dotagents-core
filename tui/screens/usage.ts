@@ -1,17 +1,17 @@
-// The usage of every account, live: re-read on every tick, so a /usage in any account shows up
+// The usage of every profile, live: re-read on every tick, so a /usage in any profile shows up
 // within seconds. Same words as `dotagents usage`.
 
 import { Box, Text } from "ink";
 import { createElement as h } from "react";
-import { PALETTE } from "../../lib/accounts.ts";
+import { PALETTE } from "../../lib/profiles.ts";
 import { defaultConfigDir } from "../../lib/claude-code.ts";
-import { loadAccounts } from "../../lib/machine-state.ts";
-import { type AccountUsage, accountUsage, bar, freshnessText, levelOf, paceText, resetText, stateNote, windowLabel } from "../../lib/usage.ts";
+import { loadProfiles } from "../../lib/machine-state.ts";
+import { type ProfileUsage, profileUsage, bar, freshnessText, levelOf, paceText, resetText, stateNote, windowLabel } from "../../lib/usage.ts";
 import { type Screen, type ScreenProps, theme } from "../screen.ts";
 
 const LABEL = 14;
 
-function Account({ a, now }: { a: AccountUsage; now: Date }) {
+function Profile({ a, now }: { a: ProfileUsage; now: Date }) {
   const note = stateNote(a);
   const fresh = freshnessText(a, now);
   return h(
@@ -45,9 +45,9 @@ function Account({ a, now }: { a: AccountUsage; now: Date }) {
 }
 
 function UsageScreen({ now }: ScreenProps) {
-  const accounts = loadAccounts();
-  const list = (accounts.length ? accounts : [{ name: "claude", color: PALETTE[0], default: true, configDir: defaultConfigDir() }]).map((a) => accountUsage(a, now));
-  return h(Box, { flexDirection: "column" }, ...list.map((a) => h(Account, { key: a.name, a, now })), h(Text, { color: theme.muted }, "local data, no network · /usage in an account refreshes it"));
+  const profiles = loadProfiles();
+  const list = (profiles.length ? profiles : [{ name: "claude", color: PALETTE[0], default: true, configDir: defaultConfigDir() }]).map((a) => profileUsage(a, now));
+  return h(Box, { flexDirection: "column" }, ...list.map((a) => h(Profile, { key: a.name, a, now })), h(Text, { color: theme.muted }, "local data, no network · /usage in a profile refreshes it"));
 }
 
 export const usageScreen: Screen = { id: "usage", title: "Usage", Component: UsageScreen };

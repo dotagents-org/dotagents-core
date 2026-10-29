@@ -10,7 +10,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { accountAdd, accountList, accountRemove } from "./commands/account.ts";
+import { profileAdd, profileList, profileRemove } from "./commands/profile.ts";
 import { check } from "./commands/check.ts";
 import { init } from "./commands/init.ts";
 import { install } from "./commands/install.ts";
@@ -25,7 +25,7 @@ import { displayPath, fancy, interactive, style } from "./lib/output.ts";
 import { state } from "./lib/state.ts";
 
 // In the order the help lists them.
-const COMMANDS: Command[] = [install, update, accountAdd, accountList, accountRemove, usage, newWorkspace, init, check, workspaces, untrack, skills, skillsAdd, skillsRemove];
+const COMMANDS: Command[] = [install, update, profileAdd, profileList, profileRemove, usage, newWorkspace, init, check, workspaces, untrack, skills, skillsAdd, skillsRemove];
 
 const repo = path.dirname(fileURLToPath(import.meta.url));
 const version = JSON.parse(fs.readFileSync(path.join(repo, "package.json"), "utf8")).version;
@@ -39,14 +39,14 @@ function help() {
     return [`  ${left}${pad}${summary}`, ...more.map((text) => `${" ".repeat(32)}${text}`)].join("\n");
   };
   const title = (t: string) => bold(t.toUpperCase());
-  const groups = (["Machine", "Accounts", "Workspace", "Skills"] as const).map(
+  const groups = (["Machine", "Profiles", "Workspace", "Skills"] as const).map(
     (group) => `${title(group)}\n${COMMANDS.filter((c) => c.group === group).map(cmd).join("\n")}`
   );
   return `${bold(magenta("dotagents"))} ${dim(version)}  Claude Code configuration
 
 ${title("Usage")}
   dotagents ${dim("<command> [options]")}
-  dotagents              ${dim("in a terminal, the full-screen view (usage, accounts, workspaces, skills)")}
+  dotagents              ${dim("in a terminal, the full-screen view (usage, profiles, workspaces, skills)")}
 
 ${groups.join("\n\n")}
 
@@ -54,8 +54,8 @@ ${title("Options")}
   ${cyan("--dry-run")}    show what would be done, change nothing
   ${cyan("--yes")}        (init) don't ask anything
   ${cyan("--wrap")}       (init) move a repository into <name>-workspace/ first
-  ${cyan("--default")}    (account add) the account in ~/.claude
-  ${cyan("--color")}      (account add) the account's color, #RRGGBB
+  ${cyan("--default")}    (profile add) the profile in ~/.claude
+  ${cyan("--color")}      (profile add) the profile's color, #RRGGBB
   ${cyan("--short")}      (usage) one line, for a prompt or a status line
   ${cyan("--json")}       (usage) the data, for scripts
   ${cyan("--watch")}      (usage) the full-screen view, updated live
@@ -80,6 +80,7 @@ function pick(words: string[]) {
   if (two) return { command: two, positional: words.slice(2) };
   const one = COMMANDS.find((c) => c.name === words[0]);
   if (one) return { command: one, positional: words.slice(1) };
+  if (words[0] === "account") throw new Error(`'account' is now 'profile' (since 2.0.0): dotagents profile ${words.slice(1).join(" ")}`.trimEnd());
   throw new Error(`Unknown command '${words[0]}'. Run: dotagents --help`);
 }
 

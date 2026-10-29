@@ -22,7 +22,7 @@ export type Screen = {
   Component: (props: ScreenProps) => ReactNode;
 };
 
-// Ink takes color names or #RRGGBB, so the account colors go through as they are.
+// Ink takes color names or #RRGGBB, so the profile colors go through as they are.
 export const theme = {
   accent: "magenta",
   muted: "gray",

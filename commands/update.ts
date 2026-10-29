@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { runWithSpinner } from "../lib/common.ts";
-import { installAccounts } from "../lib/accounts.ts";
+import { installProfiles } from "../lib/profiles.ts";
 import { checkWarn, displayPath, fancy, finish, header, line, report, section, style } from "../lib/output.ts";
 import { loadWorkspaces } from "../lib/machine-state.ts";
 import { listSkills, resolveSkills } from "../lib/skills.ts";
@@ -41,7 +41,7 @@ export const update: Command = {
       }
     }
 
-    installAccounts(repo);
+    installProfiles(repo);
 
     if (args.all) {
       for (const w of loadWorkspaces()) {

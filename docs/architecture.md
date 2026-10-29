@@ -13,7 +13,7 @@ dotagents/
 │   └── third-party-skills.json  catalog of third-party skills
 ├── standards/                 the .agents/ and .artifacts/ standards
 ├── templates/workspace/       AGENTS.md and INDEX.md for new workspaces
-├── assets/                    the account icons: claude-<name>.svg, the source, and the .ico the Start menu shortcuts use
+├── assets/                    the profile icons: claude-<name>.svg, the source, and the .ico the Start menu shortcuts use
 ├── docs/                      this documentation
 ├── cli.ts                     the dotagents command: reads the arguments, picks the command, prints the help
 ├── commands/                  one file per command: its help, its questions, its run
@@ -57,11 +57,11 @@ flowchart LR
 | `lib/git.ts` | `ensureExcluded`, `removeExcluded`, `gitRepoOf`, `isRepoRoot`, `trackedAgentFiles`, `untrackedAgentFiles` | Keeping agent files out of a project's git through `.git/info/exclude`. |
 | `lib/global.ts` | `installGlobal(repo, configDir?)`, `renderInstructions(repo)` | The machine level: instructions, rules and settings, applied to one Claude Code config folder (`~/.claude` by default). |
 | `lib/claude-code.ts` | `defaultConfigDir`, `userFiles(configDir)`, `projectFiles(ws)` | Where Claude Code reads its configuration, at the user level and in a workspace. No other module spells these paths out. |
-| `lib/accounts.ts` | `setUpAccount`, `dropAccount`, `installAccounts`, `verifyAccounts`, `launcherFile` | The Claude accounts of the machine: a config folder each, the configuration applied to it, and a `claude-<name>` launcher. |
-| `lib/desktop.ts` | `applyDesktop`, `removeDesktop`, `verifyDesktop`, `powershellShortcuts` | A second Claude Desktop app per account on Windows: data folder, `.vbs` launcher and Start menu shortcut. Shortcuts go through an adapter: PowerShell for real, a fake one in the tests. |
-| `lib/taskbar.ts` | `taskbarWatcher`, `appIdFor`, `SHORTCUT_APP_ID_CS` | One taskbar button per account: the PowerShell watcher (with its C#) that tags an instance's windows with the account's AppUserModelID, icon and name, and the C# that writes that ID into a shortcut. |
-| `lib/usage.ts` | `accountUsage(account, now)`, `normalize(cache, now)`, `pace(window, now)`, `bar(pct)` | The usage of an account, read from Claude Code's cache and normalized into windows (session, week, per-model week), with the pace and the states (not signed in, no data, stale). Takes "now" as an argument, so the tests fix it. |
-| `lib/machine-state.ts` | `loadWorkspaces`, `registerWorkspace`, `untrackWorkspace`, `loadAccounts`, `saveAccount`, `removeAccount`, `stateDir` | What dotagents remembers about this machine, outside the repository. Every file has a format version and is checked when read: a broken file, or one from a newer dotagents, stops the command instead of being overwritten. |
+| `lib/profiles.ts` | `setUpProfile`, `dropProfile`, `installProfiles`, `verifyProfiles`, `launcherFile` | The Claude profiles of the machine: a config folder each, the configuration applied to it, and a `claude-<name>` launcher. |
+| `lib/desktop.ts` | `applyDesktop`, `removeDesktop`, `verifyDesktop`, `powershellShortcuts` | A second Claude Desktop app per profile on Windows: data folder, `.vbs` launcher and Start menu shortcut. Shortcuts go through an adapter: PowerShell for real, a fake one in the tests. |
+| `lib/taskbar.ts` | `taskbarWatcher`, `appIdFor`, `SHORTCUT_APP_ID_CS` | One taskbar button per profile: the PowerShell watcher (with its C#) that tags an instance's windows with the profile's AppUserModelID, icon and name, and the C# that writes that ID into a shortcut. |
+| `lib/usage.ts` | `profileUsage(profile, now)`, `normalize(cache, now)`, `pace(window, now)`, `bar(pct)` | The usage of a profile, read from Claude Code's cache and normalized into windows (session, week, per-model week), with the pace and the states (not signed in, no data, stale). Takes "now" as an argument, so the tests fix it. |
+| `lib/machine-state.ts` | `loadWorkspaces`, `registerWorkspace`, `untrackWorkspace`, `loadProfiles`, `saveProfile`, `removeProfile`, `stateDir` | What dotagents remembers about this machine, outside the repository. Every file has a format version and is checked when read: a broken file, or one from a newer dotagents, stops the command instead of being overwritten. |
 | `lib/common.ts` | file actions (`ensureDirLink`, `ensureFile`, `writeGenerated`, `ensureJsonKey`…), `runWithSpinner`, `parseArgs` | Junctions on Windows and symlinks elsewhere, backups, dry run. |
 | `lib/output.ts` | `report`, `checkItem`, `checkWarn`, `section`, `header`, `finish`, `setRenderer`, `displayPath` | Every result becomes an event for the current renderer: the rail in a terminal, plain lines when piped, a list in the tests. The modules never print. |
 | `lib/state.ts` | `state`, `resetState` | The run: `--dry-run`, the counters behind the summary and the exit code, and the folder paths are shown relative to. |
@@ -100,7 +100,7 @@ node cli.ts --help      # run without npm link
 
 **Adding a screen:** write `tui/screens/<name>.ts` exporting a `Screen` (id, title, `Component`), add it to `SCREENS` in `tui/app.ts` (the order is the tabs' order and the number keys'), and cover it in `test/tui.test.ts`.
 
-**Changing an account icon:** edit `assets/claude-<name>.svg`, then rebuild the `.ico` (16 to 256 px) and run `dotagents install` on Windows:
+**Changing a profile icon:** edit `assets/claude-<name>.svg`, then rebuild the `.ico` (16 to 256 px) and run `dotagents install` on Windows:
 
 ```bash
 uvx --from cairosvg==2.7.1 cairosvg assets/claude-<name>.svg -o /tmp/icon.png -W 256 -H 256

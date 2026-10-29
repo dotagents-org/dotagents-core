@@ -1,5 +1,5 @@
 // The TUI, rendered without a terminal (ink-testing-library), against a temporary home with two
-// accounts: the frame, each screen, and the keys.
+// profiles: the frame, each screen, and the keys.
 
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -8,8 +8,8 @@ import path from "node:path";
 import { test, type TestContext } from "node:test";
 import { render } from "ink-testing-library";
 import { createElement as h } from "react";
-import { launcherFile } from "../lib/accounts.ts";
-import { registerWorkspace, saveAccount } from "../lib/machine-state.ts";
+import { launcherFile } from "../lib/profiles.ts";
+import { registerWorkspace, saveProfile } from "../lib/machine-state.ts";
 import { App } from "../tui/app.ts";
 import { REPO, quiet } from "./helpers.ts";
 
@@ -17,7 +17,7 @@ const settle = () => new Promise((resolve) => setTimeout(resolve, 60));
 // The frame without colors: a terminal with colors on (Windows Terminal) puts codes in the text.
 const plain = (app: { lastFrame(): string | undefined }): string => (app.lastFrame() ?? "").replace(/\x1b\[[0-9;]*m/g, "");
 
-function twoAccounts(t: TestContext) {
+function twoProfiles(t: TestContext) {
   const home = fs.mkdtempSync(path.join(os.tmpdir(), "dotagents-tui-"));
   const keys = ["HOME", "USERPROFILE", "APPDATA", "LOCALAPPDATA", "DOTAGENTS_STATE_DIR"] as const;
   const saved = Object.fromEntries(keys.map((k) => [k, process.env[k]]));
@@ -46,16 +46,16 @@ function twoAccounts(t: TestContext) {
   fs.mkdirSync(path.join(home, ".claude-personal"));
   fs.writeFileSync(path.join(home, ".claude.json"), JSON.stringify(signed("uuid-a", 93)));
   fs.writeFileSync(path.join(home, ".claude-personal", ".claude.json"), JSON.stringify(signed("uuid-b", 12)));
-  saveAccount({ name: "work", configDir: path.join(home, ".claude"), color: "#D77655", default: true });
-  saveAccount({ name: "personal", configDir: path.join(home, ".claude-personal"), color: "#376B80" });
+  saveProfile({ name: "work", configDir: path.join(home, ".claude"), color: "#D77655", default: true });
+  saveProfile({ name: "personal", configDir: path.join(home, ".claude-personal"), color: "#376B80" });
 }
 
-test("the usage screen shows every account, and the number keys switch screens", async (t) => {
-  twoAccounts(t);
+test("the usage screen shows every profile, and the number keys switch screens", async (t) => {
+  twoProfiles(t);
   const app = render(h(App, { repo: REPO }));
   t.after(() => app.unmount());
   let frame = plain(app);
-  for (const tab of ["1 Usage", "2 Accounts", "3 Workspaces", "4 Skills"]) assert.ok(frame.includes(tab), tab);
+  for (const tab of ["1 Usage", "2 Profiles", "3 Workspaces", "4 Skills"]) assert.ok(frame.includes(tab), tab);
   assert.match(frame, /work[\s\S]*Session \(5h\)[\s\S]*93%/);
   assert.match(frame, /personal[\s\S]*12%/);
 
@@ -63,7 +63,7 @@ test("the usage screen shows every account, and the number keys switch screens",
   await settle();
   frame = plain(app);
   assert.match(frame, /uuid-a@example\.com/);
-  // The accounts' checklist, from verifyAccounts through capture: these accounts have no launcher.
+  // The profiles' checklist, from verifyProfiles through capture: these profiles have no launcher.
   assert.match(frame, /✗ 4 passed · 2 failed[\s\S]*launcher claude-work(\.cmd)? exists/);
 
   app.stdin.write("4");
@@ -77,7 +77,7 @@ test("the usage screen shows every account, and the number keys switch screens",
 });
 
 test("the arrows and tab go round the screens, and the usage --watch view opens on usage", async (t) => {
-  twoAccounts(t);
+  twoProfiles(t);
   const app = render(h(App, { repo: REPO, initial: "skills" }));
   t.after(() => app.unmount());
   assert.match(plain(app), /session-archive/);
@@ -95,10 +95,10 @@ async function until(app: ReturnType<typeof render>, pattern: RegExp) {
   assert.match(plain(app), pattern);
 }
 
-test("i on the accounts screen previews the install, n cancels it and y applies it", async (t) => {
-  twoAccounts(t);
+test("i on the profiles screen previews the install, n cancels it and y applies it", async (t) => {
+  twoProfiles(t);
   const launcher = launcherFile("work");
-  const app = render(h(App, { repo: REPO, initial: "accounts" }));
+  const app = render(h(App, { repo: REPO, initial: "profiles" }));
   t.after(() => app.unmount());
   app.stdin.write("i");
   await until(app, /Install, preview:[\s\S]*would create[\s\S]*y apply · n cancel/);
@@ -116,7 +116,7 @@ test("i on the accounts screen previews the install, n cancels it and y applies 
 });
 
 test("a on the workspaces screen applies the standards to the picked workspace, after a preview", async (t) => {
-  twoAccounts(t);
+  twoProfiles(t);
   const ws = fs.mkdtempSync(path.join(os.tmpdir(), "dotagents-tui-ws-"));
   t.after(() => fs.rmSync(ws, { recursive: true, force: true }));
   registerWorkspace(ws, ["to-cards"]);
