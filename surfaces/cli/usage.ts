@@ -3,42 +3,26 @@
 import { PALETTE } from "../../core/profiles.ts";
 import { defaultConfigDir } from "../../core/claude-code.ts";
 import { loadProfiles } from "../../core/machine-state.ts";
-import { fancy, header, line, paint, rail, style } from "../../core/output.ts";
-import { type ProfileUsage, type UsageWindow, profileUsage, bar, freshnessText, levelOf, paceText, resetText, stateNote, windowLabel } from "../../core/usage.ts";
+import { fancy, ink } from "../../core/output.ts";
+import { type Line, type ProfileUsage, profileUsage, shortLines, usageLines } from "../../core/usage.ts";
+import { badge, colorLevel } from "../../core/theme.ts";
 import type { Command } from "./shared.ts";
 
-const { bold, dim, cyan, gray, green, yellow, red } = style;
+// The segments of a line, painted with the roles; a profile's name in its readable color.
+function paintLine(line: Line) {
+  return line
+    .map((s) => {
+      let text = s.profile ? ink.profile(s.profile)(s.text) : s.role ? ink.role(s.role)(s.text) : s.text;
+      if (s.bold) text = ink.bold(text);
+      return text;
+    })
+    .join("");
+}
 
-const LEVEL = { ok: green, warn: yellow, high: red };
-const level = (pct: number) => LEVEL[levelOf(pct)];
-
-function railView(list: ProfileUsage[], now: Date) {
-  header("usage");
-  const width = 14;
-  for (const a of list) {
-    const color = paint(a.color);
-    line();
-    console.log(`${color("◇")}  ${bold(color(a.name))}${a.default ? `  ${cyan("● default")}` : ""}`);
-    const note = stateNote(a);
-    if (note) {
-      line(dim(note));
-      continue;
-    }
-    for (const w of a.windows) {
-      const paintLevel = level(w.pct);
-      const cells = bar(w.pct);
-      const filled = cells.replace(/·+$/, "");
-      const meter = `${paintLevel(filled)}${gray(cells.slice(filled.length))}`;
-      const pct = paintLevel(`${String(w.pct).padStart(3)}%`);
-      line(`${windowLabel(w).padEnd(width)} ${meter}  ${pct}  ${dim(resetText(w, now))}`);
-      const p = paceText(w, now);
-      if (p) line(`${" ".repeat(width)} ${(p.warn ? yellow : gray)(p.text)}`);
-    }
-    const fresh = freshnessText(a, now);
-    if (fresh) line(fresh.warn ? yellow(`└ ${fresh.text}`) : dim(`└ ${fresh.text}`));
-  }
-  line();
-  console.log(`${rail.end()}  ${dim(`${list.length} profile${list.length === 1 ? "" : "s"} · local data, no network`)}\n`);
+function terminalView(list: ProfileUsage[], now: Date) {
+  console.log(`${badge(colorLevel())}  ${ink.bold("usage")}\n`);
+  for (const line of usageLines(list, now)) console.log(paintLine(line));
+  console.log(`\n${ink.role("muted")(`${list.length} profile${list.length === 1 ? "" : "s"}, local data, no network`)}`);
 }
 
 // One line per window, easy to grep: "<profile> <window> <pct> <resets at> fetched <at>".
@@ -56,18 +40,6 @@ function plainView(list: ProfileUsage[]) {
   }
 }
 
-// "work 21%·20% │ personal 0%·0%": session · week, for a prompt or a status line.
-function shortView(list: ProfileUsage[]) {
-  const pct = (w?: UsageWindow) => (w ? level(w.pct)(`${w.pct}%`) : dim("-"));
-  return list
-    .map((a) => {
-      const name = paint(a.color)(a.name);
-      if (a.state !== "ok" && a.state !== "stale") return `${name} ${dim("-")}`;
-      return `${name} ${pct(a.windows.find((w) => w.kind === "session"))}${dim("·")}${pct(a.windows.find((w) => w.kind === "week"))}`;
-    })
-    .join(dim(" │ "));
-}
-
 export const usage: Command = {
   name: "usage",
   usage: "[--watch] [--short] [--json]",
@@ -81,8 +53,8 @@ export const usage: Command = {
     // Without profiles, the one in ~/.claude.
     const list = (profiles.length ? profiles : [{ name: "claude", color: PALETTE[0], default: true, configDir: defaultConfigDir() }]).map((a) => profileUsage(a, now));
     if (args.json) return console.log(JSON.stringify(list, null, 2));
-    if (args.short) return console.log(shortView(list));
+    if (args.short) return console.log(shortLines(list, now).map(paintLine).join("\n"));
     if (!fancy) return plainView(list);
-    railView(list, now);
+    terminalView(list, now);
   },
 };

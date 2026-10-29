@@ -1,53 +1,36 @@
-// The usage of every profile, live: re-read on every tick, so a /usage in any profile shows up
-// within seconds. Same words as `dotagents usage`.
+// The usage of every profile, live: re-read on every tick, so new data from Claude Code shows up
+// within seconds. The same lines as `dotagents usage`, from core/usage.ts.
 
 import { Box, Text } from "ink";
 import { createElement as h } from "react";
 import { PALETTE } from "../../../core/profiles.ts";
 import { defaultConfigDir } from "../../../core/claude-code.ts";
 import { loadProfiles } from "../../../core/machine-state.ts";
-import { type ProfileUsage, profileUsage, bar, freshnessText, levelOf, paceText, resetText, stateNote, windowLabel } from "../../../core/usage.ts";
+import { type Line, profileUsage, usageLines } from "../../../core/usage.ts";
+import { ROLES } from "../../../core/theme.ts";
 import { type Screen, type ScreenProps, theme } from "../screen.ts";
 
-const LABEL = 14;
+const roleHex = (role: keyof typeof ROLES) => (role === "ok" || role === "warn" || role === "high" ? theme.level[role] : theme[role]);
 
-function Profile({ a, now }: { a: ProfileUsage; now: Date }) {
-  const note = stateNote(a);
-  const fresh = freshnessText(a, now);
+// One line of segments as Ink text: a profile's name in its readable color, the rest by role.
+export function LineView({ line }: { line: Line }) {
   return h(
-    Box,
-    { flexDirection: "column", marginBottom: 1 },
-    h(Text, null, h(Text, { color: a.color }, "◇ "), h(Text, { color: a.color, bold: true }, a.name), a.default ? h(Text, { color: theme.muted }, "  ● default") : null),
-    note
-      ? h(Text, { color: theme.muted }, `  ${note}`)
-      : a.windows.map((w) => {
-          const color = theme.level[levelOf(w.pct)];
-          const cells = bar(w.pct);
-          const filled = cells.replace(/·+$/, "");
-          const pace = paceText(w, now);
-          return h(
-            Box,
-            { key: `${w.kind}${w.model ?? ""}`, flexDirection: "column" },
-            h(
-              Text,
-              null,
-              `  ${windowLabel(w).padEnd(LABEL)} `,
-              h(Text, { color }, filled),
-              h(Text, { color: theme.muted }, cells.slice(filled.length)),
-              h(Text, { color }, `  ${String(w.pct).padStart(3)}%`),
-              h(Text, { color: theme.muted }, `  ${resetText(w, now)}`)
-            ),
-            pace ? h(Text, { color: pace.warn ? theme.warning : theme.muted }, `  ${" ".repeat(LABEL)} ${pace.text}`) : null
-          );
-        }),
-    fresh ? h(Text, { color: fresh.warn ? theme.warning : theme.muted }, `  └ ${fresh.text}`) : null
+    Text,
+    null,
+    line.length ? line.map((s, i) => h(Text, { key: i, bold: s.bold, color: s.profile ? theme.profile(s.profile) : s.role ? roleHex(s.role) : undefined }, s.text)) : " "
   );
 }
 
 function UsageScreen({ now }: ScreenProps) {
   const profiles = loadProfiles();
   const list = (profiles.length ? profiles : [{ name: "claude", color: PALETTE[0], default: true, configDir: defaultConfigDir() }]).map((a) => profileUsage(a, now));
-  return h(Box, { flexDirection: "column" }, ...list.map((a) => h(Profile, { key: a.name, a, now })), h(Text, { color: theme.muted }, "local data, no network · /usage in a profile refreshes it"));
+  return h(
+    Box,
+    { flexDirection: "column" },
+    ...usageLines(list, now).map((line, i) => h(LineView, { key: i, line })),
+    h(Text, null, " "),
+    h(Text, { color: theme.muted }, `${list.length} profile${list.length === 1 ? "" : "s"}, local data, no network`)
+  );
 }
 
 export const usageScreen: Screen = { id: "usage", title: "Usage", Component: UsageScreen };
