@@ -12,6 +12,7 @@ What changed for someone who updates a clone. The format follows [Keep a Changel
 
 - **The look follows the new identity** (Vercel's Geist palette, no accent): colors per background (`DOTAGENTS_THEME=light|dark`, else `COLORFGBG`, else dark), a profile's name in a readable variant of its color, exact 256 and 16 color mapping.
 - **Every command prints without the rail** (`┌ │ ◇ └`): the ` dotagents ` badge in reverse video and the command, bold section titles, one line per item, a summary without `·`. Warnings show `▲`, skipped items `–`. Command names in the help are bold, not cyan. The prompts drop their rail too.
+- **The full-screen view** shows the face of the dotagents symbol in its header, with eyes that follow the usage (`> <` at the limit); the active tab is in reverse video and the keys are spaced, without `·`.
 - **`usage` has a new layout:** no rail or dots, `5h`/`7d` labels, a thin bar of constant width, the percentage in bold, levels at 70% and 90% (were 50% and 80%), durations like `3h 17m`. **`usage --short` changed format** for status lines: one line per profile with 8-cell bars (`work  5h ━━━━━━ ─  72% ↻ 3h17m   7d …`).
 
 ### Fixed

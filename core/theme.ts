@@ -136,6 +136,22 @@ export function painter(level: ColorLevel, background: Background) {
   };
 }
 
+// The face, the symbol's two eyes on a #171717 square, in the graphic surfaces (the full-screen
+// view, the dashboard, the tray). One state at a time, the most serious first: error, limit, warn,
+// working, asleep, done, ok. In the terminal, as text: the eyes and the role of their color, which
+// is always the dark background's, since the square is dark.
+export const FACE_SQUARE = "#171717";
+export const FACES = {
+  error: { eyes: "x x", role: "high" },
+  limit: { eyes: "> <", role: "high" },
+  warn: { eyes: "• •", role: "warn" },
+  working: { eyes: "• •", role: "text" },
+  asleep: { eyes: "– –", role: "muted" },
+  done: { eyes: "^ ^", role: "ok" },
+  ok: { eyes: "• •", role: "text" },
+} as const satisfies Record<string, { eyes: string; role: Role }>;
+export type Face = keyof typeof FACES;
+
 // The brand in the terminal: its name in reverse video (the text color as the background).
 export const badge = (level: ColorLevel) => (level > 0 ? "\x1b[7m dotagents \x1b[27m" : "dotagents");
 

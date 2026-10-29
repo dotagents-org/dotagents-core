@@ -5,7 +5,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { test, type TestContext } from "node:test";
-import { type ProfileUsage, bar, levelOf, normalize, pace, profileUsage, shortLines, span, usageLines } from "../core/usage.ts";
+import { type ProfileUsage, bar, faceOf, levelOf, normalize, pace, profileUsage, shortLines, span, usageLines } from "../core/usage.ts";
 
 const NOW = new Date("2026-10-28T12:00:00Z");
 const at = (iso: string) => new Date(iso);
@@ -162,4 +162,18 @@ test("a profile's usage tells apart no sign-in, no data, someone else's cache an
   const ok = profileUsage(tempProfile(t, { ...signed, cachedUsageUtilization: cache() }), NOW);
   assert.equal(ok.state, "ok");
   assert.equal(ok.windows.length, 3);
+});
+
+test("the face follows the most serious window: limit from 90%, warn from 70%, asleep without fresh data", () => {
+  const profile = (pct: number, state: ProfileUsage["state"] = "ok"): ProfileUsage => ({
+    name: "work",
+    color: "#D77655",
+    state,
+    fetchedAt: NOW,
+    windows: [{ kind: "week", pct, resetsAt: at("2026-11-04T12:00:00Z"), reset: false }],
+  });
+  assert.equal(faceOf([profile(20)], NOW), "ok");
+  assert.equal(faceOf([profile(20), profile(75)], NOW), "warn");
+  assert.equal(faceOf([profile(75), profile(95)], NOW), "limit");
+  assert.equal(faceOf([profile(95, "stale")], NOW), "asleep");
 });

@@ -49,7 +49,7 @@ const ICON: Record<string, { icon: string; color: string }> = {
   created: { icon: "+", color: theme.passed },
   updated: { icon: "~", color: theme.warning },
   moved: { icon: "→", color: theme.passed },
-  skipped: { icon: "!", color: theme.warning },
+  skipped: { icon: "–", color: theme.warning },
   failed: { icon: "✗", color: theme.failed },
   "would create": { icon: "+", color: theme.muted },
   "would update": { icon: "~", color: theme.muted },
@@ -70,11 +70,11 @@ export function ActionView({ title, action }: { title: string; action: Action })
     h(Text, { bold: true }, action.stage === "preview" ? `${title}, preview:` : `${title}:`),
     ...list.map((e, i) => {
       if (e.kind !== "result") return null;
-      const { icon, color } = ICON[e.status] ?? { icon: "·", color: theme.muted };
+      const { icon, color } = ICON[e.status] ?? { icon: "✓", color: theme.muted };
       return h(Text, { key: i }, h(Text, { color }, `  ${icon} ${e.status.padEnd(12)} `), displayPath(e.target), e.detail ? h(Text, { color: theme.muted }, `  ${e.detail}`) : null);
     }),
     list.length ? null : h(Text, { color: theme.passed }, "  ✓ nothing to change"),
     h(Text, { color: theme.muted }, `  ${ok} already ok`),
-    action.stage === "preview" ? h(Text, { color: theme.warning }, "  y apply · n cancel") : null
+    action.stage === "preview" ? h(Text, { color: theme.warning }, "  y apply   n cancel") : null
   );
 }
