@@ -123,7 +123,7 @@ app-workspace/
 └── app/                  the git clone: only the project's own files
 ```
 
-More in [Getting started](docs/getting-started.md), including WSL and npm without `sudo`.
+More in [Getting started](docs/getting-started.md), including WSL and npm without `sudo`. What changed in each version is in the [CHANGELOG](CHANGELOG.md).
 
 ## Commands at a glance
 
