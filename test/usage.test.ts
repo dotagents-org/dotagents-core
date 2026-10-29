@@ -5,7 +5,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { test, type TestContext } from "node:test";
-import { accountUsage, bar, normalize, pace } from "../lib/usage.ts";
+import { profileUsage, bar, normalize, pace } from "../lib/usage.ts";
 
 const NOW = new Date("2026-10-28T12:00:00Z");
 const at = (iso: string) => new Date(iso);
@@ -80,20 +80,20 @@ test("the bar has a fixed width and eighth-of-a-cell steps", () => {
   assert.equal([...bar(93, 30)].length, 30);
 });
 
-function tempAccount(t: TestContext, stateFile: unknown) {
+function tempProfile(t: TestContext, stateFile: unknown) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "dotagents-usage-"));
   t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
   if (stateFile !== undefined) fs.writeFileSync(path.join(dir, ".claude.json"), JSON.stringify(stateFile));
   return { name: "personal", color: "#376B80", configDir: dir };
 }
 
-test("an account's usage tells apart no sign-in, no data, someone else's cache and old data", (t) => {
+test("a profile's usage tells apart no sign-in, no data, someone else's cache and old data", (t) => {
   const signed = { oauthAccount: { accountUuid: "uuid-a" } };
-  assert.equal(accountUsage(tempAccount(t, undefined), NOW).state, "not-signed-in");
-  assert.equal(accountUsage(tempAccount(t, signed), NOW).state, "no-data");
-  assert.equal(accountUsage(tempAccount(t, { ...signed, cachedUsageUtilization: cache("uuid-b") }), NOW).state, "other-account");
-  assert.equal(accountUsage(tempAccount(t, { ...signed, cachedUsageUtilization: cache("uuid-a", "2026-10-28T02:00:00Z") }), NOW).state, "stale");
-  const ok = accountUsage(tempAccount(t, { ...signed, cachedUsageUtilization: cache() }), NOW);
+  assert.equal(profileUsage(tempProfile(t, undefined), NOW).state, "not-signed-in");
+  assert.equal(profileUsage(tempProfile(t, signed), NOW).state, "no-data");
+  assert.equal(profileUsage(tempProfile(t, { ...signed, cachedUsageUtilization: cache("uuid-b") }), NOW).state, "other-account");
+  assert.equal(profileUsage(tempProfile(t, { ...signed, cachedUsageUtilization: cache("uuid-a", "2026-10-28T02:00:00Z") }), NOW).state, "stale");
+  const ok = profileUsage(tempProfile(t, { ...signed, cachedUsageUtilization: cache() }), NOW);
   assert.equal(ok.state, "ok");
   assert.equal(ok.windows.length, 3);
 });

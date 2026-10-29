@@ -1,4 +1,4 @@
-// How much of each account's plan is used: the 5-hour session and the weekly limits. Read from
+// How much of each profile's plan is used: the 5-hour session and the weekly limits. Read from
 // the cache Claude Code keeps in each config folder's state file (cachedUsageUtilization), which
 // it refreshes whenever it asks for the usage, /usage for one. No network, no token.
 //
@@ -17,7 +17,7 @@ export type UsageWindow = {
   reset: boolean;
 };
 
-export type AccountUsage = {
+export type ProfileUsage = {
   name: string;
   color: string;
   default?: boolean;
@@ -84,13 +84,13 @@ export function normalize(cache: unknown, now: Date): { fetchedAt: Date; account
   return { fetchedAt, ...(typeof c.accountUuid === "string" ? { accountUuid: c.accountUuid } : {}), windows: list };
 }
 
-export function accountUsage(account: { name: string; color: string; default?: boolean; configDir: string }, now: Date): AccountUsage {
-  const base = { name: account.name, color: account.color, ...(account.default ? { default: true } : {}), fetchedAt: null, windows: [] };
-  const who = signedIn(account.configDir);
+export function profileUsage(profile: { name: string; color: string; default?: boolean; configDir: string }, now: Date): ProfileUsage {
+  const base = { name: profile.name, color: profile.color, ...(profile.default ? { default: true } : {}), fetchedAt: null, windows: [] };
+  const who = signedIn(profile.configDir);
   if (!who) return { ...base, state: "not-signed-in" };
   let cache: unknown;
   try {
-    cache = JSON.parse(fs.readFileSync(stateFile(account.configDir), "utf8")).cachedUsageUtilization;
+    cache = JSON.parse(fs.readFileSync(stateFile(profile.configDir), "utf8")).cachedUsageUtilization;
   } catch {
     cache = undefined;
   }
@@ -157,17 +157,17 @@ export function paceText(w: UsageWindow, now: Date): { text: string; warn: boole
   return { text: `~${p.leftAtReset}% left at reset`, warn: false };
 }
 
-// How old the account's data is, and whether that's too old.
-export function freshnessText(a: AccountUsage, now: Date): { text: string; warn: boolean } | null {
+// How old the profile's data is, and whether that's too old.
+export function freshnessText(a: ProfileUsage, now: Date): { text: string; warn: boolean } | null {
   if (!a.fetchedAt) return null;
   const when = `data from ${hhmm(a.fetchedAt)} · ${span(now.getTime() - a.fetchedAt.getTime())} ago`;
-  return a.state === "stale" ? { text: `⚠ ${when}, stale: run /usage in this account`, warn: true } : { text: when, warn: false };
+  return a.state === "stale" ? { text: `⚠ ${when}, stale: run /usage in this profile`, warn: true } : { text: when, warn: false };
 }
 
-// What an account without numbers says instead.
-export function stateNote(a: AccountUsage) {
+// What a profile without numbers says instead.
+export function stateNote(a: ProfileUsage) {
   if (a.state === "not-signed-in") return `not signed in · sign in with: claude-${a.name} auth login`;
-  if (a.state === "no-data") return "no data yet · run /usage in this account";
-  if (a.state === "other-account") return "the cache is from an earlier sign-in · run /usage in this account";
+  if (a.state === "no-data") return "no data yet · run /usage in this profile";
+  if (a.state === "other-account") return "the cache is from an earlier sign-in · run /usage in this profile";
   return null;
 }

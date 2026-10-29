@@ -1,15 +1,15 @@
-// One taskbar button per account on Windows, and the account's look on the instance: window
+// One taskbar button per profile on Windows, and the profile's look on the instance: window
 // title and icon, and the notification-area icon. Every Claude Desktop window carries the package's
 // identity, so the taskbar puts every instance under one Claude button. Two things split them:
-// - the account's Start menu shortcut carries an AppUserModelID of its own
+// - the profile's Start menu shortcut carries an AppUserModelID of its own
 //   (System.AppUserModel.ID, written through the shortcut's property store);
-// - a watcher, started by the account's launcher next to the app, gives the windows of that
-//   instance the same ID, the account's icon and name and the command that opens it again
+// - a watcher, started by the profile's launcher next to the app, gives the windows of that
+//   instance the same ID, the profile's icon and name and the command that opens it again
 //   (through each window's property store). Windows then shows them as their own button, and
-//   pinning it pins the account.
+//   pinning it pins the profile.
 // The watcher finds the instance by the claude.exe command line (--user-data-dir for an extra
-// account, none for the default one), runs one per account (a named mutex) and ends when that
-// instance closes. The technique is the one leonxlnx/claude-desktop-multi-account (MIT) and
+// profile, none for the default one), runs one per profile (a named mutex) and ends when that
+// instance closes. The technique is the one leonxlnx/claude-desktop-multi-profile (MIT) and
 // freenitial/claude_desktop_profiles_manager use.
 
 import path from "node:path";
@@ -80,9 +80,9 @@ param(
   [Parameter(Mandatory)] [string]$AppId,
   [Parameter(Mandatory)] [string]$DisplayName,
   [Parameter(Mandatory)] [string]$Icon,
-  # The account's .vbs launcher: the button's "open again" command runs it.
+  # The profile's .vbs launcher: the button's "open again" command runs it.
   [Parameter(Mandatory)] [string]$Launcher,
-  # The account's --user-data-dir; empty for the default account, whose app has none.
+  # The profile's --user-data-dir; empty for the default profile, whose app has none.
   [string]$DataDir = "",
   # How long to wait for the app to show up before giving up.
   [int]$StartupSeconds = 60
@@ -122,7 +122,7 @@ ${PROPERTY_STORE}
 
   static readonly HashSet<IntPtr> tagged = new HashSet<IntPtr>();
 
-  // The account's look: window title and icon, and the notification-area icon.
+  // The profile's look: window title and icon, and the notification-area icon.
   [DllImport("user32.dll", CharSet = CharSet.Unicode)] static extern int GetClassName(IntPtr window, StringBuilder name, int size);
   [DllImport("user32.dll", CharSet = CharSet.Unicode)] static extern int GetWindowText(IntPtr window, StringBuilder text, int size);
   [DllImport("user32.dll", CharSet = CharSet.Unicode)] static extern IntPtr SendMessageTimeout(IntPtr window, uint message, IntPtr wParam, string lParam, uint flags, uint timeout, out IntPtr result);
@@ -145,7 +145,7 @@ ${PROPERTY_STORE}
   const uint WM_SETTEXT = 0x000C, WM_GETICON = 0x007F, WM_SETICON = 0x0080, SMTO_ABORTIFHUNG = 2, NIM_MODIFY = 1, NIF_ICON = 2, NIF_TIP = 4;
   static IntPtr bigIcon = IntPtr.Zero, smallIcon = IntPtr.Zero;
 
-  // The account's .ico at the sizes Windows asks for; nothing when the icon isn't an .ico file.
+  // The profile's .ico at the sizes Windows asks for; nothing when the icon isn't an .ico file.
   public static void LoadIcons(string path) {
     if (!path.EndsWith(".ico", StringComparison.OrdinalIgnoreCase)) return;
     bigIcon = LoadImage(IntPtr.Zero, path, 1, GetSystemMetrics(11), GetSystemMetrics(12), 0x10);
@@ -227,7 +227,7 @@ ${PROPERTY_STORE}
 
 $relaunch = '"' + (Join-Path $env:SystemRoot 'System32\wscript.exe') + '" "' + $Launcher + '"'
 
-# One watcher per instance: a second start of the account leaves the running one alone.
+# One watcher per instance: a second start of the profile leaves the running one alone.
 $mutex = New-Object System.Threading.Mutex($false, "Local\\$AppId")
 if (-not $mutex.WaitOne(0)) { exit 0 }
 

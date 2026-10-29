@@ -20,7 +20,7 @@ export const style = pc.createColors(useColor);
 
 export const toSlash = (p: string) => p.replace(/\\/g, "/");
 
-// A color of our own, given as #RRGGBB (an account's color): 24-bit where the terminal supports
+// A color of our own, given as #RRGGBB (a profile's color): 24-bit where the terminal supports
 // it, else the closest of the 256 xterm colors. Plain text when colors are off.
 export function paint(hex: string) {
   if (!useColor) return (text: string) => text;

@@ -32,7 +32,7 @@ export type Command = {
   summary: string;
   // Extra help lines under the summary.
   more?: string[];
-  group: "Machine" | "Accounts" | "Workspace" | "Skills";
+  group: "Machine" | "Profiles" | "Workspace" | "Skills";
   run(ctx: Context): void | Promise<void>;
 };
 

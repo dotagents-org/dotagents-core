@@ -7,13 +7,13 @@ import path from "node:path";
 import { Box, Text, render, useApp, useInput, useStdout } from "ink";
 import { createElement as h, useEffect, useState } from "react";
 import { type Screen, theme } from "./screen.ts";
-import { accountsScreen } from "./screens/accounts.ts";
+import { profilesScreen } from "./screens/profiles.ts";
 import { skillsScreen } from "./screens/skills.ts";
 import { usageScreen } from "./screens/usage.ts";
 import { workspacesScreen } from "./screens/workspaces.ts";
 
 // In the order of the tabs; the number keys follow it.
-export const SCREENS: Screen[] = [usageScreen, accountsScreen, workspacesScreen, skillsScreen];
+export const SCREENS: Screen[] = [usageScreen, profilesScreen, workspacesScreen, skillsScreen];
 
 const TICK_MS = 2000;
 // The frame around a screen: the header, the tabs with their margins, the keys with theirs.

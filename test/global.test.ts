@@ -54,7 +54,7 @@ test("a global CLAUDE.md you wrote is kept as a backup, not lost", (t) => {
   assert.equal(fs.readFileSync(path.join(home, ".claude", backups[0]), "utf8"), "# Mine\n");
 });
 
-test("install can target another config folder, for a second account, and leaves ~/.claude alone", (t) => {
+test("install can target another config folder, for a second profile, and leaves ~/.claude alone", (t) => {
   const home = tempHome(t);
   const other = path.join(home, ".claude-work");
   quiet();

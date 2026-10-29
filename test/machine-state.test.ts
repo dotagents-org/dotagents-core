@@ -5,7 +5,8 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { test, type TestContext } from "node:test";
-import { loadAccounts, loadWorkspaces, registerWorkspace, removeAccount, saveAccount, untrackWorkspace, workspacesFile } from "../lib/machine-state.ts";
+import { loadProfiles, loadWorkspaces, migrateLegacyProfiles, profilesFile, registerWorkspace, removeProfile, saveProfile, untrackWorkspace, workspacesFile } from "../lib/machine-state.ts";
+import { state } from "../lib/state.ts";
 import { quiet } from "./helpers.ts";
 
 function tempStateDir(t: TestContext) {
@@ -56,31 +57,55 @@ test("a state file from a newer dotagents is not read", (t) => {
   assert.throws(() => loadWorkspaces(), /newer dotagents/);
 });
 
-test("accounts are added once, one of them the default, and removed", (t) => {
+test("profiles are added once, one of them the default, and removed", (t) => {
   tempStateDir(t);
   quiet();
-  assert.deepEqual(loadAccounts(), []);
-  saveAccount({ name: "work", configDir: "/home/me/.claude", color: "#D77655", default: true });
-  saveAccount({ name: "personal", configDir: "/home/me/.claude-personal", color: "#376B80" });
-  saveAccount({ name: "personal", configDir: "/home/me/.claude-personal", color: "#000000" });
+  assert.deepEqual(loadProfiles(), []);
+  saveProfile({ name: "work", configDir: "/home/me/.claude", color: "#D77655", default: true });
+  saveProfile({ name: "personal", configDir: "/home/me/.claude-personal", color: "#376B80" });
+  saveProfile({ name: "personal", configDir: "/home/me/.claude-personal", color: "#000000" });
   assert.deepEqual(
-    loadAccounts().map((a) => [a.name, a.color, Boolean(a.default)]),
+    loadProfiles().map((a) => [a.name, a.color, Boolean(a.default)]),
     [
       ["work", "#D77655", true],
       ["personal", "#000000", false],
     ]
   );
   // A new default takes the mark from the old one.
-  saveAccount({ name: "personal", configDir: "/home/me/.claude-personal", color: "#000000", default: true });
-  assert.deepEqual(loadAccounts().filter((a) => a.default).map((a) => a.name), ["personal"]);
-  assert.equal(removeAccount("work"), true);
-  assert.equal(removeAccount("work"), false);
-  assert.deepEqual(loadAccounts().map((a) => a.name), ["personal"]);
+  saveProfile({ name: "personal", configDir: "/home/me/.claude-personal", color: "#000000", default: true });
+  assert.deepEqual(loadProfiles().filter((a) => a.default).map((a) => a.name), ["personal"]);
+  assert.equal(removeProfile("work"), true);
+  assert.equal(removeProfile("work"), false);
+  assert.deepEqual(loadProfiles().map((a) => a.name), ["personal"]);
 });
 
-test("an accounts file with a bad entry stops the command", (t) => {
+test("the accounts.json of earlier versions is read as the profiles, and moved on the first write", (t) => {
   const dir = tempStateDir(t);
   quiet();
-  fs.writeFileSync(path.join(dir, "accounts.json"), JSON.stringify({ version: 1, accounts: [{ name: "x" }] }));
-  assert.throws(() => loadAccounts(), /fix it or delete it/);
+  const legacy = path.join(dir, "accounts.json");
+  fs.writeFileSync(legacy, JSON.stringify({ version: 1, accounts: [{ name: "work", configDir: "/home/me/.claude", color: "#D77655", default: true }] }));
+  assert.deepEqual(loadProfiles().map((p) => p.name), ["work"]);
+  state.dryRun = true;
+  t.after(() => (state.dryRun = false));
+  assert.equal(migrateLegacyProfiles(), true);
+  assert.ok(fs.existsSync(legacy), "a dry run leaves the old file");
+  assert.ok(!fs.existsSync(profilesFile()));
+  state.dryRun = false;
+  assert.equal(migrateLegacyProfiles(), true);
+  assert.ok(!fs.existsSync(legacy));
+  assert.deepEqual(JSON.parse(fs.readFileSync(profilesFile(), "utf8")).profiles.map((p: { name: string }) => p.name), ["work"]);
+  assert.equal(migrateLegacyProfiles(), false, "a second run has nothing to move");
+  // A write also moves it.
+  fs.writeFileSync(legacy, JSON.stringify({ version: 1, accounts: [{ name: "old", configDir: "/x", color: "#000000" }] }));
+  fs.rmSync(profilesFile());
+  saveProfile({ name: "personal", configDir: "/home/me/.claude-personal", color: "#376B80" });
+  assert.ok(!fs.existsSync(legacy));
+  assert.deepEqual(loadProfiles().map((p) => p.name), ["old", "personal"]);
+});
+
+test("a profiles file with a bad entry stops the command", (t) => {
+  const dir = tempStateDir(t);
+  quiet();
+  fs.writeFileSync(path.join(dir, "profiles.json"), JSON.stringify({ version: 1, profiles: [{ name: "x" }] }));
+  assert.throws(() => loadProfiles(), /fix it or delete it/);
 });
