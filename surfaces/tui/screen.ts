@@ -5,6 +5,7 @@
 // `refresh` change. A future feature is one more screen.
 
 import type { ReactNode } from "react";
+import { ROLES } from "../../core/theme.ts";
 
 export type ScreenProps = {
   repo: string;
@@ -22,14 +23,15 @@ export type Screen = {
   Component: (props: ScreenProps) => ReactNode;
 };
 
-// Ink takes color names or #RRGGBB, so the profile colors go through as they are.
+// The roles of core/theme.ts, as Ink color names; Ink takes #RRGGBB too, so the profile colors go
+// through as they are.
 export const theme = {
-  accent: "magenta",
-  muted: "gray",
-  own: "green",
-  thirdParty: "cyan",
-  level: { ok: "green", warn: "yellow", high: "red" },
-  passed: "green",
-  failed: "red",
-  warning: "yellow",
+  accent: ROLES.brand,
+  muted: ROLES.muted,
+  own: ROLES.ok,
+  thirdParty: ROLES.info,
+  level: { ok: ROLES.ok, warn: ROLES.warn, high: ROLES.high },
+  passed: ROLES.ok,
+  failed: ROLES.high,
+  warning: ROLES.warn,
 } as const;

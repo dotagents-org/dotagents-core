@@ -2,6 +2,12 @@
 
 What changed for someone who updates a clone. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow [Semantic Versioning](https://semver.org/). `dotagents update` names the version change after a pull.
 
+## Unreleased
+
+### Fixed
+
+- `FORCE_COLOR=0` turns colors off instead of on, and `TERM=dumb` turns them off too. `FORCE_COLOR=1`, `2` and `3` set how many colors the output uses.
+
 ## 2.0.0 - 2026-10-29
 
 ### Breaking
