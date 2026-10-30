@@ -20,13 +20,37 @@ import { settingsPull } from "./surfaces/cli/settings.ts";
 import { skills, skillsAdd, skillsRemove } from "./surfaces/cli/skills.ts";
 import { update } from "./surfaces/cli/update.ts";
 import { usage } from "./surfaces/cli/usage.ts";
+import { startServer } from "./surfaces/web/server.ts";
+import { readUsage, usageJson } from "./core/snapshot.ts";
 import { untrack, workspaces } from "./surfaces/cli/workspaces.ts";
 import { UsageError, parseArgs } from "./core/common.ts";
 import { brand, displayPath, fancy, tone } from "./core/output.ts";
 import { state } from "./core/state.ts";
 
+// The visual app's server. Defined here, at the root, because it joins two surfaces: the command
+// line starts it, surfaces/web/ serves it.
+const serve: Command = {
+  name: "serve",
+  usage: "[--port <n>]",
+  summary: "serve the visual app on 127.0.0.1, live",
+  more: ["prints the address to open, with its token;", "Ctrl+C stops it"],
+  group: "Profiles",
+  async run({ args }) {
+    const port = args.port === undefined ? undefined : Number(args.port);
+    if (port !== undefined && !(Number.isInteger(port) && port >= 0 && port < 65536)) throw new UsageError(`--port takes a number, not ${args.port}`);
+    const server = await startServer({
+      read: () => {
+        const now = new Date();
+        return usageJson(readUsage(now), now);
+      },
+      port,
+    });
+    console.log(`${brand()}  ${bold("serve")}\n\nOpen ${server.url}\n${muted("Only this machine reaches it, and only with the token in that address. Ctrl+C stops it.")}`);
+  },
+};
+
 // In the order the help lists them.
-const COMMANDS: Command[] = [install, update, settingsPull, profileAdd, profileList, profileRemove, usage, newWorkspace, init, check, workspaces, untrack, skills, skillsAdd, skillsRemove];
+const COMMANDS: Command[] = [install, update, settingsPull, profileAdd, profileList, profileRemove, usage, serve, newWorkspace, init, check, workspaces, untrack, skills, skillsAdd, skillsRemove];
 
 const repo = path.dirname(fileURLToPath(import.meta.url));
 const version = JSON.parse(fs.readFileSync(path.join(repo, "package.json"), "utf8")).version;
@@ -96,7 +120,7 @@ try {
   args = parseArgs<CliArgs>(process.argv.slice(2), {
     booleans: ["all", "default", "dry-run", "help", "json", "no-pull", "refresh", "short", "version", "watch", "wrap", "yes"],
     lists: ["skills"],
-    values: ["color", "from"],
+    values: ["color", "from", "port"],
   });
 } catch (err) {
   fail(err as Error);

@@ -8,6 +8,8 @@ What changed for someone who updates a clone. The format follows [Keep a Changel
 
 - **Workspace memory:** `init` points every Claude profile's auto memory for a workspace at `.artifacts/memory/` (`autoMemoryDirectory` in `.claude/settings.local.json`) and copies in what each profile had learned there before; `check` verifies the folder, the index and the notes left behind.
 
+- **`dotagents serve`:** the visual app's local server, on 127.0.0.1 with a token, and a first page with the usage of every profile, live (server-sent events); a Windows window reaches it in WSL at the same address.
+
 ### Fixed
 
 - An unknown option (`check --bogus`) or command, or an option without its value, prints one line and exits with 2, instead of a stack trace or being ignored; `--` ends the options.

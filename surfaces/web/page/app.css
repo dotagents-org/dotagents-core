@@ -1,0 +1,14 @@
+:root { color-scheme: dark; --bg: #0a0a0a; --text: #ededed; --muted: #a0a0a0; --track: #454545; --ok: #01ca54; --warn: #fe9911; --high: #fe6367; }
+@media (prefers-color-scheme: light) { :root { color-scheme: light; --bg: #ffffff; --text: #171717; --muted: #4d4d4d; --track: #c9c9c9; --ok: #107d32; --warn: #a25204; --high: #d50322; } }
+body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.5 "Geist Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+main { max-width: 560px; margin: 32px auto; padding: 0 16px; }
+h1 { display: flex; align-items: center; gap: 10px; font-size: 18px; }
+h2 { font-size: 14px; margin: 24px 0 8px; }
+.muted { color: var(--muted); font-weight: 400; }
+.row { display: grid; grid-template-columns: 48px 1fr 48px auto; gap: 12px; align-items: center; }
+.bar { height: 4px; background: var(--track); border-radius: 2px; overflow: hidden; }
+.used { display: block; height: 100%; background: var(--ok); }
+.row b { text-align: right; color: var(--ok); }
+.warn .used { background: var(--warn); } .warn b { color: var(--warn); }
+.high .used { background: var(--high); } .high b { color: var(--high); }
+.stale .used { background: var(--muted); } .stale b { color: var(--muted); }

@@ -18,7 +18,8 @@ dotagents/
 ├── cli.ts                     the dotagents command: reads the arguments, picks the command, prints the help
 ├── core/                      the data and the actions, drawing nothing (see below)
 ├── surfaces/                  the ways in, each using core/ only
-│   └── cli/                   one file per command: its help, its questions, its run
+│   ├── cli/                   one file per command: its help, its questions, its run
+│   └── web/                   the visual app: server.ts (127.0.0.1, token, live events) and page/
 ├── test/                      unit tests (node:test)
 ├── .github/workflows/         CI: skill validation and command tests on three systems
 └── package.json
@@ -28,7 +29,7 @@ dotagents/
 
 The command is TypeScript run directly by Node (type stripping, no build step) with one dependency: `@clack/prompts`, for the questions and the spinners. The colors come from `core/theme.ts`. `cli.ts` reads the arguments and hands them to one of the commands in `surfaces/cli/`, which asks the questions and calls the modules. Everything that decides what a workspace or a machine should look like lives in `core/`, in a few modules with small interfaces.
 
-**Core and surfaces.** `core/` holds the data and the actions and draws nothing. A surface is a way in: today the commands (`surfaces/cli/`), later the visual app, the VS Code extension, the tray and the MCP server. Each surface uses `core/` and never another surface; `cli.ts`, at the root, is the one place that picks one. `test/boundaries.test.ts` fails when an import breaks the rule.
+**Core and surfaces.** `core/` holds the data and the actions and draws nothing. A surface is a way in: the commands (`surfaces/cli/`) and the visual app (`surfaces/web/`: its local server and page), later the VS Code extension, the tray and the MCP server. Each surface uses `core/` and never another surface; `cli.ts`, at the root, is the one place that picks one, and where `serve` joins the command line to the web server. `test/boundaries.test.ts` fails when an import breaks the rule.
 
 ```mermaid
 flowchart LR
