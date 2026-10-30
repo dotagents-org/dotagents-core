@@ -18,8 +18,7 @@ dotagents/
 ├── cli.ts                     the dotagents command: reads the arguments, picks the command, prints the help
 ├── core/                      the data and the actions, drawing nothing (see below)
 ├── surfaces/                  the ways in, each using core/ only
-│   ├── cli/                   one file per command: its help, its questions, its run
-│   └── tui/                   the full-screen view: app.ts (frame, tabs, keys) and one file per screen
+│   └── cli/                   one file per command: its help, its questions, its run
 ├── test/                      unit tests (node:test)
 ├── .github/workflows/         CI: skill validation and command tests on three systems
 └── package.json
@@ -27,11 +26,9 @@ dotagents/
 
 ## Modules
 
-The command is TypeScript run directly by Node (type stripping, no build step) with three dependencies: `@clack/prompts` for the questions and the spinners, `ink` and `react` for the full-screen view. The colors come from `core/theme.ts`. `cli.ts` reads the arguments and hands them to one of the commands in `surfaces/cli/`, which asks the questions and calls the modules. Everything that decides what a workspace or a machine should look like lives in `core/`, in a few modules with small interfaces.
+The command is TypeScript run directly by Node (type stripping, no build step) with one dependency: `@clack/prompts`, for the questions and the spinners. The colors come from `core/theme.ts`. `cli.ts` reads the arguments and hands them to one of the commands in `surfaces/cli/`, which asks the questions and calls the modules. Everything that decides what a workspace or a machine should look like lives in `core/`, in a few modules with small interfaces.
 
-**Core and surfaces.** `core/` holds the data and the actions and draws nothing. A surface is a way in: the commands (`surfaces/cli/`), the full-screen view (`surfaces/tui/`), and later the VS Code extension, the tray, the dashboard, the MCP server. Each surface uses `core/` and never another surface; `cli.ts`, at the root, is the one place that picks a surface, as when `usage --watch` opens the full-screen view (a command's `view`). `test/boundaries.test.ts` fails when an import breaks the rule.
-
-
+**Core and surfaces.** `core/` holds the data and the actions and draws nothing. A surface is a way in: today the commands (`surfaces/cli/`), later the visual app, the VS Code extension, the tray and the MCP server. Each surface uses `core/` and never another surface; `cli.ts`, at the root, is the one place that picks one. `test/boundaries.test.ts` fails when an import breaks the rule.
 
 ```mermaid
 flowchart LR
@@ -102,12 +99,6 @@ node cli.ts --help      # run without npm link
   - checks that a second run changes nothing.
 
 **Commits** follow [the commit convention](../rules/commit-conventions.md): gitmoji plus Conventional Commits, one line in English, no co-author trailer.
-
-**The full-screen view (`surfaces/tui/`)** is a second way to show what `core/` knows, next to the commands. Each screen is a file in `surfaces/tui/screens/` that reads from `core/` and renders with Ink, without JSX (`createElement`), because Node runs `.ts` but doesn't turn JSX into code. What a module reports through events (a checklist, an install) reaches a screen through `capture()`, which keeps the events instead of printing them. The view is loaded only when used, so the commands don't load React.
-
-**Actions on a screen** go through `useAction` (`surfaces/tui/action.ts`): it runs the module once as a preview (`captureAsync` with `dryRun: true`), shows what would change, and runs it for real on `y`. The terminal spinner stays off inside the view, since it would draw over it.
-
-**Adding a screen:** write `surfaces/tui/screens/<name>.ts` exporting a `Screen` (id, title, `Component`), add it to `SCREENS` in `surfaces/tui/app.ts` (the order is the tabs' order and the number keys'), and cover it in `test/tui.test.ts`.
 
 **The brand and the README's captures:**
 

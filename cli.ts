@@ -2,7 +2,7 @@
 // `dotagents`: applies this repository's Claude Code configuration. Works on Windows, Linux and
 // macOS with Node 22.18+, which runs this TypeScript file directly (type stripping, no build).
 // Make it a command with `npm install && npm link` in the clone (@clack/prompts for the
-// prompts; ink and react, the full-screen view in surfaces/tui/; the colors are core/theme.ts).
+// prompts; the colors are core/theme.ts).
 //
 // This file only reads the arguments, picks the command and prints the help. Each command
 // lives in surfaces/cli/<name>.ts, and uses the modules in core/.
@@ -22,16 +22,8 @@ import { update } from "./surfaces/cli/update.ts";
 import { usage } from "./surfaces/cli/usage.ts";
 import { untrack, workspaces } from "./surfaces/cli/workspaces.ts";
 import { parseArgs } from "./core/common.ts";
-import { brand, displayPath, fancy, interactive, tone } from "./core/output.ts";
+import { brand, displayPath, fancy, tone } from "./core/output.ts";
 import { state } from "./core/state.ts";
-import { colorLevel } from "./core/theme.ts";
-
-// The full-screen view draws with Ink, whose colors follow FORCE_COLOR: set it from colorLevel()
-// first, so the view and the commands agree (NO_COLOR, TERM=dumb, the terminal's depth).
-const loadView = () => {
-  process.env.FORCE_COLOR = String(colorLevel());
-  return import("./surfaces/tui/app.ts");
-};
 
 // In the order the help lists them.
 const COMMANDS: Command[] = [install, update, settingsPull, profileAdd, profileList, profileRemove, usage, newWorkspace, init, check, workspaces, untrack, skills, skillsAdd, skillsRemove];
@@ -55,7 +47,6 @@ function help() {
 
 ${title("Usage")}
   dotagents ${muted("<command> [options]")}
-  dotagents              ${muted("in a terminal, the full-screen view (usage, profiles, workspaces, skills)")}
 
 ${groups.join("\n\n")}
 
@@ -67,7 +58,6 @@ ${title("Options")}
   ${bold("--color")}      (profile add) the profile's color, #RRGGBB
   ${bold("--short")}      (usage) one line, for a prompt or a status line
   ${bold("--json")}       (usage) the data, for scripts
-  ${bold("--watch")}      (usage) the full-screen view, updated live
   ${bold("--refresh")}    (usage) ask Claude Code for fresh numbers first
   ${bold("--no-pull")}    (update) skip git pull, only reapply
   ${bold("--from")}       (settings pull) the profile to take the settings from
@@ -103,19 +93,13 @@ state.dryRun = Boolean(args["dry-run"]);
 
 if (args.version) {
   console.log(version);
-} else if (!args._.length && !args.help && interactive) {
-  // The full-screen view, loaded only when used, so the commands don't load React.
-  loadView().then(({ runTui }) => runTui(repo));
 } else if (args.help || !args._.length) {
   console.log(help());
 } else {
   Promise.resolve()
     .then(() => {
       const { command, positional } = pick(args._);
-      const screen = command.view?.(args);
-      if (!screen) return command.run({ repo, args, positional });
-      if (!interactive) throw new Error(`${command.name} opens the full-screen view, which needs a terminal`);
-      return loadView().then(({ runTui }) => runTui(repo, screen));
+      return command.run({ repo, args, positional });
     })
     .catch((err) => {
       console.error(fancy ? `${high("✗")} ${bold("dotagents:")} ${err.message}` : `dotagents: ${err.message}`);

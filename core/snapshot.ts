@@ -1,5 +1,5 @@
 // The usage of every profile in one list, for every surface (the usage command, its JSON, the
-// full-screen view and its face): this side's profiles, read from Claude Code's caches, and, when
+// status line, later the visual app): this side's profiles, read from Claude Code's caches, and, when
 // install found the other side of the machine (Windows from WSL, WSL from Windows), that side's
 // caches too, read only. The same account on both sides shows the newer of the two.
 

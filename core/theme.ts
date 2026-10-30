@@ -136,8 +136,8 @@ export function painter(level: ColorLevel, background: Background) {
   };
 }
 
-// The face, the symbol's two eyes on a #171717 square, in the graphic surfaces (the full-screen
-// view, the dashboard, the tray). One state at a time, the most serious first: error, limit, warn,
+// The face, the symbol's two eyes on a #171717 square, in the graphic surfaces (the visual app,
+// the tray). One state at a time, the most serious first: error, limit, warn,
 // working, asleep, done, ok. In the terminal, as text: the eyes and the role of their color, which
 // is always the dark background's, since the square is dark.
 export const FACE_SQUARE = "#171717";
