@@ -17,9 +17,13 @@ const span = (ms) => {
   return h < 24 ? `${h}h ${m % 60}m` : `${Math.floor(h / 24)}d ${h % 24}h`;
 };
 
+// Styles go through the CSSOM: the page's security policy refuses style="..." attributes.
 function el(tag, attrs = {}, ...children) {
   const node = document.createElement(tag);
-  for (const [k, v] of Object.entries(attrs)) node.setAttribute(k, v);
+  for (const [k, v] of Object.entries(attrs)) {
+    if (k === "style") Object.assign(node.style, v);
+    else node.setAttribute(k, v);
+  }
   for (const c of children) node.append(c);
   return node;
 }
@@ -29,7 +33,7 @@ function render(data) {
   app.replaceChildren(
     el("h1", {}, el("img", { src: "face.svg", alt: "", width: "28", height: "28" }), " dotagents"),
     ...data.profiles.map((p) => {
-      const head = el("h2", { style: `color:${p.color}` }, p.name);
+      const head = el("h2", {}, el("span", { style: { color: p.color } }, p.name));
       if (p.default) head.append(el("span", { class: "muted" }, " default"));
       if (p.fetchedAt) head.append(el("span", { class: "muted" }, ` ${span(now - Date.parse(p.fetchedAt))} ago${p.from ? ` on ${p.from}` : ""}`));
       const rows = p.windows.map((w) =>
@@ -37,7 +41,8 @@ function render(data) {
           "div",
           { class: `row ${p.state === "stale" ? "stale" : level(w.pct)}` },
           el("span", { class: "label" }, label(w)),
-          el("span", { class: "bar" }, el("span", { class: "used", style: `width:${w.pct}%` })),
+          // The used part, a gap, the rest of the track, as in the terminal.
+          el("span", { class: "bar" }, el("span", { class: "used", style: { width: `${Math.max(0, Math.min(100, w.pct))}%` } }), el("span", { class: "rest" })),
           el("b", {}, `${w.pct}%`),
           el("span", { class: "muted" }, w.reset || !w.resetsAt ? "reset" : `resets ${span(Date.parse(w.resetsAt) - now)}`)
         )
