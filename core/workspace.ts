@@ -11,6 +11,8 @@ import { createFromTemplate, ensureDir, ensureDirLink, ensureJsonKey, lstat, rea
 import { checkItem, checkWarn, report, section } from "./output.ts";
 import { state } from "./state.ts";
 import { AGENT_FILES, ensureExcluded, gitRepoOf, isRepoRoot, removeExcluded, trackedAgentFiles, untrackedAgentFiles } from "./git.ts";
+import { applyMemory, verifyMemory } from "./memory.ts";
+import { configDirs } from "./profiles.ts";
 import { applySkills, verifySkills, type Skill } from "./skills.ts";
 import type { Installer } from "./thirdparty.ts";
 
@@ -203,6 +205,12 @@ const STANDARD: StandardItem[] = [
       for (const dir of FIXED_ARTIFACTS) checkItem(fs.existsSync(path.join(ws, ".artifacts", dir)), `.artifacts/${dir} exists`);
       checkItem(fs.existsSync(path.join(ws, ".artifacts", "INDEX.md")), ".artifacts/INDEX.md exists", `create it with: dotagents init "${ws}"`);
     },
+  },
+  {
+    // Every profile's Claude Code keeps its memory of the workspace in .artifacts/memory/.
+    title: "Workspace memory",
+    apply: ({ ws }) => applyMemory(ws, configDirs()),
+    verify: ({ ws }) => verifyMemory(ws, configDirs()),
   },
 ];
 
