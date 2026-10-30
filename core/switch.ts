@@ -10,8 +10,8 @@ import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { defaultConfigDir, stateFile } from "./claude-code.ts";
-import { type Profile, loadMachine, loadProfiles, stateDir } from "./machine-state.ts";
-import { report, section } from "./output.ts";
+import { type Peer, type Profile, loadMachine, loadProfiles, stateDir } from "./machine-state.ts";
+import { checkItem, checkWarn, report, section } from "./output.ts";
 import { state } from "./state.ts";
 
 // A login: the .credentials.json as Claude Code wrote it, and the account it belongs to.
@@ -164,4 +164,61 @@ export async function switchProfile({ name, save, here = false, peer = peerSwitc
   if (!other) return;
   section("Other side");
   report(other.ok ? "updated" : "failed", "switch", other.detail);
+}
+
+// ── When the saved logins expire ─────────────────────────────────────────────────────────────
+// A login lasts a few weeks; Claude Code renews the access token but not past the refresh token's
+// own expiry (refreshTokenExpiresAt). The checklist names that date for each profile on each side,
+// so a login is renewed calmly instead of failing in the middle of work.
+
+const WARN_DAYS = 7;
+const DAY = 86_400_000;
+
+const expiryOf = (login: Login | null) => {
+  try {
+    const value = JSON.parse(login?.credentials ?? "")?.claudeAiOauth?.refreshTokenExpiresAt;
+    return typeof value === "number" ? value : null;
+  } catch {
+    return null;
+  }
+};
+
+const sideName = () => (process.platform === "win32" ? "Windows" : loadMachine().peer?.name === "Windows" ? "WSL" : "this machine");
+
+// The freshest login of each profile on the other side: its slot's when the account is there, else
+// its vault's. Read only.
+function peerLogins(peer: Peer, uuids: Map<string, string>) {
+  const peerSlot = loginOf(path.join(peer.home, ".claude", ".credentials.json"), readJson(path.join(peer.home, ".claude.json"))?.oauthAccount);
+  return (name: string) => {
+    const dir = path.join(peer.home, ".config", "dotagents", "vault", name);
+    const saved = loginOf(path.join(dir, "credentials.json"), readJson(path.join(dir, "account.json")));
+    const uuid = saved?.accountUuid ?? uuids.get(name);
+    return peerSlot && uuid && peerSlot.accountUuid === uuid ? peerSlot : saved;
+  };
+}
+
+function checkExpiry(name: string, side: string, login: Login | null, now: Date) {
+  const expires = expiryOf(login);
+  if (expires === null) return;
+  const date = new Date(expires).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
+  const days = Math.floor((expires - now.getTime()) / DAY);
+  const renew = `renew it: put ${name} in the slot (dotagents switch ${name} --here), run claude auth login, then dotagents switch --save ${name}`;
+  if (expires <= now.getTime()) return checkItem(false, `${name} on ${side}: login expired on ${date}`, renew);
+  if (days < WARN_DAYS) return checkWarn(`${name} on ${side}: login expires in ${days} day${days === 1 ? "" : "s"} (${date})`, renew);
+  checkItem(true, `${name} on ${side}: login good until ${date}`);
+}
+
+export function verifyLogins(now = new Date()) {
+  section("Logins");
+  const slot = slotLogin();
+  const uuids = new Map<string, string>();
+  for (const p of loadProfiles()) {
+    const known = knownLogin(p);
+    if (known) uuids.set(p.name, known.accountUuid);
+    checkExpiry(p.name, sideName(), slot && known && slot.accountUuid === known.accountUuid ? slot : known, now);
+  }
+  const peer = loadMachine().peer;
+  if (!peer) return;
+  const other = peerLogins(peer, uuids);
+  for (const p of loadProfiles()) checkExpiry(p.name, peer.name, other(p.name), now);
 }
