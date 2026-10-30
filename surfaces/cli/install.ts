@@ -1,3 +1,4 @@
+import { applyPeer } from "../../core/peer.ts";
 import { installProfiles } from "../../core/profiles.ts";
 import { finish, header } from "../../core/output.ts";
 import type { Command } from "./shared.ts";
@@ -11,6 +12,7 @@ export const install: Command = {
   run({ repo }) {
     header("install");
     installProfiles(repo);
+    applyPeer();
     finish();
   },
 };

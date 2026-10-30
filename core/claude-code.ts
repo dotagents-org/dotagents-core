@@ -25,18 +25,19 @@ export const projectFiles = (ws: string) => ({
 });
 
 // Claude Code's own state file for a config folder: ~/.claude.json for the default folder, and
-// <folder>/.claude.json when CLAUDE_CONFIG_DIR names another one.
-export function stateFile(configDir: string) {
-  const isDefault = path.resolve(configDir) === path.resolve(defaultConfigDir());
-  return isDefault ? path.join(os.homedir(), ".claude.json") : path.join(configDir, ".claude.json");
+// <folder>/.claude.json when CLAUDE_CONFIG_DIR names another one. home: whose home the folder is
+// in, for the other side's folders.
+export function stateFile(configDir: string, home = os.homedir()) {
+  const isDefault = path.resolve(configDir) === path.resolve(path.join(home, ".claude"));
+  return isDefault ? path.join(home, ".claude.json") : path.join(configDir, ".claude.json");
 }
 
 export type SignedIn = { accountUuid: string; email: string };
 
 // The claude.ai account signed in to a config folder, or null. Reads only the account fields.
-export function signedIn(configDir: string): SignedIn | null {
+export function signedIn(configDir: string, home?: string): SignedIn | null {
   try {
-    const account = JSON.parse(fs.readFileSync(stateFile(configDir), "utf8")).oauthAccount;
+    const account = JSON.parse(fs.readFileSync(stateFile(configDir, home), "utf8")).oauthAccount;
     if (typeof account?.accountUuid !== "string") return null;
     return { accountUuid: account.accountUuid, email: typeof account.emailAddress === "string" ? account.emailAddress : "" };
   } catch {

@@ -26,6 +26,10 @@ export type ProfileUsage = {
   state: "ok" | "stale" | "no-data" | "not-signed-in" | "other-account";
   fetchedAt: Date | null;
   windows: UsageWindow[];
+  // The account signed in, to match the same account on the other side; never shown.
+  accountUuid?: string;
+  // Where the numbers came from, when not from this side: "Windows", "WSL".
+  from?: string;
 };
 
 const HOUR = 3_600_000;
@@ -85,21 +89,23 @@ export function normalize(cache: unknown, now: Date): { fetchedAt: Date; account
   return { fetchedAt, ...(typeof c.accountUuid === "string" ? { accountUuid: c.accountUuid } : {}), windows: list };
 }
 
-export function profileUsage(profile: { name: string; color: string; default?: boolean; configDir: string }, now: Date): ProfileUsage {
+// home: whose home the folder is in, for the other side's folders.
+export function profileUsage(profile: { name: string; color: string; default?: boolean; configDir: string }, now: Date, home?: string): ProfileUsage {
   const base = { name: profile.name, color: profile.color, ...(profile.default ? { default: true } : {}), fetchedAt: null, windows: [] };
-  const who = signedIn(profile.configDir);
+  const who = signedIn(profile.configDir, home);
   if (!who) return { ...base, state: "not-signed-in" };
   let cache: unknown;
   try {
-    cache = JSON.parse(fs.readFileSync(stateFile(profile.configDir), "utf8")).cachedUsageUtilization;
+    cache = JSON.parse(fs.readFileSync(stateFile(profile.configDir, home), "utf8")).cachedUsageUtilization;
   } catch {
     cache = undefined;
   }
   const usage = normalize(cache, now);
-  if (!usage) return { ...base, state: "no-data" };
-  if (usage.accountUuid && usage.accountUuid !== who.accountUuid) return { ...base, state: "other-account" };
+  const account = { accountUuid: who.accountUuid };
+  if (!usage) return { ...base, ...account, state: "no-data" };
+  if (usage.accountUuid && usage.accountUuid !== who.accountUuid) return { ...base, ...account, state: "other-account" };
   const stale = now.getTime() - usage.fetchedAt.getTime() > STALE_MS;
-  return { ...base, state: stale ? "stale" : "ok", fetchedAt: usage.fetchedAt, windows: usage.windows };
+  return { ...base, ...account, state: stale ? "stale" : "ok", fetchedAt: usage.fetchedAt, windows: usage.windows };
 }
 
 // At the rate used so far in the window: when it runs out (before the reset), or how much is
@@ -191,7 +197,7 @@ export function usageLines(list: ProfileUsage[], now: Date): Line[] {
       continue;
     }
     if (a.fetchedAt) {
-      const age = `${span(now.getTime() - a.fetchedAt.getTime())} ago`;
+      const age = `${span(now.getTime() - a.fetchedAt.getTime())} ago${a.from ? ` on ${a.from}` : ""}`;
       head.push({ text: "  " }, stale ? { text: `${age}, stale: run /usage in this profile`, role: "warn" } : { text: age, role: "muted" });
     }
     lines.push(head);

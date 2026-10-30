@@ -114,6 +114,7 @@ Forgets the profile and deletes its launchers and, on Windows, its Start menu sh
 
 ```bash
 dotagents usage            # every profile: the 5-hour window, the week, per-model weeks
+dotagents usage --refresh  # ask Claude Code for fresh numbers first
 dotagents usage --short    # one line per profile, for a status line
 dotagents usage --json     # the data, for scripts
 dotagents usage --watch    # the full-screen view on the usage screen, updated live
@@ -142,9 +143,22 @@ work      5h ━━━━━━ ─  72% ↻ 3h17m   7d ━━━━ ───  
 personal  5h ━━━━━━ ─  91% ↻ 58m     7d ━━ ─────  30%
 ```
 
+`--json` prints the data in an envelope with a format version, so scripts can rely on it; fields are only ever added:
+
+```json
+{ "version": 1, "generatedAt": "2026-10-28T12:00:00.000Z", "profiles": [
+  { "name": "work", "color": "#D77655", "default": true, "state": "ok", "fetchedAt": "2026-10-28T11:56:00.000Z",
+    "windows": [{ "kind": "session", "pct": 72, "resetsAt": "2026-10-28T15:17:00.000Z", "reset": false }] }
+] }
+```
+
+`state` is `ok`, `stale`, `no-data`, `not-signed-in` or `other-account`; `kind` is `session`, `week` or `model-week` (with `model`); `from` names the other side of the machine when the numbers came from there.
+
 For a status line, which isn't a terminal, keep the colors with `FORCE_COLOR=3 dotagents usage --short` (`2` where the terminal has no 24-bit color). Piped, `usage` prints one plain line per window instead: `<profile> <window> <pct> <reset, ISO> fetched <ISO>`, with `(stale)` on old data.
 
-Claude Code writes the cache when it asks for the usage, which happens during sessions and on `/usage`. Data older than 6 hours is marked stale and drawn muted. A profile that isn't signed in, has no data yet, or holds the cache of an earlier sign-in says so instead of showing a number.
+Claude Code writes the cache when it asks for the usage, which happens during sessions and on `/usage`. `--refresh` makes it ask now: for each profile it runs `claude -p --no-session-persistence "/usage"` in that profile's folder, which fetches the usage, writes the cache and renews the profile's sign-in if needed, with no model reply (no quota spent) and no session left behind. dotagents never handles a token. Each profile is asked at most once every 3 minutes, since Claude Code's usage endpoint answers too many requests with an error.
+
+On a Windows machine with WSL, `install` finds the other side (Windows from WSL, WSL from Windows) and records it in `machine.json`. `usage` then also reads that side's caches, read only: when the same account has newer numbers there, they win, and the profile says so (`4m ago on Windows`). Data older than 6 hours is marked stale and drawn muted. A profile that isn't signed in, has no data yet, or holds the cache of an earlier sign-in says so instead of showing a number.
 
 ## dotagents new
 
