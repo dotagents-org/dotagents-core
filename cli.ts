@@ -27,12 +27,12 @@ import { UsageError, parseArgs } from "./core/common.ts";
 import { brand, displayPath, fancy, tone } from "./core/output.ts";
 import { state } from "./core/state.ts";
 
-// The visual app's server. Defined here, at the root, because it joins two surfaces: the command
+// The dashboard's server. Defined here, at the root, because it joins two surfaces: the command
 // line starts it, surfaces/web/ serves it.
-const serve: Command = {
-  name: "serve",
+const start: Command = {
+  name: "start",
   usage: "[--port <n>]",
-  summary: "serve the visual app on 127.0.0.1, live",
+  summary: "start the dashboard's server on 127.0.0.1, live",
   more: ["prints the address to open, with its token;", "Ctrl+C stops it"],
   group: "Profiles",
   async run({ args }) {
@@ -45,12 +45,12 @@ const serve: Command = {
       },
       port,
     });
-    console.log(`${brand()}  ${bold("serve")}\n\nOpen ${server.url}\n${muted("Only this machine reaches it, and only with the token in that address. Ctrl+C stops it.")}`);
+    console.log(`${brand()}  ${bold("start")}\n\nOpen ${server.url}\n${muted("Only this machine reaches it, and only with the token in that address. Ctrl+C stops it.")}`);
   },
 };
 
 // In the order the help lists them.
-const COMMANDS: Command[] = [install, update, settingsPull, profileAdd, profileList, profileRemove, usage, serve, newWorkspace, init, check, workspaces, untrack, skills, skillsAdd, skillsRemove];
+const COMMANDS: Command[] = [install, update, settingsPull, profileAdd, profileList, profileRemove, usage, start, newWorkspace, init, check, workspaces, untrack, skills, skillsAdd, skillsRemove];
 
 const repo = path.dirname(fileURLToPath(import.meta.url));
 const version = JSON.parse(fs.readFileSync(path.join(repo, "package.json"), "utf8")).version;
@@ -85,6 +85,7 @@ ${title("Options")}
   ${bold("--refresh")}    (usage) ask Claude Code for fresh numbers first
   ${bold("--no-pull")}    (update) skip git pull, only reapply
   ${bold("--from")}       (settings pull) the profile to take the settings from
+  ${bold("--port")}       (start) the server's port; 0 picks a free one
   ${bold("--help")}       show this help
   ${bold("--version")}    show the version
 

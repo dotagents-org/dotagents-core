@@ -1,4 +1,4 @@
-// The local server of the visual app: the page and its files, and the API it reads, built on what
+// The dashboard's local server (dotagents start): the page and its files, and the API it reads, built on what
 // core/ gives (the usage snapshot). Only on 127.0.0.1, only to its own Host (a page elsewhere can't
 // reach it through DNS rebinding), only GETs, and the API only with the token printed at start.
 // Live: /api/events sends the data again whenever it changes.

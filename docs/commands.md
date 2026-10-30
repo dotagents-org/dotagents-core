@@ -12,7 +12,7 @@ dotagents <command> [options]
 | [`profile add <name>`](#dotagents-profile-add) | Adds a Claude profile: its config folder, the configuration and a `claude-<name>` launcher. |
 | [`profile list`](#dotagents-profile-list) | Lists the profiles and checks them. |
 | [`profile remove <name>`](#dotagents-profile-remove) | Forgets a profile and its launcher; its folder is kept. |
-| [`serve [--port <n>]`](#dotagents-serve) | Serves the visual app on 127.0.0.1: the usage of every profile, live. |
+| [`start [--port <n>]`](#dotagents-start) | Starts the dashboard's server on 127.0.0.1: the usage of every profile, live. |
 | [`usage [--short] [--json]`](#dotagents-usage) | Shows how much of each profile's plan is used (5-hour session, week), from Claude Code's cache. |
 | [`new <git-url> [folder]`](#dotagents-new) | Creates a workspace folder (any name; `<name>-workspace` by default), clones the repository into it and applies the standards. |
 | [`init [path]`](#dotagents-init) | Applies the standards to a folder and puts the chosen skills in it. |
@@ -143,16 +143,16 @@ Claude Code writes the cache when it asks for the usage, which happens during se
 
 On a Windows machine with WSL, `install` finds the other side (Windows from WSL, WSL from Windows) and records it in `machine.json`. `usage` then also reads that side's caches, read only: when the same account has newer numbers there, they win, and the profile says so (`4m ago on Windows`). Data older than 6 hours is marked stale and drawn muted. A profile that isn't signed in, has no data yet, or holds the cache of an earlier sign-in says so instead of showing a number.
 
-## dotagents serve
+## dotagents start
 
 ```bash
-dotagents serve              # on 127.0.0.1:7337, or the next free port
-dotagents serve --port 0     # any free port
+dotagents start              # on 127.0.0.1:7337, or the next free port
+dotagents start --port 0     # any free port
 ```
 
-Serves the visual app: a page with the usage of every profile, live, and the data it reads (`/api/usage`, the same as `usage --json`, and `/api/events`, which sends it again whenever it changes). It prints the address to open, with a token after `#`; the page keeps the token and the API answers nothing without it. It listens only on `127.0.0.1`, answers only requests addressed to itself (so a web page elsewhere can't reach it), and only reads. From WSL, a Windows browser reaches it at the same address; `msedge --app=<address>` opens it in a window of its own. Ctrl+C stops it.
+Starts the dashboard's server: a page with the usage of every profile, live, and the data it reads (`/api/usage`, the same as `usage --json`, and `/api/events`, which sends it again whenever it changes). It prints the address to open, with a token after `#`; the page keeps the token and the API answers nothing without it. It listens only on `127.0.0.1`, answers only requests addressed to itself (so a web page elsewhere can't reach it), and only reads. From WSL, a Windows browser reaches it at the same address; `msedge --app=<address>` opens it in a window of its own. Ctrl+C stops it.
 
-The page is a first version; the visual app, in the dotagents identity, replaces it.
+The page is a first version; the dashboard, in the dotagents identity, replaces it.
 
 ## dotagents new
 
@@ -275,7 +275,7 @@ Removes a skill from the catalog. Workspaces that already installed it keep it; 
 | `--yes` | `init`, `new`, `skills add` | Never ask. |
 | `--no-pull` | `update` | Skip `git pull`. |
 | `--from <profile>` | `settings pull` | The profile to take the settings from. |
-| `--port <n>` | `serve` | The port; `0` picks a free one. |
+| `--port <n>` | `start` | The port; `0` picks a free one. |
 | `--help`, `--version` | | |
 
 Paths can be written with `~` for the home folder, also in PowerShell and cmd, which don't expand it themselves. The short paths dotagents prints can be pasted back.
