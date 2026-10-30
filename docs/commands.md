@@ -13,6 +13,7 @@ dotagents <command> [options]
 | [`profile list`](#dotagents-profile-list) | Lists the profiles and checks them. |
 | [`profile remove <name>`](#dotagents-profile-remove) | Forgets a profile and its launcher; its folder is kept. |
 | [`start [--port <n>]`](#dotagents-start) | Starts the dashboard's server on 127.0.0.1: the usage of every profile, live. |
+| [`switch [<profile>] [--here] [--save <profile>]`](#dotagents-switch) | Puts a profile's login in `~/.claude`, on both sides of the machine. |
 | [`usage [--short] [--json]`](#dotagents-usage) | Shows how much of each profile's plan is used (5-hour session, week), from Claude Code's cache. |
 | [`new <git-url> [folder]`](#dotagents-new) | Creates a workspace folder (any name; `<name>-workspace` by default), clones the repository into it and applies the standards. |
 | [`init [path]`](#dotagents-init) | Applies the standards to a folder and puts the chosen skills in it. |
@@ -93,6 +94,25 @@ dotagents profile remove personal
 ```
 
 Forgets the profile and deletes its launchers and, on Windows, its Start menu shortcut. The folders (the profile's and the Desktop data folder), with the sign-in and the history, stay; delete them by hand if you want them gone.
+
+## dotagents switch
+
+```bash
+dotagents switch                   # which profile ~/.claude holds now
+dotagents switch personal          # put personal's login there, on WSL and on Windows
+dotagents switch personal --here   # only on this side
+dotagents switch --save work       # the login now in ~/.claude (after a /login) is work's
+```
+
+For one person who holds several Claude seats (ADR 0009 in the workspace's `.artifacts/adr/`). Each side of the machine has one slot, `~/.claude` (its `.credentials.json`) with the `oauthAccount` block of `~/.claude.json`; the command line, the VS Code extension and the Desktop's Code tab in WSL mode read it, so they change together, and an open conversation goes on in the new account when you type "continue" in it.
+
+Every account's login is kept in a vault, one per profile and side, in `~/.config/dotagents/vault/<profile>/`, readable only by you. A switch:
+
+1. saves the login in the slot back to its profile's vault, since Claude Code may have renewed the token;
+2. writes the chosen profile's login into the slot, each file whole and in one step, leaving the rest of `~/.claude.json` as it is;
+3. checks that the slot holds that account.
+
+Then it runs the same switch on the other side of the machine (`--here` skips that), whose vault holds that side's own login: a refresh token copied to two slots would sign one of them out. A profile without a vault yet takes its login from its own folder (`~/.claude-<name>`, from before the vault). An account in the slot that no profile knows is never overwritten: `--save <profile>` says whose it is. The switch is always manual.
 
 ## dotagents usage
 
@@ -276,6 +296,8 @@ Removes a skill from the catalog. Workspaces that already installed it keep it; 
 | `--no-pull` | `update` | Skip `git pull`. |
 | `--from <profile>` | `settings pull` | The profile to take the settings from. |
 | `--port <n>` | `start` | The port; `0` picks a free one. |
+| `--here` | `switch` | Only this side of the machine. |
+| `--save <profile>` | `switch` | Keep the login in `~/.claude` as that profile's. |
 | `--help`, `--version` | | |
 
 Paths can be written with `~` for the home folder, also in PowerShell and cmd, which don't expand it themselves. The short paths dotagents prints can be pasted back.

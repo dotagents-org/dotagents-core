@@ -17,6 +17,7 @@ import { install } from "./surfaces/cli/install.ts";
 import { newWorkspace } from "./surfaces/cli/new.ts";
 import type { CliArgs, Command } from "./surfaces/cli/shared.ts";
 import { settingsPull } from "./surfaces/cli/settings.ts";
+import { switchCommand } from "./surfaces/cli/switch.ts";
 import { skills, skillsAdd, skillsRemove } from "./surfaces/cli/skills.ts";
 import { update } from "./surfaces/cli/update.ts";
 import { usage } from "./surfaces/cli/usage.ts";
@@ -50,7 +51,7 @@ const start: Command = {
 };
 
 // In the order the help lists them.
-const COMMANDS: Command[] = [install, update, settingsPull, profileAdd, profileList, profileRemove, usage, start, newWorkspace, init, check, workspaces, untrack, skills, skillsAdd, skillsRemove];
+const COMMANDS: Command[] = [install, update, settingsPull, profileAdd, profileList, profileRemove, switchCommand, usage, start, newWorkspace, init, check, workspaces, untrack, skills, skillsAdd, skillsRemove];
 
 const repo = path.dirname(fileURLToPath(import.meta.url));
 const version = JSON.parse(fs.readFileSync(path.join(repo, "package.json"), "utf8")).version;
@@ -86,6 +87,8 @@ ${title("Options")}
   ${bold("--no-pull")}    (update) skip git pull, only reapply
   ${bold("--from")}       (settings pull) the profile to take the settings from
   ${bold("--port")}       (start) the server's port; 0 picks a free one
+  ${bold("--here")}       (switch) only this side of the machine
+  ${bold("--save")}       (switch) keep the login in ~/.claude as this profile's
   ${bold("--help")}       show this help
   ${bold("--version")}    show the version
 
@@ -119,9 +122,9 @@ function fail(err: Error) {
 let args: CliArgs | null = null;
 try {
   args = parseArgs<CliArgs>(process.argv.slice(2), {
-    booleans: ["all", "default", "dry-run", "help", "json", "no-pull", "refresh", "short", "version", "watch", "wrap", "yes"],
+    booleans: ["all", "default", "dry-run", "help", "here", "json", "no-pull", "refresh", "short", "version", "watch", "wrap", "yes"],
     lists: ["skills"],
-    values: ["color", "from", "port"],
+    values: ["color", "from", "port", "save"],
   });
 } catch (err) {
   fail(err as Error);
