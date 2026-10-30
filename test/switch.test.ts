@@ -8,7 +8,7 @@ import os from "node:os";
 import path from "node:path";
 import { test, type TestContext } from "node:test";
 import { saveProfile } from "../core/machine-state.ts";
-import { peerFailure, slotProfile, switchProfile, type PeerSwitch } from "../core/switch.ts";
+import { peerFailure, slotProfile, switchProfile, verifyLogins, type PeerSwitch } from "../core/switch.ts";
 import { state } from "../core/state.ts";
 import { quiet } from "./helpers.ts";
 
@@ -125,4 +125,28 @@ test("a failure on the other side reads as one line: an older dotagents says how
   assert.match(peerFailure(nodeTrace), /doesn't know switch yet.*dotagents update/);
   assert.match(peerFailure("dotagents: Unknown command 'switch'. Run: dotagents --help"), /doesn't know switch yet/);
   assert.equal(peerFailure("✗ dotagents: There is no login saved for work: put it in the slot"), "There is no login saved for work: put it in the slot");
+});
+
+test("the checklist says when each profile's saved login expires, warning a week ahead and failing once it has", async (t) => {
+  const home = machine(t);
+  const day = 86_400_000;
+  const now = new Date("2026-10-30T12:00:00Z");
+  const withExpiry = (token: string, ms: number) => JSON.stringify({ claudeAiOauth: { accessToken: `at-${token}`, refreshToken: `rt-${token}`, expiresAt: 1, refreshTokenExpiresAt: ms } });
+  login(path.join(home, ".claude"), path.join(home, ".claude.json"), "uuid-work", "work1");
+  fs.writeFileSync(path.join(home, ".claude", ".credentials.json"), withExpiry("work1", now.getTime() + 20 * day));
+  login(path.join(home, ".claude-personal"), path.join(home, ".claude-personal", ".claude.json"), "uuid-personal", "p1");
+  fs.writeFileSync(path.join(home, ".claude-personal", ".credentials.json"), withExpiry("p1", now.getTime() + 3 * day));
+  quiet();
+  await switchProfile({ save: "work", peer: noPeer });
+  let events = quiet();
+  verifyLogins(now);
+  const text = (k: string) => events.filter((e) => e.kind === k).map((e) => ("text" in e ? e.text : "")).join("\n");
+  assert.match(text("check"), /work.*Nov 19/);
+  assert.match(text("warning"), /personal.*expires in 3 days/);
+  assert.equal(state.problems, 0);
+  fs.writeFileSync(path.join(home, ".claude-personal", ".credentials.json"), withExpiry("p1", now.getTime() - day));
+  events = quiet();
+  verifyLogins(now);
+  assert.equal(state.problems, 1);
+  assert.match(text("check"), /personal.*expired/);
 });

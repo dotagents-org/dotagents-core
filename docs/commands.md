@@ -85,7 +85,7 @@ Then sign in once with the launcher: `claude-personal auth login`. In the second
 
 ## dotagents profile list
 
-Lists the profiles (color, default, signed-in e-mail, folder, launcher) and checks them: each folder and launcher exists, each profile is signed in, and no two folders are signed in to the same claude.ai account. It also warns when a variable such as `ANTHROPIC_API_KEY` is set in the shell, and checks the shared configuration: a settings copy (Windows) changed in a profile or behind the repository, a [`claude/global-config.json`](global-configuration.md) option changed in a profile, and changes to either file not committed yet. Exits with 1 when an item fails.
+Lists the profiles (color, default, signed-in e-mail, folder, launcher) and checks them: each folder and launcher exists, each profile is signed in, and no two folders are signed in to the same claude.ai account. It also warns when a variable such as `ANTHROPIC_API_KEY` is set in the shell, and checks the shared configuration: a settings copy (Windows) changed in a profile or behind the repository, a [`claude/global-config.json`](global-configuration.md) option changed in a profile, and changes to either file not committed yet. Last, it says until when each profile's saved login lasts, on each side of the machine (a login lasts a few weeks, and Claude Code renews it only up to that date): a week ahead it warns, and once a login has expired the item fails, with how to renew it. Exits with 1 when an item fails.
 
 ## dotagents profile remove
 

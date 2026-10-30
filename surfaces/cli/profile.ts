@@ -2,6 +2,7 @@
 
 import path from "node:path";
 import { verifyGlobal } from "../../core/global.ts";
+import { verifyLogins } from "../../core/switch.ts";
 import { configDirs, dropProfile, launcherDir, launcherFile, setUpProfile, showFolder, verifyProfiles } from "../../core/profiles.ts";
 import { signedIn } from "../../core/claude-code.ts";
 import { loadProfiles } from "../../core/machine-state.ts";
@@ -58,6 +59,7 @@ export const profileList: Command = {
     }
     verifyProfiles();
     verifyGlobal(repo, configDirs());
+    verifyLogins();
     finish();
   },
 };
