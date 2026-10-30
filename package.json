@@ -1,6 +1,6 @@
 {
   "name": "dotagents",
-  "version": "2.0.0",
+  "version": "3.0.0",
   "private": true,
   "description": "Claude Code configuration: global instructions, rules, skills and workspace standards.",
   "type": "module",

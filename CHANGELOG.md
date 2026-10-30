@@ -2,22 +2,26 @@
 
 What changed for someone who updates a clone. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow [Semantic Versioning](https://semver.org/). `dotagents update` names the version change after a pull.
 
-## Unreleased
+## 3.0.0 - 2026-10-29
+
+### Breaking
+
+- **No more full-screen view.** dotagents is a plain command line, for people and for agents; the visual side moves to a separate app, still to come. `dotagents` with no command prints the help, `usage --watch` stops with a message, and Ink and React are no longer dependencies.
+- **`usage --json` prints an envelope:** `{ "version": 1, "generatedAt": …, "profiles": [ … ] }` instead of a bare list, so new fields never break a script again.
+- **`usage --short` changed format** for status lines: one line per profile, `5h` and `7d` with 8-cell bars (`work  5h ━━━━━━ ─  72% ↻ 3h17m   7d …`).
 
 ### Added
 
-- **`usage --refresh`**: asks Claude Code itself for each profile's usage (`claude -p "/usage"`), which refreshes the cache and renews the sign-in without spending quota or leaving a session; at most once every 3 minutes per profile.
+- **`usage --refresh`:** asks Claude Code itself for each profile's usage (`claude -p "/usage"`), which refreshes the cache and renews the sign-in without spending quota or leaving a session; at most once every 3 minutes per profile.
 - **WSL and Windows together:** `install` finds the other side of the machine and `usage` reads its caches too; the newer numbers of the same account win, and the profile says where they came from.
 - **The same configuration in every profile.** On Windows, `install` no longer overwrites a settings copy that `/config` changed: it keeps it and says so, and `dotagents settings pull` brings the change into the repository. `claude/global-config.json` sets the `/config` options Claude Code keeps in `.claude.json` (`copyOnSelect`, `diffTool`…) in every profile. `profile list` warns about a profile that differs and about changes to these files not committed yet.
+- **The dotagents brand:** the symbol (the face `..`), its states and the lockup in `assets/`; the README opens with them and a capture of `usage`, drawn by `npm run media` from the same lines the command prints.
 
 ### Changed
 
 - **The look follows the new identity** (Vercel's Geist palette, no accent): colors per background (`DOTAGENTS_THEME=light|dark`, else `COLORFGBG`, else dark), a profile's name in a readable variant of its color, exact 256 and 16 color mapping.
 - **Every command prints without the rail** (`┌ │ ◇ └`): the ` dotagents ` badge in reverse video and the command, bold section titles, one line per item, a summary without `·`. Warnings show `▲`, skipped items `–`. Command names in the help are bold, not cyan. The prompts drop their rail too.
-- **The full-screen view** shows the face of the dotagents symbol in its header, with eyes that follow the usage (`> <` at the limit); the active tab is in reverse video and the keys are spaced, without `·`.
-- **The README** opens with the dotagents lockup, a line of links, badges in the palette and a capture of `usage`, drawn by `npm run media` from the same lines the command prints.
-- **`usage --json` prints an envelope:** `{ "version": 1, "generatedAt": …, "profiles": [ … ] }` instead of a bare list, so new fields never break a script.
-- **`usage` has a new layout:** no rail or dots, `5h`/`7d` labels, a thin bar of constant width, the percentage in bold, levels at 70% and 90% (were 50% and 80%), durations like `3h 17m`. **`usage --short` changed format** for status lines: one line per profile with 8-cell bars (`work  5h ━━━━━━ ─  72% ↻ 3h17m   7d …`).
+- **`usage` has a new layout:** no rail or dots, `5h`/`7d` labels, a thin bar of constant width, the percentage in bold, levels at 70% and 90% (were 50% and 80%), durations like `3h 17m`.
 
 ### Fixed
 
