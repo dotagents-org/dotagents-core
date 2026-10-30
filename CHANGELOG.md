@@ -8,6 +8,10 @@ What changed for someone who updates a clone. The format follows [Keep a Changel
 
 - **Workspace memory:** `init` points every Claude profile's auto memory for a workspace at `.artifacts/memory/` (`autoMemoryDirectory` in `.claude/settings.local.json`) and copies in what each profile had learned there before; `check` verifies the folder, the index and the notes left behind.
 
+### Fixed
+
+- An unknown option (`check --bogus`) or command, or an option without its value, prints one line and exits with 2, instead of a stack trace or being ignored; `--` ends the options.
+
 ## 3.0.0 - 2026-10-29
 
 ### Breaking

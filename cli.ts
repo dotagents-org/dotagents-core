@@ -21,7 +21,7 @@ import { skills, skillsAdd, skillsRemove } from "./surfaces/cli/skills.ts";
 import { update } from "./surfaces/cli/update.ts";
 import { usage } from "./surfaces/cli/usage.ts";
 import { untrack, workspaces } from "./surfaces/cli/workspaces.ts";
-import { parseArgs } from "./core/common.ts";
+import { UsageError, parseArgs } from "./core/common.ts";
 import { brand, displayPath, fancy, tone } from "./core/output.ts";
 import { state } from "./core/state.ts";
 
@@ -82,27 +82,39 @@ function pick(words: string[]) {
   const one = COMMANDS.find((c) => c.name === words[0]);
   if (one) return { command: one, positional: words.slice(1) };
   if (words[0] === "account") throw new Error(`'account' is now 'profile' (since 2.0.0): dotagents profile ${words.slice(1).join(" ")}`.trimEnd());
-  throw new Error(`Unknown command '${words[0]}'. Run: dotagents --help`);
+  throw new UsageError(`Unknown command '${words[0]}'. Run: dotagents --help`);
 }
 
-const args = parseArgs<CliArgs>(process.argv.slice(2), {
-  booleans: ["all", "default", "dry-run", "help", "json", "no-pull", "refresh", "short", "version", "watch", "wrap", "yes"],
-  lists: ["skills"],
-});
-state.dryRun = Boolean(args["dry-run"]);
+// One line for an error, never a stack trace; 2 when the command line itself is wrong.
+function fail(err: Error) {
+  console.error(fancy ? `${high("✗")} ${bold("dotagents:")} ${err.message}` : `dotagents: ${err.message}`);
+  process.exitCode = err instanceof UsageError ? 2 : 1;
+}
 
-if (args.version) {
+let args: CliArgs | null = null;
+try {
+  args = parseArgs<CliArgs>(process.argv.slice(2), {
+    booleans: ["all", "default", "dry-run", "help", "json", "no-pull", "refresh", "short", "version", "watch", "wrap", "yes"],
+    lists: ["skills"],
+    values: ["color", "from"],
+  });
+} catch (err) {
+  fail(err as Error);
+}
+
+if (!args) {
+  // The command line was refused above.
+} else if (args.version) {
   console.log(version);
 } else if (args.help || !args._.length) {
   console.log(help());
 } else {
+  state.dryRun = Boolean(args["dry-run"]);
+  const parsed = args;
   Promise.resolve()
     .then(() => {
-      const { command, positional } = pick(args._);
-      return command.run({ repo, args, positional });
+      const { command, positional } = pick(parsed._);
+      return command.run({ repo, args: parsed, positional });
     })
-    .catch((err) => {
-      console.error(fancy ? `${high("✗")} ${bold("dotagents:")} ${err.message}` : `dotagents: ${err.message}`);
-      process.exitCode = 1;
-    });
+    .catch(fail);
 }

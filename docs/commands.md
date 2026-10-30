@@ -296,7 +296,10 @@ When the output goes to a pipe or a file (CI, scripts), the same information com
 ## Exit codes
 
 - `0`: everything ok, or only warnings.
-- `1`: at least one item was skipped or failed, a check item failed, or the command itself failed (bad arguments, missing folder).
+- `1`: at least one item was skipped or failed, a check item failed, or the command itself failed (a missing folder, a profile that doesn't exist).
+- `2`: the command line is wrong: an unknown command or option, or an option without its value. It says which, in one line.
+
+An argument that starts with `--` but isn't an option goes after `--`: `dotagents check -- --odd-folder`.
 
 ## Environment variables
 
