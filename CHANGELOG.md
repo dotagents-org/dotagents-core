@@ -18,6 +18,8 @@ What changed for someone who updates a clone. The format follows [Keep a Changel
 ### Added
 
 - **Workspace memory:** `init` points every Claude profile's auto memory for a workspace at `.artifacts/memory/` (`autoMemoryDirectory` in `.claude/settings.local.json`) and copies in what each profile had learned there before; `check` verifies the folder, the index and the notes left behind.
+
+- **`dotagents serve`:** the visual app's local server, on 127.0.0.1 with a token, and a first page with the usage of every profile, live (server-sent events); a Windows window reaches it in WSL at the same address.
 - **`usage --refresh`:** asks Claude Code itself for each profile's usage (`claude -p "/usage"`), which refreshes the cache and renews the sign-in without spending quota or leaving a session; at most once every 3 minutes per profile.
 - **WSL and Windows together:** `install` finds the other side of the machine and `usage` reads its caches too; the newer numbers of the same account win, and the profile says where they came from.
 - **The same configuration in every profile.** On Windows, `install` no longer overwrites a settings copy that `/config` changed: it keeps it and says so, and `dotagents settings pull` brings the change into the repository. `claude/global-config.json` sets the `/config` options Claude Code keeps in `.claude.json` (`copyOnSelect`, `diffTool`…) in every profile. `profile list` warns about a profile that differs and about changes to these files not committed yet.

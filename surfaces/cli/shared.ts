@@ -7,6 +7,7 @@ export type CliArgs = {
   _: string[];
   all?: boolean;
   from?: string;
+  port?: string;
   "dry-run"?: boolean;
   help?: boolean;
   "no-pull"?: boolean;
