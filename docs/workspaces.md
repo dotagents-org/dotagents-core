@@ -44,6 +44,8 @@ In this order:
 | | `settings.json` | adds `"plansDirectory": ".artifacts/plans"` and keeps the rest of the file; a different value already there is respected |
 | `.artifacts/` | `session-archives/`, `plans/` | the two fixed folders |
 | | `INDEX.md` | the map of the documents, from `templates/workspace/`, only when missing |
+| Workspace memory | `.claude/settings.local.json` | adds `"autoMemoryDirectory"` pointing at `.artifacts/memory`, so every Claude profile shares one memory of the workspace; brought up to date when the workspace moved |
+| | `.artifacts/memory/` | the folder and its `MEMORY.md`, with the memory each profile on this side kept for the workspace copied in (never deleted there; a note that differs stays as the workspace has it) |
 
 Nothing of yours is overwritten: a file or folder already in the way is reported as `skipped`, with what to do. Links are relative on Linux and macOS when they stay inside the workspace, so the workspace can move; Windows junctions are always absolute.
 
@@ -57,6 +59,7 @@ Nothing of yours is overwritten: a file or folder already in the way is reported
 | Skills | `.claude/skills` is a link to `.agents/skills`; every skill folder has a `SKILL.md` whose `name` matches the folder and that is under 500 lines; own skills are links, not copies, and not also in the lock; every skill in `skills-lock.json` is installed |
 | `.claude/` | `rules` is a link when it exists; `settings.json` sets `plansDirectory` |
 | `.artifacts/` | `INDEX.md`, `session-archives/` and `plans/` exist |
+| Workspace memory | `autoMemoryDirectory` points at `.artifacts/memory`, a real folder; `MEMORY.md` fits in what Claude Code loads (200 lines, 25 KB), every note is in it and every line has its note; warns about notes a profile still keeps outside, and about `blockReadsOutsideWorkingDirectories`, which would stop the shared memory from loading |
 
 ## The standards behind it
 

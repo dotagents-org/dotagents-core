@@ -6,7 +6,7 @@ here ([`.agents/` standard](agents.md)), and neither do code, secrets or build o
 
 **The structure is free.** It grows with the project's needs: folders and documents appear
 when there is something to put in them, named after what they hold. The only fixed parts,
-for now, are `INDEX.md`, `session-archives/` and `plans/`.
+for now, are `INDEX.md`, `session-archives/`, `plans/` and `memory/`.
 
 ---
 
@@ -40,6 +40,9 @@ repeat the logs, loaded whole in every session.
 │   └── YYYY-MM-DD-<...>/           session attachments
 ├── plans/                          always exists: plans written before implementing
 │   └── <name>.md
+├── memory/                         always exists: Claude Code's auto memory of the workspace
+│   ├── MEMORY.md                   the index Claude Code loads at the start of a session
+│   └── <note>.md
 └── …                               whatever the project needs
 ```
 
@@ -73,6 +76,24 @@ repeat the logs, loaded whole in every session.
   done or dropped. It is not rewritten afterwards: what changed during the work belongs in
   the transcript, and the current state in the documents that describe it.
 
+### `memory/`
+
+- Claude Code's auto memory of the workspace, shared by every Claude profile on the machine:
+  `dotagents init` sets `"autoMemoryDirectory"` in the workspace's
+  `.claude/settings.local.json` to this folder (`~/...` under the home folder, else an absolute
+  path, since Claude Code ignores a relative one).
+- Claude Code writes it: `MEMORY.md` is the index, one line per note linking its file, and
+  each note is a file with a frontmatter (`name`, `description`, a `type` of `user`,
+  `feedback`, `project` or `reference`). Personal notes are shared too.
+- Only the first 200 lines or 25 KB of `MEMORY.md` are loaded; the notes are read when needed.
+- `init` copies in the memory each profile kept for the workspace before (in
+  `<profile>/projects/<project>/memory/`), never deleting it there; a note that differs is
+  kept as the workspace has it, and init says so.
+- A session started inside one of the workspace's repositories doesn't read the workspace's
+  settings, and a session resumed from before the change keeps writing to the profile's
+  folder. `check` lists the notes left there; `init` brings them in.
+- It isn't a link: Claude Code asks before every write through one.
+
 ---
 
 ## Guidelines for everything else
@@ -99,4 +120,7 @@ These keep the documents useful to the agents. They are advice, not checks.
 - [ ] `.artifacts/INDEX.md`, `.artifacts/session-archives/` and `.artifacts/plans/` exist,
       and there is no `INDEX.md` at the root.
 - [ ] `.claude/settings.json` sets `plansDirectory` to `.artifacts/plans`.
+- [ ] `.claude/settings.local.json` sets `autoMemoryDirectory` to `.artifacts/memory`, a real
+      folder; its `MEMORY.md` fits in 200 lines and 25 KB and links every note; no profile keeps
+      notes of the workspace that aren't there; `blockReadsOutsideWorkingDirectories` is off.
 - [ ] No transcript edited after its session.
