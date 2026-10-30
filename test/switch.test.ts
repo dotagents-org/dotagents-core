@@ -8,7 +8,7 @@ import os from "node:os";
 import path from "node:path";
 import { test, type TestContext } from "node:test";
 import { saveProfile } from "../core/machine-state.ts";
-import { slotProfile, switchProfile, type PeerSwitch } from "../core/switch.ts";
+import { peerFailure, slotProfile, switchProfile, type PeerSwitch } from "../core/switch.ts";
 import { state } from "../core/state.ts";
 import { quiet } from "./helpers.ts";
 
@@ -118,4 +118,11 @@ test("the switch reaches the other side too, unless --here", async (t) => {
   quiet();
   await switchProfile({ name: "work", peer, here: true });
   assert.deepEqual(calls, ["personal"]);
+});
+
+test("a failure on the other side reads as one line: an older dotagents says how to update it", () => {
+  const nodeTrace = "file:///D:/x/core/common.ts:268\n    throw new Error(`x`);\n\nError: Missing value for --here\n    at parseArgs (file:///D:/x)\n\nNode.js v24.20.0";
+  assert.match(peerFailure(nodeTrace), /doesn't know switch yet.*dotagents update/);
+  assert.match(peerFailure("dotagents: Unknown command 'switch'. Run: dotagents --help"), /doesn't know switch yet/);
+  assert.equal(peerFailure("✗ dotagents: There is no login saved for work: put it in the slot"), "There is no login saved for work: put it in the slot");
 });
