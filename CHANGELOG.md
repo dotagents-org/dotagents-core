@@ -6,6 +6,7 @@ What changed for someone who updates a clone. The format follows [Keep a Changel
 
 ### Added
 
+- **`dotagents switch`:** for one person with several seats, puts a profile's login in `~/.claude` (and `~/.claude.json`'s `oauthAccount`), on both sides of the machine, saving the previous one in a vault per profile and side (`~/.config/dotagents/vault/`, readable only by you); `--here` for one side, `--save` to keep a fresh `/login`. Always manual.
 - **Workspace memory:** `init` points every Claude profile's auto memory for a workspace at `.artifacts/memory/` (`autoMemoryDirectory` in `.claude/settings.local.json`) and copies in what each profile had learned there before; `check` verifies the folder, the index and the notes left behind.
 
 - **`dotagents start`:** the dashboard's local server, on 127.0.0.1 with a token, and a first page with the usage of every profile, live (server-sent events); a Windows window reaches it in WSL at the same address.
