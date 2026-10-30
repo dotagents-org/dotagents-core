@@ -98,9 +98,18 @@ export const peerSwitch: PeerSwitch = (name) => {
     process.platform === "win32"
       ? spawnSync("wsl.exe", ["-e", "bash", "-lc", `dotagents switch ${name} --here`], { encoding: "utf8", timeout: 60_000, windowsHide: true })
       : spawnSync("powershell.exe", ["-NoProfile", "-Command", `dotagents switch ${name} --here`], { encoding: "utf8", timeout: 60_000, cwd: "/mnt/c" });
-  const last = `${run.stdout ?? ""}${run.stderr ?? ""}`.replace(/\x1b\[[0-9;]*m/g, "").trim().split(/\r?\n/).pop() ?? "";
-  return run.status === 0 ? { ok: true, detail: `${peer.name}: ${name}` } : { ok: false, detail: `${peer.name}: ${last || run.error?.message || `exit ${run.status}`}` };
+  if (run.status === 0) return { ok: true, detail: `${peer.name}: ${name}` };
+  return { ok: false, detail: `${peer.name}: ${peerFailure(`${run.stdout ?? ""}${run.stderr ?? ""}`) || run.error?.message || `exit ${run.status}`}` };
 };
+
+// Why the other side's switch failed, in one line: a dotagents older than switch (it doesn't know
+// the command or --here) says how to update it; else the error's own line, not Node's trailer.
+export function peerFailure(output: string) {
+  const lines = output.replace(/\x1b\[[0-9;]*m/g, "").split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+  if (lines.some((l) => /Unknown command 'switch'|--here/.test(l))) return "its dotagents doesn't know switch yet; update it there with: dotagents update";
+  const error = lines.find((l) => /^(✗ )?(\S*Error|dotagents):/.test(l));
+  return (error ?? lines.at(-1) ?? "").replace(/^(✗ )?(\S*Error|dotagents): /, "");
+}
 
 export type SwitchOptions = { name?: string; save?: string; here?: boolean; peer?: PeerSwitch };
 
@@ -127,9 +136,10 @@ export async function switchProfile({ name, save, here = false, peer = peerSwitc
   if (!wanted) throw new Error(`There is no login saved for ${name}: put it in the slot with claude auth login, then run dotagents switch --save ${name}`);
   const slot = slotLogin();
 
-  section("Slot");
-  if (slot && slot.accountUuid === wanted.accountUuid) report("ok", slotDir(), `${name} is already in the slot`);
-  else {
+  if (slot && slot.accountUuid === wanted.accountUuid) {
+    section("Slot");
+    report("ok", slotDir(), `${name} is already in the slot`);
+  } else {
     if (slot) {
       const owner = ownerOf(slot.accountUuid);
       if (!owner) throw new Error(`The slot holds ${slot.account.emailAddress ?? slot.accountUuid}, which no profile knows; save it first with: dotagents switch --save <profile>`);
