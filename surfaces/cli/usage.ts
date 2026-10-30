@@ -42,12 +42,12 @@ function plainView(list: ProfileUsage[]) {
 
 export const usage: Command = {
   name: "usage",
-  usage: "[--refresh] [--watch] [--short] [--json]",
+  usage: "[--refresh] [--short] [--json]",
   summary: "show how much of each profile's plan is used",
   more: ["from Claude Code's cache, no network;", "--refresh: ask Claude Code for fresh numbers first"],
   group: "Profiles",
-  view: (args) => (args.watch ? "usage" : null),
   async run({ args }) {
+    if (args.watch) throw new Error("usage --watch was removed in 3.0.0 with the full-screen view; run usage --refresh, or usage again");
     if (args.refresh) {
       // Its lines would mix into the JSON or the short line: kept, and only failures shown.
       const events = await captureAsync(() => refreshUsage(new Date()));

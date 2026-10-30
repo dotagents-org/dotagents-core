@@ -208,7 +208,8 @@ export function finish(hint = "") {
 }
 
 // Runs fn with its events kept instead of printed, and the run's counters left as they were:
-// how a view other than the terminal (the TUI) shows what a module did. dryRun runs it as a
+// how a surface other than the terminal shows what a module did, or a command keeps another's
+// lines out of its own output. dryRun runs it as a
 // preview (true) or for real (false) whatever --dry-run said.
 type CaptureOptions = { dryRun?: boolean };
 

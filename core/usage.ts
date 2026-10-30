@@ -132,7 +132,7 @@ export function bar(pct: number, width: number) {
   return { used, rest: width - used - 1 };
 }
 
-// ── The views (the usage command, its short form and the full-screen view show the same) ────
+// ── The views (the usage command and its short form; later the visual app) ────────────────
 // The core draws nothing: it gives each line as segments, text with a role, and each surface
 // paints them its own way.
 

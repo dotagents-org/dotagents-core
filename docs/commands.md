@@ -24,23 +24,6 @@ dotagents <command> [options]
 
 `dotagents --help` shows the same list, and `dotagents --version` the version.
 
-## The full-screen view
-
-In a terminal, `dotagents` with no command opens a full-screen view. Its header has the face of the dotagents symbol, whose eyes follow the usage: `• •` all fine, `• •` in yellow from 70% (or a pace that runs out before the reset), `> <` in red from 90%, `– –` without fresh data. Below it, one tab per screen: **Usage** (live, the same as `dotagents usage`), **Profiles** (the same as `profile list`, with its checklist), **Workspaces** (↑↓ picks one, and its `check` shows below) and **Skills**. `dotagents usage --watch` opens it on the usage screen.
-
-| Key | Does |
-|---|---|
-| `Tab`, `→` / `Shift+Tab`, `←` | next / previous screen |
-| `1`–`4` | go to a screen |
-| `↑` `↓` | pick an item (Workspaces) |
-| `r` | read everything again |
-| `i` | (Profiles) install the configuration to every profile, like `dotagents install` |
-| `a` | (Workspaces) apply the standards again to the picked workspace, with its skills, like `update --all` does to each one |
-| `y` / `n` | apply / cancel the action shown in the preview |
-| `q`, `Esc` | quit |
-
-An action always shows a preview first, the same as `--dry-run`: `y` applies it, `n` cancels it, and when nothing would change it says so and asks nothing. Outside a terminal (a pipe, CI), `dotagents` with no command prints the help, and `usage --watch` stops with an error.
-
 ## dotagents install
 
 Writes the global configuration where Claude Code reads it: in `~/.claude`, and in the folder of every profile added with [`profile add`](#dotagents-profile-add), whose launchers it also rewrites. See [Global configuration](global-configuration.md) for exactly what goes where.
@@ -117,7 +100,6 @@ dotagents usage            # every profile: the 5-hour window, the week, per-mod
 dotagents usage --refresh  # ask Claude Code for fresh numbers first
 dotagents usage --short    # one line per profile, for a status line
 dotagents usage --json     # the data, for scripts
-dotagents usage --watch    # the full-screen view on the usage screen, updated live
 ```
 
 Reads the usage Claude Code keeps in each profile's state file (`cachedUsageUtilization` in `~/.claude.json`, or `<folder>/.claude.json`). It makes no network call and needs no token. Without profiles, it shows the one in `~/.claude`.
@@ -278,7 +260,6 @@ Removes a skill from the catalog. Workspaces that already installed it keep it; 
 | `--color #RRGGBB` | `profile add` | The profile's color in the listings. |
 | `--short` | `usage` | One line, for a prompt or a status line. |
 | `--json` | `usage` | The data, for scripts. |
-| `--watch` | `usage` | The full-screen view, updated live. |
 | `--yes` | `init`, `new`, `skills add` | Never ask. |
 | `--no-pull` | `update` | Skip `git pull`. |
 | `--from <profile>` | `settings pull` | The profile to take the settings from. |
