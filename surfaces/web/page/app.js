@@ -47,7 +47,7 @@ function render(data) {
   );
 }
 
-if (!token) app.textContent = "Open the address dotagents serve printed: it carries the token.";
+if (!token) app.textContent = "Open the address dotagents start printed: it carries the token.";
 else {
   const events = new EventSource(`/api/events?token=${encodeURIComponent(token)}`);
   events.addEventListener("usage", (e) => render(JSON.parse(e.data)));
