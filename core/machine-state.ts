@@ -4,6 +4,8 @@
 //   so `dotagents update --all` can reach all of them;
 // - profiles.json: the Claude profiles of this machine, each with its config folder (accounts.json
 //   before 2.0.0, read and moved by the first write);
+// - machine.json: what install found about this machine: the other side (Windows from WSL, WSL
+//   from Windows), whose caches the usage reads too;
 // - copies.json: what install last copied to each settings copy (Windows), so it can tell a change
 //   made in the repository from one made in the profile.
 //
@@ -154,4 +156,30 @@ export function recordCopy(dest: string, digest: string) {
   if (copies[key] === digest) return;
   copies[key] = digest;
   writeStateFile(copiesFile(), COPIES.version, { copies });
+}
+
+// The other installation on this machine: its name ("Windows", "WSL"), its home folder as this side
+// reaches it (/mnt/c/Users/me, \\wsl.localhost\Ubuntu\home\me), and as that side spells it
+// (C:\Users\me, /home/me), to translate the paths in its profiles.json.
+export type Peer = { name: string; home: string; nativeHome: string };
+export type Machine = { peer?: Peer };
+
+const MACHINE = { name: "machine.json", version: 1 };
+
+export const machineFile = () => path.join(stateDir(), MACHINE.name);
+
+const isPeer = (v: unknown): v is Peer => {
+  const p = v as Peer;
+  return typeof v === "object" && v !== null && typeof p.name === "string" && typeof p.home === "string" && typeof p.nativeHome === "string";
+};
+
+export function loadMachine(): Machine {
+  const data = readStateFile(machineFile(), MACHINE.version);
+  if (!data) return {};
+  if (data.peer !== undefined && !isPeer(data.peer)) throw new Error(`${machineFile()} has an invalid peer; fix it or delete it`);
+  return data.peer ? { peer: data.peer } : {};
+}
+
+export function saveMachine(machine: Machine) {
+  writeStateFile(machineFile(), MACHINE.version, { ...machine });
 }

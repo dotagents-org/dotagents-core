@@ -1,10 +1,9 @@
 // `usage`: how much of each profile's plan is used, from Claude Code's own cache.
 
-import { PALETTE } from "../../core/profiles.ts";
-import { defaultConfigDir } from "../../core/claude-code.ts";
-import { loadProfiles } from "../../core/machine-state.ts";
-import { fancy, ink } from "../../core/output.ts";
-import { type Line, type ProfileUsage, profileUsage, shortLines, usageLines } from "../../core/usage.ts";
+import { readUsage, usageJson } from "../../core/snapshot.ts";
+import { captureAsync, fancy, ink } from "../../core/output.ts";
+import { refreshUsage } from "../../core/refresh.ts";
+import { type Line, type ProfileUsage, shortLines, usageLines } from "../../core/usage.ts";
 import { badge, colorLevel } from "../../core/theme.ts";
 import type { Command } from "./shared.ts";
 
@@ -25,7 +24,8 @@ function terminalView(list: ProfileUsage[], now: Date) {
   console.log(`\n${ink.role("muted")(`${list.length} profile${list.length === 1 ? "" : "s"}, local data, no network`)}`);
 }
 
-// One line per window, easy to grep: "<profile> <window> <pct> <resets at> fetched <at>".
+// One line per window, easy to grep: "<profile> <window> <pct> <resets at> fetched <at>", and
+// "(from <side>)" when the numbers came from the other side of the machine.
 function plainView(list: ProfileUsage[]) {
   const width = Math.max(...list.map((a) => a.name.length)) + 2;
   for (const a of list) {
@@ -35,24 +35,27 @@ function plainView(list: ProfileUsage[]) {
     }
     for (const w of a.windows) {
       const kind = w.kind === "model-week" ? `week-${(w.model ?? "").toLowerCase()}` : w.kind;
-      console.log(`${a.name.padEnd(width)}${kind.padEnd(13)}${String(w.pct).padStart(3)}  ${w.resetsAt?.toISOString() ?? "-"}  fetched ${a.fetchedAt?.toISOString()}${a.state === "stale" ? "  (stale)" : ""}`);
+      console.log(`${a.name.padEnd(width)}${kind.padEnd(13)}${String(w.pct).padStart(3)}  ${w.resetsAt?.toISOString() ?? "-"}  fetched ${a.fetchedAt?.toISOString()}${a.state === "stale" ? "  (stale)" : ""}${a.from ? `  (from ${a.from})` : ""}`);
     }
   }
 }
 
 export const usage: Command = {
   name: "usage",
-  usage: "[--watch] [--short] [--json]",
+  usage: "[--refresh] [--watch] [--short] [--json]",
   summary: "show how much of each profile's plan is used",
-  more: ["from Claude Code's cache, no network;", "/usage in a profile refreshes it"],
+  more: ["from Claude Code's cache, no network;", "--refresh: ask Claude Code for fresh numbers first"],
   group: "Profiles",
   view: (args) => (args.watch ? "usage" : null),
-  run({ args }) {
+  async run({ args }) {
+    if (args.refresh) {
+      // Its lines would mix into the JSON or the short line: kept, and only failures shown.
+      const events = await captureAsync(() => refreshUsage(new Date()));
+      for (const e of events) if (e.kind === "result" && e.status === "failed") console.error(`${e.target}: couldn't refresh: ${e.detail}`);
+    }
     const now = new Date();
-    const profiles = loadProfiles();
-    // Without profiles, the one in ~/.claude.
-    const list = (profiles.length ? profiles : [{ name: "claude", color: PALETTE[0], default: true, configDir: defaultConfigDir() }]).map((a) => profileUsage(a, now));
-    if (args.json) return console.log(JSON.stringify(list, null, 2));
+    const list = readUsage(now);
+    if (args.json) return console.log(JSON.stringify(usageJson(list, now), null, 2));
     if (args.short) return console.log(shortLines(list, now).map(paintLine).join("\n"));
     if (!fancy) return plainView(list);
     terminalView(list, now);

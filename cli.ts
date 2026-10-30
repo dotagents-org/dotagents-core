@@ -68,6 +68,7 @@ ${title("Options")}
   ${bold("--short")}      (usage) one line, for a prompt or a status line
   ${bold("--json")}       (usage) the data, for scripts
   ${bold("--watch")}      (usage) the full-screen view, updated live
+  ${bold("--refresh")}    (usage) ask Claude Code for fresh numbers first
   ${bold("--no-pull")}    (update) skip git pull, only reapply
   ${bold("--from")}       (settings pull) the profile to take the settings from
   ${bold("--help")}       show this help
@@ -95,7 +96,7 @@ function pick(words: string[]) {
 }
 
 const args = parseArgs<CliArgs>(process.argv.slice(2), {
-  booleans: ["all", "default", "dry-run", "help", "json", "no-pull", "short", "version", "watch", "wrap", "yes"],
+  booleans: ["all", "default", "dry-run", "help", "json", "no-pull", "refresh", "short", "version", "watch", "wrap", "yes"],
   lists: ["skills"],
 });
 state.dryRun = Boolean(args["dry-run"]);
