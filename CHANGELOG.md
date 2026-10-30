@@ -38,4 +38,5 @@ What changed for someone who updates a clone. The format follows [Keep a Changel
 
 ### Fixed
 
+- An unknown option (`check --bogus`) or command, or an option without its value, prints one line and exits with 2, instead of a stack trace or being ignored; `--` ends the options.
 - `FORCE_COLOR=0` turns colors off instead of on, and `TERM=dumb` turns them off too. `FORCE_COLOR=1`, `2` and `3` set how many colors the output uses.

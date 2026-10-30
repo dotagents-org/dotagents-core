@@ -251,10 +251,22 @@ export function ensureDir(dir: string) {
 export type Args = { _: string[]; [key: string]: string | string[] | boolean | undefined };
 
 // T names the options the caller declared, so it reads them without casts.
-export function parseArgs<T extends Args = Args>(argv: string[], { booleans = [] as string[], lists = [] as string[] } = {}): T {
+// The arguments: positionals in _, --flag for the booleans, --key value (or --key=value) for the
+// rest, lists split on commas and spaces. An option outside booleans, lists and values is refused
+// by name, so a typo never passes silently; "--" ends the options.
+export class UsageError extends Error {}
+
+export function parseArgs<T extends Args = Args>(
+  argv: string[],
+  { booleans = [] as string[], lists = [] as string[], values = [] as string[] } = {}
+): T {
   const out: Args = { _: [] };
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
+    if (arg === "--") {
+      out._.push(...argv.slice(i + 1));
+      break;
+    }
     if (!arg.startsWith("--")) {
       out._.push(arg);
       continue;
@@ -264,8 +276,9 @@ export function parseArgs<T extends Args = Args>(argv: string[], { booleans = []
       out[key] = true;
       continue;
     }
+    if (!lists.includes(key) && !values.includes(key)) throw new UsageError(`Unknown option --${key}. Run: dotagents --help`);
     if (value === undefined) value = argv[++i];
-    if (value === undefined) throw new Error(`Missing value for --${key}`);
+    if (value === undefined) throw new UsageError(`--${key} needs a value`);
     out[key] = lists.includes(key) ? [...((out[key] as string[] | undefined) ?? []), ...value.split(/[,\s]+/).filter(Boolean)] : value;
   }
   return out as T;
