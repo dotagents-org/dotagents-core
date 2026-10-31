@@ -118,26 +118,26 @@ Then it runs the same switch on the other side of the machine (`--here` skips th
 
 ```bash
 dotagents usage            # every profile: the 5-hour window, the week, per-model weeks
-dotagents usage --refresh  # ask Claude Code for fresh numbers first
+dotagents usage --refresh  # ask Anthropic for fresh numbers first
 dotagents usage --short    # one line per profile, for a status line
 dotagents usage --json     # the data, for scripts
 ```
 
-Reads the usage Claude Code keeps in each profile's state file (`cachedUsageUtilization` in `~/.claude.json`, or `<folder>/.claude.json`). It makes no network call and needs no token. Without profiles, it shows the one in `~/.claude`.
+Shows, for each profile, the newer of two sources: the usage Claude Code keeps in the profile's state file (`cachedUsageUtilization` in `~/.claude.json`, or `<folder>/.claude.json`), and the usage dotagents last asked of Anthropic itself (`--refresh`, or `start` every minute), kept in `<state>/usage/<profile>.json`. Without `--refresh` it makes no network call. Without profiles, it shows the one in `~/.claude`.
 
 ```
  dotagents  usage
 
-work  [default]  4m ago
+work  [default]  1 working  4m ago · live
   5h      ━━━━━━━━━━━━━━━━━━━━━━━ ────────   72%  resets 3h 17m
   7d      ━━━━━━━━━━━━━━━ ────────────────   48%  resets 4d 18h
           runs out Fri 12:02 at this pace
   Fable   ━━━━━━━━━━━━━━━━━━━ ────────────   59%  resets 4d 18h
 
-2 profiles, local data, no network
+2 profiles; --refresh asks Anthropic for fresh numbers
 ```
 
-Each profile shows its name, `[default]` and how old its data is; then one line per window (`5h`, `7d`, and a model's own week): a bar, the percentage and when it resets. The percentage is green below 70%, yellow from 70% and red from 90%, and from 70% the reset takes that color too; the digits say it without color. A note says when a window runs out at the current pace. A window whose reset time has passed shows as reset, never with the old number.
+Each profile shows its name, `[default]`, its running Claude Code sessions (`2 working · 1 waiting`, the ones busy and the ones waiting on you), how old its data is and, when it came from Anthropic rather than Claude Code's cache, `live`; then one line per window (`5h`, `7d`, and a model's own week): a bar, the percentage and when it resets. The percentage is green below 70%, yellow from 70% and red from 90%, and from 70% the reset takes that color too; the digits say it without color. A note says when a window runs out at the current pace. A window whose reset time has passed shows as reset, never with the old number.
 
 `--short` prints one line per profile with the 5-hour and weekly windows, 8-cell bars, and the time to the reset from 70%:
 
@@ -151,15 +151,16 @@ personal  5h ━━━━━━ ─  91% ↻ 58m     7d ━━ ─────  
 ```json
 { "version": 1, "generatedAt": "2026-10-28T12:00:00.000Z", "profiles": [
   { "name": "work", "color": "#D77655", "default": true, "state": "ok", "fetchedAt": "2026-10-28T11:56:00.000Z",
-    "windows": [{ "kind": "session", "pct": 72, "resetsAt": "2026-10-28T15:17:00.000Z", "reset": false }] }
+    "source": "live", "activity": { "working": 1, "waiting": 0 },
+    "windows": [{ "kind": "session", "pct": 72, "resetsAt": "2026-10-28T15:17:00.000Z", "reset": false, "elapsedPct": 34 }] }
 ] }
 ```
 
-`state` is `ok`, `stale`, `no-data`, `not-signed-in` or `other-account`; `kind` is `session`, `week` or `model-week` (with `model`); `from` names the other side of the machine when the numbers came from there.
+`state` is `ok`, `stale`, `no-data`, `not-signed-in` or `other-account`; `source` is `cache` (Claude Code's) or `live` (asked of Anthropic); `kind` is `session`, `week` or `model-week` (with `model`); `elapsedPct` is how much of the window has gone by, where the bar would be at a uniform pace; `activity` counts the profile's running sessions, for a profile whose login Claude Code is using; `error` says why the last live ask failed; `from` names the other side of the machine when the numbers came from there.
 
-For a status line, which isn't a terminal, keep the colors with `FORCE_COLOR=3 dotagents usage --short` (`2` where the terminal has no 24-bit color). Piped, `usage` prints one plain line per window instead: `<profile> <window> <pct> <reset, ISO> fetched <ISO>`, with `(stale)` on old data.
+For a status line, which isn't a terminal, keep the colors with `FORCE_COLOR=3 dotagents usage --short` (`2` where the terminal has no 24-bit color). Piped, `usage` prints one plain line per window instead: `<profile> <window> <pct> <reset, ISO> fetched <ISO>`, with `(live)` on numbers from Anthropic and `(stale)` on old data.
 
-Claude Code writes the cache when it asks for the usage, which happens during sessions and on `/usage`. `--refresh` makes it ask now: for each profile it runs `claude -p --no-session-persistence "/usage"` in that profile's folder, which fetches the usage, writes the cache and renews the profile's sign-in if needed, with no model reply (no quota spent) and no session left behind. dotagents never handles a token. Each profile is asked at most once every 3 minutes, since Claude Code's usage endpoint answers too many requests with an error.
+Claude Code writes its cache when it asks for the usage, which happens during sessions and on `/usage`. `--refresh` asks now, the way Claude Code does (ADR 0008): for each profile it reads the login where it lives (the slot `~/.claude` when the profile's account is there, else its vault, else its own folder) and calls Anthropic's OAuth usage endpoint with it. When the access token is about to expire, dotagents renews it first and writes the new one back to that same file, at once, under a lock shared with `switch`: a renewal spends the old refresh token, so a copy left behind would sign the profile out. A login Claude Code also uses (the slot, a profile's folder) is renewed only once it has expired, since Claude Code renews it earlier while a session runs; the vault's, a few minutes before. Each profile is asked at most once a minute, by any number of dotagents runs; an error or a 429 backs off, up to 15 minutes, and the profile keeps its last numbers with the error next to them. Tokens are never printed, logged or written anywhere else. The endpoint is undocumented: when it changes, the numbers fall back to Claude Code's cache.
 
 On a Windows machine with WSL, `install` finds the other side (Windows from WSL, WSL from Windows) and records it in `machine.json`. `usage` then also reads that side's caches, read only: when the same account has newer numbers there, they win, and the profile says so (`4m ago on Windows`). Data older than 6 hours is marked stale and drawn muted. A profile that isn't signed in, has no data yet, or holds the cache of an earlier sign-in says so instead of showing a number.
 
@@ -170,7 +171,7 @@ dotagents start              # on 127.0.0.1:7337, or the next free port
 dotagents start --port 0     # any free port
 ```
 
-Starts the dashboard's server: a page with the usage of every profile, live, and the data it reads (`/api/usage`, the same as `usage --json`, and `/api/events`, which sends it again whenever it changes). It prints the address to open, with a token after `#`; the page keeps the token and the API answers nothing without it. It listens only on `127.0.0.1`, answers only requests addressed to itself (so a web page elsewhere can't reach it), and only reads. From WSL, a Windows browser reaches it at the same address; `msedge --app=<address>` opens it in a window of its own. Ctrl+C stops it.
+Starts the dashboard's server: a page with the usage of every profile, live, and the data it reads (`/api/usage`, the same as `usage --json`, and `/api/events`, which sends it again whenever it changes). While it runs, it asks Anthropic for each profile's usage every minute, as `usage --refresh` does, and prints a failure when it changes. It prints the address to open, with a token after `#`; the page keeps the token and the API answers nothing without it. It listens only on `127.0.0.1`, answers only requests addressed to itself (so a web page elsewhere can't reach it), and only reads. From WSL, a Windows browser reaches it at the same address; `msedge --app=<address>` opens it in a window of its own. Ctrl+C stops it.
 
 The page is a first version; the dashboard, in the dotagents identity, replaces it.
 

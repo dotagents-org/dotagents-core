@@ -23,9 +23,10 @@ import { update } from "./surfaces/cli/update.ts";
 import { usage } from "./surfaces/cli/usage.ts";
 import { startServer } from "./surfaces/web/server.ts";
 import { readUsage, usageJson } from "./core/snapshot.ts";
+import { LIVE_EVERY_MS, refreshUsage } from "./core/live.ts";
 import { untrack, workspaces } from "./surfaces/cli/workspaces.ts";
 import { UsageError, parseArgs } from "./core/common.ts";
-import { brand, displayPath, fancy, tone } from "./core/output.ts";
+import { brand, captureAsync, displayPath, fancy, tone } from "./core/output.ts";
 import { state } from "./core/state.ts";
 
 // The dashboard's server. Defined here, at the root, because it joins two surfaces: the command
@@ -34,7 +35,7 @@ const start: Command = {
   name: "start",
   usage: "[--port <n>]",
   summary: "start the dashboard's server on 127.0.0.1, live",
-  more: ["prints the address to open, with its token;", "Ctrl+C stops it"],
+  more: ["asks Anthropic for each profile's usage every minute;", "prints the address to open, with its token;", "Ctrl+C stops it"],
   group: "Profiles",
   async run({ args }) {
     const port = args.port === undefined ? undefined : Number(args.port);
@@ -47,6 +48,19 @@ const start: Command = {
       port,
     });
     console.log(`${brand()}  ${bold("start")}\n\nOpen ${server.url}\n${muted("Only this machine reaches it, and only with the token in that address. Ctrl+C stops it.")}`);
+    // The live usage, every minute; a failure is printed when it changes, not on every tick.
+    const said = new Map<string, string>();
+    const tick = async () => {
+      const events = await captureAsync(() => refreshUsage());
+      for (const e of events) {
+        if (e.kind !== "result" || e.status === "ok") continue;
+        const text = e.status === "failed" ? e.detail : "";
+        if ((said.get(e.target) ?? "") !== text && text) console.error(`${new Date().toLocaleTimeString("en-GB")}  ${e.target}: ${text}`);
+        said.set(e.target, text);
+      }
+    };
+    await tick();
+    setInterval(tick, LIVE_EVERY_MS + 5_000).unref();
   },
 };
 
