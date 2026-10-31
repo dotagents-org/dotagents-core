@@ -31,25 +31,38 @@ The command is TypeScript run directly by Node (type stripping, no build step) w
 
 **Core and surfaces.** `core/` holds the data and the actions and draws nothing. A surface is a way in: the commands (`surfaces/cli/`) and the dashboard (`surfaces/web/`: its local server and page), later the VS Code extension, the tray and the MCP server. Each surface uses `core/` and never another surface; `cli.ts`, at the root, is the one place that picks one, and where `start` joins the command line to the web server. `test/boundaries.test.ts` fails when an import breaks the rule.
 
-```mermaid
-flowchart LR
-    cli["cli.ts + surfaces/cli/<br/>arguments, questions"]
-    ws["workspace.ts<br/>the standard: apply + verify"]
-    sk["skills.ts<br/>own + third-party skills"]
-    tp["thirdparty.ts<br/>catalog, npx installer"]
-    git["git.ts<br/>.git/info/exclude"]
-    gl["global.ts<br/>machine level"]
-    cc["claude-code.ts<br/>Claude Code paths"]
-    reg["machine-state.ts<br/>tracked workspaces"]
-    common["common.ts<br/>file actions"]
-    out["output.ts<br/>events, renderers"]
+The arrows point to what a part uses. The table below gives each module's interface.
 
-    cli --> ws & sk & gl & reg & tp
-    ws --> sk & git
-    sk --> tp
-    gl & ws & sk --> cc
-    ws & sk & git & gl & tp --> common
-    cli & ws & sk & git & gl & common --> out
+```mermaid
+%%{init: {"look": "handDrawn", "handDrawnSeed": 3, "theme": "base", "themeVariables": {"fontFamily": "Geist Mono, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace", "fontSize": "14px", "primaryColor": "#171717", "primaryTextColor": "#ededed", "primaryBorderColor": "#171717", "lineColor": "#8f8f8f", "textColor": "#171717", "edgeLabelBackground": "#ededed", "clusterBkg": "transparent", "clusterBorder": "#8f8f8f", "titleColor": "#808080"}}}%%
+flowchart TB
+    subgraph surfaces["surfaces: the ways in"]
+        direction LR
+        cli["cli.ts + surfaces/cli/<br/>arguments, questions"]
+        web["surfaces/web/<br/>the dashboard's server and page"]
+    end
+
+    subgraph features["core: what dotagents applies and reads"]
+        direction LR
+        workspace["workspace.ts<br/>the standard"] --> skills["skills.ts<br/>own + third-party"] --> thirdparty["thirdparty.ts<br/>catalog, npx"]
+        workspace --> git["git.ts<br/>.git/info/exclude"]
+        profiles["profiles.ts<br/>Claude profiles"] --> global["global.ts<br/>machine level"]
+        profiles --> desktop["desktop.ts<br/>Desktop on Windows"] --> taskbar["taskbar.ts<br/>taskbar button"]
+        usage["usage.ts<br/>plan usage"]
+        live["live.ts<br/>usage from Anthropic"] --> switch["switch.ts<br/>slot and vaults"]
+    end
+
+    subgraph shared["core: shared by every module"]
+        direction LR
+        paths["claude-code.ts<br/>Claude Code paths"]
+        memory["machine-state.ts<br/>what the machine remembers"]
+        common["common.ts<br/>file actions, dry run"]
+        output["output.ts<br/>events, never prints"]
+        theme["theme.ts<br/>colors and roles"]
+        run["state.ts<br/>the run"]
+    end
+
+    surfaces --> features --> shared
 ```
 
 | Module | Interface | Behind it |
