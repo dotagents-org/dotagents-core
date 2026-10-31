@@ -85,7 +85,7 @@ Then sign in once with the launcher: `claude-personal auth login`. In the second
 
 ## dotagents profile list
 
-Lists the profiles (color, default, signed-in e-mail, folder, launcher) and checks them: each folder and launcher exists, each profile is signed in, and no two folders are signed in to the same claude.ai account. It also warns when a variable such as `ANTHROPIC_API_KEY` is set in the shell, and checks the shared configuration: a settings copy (Windows) changed in a profile or behind the repository, a [`claude/global-config.json`](global-configuration.md) option changed in a profile, and changes to either file not committed yet. Last, it says until when each profile's saved login lasts, on each side of the machine (a login lasts a few weeks, and Claude Code renews it only up to that date): a week ahead it warns, and once a login has expired the item fails, with how to renew it. Exits with 1 when an item fails.
+Lists the profiles (color, default, signed-in e-mail, folder, launcher) and checks them: each folder and launcher exists, each profile is signed in, and no two folders are signed in to the same claude.ai account. It also warns when a variable such as `ANTHROPIC_API_KEY` is set in the shell, and checks the shared configuration: a settings copy (Windows) changed in a profile or behind the repository, a [`claude/global-config.json`](global-configuration.md) option changed in a profile, and changes to either file not committed yet. Last, it says until when each profile's saved login lasts, on each side of the machine (a login lasts a few weeks, and Claude Code renews it only up to that date): a week ahead it warns, and once a login has expired the item fails, with how to renew it. In WSL it also fails when `~/.claude` is a link to another folder: Windows reaches WSL's files through `\\wsl.localhost`, which doesn't follow a Linux link, so the Desktop's Code tab in WSL mode can't install its server there; the item says how to make it the folder. Exits with 1 when an item fails.
 
 ## dotagents profile remove
 
@@ -108,9 +108,11 @@ For one person who holds several Claude seats (ADR 0009 in the workspace's `.art
 
 Every account's login is kept in a vault, one per profile and side, in `~/.config/dotagents/vault/<profile>/`, readable only by you. A switch:
 
-1. saves the login in the slot back to its profile's vault, since Claude Code may have renewed the token;
+1. saves the login in the slot back to its profile's vault, since Claude Code may have renewed the token, and saves it again if a running session renews it while the switch runs;
 2. writes the chosen profile's login into the slot, each file whole and in one step, leaving the rest of `~/.claude.json` as it is;
 3. checks that the slot holds that account.
+
+The switch and the renewals of `usage --refresh` take the same lock (`logins.lock` in the state folder), so neither copies a token the other is spending.
 
 Then it runs the same switch on the other side of the machine (`--here` skips that), whose vault holds that side's own login: a refresh token copied to two slots would sign one of them out. A profile without a vault yet takes its login from its own folder (`~/.claude-<name>`, from before the vault). An account in the slot that no profile knows is never overwritten: `--save <profile>` says whose it is. The switch is always manual.
 

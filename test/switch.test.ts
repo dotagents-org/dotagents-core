@@ -68,6 +68,20 @@ test("a switch saves the slot's login to its account's vault and writes the chos
   if (process.platform !== "win32") assert.equal(fs.statSync(path.join(home, "state", "vault", "work", "credentials.json")).mode & 0o777, 0o600);
 });
 
+test("a token Claude Code renews in the middle of a switch is saved, not lost with the slot", async (t) => {
+  const home = machine(t);
+  login(path.join(home, ".claude"), path.join(home, ".claude.json"), "uuid-work", "work1");
+  login(path.join(home, ".claude-personal"), path.join(home, ".claude-personal", ".claude.json"), "uuid-personal", "personal1");
+  quiet();
+  await switchProfile({ save: "work", peer: noPeer });
+  quiet();
+  // A session renews work's token after the switch saved it, before the slot is replaced.
+  const renew = () => fs.writeFileSync(path.join(home, ".claude", ".credentials.json"), creds("work2"));
+  await switchProfile({ name: "personal", peer: noPeer, afterSave: renew });
+  assert.equal(vault(home, "work", "credentials.json").claudeAiOauth.refreshToken, "rt-work2", "the renewed token is the one kept");
+  assert.equal(slotToken(home), "rt-personal1");
+});
+
 test("switching to the account already in the slot changes nothing, and a dry run writes nothing", async (t) => {
   const home = machine(t);
   login(path.join(home, ".claude"), path.join(home, ".claude.json"), "uuid-work", "work1");

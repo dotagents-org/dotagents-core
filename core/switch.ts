@@ -158,10 +158,12 @@ export function peerFailure(output: string) {
   return (error ?? lines.at(-1) ?? "").replace(/^(✗ )?(\S*Error|dotagents): /, "");
 }
 
-export type SwitchOptions = { name?: string; save?: string; here?: boolean; peer?: PeerSwitch };
+// afterSave: the moment between saving the slot's login and replacing it, where a running Claude
+// Code may renew its token; the tests renew it there.
+export type SwitchOptions = { name?: string; save?: string; here?: boolean; peer?: PeerSwitch; afterSave?: () => void };
 
-export async function switchProfile({ name, save, here = false, peer = peerSwitch }: SwitchOptions) {
-  const switched = await withLoginLock(() => switchHere(name, save));
+export async function switchProfile({ name, save, here = false, peer = peerSwitch, afterSave }: SwitchOptions) {
+  const switched = await withLoginLock(() => switchHere(name, save, afterSave));
   if (!switched || here || state.dryRun) return;
   const other = peer(switched);
   if (!other) return;
@@ -170,7 +172,7 @@ export async function switchProfile({ name, save, here = false, peer = peerSwitc
 }
 
 // The switch on this side, under the lock: the profile switched to, or null after a --save.
-function switchHere(name: string | undefined, save: string | undefined): string | null {
+function switchHere(name: string | undefined, save: string | undefined, afterSave?: () => void): string | null {
   const profiles = loadProfiles();
   const find = (n: string) => {
     const p = profiles.find((x) => x.name === n);
@@ -203,6 +205,11 @@ function switchHere(name: string | undefined, save: string | undefined): string 
       if (!owner) throw new Error(`The slot holds ${slot.account.emailAddress ?? slot.accountUuid}, which no profile knows; save it first with: dotagents switch --save <profile>`);
       section("Vault");
       saveToVault(owner.name, slot);
+      afterSave?.();
+      // Claude Code may have renewed the token since it was read, spending the one just saved: the
+      // renewed one is saved too, or replacing the slot would lose it and sign the account out.
+      const again = slotLogin();
+      if (again && again.accountUuid === slot.accountUuid && again.credentials !== slot.credentials) saveToVault(owner.name, again);
     }
     saveToVault(name, wanted);
     section("Slot");
@@ -263,6 +270,12 @@ function checkExpiry(name: string, side: string, login: Login | null, now: Date)
 
 export function verifyLogins(now = new Date()) {
   section("Logins");
+  // In WSL the slot must be a folder: Windows reaches it through \\wsl.localhost, which doesn't
+  // follow a Linux link, so the Desktop's Code tab in WSL mode couldn't install its server there.
+  if (sideName() === "WSL" && fs.lstatSync(slotDir(), { throwIfNoEntry: false })?.isSymbolicLink()) {
+    const real = realOrSame(slotDir());
+    checkItem(false, `${slotDir()} is a folder, not a link (to ${real})`, `with every Claude Code closed: rm ${slotDir()} && mv ${real} ${slotDir()} && ln -s ${path.basename(slotDir())} ${real}`);
+  }
   const slot = slotLogin();
   const uuids = new Map<string, string>();
   for (const p of loadProfiles()) {
