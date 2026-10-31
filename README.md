@@ -44,34 +44,23 @@ dotagents keeps all of it in one git repository, yours, and a single command wri
 
 ## How it works
 
-Your dotagents repository is the source. `install` applies it to the machine; `new` and `init` apply it to a workspace.
+Your dotagents repository is the source. `install` applies it to every Claude profile on the machine; `new` and `init` apply it to a workspace.
 
 ```mermaid
+%%{init: {"look": "handDrawn", "handDrawnSeed": 3, "theme": "base", "themeVariables": {"fontFamily": "Geist Mono, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace", "fontSize": "14px", "primaryColor": "#171717", "primaryTextColor": "#ededed", "primaryBorderColor": "#171717", "lineColor": "#8f8f8f", "textColor": "#171717", "edgeLabelBackground": "#ededed", "clusterBkg": "transparent", "clusterBorder": "#8f8f8f", "titleColor": "#808080"}}}%%
 flowchart LR
-    subgraph source["your dotagents repository"]
+    subgraph repo["your dotagents clone"]
         direction TB
-        global["global/<br/>instructions"]
-        rules["rules/"]
-        settings["claude/<br/>settings"]
-        skills["skills/<br/>+ third-party catalog"]
-        standards["standards/ · templates/"]
+        forProfiles["for every profile<br/>global instructions, rules, settings"]
+        forWorkspaces["for workspaces<br/>skills, standards, templates"]
     end
 
-    subgraph machine["the machine"]
-        direction TB
-        claude["~/.claude/<br/>CLAUDE.md · rules · settings.json"]
-    end
+    profiles["~/.claude<br/>CLAUDE.md, rules/, settings.json"]:::result
+    workspace["app-workspace/<br/>AGENTS.md, .agents/skills/, .artifacts/<br/>app/ (the project's clone, untouched)"]:::result
 
-    subgraph workspace["app-workspace/"]
-        direction TB
-        agentsmd["AGENTS.md"]
-        agents[".agents/skills/"]
-        artifacts[".artifacts/<br/>INDEX.md · plans · session archives"]
-        app["app/<br/>the project's git clone, untouched"]
-    end
-
-    global & rules & settings -- "dotagents install" --> machine
-    skills & standards -- "dotagents new · init" --> workspace
+    forProfiles -- "dotagents install" --> profiles
+    forWorkspaces -- "dotagents new, init" --> workspace
+    classDef result fill:#ffffff,stroke:#171717,stroke-width:1.5px,color:#171717
 ```
 
 ### Inside a workspace
@@ -79,11 +68,13 @@ flowchart LR
 Claude Code reads the skills through `.claude/skills`. Your own skills are links back to the clone; third-party ones are installed copies, pinned in `skills-lock.json`.
 
 ```mermaid
+%%{init: {"look": "handDrawn", "handDrawnSeed": 3, "theme": "base", "themeVariables": {"fontFamily": "Geist Mono, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace", "fontSize": "14px", "primaryColor": "#171717", "primaryTextColor": "#ededed", "primaryBorderColor": "#171717", "lineColor": "#8f8f8f", "textColor": "#171717", "edgeLabelBackground": "#ededed", "clusterBkg": "transparent", "clusterBorder": "#8f8f8f", "titleColor": "#808080"}}}%%
 flowchart LR
-    cc["Claude Code"] --> cskills[".claude/skills"]
+    cc["Claude Code"] -- "reads" --> cskills[".claude/skills"]
     cskills -- "link" --> askills[".agents/skills/"]
-    askills -- "link" --> own["&lt;clone&gt;/skills/session-archive"]
-    askills -- "npx skills add" --> third["humanizer/<br/>third-party copy"]
+    askills -- "link to your clone" --> own["session-archive/<br/>edits are live at once"]:::result
+    askills -- "npx skills add" --> third["humanizer/<br/>installed copy, pinned in skills-lock.json"]:::result
+    classDef result fill:#ffffff,stroke:#171717,stroke-width:1.5px,color:#171717
 ```
 
 ### Keeping the project's git clean
@@ -91,13 +82,34 @@ flowchart LR
 The agent files live next to the repositories, never inside them. `new` clones straight into that layout, and `init` offers to move a repository that is already on disk:
 
 ```mermaid
+%%{init: {"look": "handDrawn", "handDrawnSeed": 3, "theme": "base", "themeVariables": {"fontFamily": "Geist Mono, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace", "fontSize": "14px", "primaryColor": "#171717", "primaryTextColor": "#ededed", "primaryBorderColor": "#171717", "lineColor": "#8f8f8f", "textColor": "#171717", "edgeLabelBackground": "#ededed", "clusterBkg": "transparent", "clusterBorder": "#8f8f8f", "titleColor": "#808080"}}}%%
 flowchart TD
     start(["dotagents init &lt;folder&gt;"]) --> isrepo{"Is the folder<br/>a git repository?"}
-    isrepo -- no --> apply["Apply the standards to the folder"]
-    isrepo -- yes --> wrap{"Move it into<br/>&lt;folder&gt;-workspace/?"}
-    wrap -- "yes, recommended" --> moved["&lt;folder&gt;-workspace/ holds the agent files<br/>&lt;folder&gt;-workspace/&lt;folder&gt;/ holds the repository"]
-    moved --> applyws["Apply the standards to the workspace"]
-    wrap -- "no, e.g. an Obsidian vault" --> exclude["Agent files stay inside,<br/>hidden by .git/info/exclude"]
+    isrepo -- "no" --> apply["The standards are applied to the folder"]:::result
+    isrepo -- "yes" --> wrap{"Move it into<br/>&lt;folder&gt;-workspace/?"}
+    wrap -- "yes, recommended" --> moved["&lt;folder&gt;-workspace/ holds the agent files,<br/>&lt;folder&gt;-workspace/&lt;folder&gt;/ the repository"]:::result
+    wrap -- "no, e.g. an Obsidian vault" --> exclude["The agent files stay inside,<br/>hidden by .git/info/exclude"]:::result
+    classDef result fill:#ffffff,stroke:#171717,stroke-width:1.5px,color:#171717
+```
+
+### Several profiles, one view
+
+A profile is one claude.ai account. Every profile uses `~/.claude`, so the history and the configuration are shared; `switch` puts a profile's login there, and `usage` shows what each one has used, from Claude Code's own cache or asked of Anthropic.
+
+```mermaid
+%%{init: {"look": "handDrawn", "handDrawnSeed": 3, "theme": "base", "themeVariables": {"fontFamily": "Geist Mono, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace", "fontSize": "14px", "primaryColor": "#171717", "primaryTextColor": "#ededed", "primaryBorderColor": "#171717", "lineColor": "#8f8f8f", "textColor": "#171717", "edgeLabelBackground": "#ededed", "clusterBkg": "transparent", "clusterBorder": "#8f8f8f", "titleColor": "#808080"}}}%%
+flowchart LR
+    add["dotagents profile add personal"]
+    subgraph made["what it creates"]
+        direction TB
+        folder["personal's login<br/>in its vault, after switch --save"]:::result
+        desktop["Claude Personal<br/>a Desktop app and taskbar button,<br/>on Windows"]:::result
+    end
+    views["dotagents usage<br/>the status line (--short)"]:::result
+
+    add --> made
+    folder -- "dotagents asks Anthropic<br/>for its usage" --> views
+    classDef result fill:#ffffff,stroke:#171717,stroke-width:1.5px,color:#171717
 ```
 
 ### Two machines, one setup
@@ -105,15 +117,15 @@ flowchart TD
 The command runs from your clone, so an edit there is live at once on that machine. The other machine catches up with one command.
 
 ```mermaid
-sequenceDiagram
-    participant A as Machine A
-    participant GH as GitHub (your dotagents)
-    participant B as Machine B
-    A->>A: edit a skill or a rule in the clone
-    Note over A: live at once in every workspace on A
-    A->>GH: git push
-    B->>GH: dotagents update --all
-    Note over B: pull, reinstall, refresh every workspace
+%%{init: {"look": "handDrawn", "handDrawnSeed": 3, "theme": "base", "themeVariables": {"fontFamily": "Geist Mono, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace", "fontSize": "14px", "primaryColor": "#171717", "primaryTextColor": "#ededed", "primaryBorderColor": "#171717", "lineColor": "#8f8f8f", "textColor": "#171717", "edgeLabelBackground": "#ededed", "clusterBkg": "transparent", "clusterBorder": "#8f8f8f", "titleColor": "#808080"}}}%%
+flowchart LR
+    a["Machine A<br/>edit a skill or a rule in the clone:<br/>live at once in every workspace on A"]
+    gh["GitHub<br/>your dotagents"]
+    b["Machine B<br/>pulled, reinstalled,<br/>every workspace refreshed"]:::result
+
+    a -- "git push" --> gh
+    gh -- "dotagents update --all" --> b
+    classDef result fill:#ffffff,stroke:#171717,stroke-width:1.5px,color:#171717
 ```
 
 ## Quick start

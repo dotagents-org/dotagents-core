@@ -14,4 +14,15 @@
 - **Settings:** Claude Code's settings file, shared by every profile, since they all use `~/.claude`. Most `/config` options are saved there. On Linux and macOS it links to the repository's file, so a change shows up in `git diff` (and `profile list` warns until it's committed). On Windows it is a copy: `install` updates a copy that only fell behind the repository, but keeps one that `/config` changed and says so; `dotagents settings pull` brings that change into the repository, and `install` on the other machines takes it there.
 - **`claude/global-config.json`:** the few `/config` options Claude Code keeps in `.claude.json` instead of `settings.json` (`copyOnSelect`, `copyFullResponse`, `autoConnectIde`, `autoInstallIdeExtension`, `diffTool`, `defaultToAgentsView`, `externalEditorContext`, `leftArrowOpensAgents`, `prStatusFooterEnabled`, `claudeInChromeDefaultEnabled`). `install` sets them in `~/.claude.json` and leaves the rest of the file (the sign-in, per-project state) alone; other keys are refused. Before Claude Code has run once, the file is skipped. `profile list` warns when a value differs, and the next `install` puts the repository's back.
 
+On Windows, a settings change made with `/config` goes back to the repository like this:
+
+```mermaid
+%%{init: {"look": "handDrawn", "handDrawnSeed": 3, "theme": "base", "themeVariables": {"fontFamily": "Geist Mono, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace", "fontSize": "14px", "primaryColor": "#171717", "primaryTextColor": "#ededed", "primaryBorderColor": "#171717", "lineColor": "#8f8f8f", "textColor": "#171717", "edgeLabelBackground": "#ededed", "clusterBkg": "transparent", "clusterBorder": "#8f8f8f", "titleColor": "#808080"}}}%%
+flowchart LR
+    config["/config on Windows"] --> copy["~/.claude/settings.json<br/>now differs"]
+    copy -- "dotagents settings pull" --> repo["claude/settings.json<br/>in your clone"]
+    repo -- "commit, then dotagents install" --> others["the other machines' copy"]:::result
+    classDef result fill:#ffffff,stroke:#171717,stroke-width:1.5px,color:#171717
+```
+
 A file already in place that dotagents didn't generate is kept next to the new one as `<file>.bak-<date>`.
