@@ -5,7 +5,8 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { test, type TestContext } from "node:test";
-import { type ProfileUsage, bar, faceOf, levelOf, normalize, pace, profileUsage, shortLines, span, usageLines } from "../core/usage.ts";
+import { type ProfileUsage, type UsageWindow, bar, elapsedPct, faceOf, levelOf, normalize, pace, profileUsage, shortLines, span, thresholdAlerts, usageLines } from "../core/usage.ts";
+import { sessionActivity } from "../core/claude-code.ts";
 
 const NOW = new Date("2026-10-28T12:00:00Z");
 const at = (iso: string) => new Date(iso);
@@ -176,4 +177,49 @@ test("the face follows the most serious window: limit from 90%, warn from 70%, a
   assert.equal(faceOf([profile(20), profile(75)], NOW), "warn");
   assert.equal(faceOf([profile(75), profile(95)], NOW), "limit");
   assert.equal(faceOf([profile(95, "stale")], NOW), "asleep");
+});
+
+test("the uniform pace mark is how much of the window has gone by", () => {
+  const session: UsageWindow = { kind: "session", pct: 40, resetsAt: at("2026-10-28T14:00:00Z"), reset: false };
+  assert.equal(elapsedPct(session, NOW), 60, "3 of the 5 hours");
+  assert.equal(elapsedPct({ ...session, reset: true }, NOW), null);
+  assert.equal(elapsedPct({ ...session, resetsAt: at("2026-10-28T20:00:00Z") }, NOW), 0, "never below the start");
+});
+
+test("a threshold notifies once per crossing, and again only after falling 5 points below it", () => {
+  const at5h = (pct: number, state: ProfileUsage["state"] = "ok"): ProfileUsage[] => [
+    { name: "work", color: "#D77655", state, fetchedAt: NOW, windows: [{ kind: "session", pct, resetsAt: at("2026-10-28T14:00:00Z"), reset: false }] },
+  ];
+  let levels: Record<string, number> = {};
+  const step = (pct: number, state: ProfileUsage["state"] = "ok") => {
+    const r = thresholdAlerts(at5h(pct, state), levels);
+    levels = r.levels;
+    return r.alerts.map((a) => `${a.window} ${a.level} ${a.pct}`);
+  };
+  assert.deepEqual(step(50), []);
+  assert.deepEqual(step(71), ["5h warn 71"]);
+  assert.deepEqual(step(69), [], "around 70%: no second notice");
+  assert.deepEqual(step(72), []);
+  assert.deepEqual(step(93), ["5h high 93"]);
+  assert.deepEqual(step(20, "stale"), [], "a profile without fresh data keeps its levels");
+  assert.deepEqual(step(91), []);
+  assert.deepEqual(step(0), [], "reset");
+  assert.deepEqual(step(75), ["5h warn 75"]);
+  assert.deepEqual(step(95), ["5h high 95"]);
+});
+
+test("a config folder's running sessions count as working or waiting; idle ones and dead processes don't", (t) => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "dotagents-sessions-"));
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  fs.mkdirSync(path.join(dir, "sessions"));
+  const session = (pid: number, status: string) => fs.writeFileSync(path.join(dir, "sessions", `${pid}.json`), JSON.stringify({ pid, status, procStart: "1" }));
+  session(10, "busy");
+  session(11, "busy");
+  session(12, "waiting");
+  session(13, "idle");
+  session(14, "busy");
+  fs.writeFileSync(path.join(dir, "sessions", "15.json"), "{ half");
+  const alive = (pid: number) => pid !== 14;
+  assert.deepEqual(sessionActivity(dir, alive), { working: 2, waiting: 1 });
+  assert.deepEqual(sessionActivity(path.join(dir, "missing"), alive), { working: 0, waiting: 0 });
 });

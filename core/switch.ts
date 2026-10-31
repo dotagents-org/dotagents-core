@@ -69,8 +69,55 @@ export function slotProfile(): Profile | null {
   return slot ? ownerOf(slot.accountUuid) : null;
 }
 
+// Where a profile's login lives now: the copy to read, and to renew when it is about to expire.
+// The slot's when its account is there (the vault may hold the same token, which a renewal of the
+// slot spends), else its vault's, else its own folder's. shared: Claude Code reads and renews that
+// copy too; the vault's is dotagents' alone.
+export type LiveLogin = { file: string; accountUuid: string; shared: boolean; configDir: string | null };
+
+export function liveLogin(p: Profile): LiveLogin | null {
+  const known = knownLogin(p);
+  const slot = slotLogin();
+  if (slot) {
+    const mine = known ? slot.accountUuid === known.accountUuid : realOrSame(p.configDir) === realOrSame(slotDir()) && (ownerOf(slot.accountUuid)?.name ?? p.name) === p.name;
+    if (mine) return { file: credentialsIn(slotDir()), accountUuid: slot.accountUuid, shared: true, configDir: slotDir() };
+  }
+  if (!known) return null;
+  if (vaultLogin(p.name)) return { file: path.join(vaultDir(p.name), "credentials.json"), accountUuid: known.accountUuid, shared: false, configDir: null };
+  return { file: credentialsIn(p.configDir), accountUuid: known.accountUuid, shared: true, configDir: p.configDir };
+}
+
+// One lock across dotagents' processes around every change to a login (a switch, a renewal), so a
+// switch never copies a token that a renewal is spending. A lock older than LOCK_STALE_MS was left
+// by a process that died, and is taken over.
+const lockFile = () => path.join(stateDir(), "logins.lock");
+const LOCK_STALE_MS = 60_000;
+
+export async function withLoginLock<T>(fn: () => T | Promise<T>, waitMs = 30_000): Promise<T> {
+  if (state.dryRun) return fn();
+  fs.mkdirSync(stateDir(), { recursive: true });
+  const until = Date.now() + waitMs;
+  for (;;) {
+    try {
+      fs.writeFileSync(lockFile(), `${process.pid}\n`, { flag: "wx" });
+      break;
+    } catch (err) {
+      if ((err as NodeJS.ErrnoException).code !== "EEXIST") throw err;
+      const since = fs.statSync(lockFile(), { throwIfNoEntry: false })?.mtimeMs;
+      if (since !== undefined && Date.now() - since > LOCK_STALE_MS) fs.rmSync(lockFile(), { force: true });
+      else if (Date.now() > until) throw new Error(`Another dotagents is changing a login (${lockFile()}); try again`);
+      else await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+  }
+  try {
+    return await fn();
+  } finally {
+    fs.rmSync(lockFile(), { force: true });
+  }
+}
+
 // Writes a file whole and in one step (a temporary file renamed over it), readable only by the user.
-function writePrivate(file: string, text: string) {
+export function writePrivate(file: string, text: string) {
   fs.mkdirSync(path.dirname(file), { recursive: true, mode: 0o700 });
   const tmp = `${file}.dotagents-${process.pid}`;
   fs.writeFileSync(tmp, text, { mode: 0o600 });
@@ -114,6 +161,16 @@ export function peerFailure(output: string) {
 export type SwitchOptions = { name?: string; save?: string; here?: boolean; peer?: PeerSwitch };
 
 export async function switchProfile({ name, save, here = false, peer = peerSwitch }: SwitchOptions) {
+  const switched = await withLoginLock(() => switchHere(name, save));
+  if (!switched || here || state.dryRun) return;
+  const other = peer(switched);
+  if (!other) return;
+  section("Other side");
+  report(other.ok ? "updated" : "failed", "switch", other.detail);
+}
+
+// The switch on this side, under the lock: the profile switched to, or null after a --save.
+function switchHere(name: string | undefined, save: string | undefined): string | null {
   const profiles = loadProfiles();
   const find = (n: string) => {
     const p = profiles.find((x) => x.name === n);
@@ -127,7 +184,8 @@ export async function switchProfile({ name, save, here = false, peer = peerSwitc
     const slot = slotLogin();
     if (!slot) throw new Error("There is no login in the slot to save; sign in with: claude auth login");
     section("Vault");
-    return saveToVault(save, slot);
+    saveToVault(save, slot);
+    return null;
   }
   if (!name) throw new Error("Usage: dotagents switch <profile> [--here], or dotagents switch --save <profile>");
 
@@ -158,12 +216,7 @@ export async function switchProfile({ name, save, here = false, peer = peerSwitc
       report("updated", slotDir(), `now ${name} (${wanted.account.emailAddress ?? wanted.accountUuid})`);
     }
   }
-
-  if (here || state.dryRun) return;
-  const other = peer(name);
-  if (!other) return;
-  section("Other side");
-  report(other.ok ? "updated" : "failed", "switch", other.detail);
+  return name;
 }
 
 // ── When the saved logins expire ─────────────────────────────────────────────────────────────

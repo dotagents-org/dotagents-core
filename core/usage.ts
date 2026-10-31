@@ -1,11 +1,12 @@
 // How much of each profile's plan is used: the 5-hour session and the weekly limits. Read from
 // the cache Claude Code keeps in each config folder's state file (cachedUsageUtilization), which
-// it refreshes whenever it asks for the usage, /usage for one. No network, no token.
+// it refreshes whenever it asks for the usage, /usage for one; core/live.ts keeps a record in the
+// same shape, asked of Anthropic, and core/snapshot.ts shows the newer of the two.
 //
 // Everything here takes "now" as an argument, so the tests can fix it.
 
 import fs from "node:fs";
-import { signedIn, stateFile } from "./claude-code.ts";
+import { type Activity, signedIn, stateFile } from "./claude-code.ts";
 import type { Role } from "./theme.ts";
 
 export type UsageWindow = {
@@ -30,6 +31,12 @@ export type ProfileUsage = {
   accountUuid?: string;
   // Where the numbers came from, when not from this side: "Windows", "WSL".
   from?: string;
+  // What gave the numbers: Claude Code's cache, or Anthropic's usage endpoint (core/live.ts).
+  source?: "cache" | "live";
+  // The profile's running sessions, for a profile whose login Claude Code is using.
+  activity?: Activity;
+  // Why the last live ask failed; the numbers shown are older than it.
+  error?: string;
 };
 
 const HOUR = 3_600_000;
@@ -105,7 +112,7 @@ export function profileUsage(profile: { name: string; color: string; default?: b
   if (!usage) return { ...base, ...account, state: "no-data" };
   if (usage.accountUuid && usage.accountUuid !== who.accountUuid) return { ...base, ...account, state: "other-account" };
   const stale = now.getTime() - usage.fetchedAt.getTime() > STALE_MS;
-  return { ...base, ...account, state: stale ? "stale" : "ok", fetchedAt: usage.fetchedAt, windows: usage.windows };
+  return { ...base, ...account, state: stale ? "stale" : "ok", fetchedAt: usage.fetchedAt, windows: usage.windows, source: "cache" };
 }
 
 // At the rate used so far in the window: when it runs out (before the reset), or how much is
@@ -119,6 +126,41 @@ export function pace(w: UsageWindow, now: Date): { runsOutAt: Date } | { leftAtR
   const atReset = perMs * length;
   if (atReset >= 100) return { runsOutAt: new Date(now.getTime() + (100 - w.pct) / perMs) };
   return { leftAtReset: Math.round(100 - atReset) };
+}
+
+// How much of the window has gone by, in percent: where the bar would be at a uniform pace. Null
+// for a window that was reset or has no reset time.
+export function elapsedPct(w: UsageWindow, now: Date): number | null {
+  if (w.reset || !w.resetsAt) return null;
+  const length = LENGTH[w.kind];
+  return Math.round(Math.max(0, Math.min(100, ((length - (w.resetsAt.getTime() - now.getTime())) / length) * 100)));
+}
+
+// The notices at 70% and 90%, once per crossing: a window notifies when it rises to a level it
+// hadn't reached, and the level is armed again only when the window falls 5 points below it (or
+// resets), so a number moving around 70% doesn't notify every minute. levels: what the caller keeps
+// between calls, the level each window last notified; a profile without fresh data keeps its own.
+export type Alert = { profile: string; window: string; level: "warn" | "high"; pct: number };
+
+export function thresholdAlerts(list: ProfileUsage[], levels: Record<string, number>): { alerts: Alert[]; levels: Record<string, number> } {
+  const next = { ...levels };
+  const alerts: Alert[] = [];
+  for (const a of list) {
+    if (a.state !== "ok") continue;
+    for (const w of a.windows) {
+      const key = `${a.name}/${windowLabel(w)}`;
+      let held = next[key] ?? 0;
+      while (held && w.pct < held - 5) held = held === 90 ? 70 : 0;
+      const reached = w.pct >= 90 ? 90 : w.pct >= 70 ? 70 : 0;
+      if (reached > held) {
+        alerts.push({ profile: a.name, window: windowLabel(w), level: reached === 90 ? "high" : "warn", pct: w.pct });
+        held = reached;
+      }
+      if (held) next[key] = held;
+      else delete next[key];
+    }
+  }
+  return { alerts, levels: next };
 }
 
 // A bar of a fixed width: the used cells, a one-cell gap, the rest of the track. The width is the
@@ -174,14 +216,18 @@ const pctSegment = (pct: number, role: Role): Segment => ({ text: `${String(pct)
 // What a profile without numbers says.
 function stateNote(a: ProfileUsage) {
   if (a.state === "not-signed-in") return `not signed in, sign in with: claude-${a.name} auth login`;
-  if (a.state === "no-data") return "no data yet, run /usage in this profile";
-  if (a.state === "other-account") return "the cache is from an earlier sign-in, run /usage in this profile";
+  if (a.state === "no-data") return `no data yet, run: dotagents usage --refresh${a.error ? ` (last try: ${a.error})` : ""}`;
+  if (a.state === "other-account") return `the cache is another account's, run: dotagents usage --refresh${a.error ? ` (last try: ${a.error})` : ""}`;
   return null;
 }
 
 const nameSegment = (a: ProfileUsage): Segment => ({ text: a.name, bold: true, profile: a.color });
 
-// The usage view: per profile, its name, [default] and the age of the data; then one line per
+// "2 working · 1 waiting", only the counts above zero; empty when nothing runs.
+export const activityText = (a: Activity | undefined) =>
+  a ? [a.working ? `${a.working} working` : "", a.waiting ? `${a.waiting} waiting` : ""].filter(Boolean).join(" · ") : "";
+
+// The usage view: per profile, its name, [default], the age of the data and its running sessions; then one line per
 // window, the labels in one column for every profile: the bar, the percentage and the reset.
 export function usageLines(list: ProfileUsage[], now: Date): Line[] {
   const labelWidth = Math.max(2, ...list.flatMap((a) => a.windows.map((w) => windowLabel(w).length))) + 3;
@@ -191,16 +237,19 @@ export function usageLines(list: ProfileUsage[], now: Date): Line[] {
     const stale = a.state === "stale";
     const head: Line = [nameSegment(a)];
     if (a.default) head.push({ text: "  " }, { text: "[default]", role: "muted" });
+    const busy = activityText(a.activity);
+    if (busy) head.push({ text: "  " }, { text: busy, role: "ok" });
     const note = stateNote(a);
     if (note) {
       lines.push([...head, { text: "  " }, { text: note, role: "muted" }]);
       continue;
     }
     if (a.fetchedAt) {
-      const age = `${span(now.getTime() - a.fetchedAt.getTime())} ago${a.from ? ` on ${a.from}` : ""}`;
-      head.push({ text: "  " }, stale ? { text: `${age}, stale: run /usage in this profile`, role: "warn" } : { text: age, role: "muted" });
+      const age = `${span(now.getTime() - a.fetchedAt.getTime())} ago${a.source === "live" ? " · live" : ""}${a.from ? ` on ${a.from}` : ""}`;
+      head.push({ text: "  " }, stale ? { text: `${age}, stale: run dotagents usage --refresh`, role: "warn" } : { text: age, role: "muted" });
     }
     lines.push(head);
+    if (a.error && stale) lines.push([{ text: `  last try: ${a.error}`, role: "warn" }]);
     for (const w of a.windows) {
       const level: Role = stale ? "muted" : levelOf(w.pct);
       const reset = w.reset || !w.resetsAt ? (w.kind === "session" ? "no window open" : "reset") : `resets ${span(w.resetsAt.getTime() - now.getTime())}`;

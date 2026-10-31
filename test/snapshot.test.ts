@@ -100,3 +100,17 @@ test("install records the other side it finds, changes nothing the second time, 
   applyPeer(() => null);
   assert.deepEqual(loadMachine(), {});
 });
+
+test("a slot that holds another account's login doesn't lend its cache to the profile whose folder it is", (t) => {
+  const { home } = machine(t);
+  // The switch in place put personal in the slot, work's folder: work's login waits in its vault.
+  fs.writeFileSync(path.join(home, ".claude.json"), state("uuid-b", cache("uuid-b", "2026-10-28T11:50:00Z", 70)));
+  fs.writeFileSync(path.join(home, ".claude", ".credentials.json"), "{}");
+  const vault = path.join(home, "state", "vault", "work");
+  fs.mkdirSync(vault, { recursive: true });
+  fs.writeFileSync(path.join(vault, "credentials.json"), "{}");
+  fs.writeFileSync(path.join(vault, "account.json"), JSON.stringify({ accountUuid: "uuid-a" }));
+  const work = readUsage(NOW).find((p) => p.name === "work")!;
+  assert.equal(work.state, "other-account");
+  assert.deepEqual(work.windows, []);
+});
