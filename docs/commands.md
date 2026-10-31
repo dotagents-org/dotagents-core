@@ -9,9 +9,9 @@ dotagents <command> [options]
 | [`install`](#dotagents-install) | Applies the global configuration to this machine, in every profile folder. |
 | [`update [--all]`](#dotagents-update) | Pulls this repository and runs `install`; with `--all`, also refreshes every tracked workspace. |
 | [`settings pull [--from <profile>]`](#dotagents-settings-pull) | Brings a settings change made in a profile (a Windows copy) into this repository. |
-| [`profile add <name>`](#dotagents-profile-add) | Adds a Claude profile: its config folder, the configuration and a `claude-<name>` launcher. |
+| [`profile add <name>`](#dotagents-profile-add) | Adds a Claude profile, one claude.ai account; on Windows, a Desktop app of its own. |
 | [`profile list`](#dotagents-profile-list) | Lists the profiles and checks them. |
-| [`profile remove <name>`](#dotagents-profile-remove) | Forgets a profile and its launcher; its folder is kept. |
+| [`profile remove <name>`](#dotagents-profile-remove) | Forgets a profile; its saved login is kept. |
 | [`start [--port <n>]`](#dotagents-start) | Starts the dashboard's server on 127.0.0.1: the usage of every profile, live. |
 | [`switch [<profile>] [--here] [--save <profile>]`](#dotagents-switch) | Puts a profile's login in `~/.claude`, on both sides of the machine. |
 | [`usage [--short] [--json]`](#dotagents-usage) | Shows how much of each profile's plan is used (5-hour session, week), from Claude Code's cache. |
@@ -28,7 +28,7 @@ dotagents <command> [options]
 
 ## dotagents install
 
-Writes the global configuration where Claude Code reads it: in `~/.claude`, and in the folder of every profile added with [`profile add`](#dotagents-profile-add), whose launchers it also rewrites. See [Global configuration](global-configuration.md) for exactly what goes where.
+Writes the global configuration where Claude Code reads it, `~/.claude`, the one config folder every [profile](#dotagents-profile-add) uses, and on Windows each profile's Desktop app. A profile from before, with a folder of its own (`~/.claude-<name>`) and a launcher (`claude-<name>`), moves to `~/.claude`: its launcher is removed and its folder is left for you to delete. See [Global configuration](global-configuration.md) for exactly what goes where.
 
 ```bash
 dotagents install --dry-run    # show what would change
@@ -64,28 +64,25 @@ On Windows each profile has a copy of `claude/settings.json`, and `/config` writ
 ## dotagents profile add
 
 ```bash
-dotagents profile add work --default     # the profile in ~/.claude, the one plain claude uses
-dotagents profile add personal           # a second profile, in ~/.claude-personal
+dotagents profile add work --default     # the account the normal Desktop app opens
+dotagents profile add personal           # a second account
 dotagents profile add personal --color '#376B80'
 ```
 
-A profile is a Claude Code config folder with its own sign-in, picked through `CLAUDE_CONFIG_DIR`; the sign-in is a Claude account, and two profiles can't share one. Before 2.0.0 profiles were called accounts (`dotagents account add`, `accounts.json`); `install` moves `accounts.json` to `profiles.json`. For a profile, `profile add`:
+A profile is one claude.ai account the person holds (ADR 0009 and ADR 0011 in the workspace's `.artifacts/adr/`). Every profile uses the same config folder, `~/.claude`, on WSL and on Windows alike: the history, settings, skills and memory are shared, and [`switch`](#dotagents-switch) puts a profile's login in it. Two profiles can't hold the same account. Before 2.0.0 profiles were called accounts (`dotagents account add`, `accounts.json`); `install` moves `accounts.json` to `profiles.json`. For a profile, `profile add`:
 
-- creates its folder: `~/.claude` for the default profile, `~/.claude-<name>` for the others;
-- applies the same configuration as `install` to it;
-- writes a launcher, `~/.local/bin/claude-<name>` (`claude-<name>.cmd` on Windows), that clears the variables that would sign in over the folder (`ANTHROPIC_API_KEY`, `CLAUDE_CODE_OAUTH_TOKEN`…), points `CLAUDE_CONFIG_DIR` at the folder and runs `claude`. The default profile's launcher clears `CLAUDE_CONFIG_DIR` instead, so Claude Code uses `~/.claude`;
+- applies the configuration of `install` to `~/.claude`;
 - records the profile in `profiles.json`, next to `workspaces.json`;
-- on Windows, gives the profile a Claude Desktop app: a launcher `claude-desktop-<name>.vbs` and the Start menu shortcut "Claude <Name>" ("Claude Personal", "Claude My Work"). For a profile other than the default one, it also creates the data folder `%APPDATA%\Claude-<name>`, and the shortcut starts a second app with `--user-data-dir` (its own sign-in and chats) and the profile's `CLAUDE_CONFIG_DIR` (so the Code tab uses the profile's folder). The default profile's shortcut opens the normal app. The shortcut takes the profile's icon, `assets/claude-<name>.ico`, when the repository has one, and the app's otherwise. Each profile also gets its own taskbar button, with its icon and name: the shortcut carries an AppUserModelID of its own (`dotagents.claude.<name>`), and the launcher starts a small hidden watcher (`claude-taskbar.ps1`) that gives the instance's windows the same ID and ends when the instance closes. The same watcher gives the instance the profile's look: the window title ("Claude Personal", in Alt+Tab and the taskbar preview) and icon, and the notification-area icon with its tooltip. Claude puts its own title and tray icon back now and then, so the watcher sets them again (the tray icon every 10 seconds); the tray part relies on how Electron numbers its icons, not on a documented interface, so an app update may bring Claude's own icon back. After an app update, which reopens only the normal app, the button comes back the next time the profile opens through its shortcut. Without Claude Desktop installed, it only notes so.
+- on Windows, gives the profile a Claude Desktop app, so the accounts can be open at the same time: a launcher `claude-desktop-<name>.vbs` and the Start menu shortcut "Claude <Name>" ("Claude Personal", "Claude My Work"). For a profile other than the default one, it also creates the data folder `%APPDATA%\Claude-<name>`, and the shortcut starts a second app with `--user-data-dir`, which keeps its own sign-in and chats. Every app's launcher clears `CLAUDE_CONFIG_DIR`, so the Code tab uses `~/.claude`. The default profile's shortcut opens the normal app. The shortcut takes the profile's icon, `assets/claude-<name>.ico`, when the repository has one, and the app's otherwise. Each profile also gets its own taskbar button, with its icon and name: the shortcut carries an AppUserModelID of its own (`dotagents.claude.<name>`), and the launcher starts a small hidden watcher (`claude-taskbar.ps1`) that gives the instance's windows the same ID and ends when the instance closes. The same watcher gives the instance the profile's look: the window title ("Claude Personal", in Alt+Tab and the taskbar preview) and icon, and the notification-area icon with its tooltip. Claude puts its own title and tray icon back now and then, so the watcher sets them again (the tray icon every 10 seconds); the tray part relies on how Electron numbers its icons, not on a documented interface, so an app update may bring Claude's own icon back. After an app update, which reopens only the normal app, the button comes back the next time the profile opens through its shortcut. Without Claude Desktop installed, it only notes so.
 
-Then sign in once with the launcher: `claude-personal auth login`. In the second Desktop app, sign in with **e-mail and code**: Google sign-in returns to the normal app. Links `claude://` also open the normal app, and an app update reopens only the normal one. Running it again changes nothing; a launcher you wrote by hand with the same name is kept as a backup.
+Then save the profile's login, once on each side: sign in with `claude auth login`, which puts the account in `~/.claude`, and run `dotagents switch --save personal`. In the second Desktop app, sign in with **e-mail and code**: Google sign-in returns to the normal app. Links `claude://` also open the normal app, and an app update reopens only the normal one. Running it again changes nothing.
 
-- Only one profile is the default, and it can't be changed with `profile add`: it owns `~/.claude`.
+- Only one profile is the default: the one the normal Desktop app opens.
 - `--color #RRGGBB` sets the profile's color in the listings. Without it, profiles get `#D77655` and `#376B80`, in the order they are added.
-- `~/.local/bin` has to be on the `PATH`; `profile add` says so when it isn't.
 
 ## dotagents profile list
 
-Lists the profiles (color, default, signed-in e-mail, folder, launcher) and checks them: each folder and launcher exists, each profile is signed in, and no two folders are signed in to the same claude.ai account. It also warns when a variable such as `ANTHROPIC_API_KEY` is set in the shell, and checks the shared configuration: a settings copy (Windows) changed in a profile or behind the repository, a [`claude/global-config.json`](global-configuration.md) option changed in a profile, and changes to either file not committed yet. Last, it says until when each profile's saved login lasts, on each side of the machine (a login lasts a few weeks, and Claude Code renews it only up to that date): a week ahead it warns, and once a login has expired the item fails, with how to renew it. In WSL it also fails when `~/.claude` is a link to another folder: Windows reaches WSL's files through `\\wsl.localhost`, which doesn't follow a Linux link, so the Desktop's Code tab in WSL mode can't install its server there; the item says how to make it the folder. Exits with 1 when an item fails.
+Lists the profiles (color, default, the e-mail of the saved login, and which one is in the slot now) and checks them: each uses `~/.claude`, each has a saved login, and no two hold the same claude.ai account. It also warns when a variable such as `ANTHROPIC_API_KEY` is set in the shell, and checks the shared configuration: a settings copy (Windows) changed in a profile or behind the repository, a [`claude/global-config.json`](global-configuration.md) option changed in a profile, and changes to either file not committed yet. Last, it says until when each profile's saved login lasts, on each side of the machine (a login lasts a few weeks, and Claude Code renews it only up to that date): a week ahead it warns, and once a login has expired the item fails, with how to renew it. In WSL it also fails when `~/.claude` is a link to another folder: Windows reaches WSL's files through `\\wsl.localhost`, which doesn't follow a Linux link, so the Desktop's Code tab in WSL mode can't install its server there; the item says how to make it the folder. Exits with 1 when an item fails.
 
 ## dotagents profile remove
 
@@ -93,7 +90,7 @@ Lists the profiles (color, default, signed-in e-mail, folder, launcher) and chec
 dotagents profile remove personal
 ```
 
-Forgets the profile and deletes its launchers and, on Windows, its Start menu shortcut. The folders (the profile's and the Desktop data folder), with the sign-in and the history, stay; delete them by hand if you want them gone.
+Forgets the profile and, on Windows, deletes its Desktop launcher and Start menu shortcut. Its saved login (the vault) and the Desktop data folder, with the app's sign-in and chats, stay; delete them by hand if you want them gone.
 
 ## dotagents switch
 
@@ -114,7 +111,7 @@ Every account's login is kept in a vault, one per profile and side, in `~/.confi
 
 The switch and the renewals of `usage --refresh` take the same lock (`logins.lock` in the state folder), so neither copies a token the other is spending.
 
-Then it runs the same switch on the other side of the machine (`--here` skips that), whose vault holds that side's own login: a refresh token copied to two slots would sign one of them out. A profile without a vault yet takes its login from its own folder (`~/.claude-<name>`, from before the vault). An account in the slot that no profile knows is never overwritten: `--save <profile>` says whose it is. The switch is always manual.
+Then it runs the same switch on the other side of the machine (`--here` skips that), whose vault holds that side's own login: a refresh token copied to two slots would sign one of them out. An account in the slot that no profile knows is never overwritten: `--save <profile>` says whose it is. The switch is always manual.
 
 ## dotagents usage
 

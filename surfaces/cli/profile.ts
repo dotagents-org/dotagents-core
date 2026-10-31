@@ -1,23 +1,19 @@
 // `profile add`, `profile list` and `profile remove`: the Claude profiles of this machine.
 
-import path from "node:path";
 import { verifyGlobal } from "../../core/global.ts";
-import { verifyLogins } from "../../core/switch.ts";
-import { configDirs, dropProfile, launcherDir, launcherFile, setUpProfile, showFolder, verifyProfiles } from "../../core/profiles.ts";
-import { signedIn } from "../../core/claude-code.ts";
+import { profileAccount, slotProfile, verifyLogins } from "../../core/switch.ts";
+import { configDirs, dropProfile, setUpProfile, verifyProfiles } from "../../core/profiles.ts";
 import { loadProfiles } from "../../core/machine-state.ts";
-import { displayPath, fancy, finish, header, line, paint, tone } from "../../core/output.ts";
+import { fancy, finish, header, line, paint, tone } from "../../core/output.ts";
 import type { Command } from "./shared.ts";
 
 const { bold, muted } = tone;
 
-const onPath = (dir: string) => (process.env.PATH ?? "").split(path.delimiter).some((p) => path.resolve(p) === path.resolve(dir));
-
 export const profileAdd: Command = {
   name: "profile add",
   usage: "<name> [--default]",
-  summary: "add a Claude profile: its folder, the configuration, claude-<name>",
-  more: ["--default: the profile in ~/.claude, used by plain claude;", "--color #RRGGBB: its color in the listings"],
+  summary: "add a Claude profile, one claude.ai account",
+  more: ["--default: the one the normal Desktop app opens;", "--color #RRGGBB: its color in the listings"],
   group: "Profiles",
   run({ repo, args, positional }) {
     const name = positional[0];
@@ -25,10 +21,7 @@ export const profileAdd: Command = {
     header("profile add", name);
     setUpProfile(repo, { name, isDefault: args.default, color: args.color });
     const profile = loadProfiles().find((a) => a.name === name);
-    const hints = [];
-    if (profile && !signedIn(profile.configDir)) hints.push(`Sign in with: claude-${name} auth login`);
-    if (!onPath(launcherDir())) hints.push(`Add ${displayPath(launcherDir())} to your PATH to run claude-${name}`);
-    finish(hints.join("\n"));
+    finish(profile && !profileAccount(profile) ? `Save its login: sign in with claude auth login, then run dotagents switch --save ${name}` : "");
   },
 };
 
@@ -40,22 +33,22 @@ export const profileList: Command = {
   run({ repo }) {
     const profiles = loadProfiles();
     if (!profiles.length) {
-      const hint = "No profiles yet. Add the one in ~/.claude with: dotagents profile add <name> --default";
+      const hint = "No profiles yet. Add one per claude.ai account, the first with: dotagents profile add <name> --default";
       return console.log(fancy ? muted(hint) : hint);
     }
     header("profile list", `${profiles.length} profile${profiles.length === 1 ? "" : "s"}`);
     const width = Math.max(...profiles.map((a) => a.name.length)) + 2;
+    const inSlot = slotProfile()?.name;
     for (const a of profiles) {
-      const who = signedIn(a.configDir);
-      const email = who ? who.email : "not signed in";
+      const who = profileAccount(a);
+      const email = who ? who.email || who.accountUuid : "no saved login";
+      const slot = a.name === inSlot ? "in the slot" : "";
       if (!fancy) {
-        console.log(`${a.name.padEnd(width)}${a.default ? "default  " : "         "}${a.configDir}  ${email}`);
+        console.log(`${a.name.padEnd(width)}${a.default ? "default  " : "         "}${email}${slot ? `  ${slot}` : ""}`);
         continue;
       }
-      const color = paint(a.color);
       line();
-      line(`${bold(color(a.name.padEnd(width)))}${a.default ? muted("[default]  ") : "           "}${who ? email : muted(email)}`);
-      line(`  ${muted(`${showFolder(a.configDir)}  ${path.basename(launcherFile(a.name))}`)}`);
+      line(`${bold(paint(a.color)(a.name.padEnd(width)))}${a.default ? muted("[default]  ") : "           "}${who ? email : muted(email)}${slot ? `  ${tone.ok(slot)}` : ""}`);
     }
     verifyProfiles();
     verifyGlobal(repo, configDirs());
@@ -67,7 +60,7 @@ export const profileList: Command = {
 export const profileRemove: Command = {
   name: "profile remove",
   usage: "<name>",
-  summary: "forget a profile and its launcher; its folder is kept",
+  summary: "forget a profile; its saved login is kept",
   group: "Profiles",
   run({ positional }) {
     const name = positional[0];

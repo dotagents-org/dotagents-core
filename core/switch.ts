@@ -60,6 +60,12 @@ const folderLogin = (p: Profile) =>
 
 const knownLogin = (p: Profile) => vaultLogin(p.name) ?? folderLogin(p);
 
+// The account of a profile's saved login, or null.
+export function profileAccount(p: Profile): { accountUuid: string; email: string } | null {
+  const known = knownLogin(p);
+  return known ? { accountUuid: known.accountUuid, email: typeof known.account.emailAddress === "string" ? known.account.emailAddress : "" } : null;
+}
+
 // The profile an account belongs to, by the account's id.
 const ownerOf = (uuid: string) => loadProfiles().find((p) => knownLogin(p)?.accountUuid === uuid) ?? null;
 

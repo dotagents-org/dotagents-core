@@ -3,9 +3,9 @@
 // Every profile gets a Start menu shortcut, "Claude <Name>"; the default profile's opens the
 // normal app.
 //
-// The shortcut runs a small .vbs launcher, so no console window flashes: it sets
-// CLAUDE_CONFIG_DIR, for the Code tab inside the app to use the profile's folder, and starts
-// the app through its execution alias. Shortcuts are written through an adapter: PowerShell on
+// The shortcut runs a small .vbs launcher, so no console window flashes: it clears
+// CLAUDE_CONFIG_DIR, so the Code tab inside the app uses ~/.claude like every profile, and starts
+// the app through its execution alias. Each app keeps its own sign-in in its data folder. Shortcuts are written through an adapter: PowerShell on
 // Windows, a fake one in the tests.
 //
 // Known limits of a second instance: sign in with e-mail and code (Google sign-in comes back
@@ -47,10 +47,10 @@ export const desktopLauncherFile = (launcherDir: string, name: string) => path.j
 
 const MARK = (name: string) => `dotagents:${name}`;
 
-// The default profile opens the normal app, with CLAUDE_CONFIG_DIR cleared (~/.claude); the
-// others their own data folder and config folder.
+// The default profile opens the normal app, the others their own data folder; every one with
+// CLAUDE_CONFIG_DIR cleared (~/.claude).
 // Then it starts the taskbar watcher, hidden, for the profile's own button (lib/taskbar.ts).
-function vbsLauncher(repo: string, launcherDir: string, name: string, configDir: string, isDefault: boolean) {
+function vbsLauncher(repo: string, launcherDir: string, name: string, isDefault: boolean) {
   const q = (s: string) => s.replace(/"/g, '""');
   const arg = (flag: string, value: string) => ` -${flag} ""${q(value)}""`;
   const watcher =
@@ -65,9 +65,9 @@ function vbsLauncher(repo: string, launcherDir: string, name: string, configDir:
     'Set shell = CreateObject("WScript.Shell")',
     // Removed, never set empty: an empty CLAUDE_CONFIG_DIR makes Claude Code use the current folder.
     // Remove fails when the variable isn't set, hence On Error Resume Next around it.
-    ...(isDefault
-      ? ["On Error Resume Next", 'shell.Environment("PROCESS").Remove "CLAUDE_CONFIG_DIR"', "On Error GoTo 0"]
-      : [`shell.Environment("PROCESS")("CLAUDE_CONFIG_DIR") = "${q(configDir)}"`]),
+    "On Error Resume Next",
+    'shell.Environment("PROCESS").Remove "CLAUDE_CONFIG_DIR"',
+    "On Error GoTo 0",
     isDefault ? `shell.Run """${q(desktopExe())}""", 1, False` : `shell.Run """${q(desktopExe())}"" --user-data-dir=""${q(desktopDataDir(name))}""", 1, False`,
     `shell.Run "${watcher}", 0, False`,
     "",
@@ -110,7 +110,7 @@ function ensureShortcut(lnk: string, wanted: Shortcut, shortcuts: Shortcuts) {
 // The data folder, the launcher and the shortcut of a profile's Desktop app.
 export function applyDesktop(
   repo: string,
-  profile: { name: string; configDir: string; default?: boolean },
+  profile: { name: string; default?: boolean },
   { launcherDir, shortcuts = powershellShortcuts }: { launcherDir: string; shortcuts?: Shortcuts }
 ) {
   section("Desktop");
@@ -121,7 +121,7 @@ export function applyDesktop(
   // Made before the first start: a folder the app creates itself lands in its MSIX container.
   if (!profile.default) ensureDir(desktopDataDir(profile.name));
   writeGenerated(taskbarWatcherFile(launcherDir), taskbarWatcher(), { comment: "#", onForeign: "backup" });
-  writeGenerated(desktopLauncherFile(launcherDir, profile.name), vbsLauncher(repo, launcherDir, profile.name, profile.configDir, Boolean(profile.default)), {
+  writeGenerated(desktopLauncherFile(launcherDir, profile.name), vbsLauncher(repo, launcherDir, profile.name, Boolean(profile.default)), {
     comment: "'",
     onForeign: "backup",
   });
