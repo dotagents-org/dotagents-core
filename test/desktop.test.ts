@@ -67,7 +67,8 @@ test("every profile gets a Start menu shortcut, \"Claude <Name>\"; only the seco
   assert.doesNotMatch(defaultVbs, /-DataDir/);
   assert.ok(fs.existsSync(desktopDataDir("personal")));
   const vbs = fs.readFileSync(desktopLauncherFile(launcherDir(), "personal"), "utf8");
-  assert.ok(vbs.includes(`"CLAUDE_CONFIG_DIR") = "${path.join(os.homedir(), ".claude-personal")}"`));
+  // Every app's Code tab uses ~/.claude; the data folder keeps the app's own sign-in apart.
+  assert.ok(vbs.includes('.Remove "CLAUDE_CONFIG_DIR"'));
   assert.ok(vbs.includes(`--user-data-dir=""${desktopDataDir("personal")}""`));
   const lnk = saved.get(shortcutFile("personal"));
   assert.equal(lnk?.description, "dotagents:personal");

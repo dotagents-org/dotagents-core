@@ -215,7 +215,7 @@ const pctSegment = (pct: number, role: Role): Segment => ({ text: `${String(pct)
 
 // What a profile without numbers says.
 function stateNote(a: ProfileUsage) {
-  if (a.state === "not-signed-in") return `not signed in, sign in with: claude-${a.name} auth login`;
+  if (a.state === "not-signed-in") return `no saved login: sign in with claude auth login, then run dotagents switch --save ${a.name}`;
   if (a.state === "no-data") return `no data yet, run: dotagents usage --refresh${a.error ? ` (last try: ${a.error})` : ""}`;
   if (a.state === "other-account") return `the cache is another account's, run: dotagents usage --refresh${a.error ? ` (last try: ${a.error})` : ""}`;
   return null;

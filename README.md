@@ -154,8 +154,8 @@ More in [Getting started](docs/getting-started.md), including WSL and npm withou
 |---|---|
 | [`install`](docs/commands.md#dotagents-install) | Applies the global configuration to this machine. |
 | [`update [--all]`](docs/commands.md#dotagents-update) | Pulls your repository and reinstalls; `--all` also refreshes every workspace. |
-| [`settings pull`](docs/commands.md#dotagents-settings-pull) | Brings a settings change made in a profile (Windows copies) back into the repository. |
-| [`profile add <name>`](docs/commands.md#dotagents-profile-add) · [`profile list`](docs/commands.md#dotagents-profile-list) · [`profile remove`](docs/commands.md#dotagents-profile-remove) | Several Claude profiles on one machine, each with its folder, the configuration and a `claude-<name>` launcher. |
+| [`settings pull`](docs/commands.md#dotagents-settings-pull) | Brings a settings change made with `/config` (the Windows copy) back into the repository. |
+| [`profile add <name>`](docs/commands.md#dotagents-profile-add) · [`profile list`](docs/commands.md#dotagents-profile-list) · [`profile remove`](docs/commands.md#dotagents-profile-remove) | One profile per claude.ai account, all in `~/.claude`; on Windows, a Desktop app each. |
 | [`switch <profile>`](docs/commands.md#dotagents-switch) | Puts a profile's login in `~/.claude` on both sides, keeping each account's login in a vault. |
 | [`usage`](docs/commands.md#dotagents-usage) | How much of each profile's plan is used, from Claude Code's cache or, with `--refresh`, asked of Anthropic. |
 | [`start`](docs/commands.md#dotagents-start) | Starts the dashboard's local server: the usage of every profile, live, in a page on 127.0.0.1. |

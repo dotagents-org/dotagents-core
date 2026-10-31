@@ -124,7 +124,7 @@ test("the usage view: the profile, then one aligned line per window, with no rai
   assert.match(out, /^work {2}\[default\] {2}4m ago$/m);
   assert.match(out, /^ {2}5h {6}━{23} ─{8} {3}72% {2}resets 3h 17m$/m);
   assert.match(out, /^ {2}Fable {3}━+ ─+ {3}59%/m);
-  assert.match(out, /^personal {2}not signed in, sign in with: claude-personal auth login$/m);
+  assert.match(out, /^personal {2}no saved login: sign in with claude auth login, then run dotagents switch --save personal$/m);
   assert.doesNotMatch(out, /[◇·⚠└●!]/);
   // The labels of every profile share one column.
   const starts = out.split("\n").filter((l) => l.includes("━")).map((l) => l.indexOf("━"));
