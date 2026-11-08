@@ -30,8 +30,22 @@ export const brand = () => badge(level);
 // The prompts (@clack/prompts) without their rail, like the rest of the output.
 updateSettings({ withGuide: false });
 
+// A section's title waits for its first line, so a section with nothing to say prints nothing.
+let pendingSection: (() => void) | null = null;
+
+// Prints the title of the section just opened, if it hasn't been printed yet. Anything that draws
+// on its own after a section (a spinner, a prompt) calls it first.
+export function flushSection() {
+  const print = pendingSection;
+  pendingSection = null;
+  print?.();
+}
+
 // A line of a view drawn by a command itself (lists, the usage).
-export const line = (text = "") => console.log(text);
+export const line = (text = "") => {
+  flushSection();
+  console.log(text);
+};
 
 const STATUS = {
   ok: { icon: SYMBOLS.passed, color: tone.muted },
@@ -107,13 +121,14 @@ export const terminalRenderer: Renderer = (event) => {
       if (event.detail) line(`    ${tone.muted(displayDetail(event.detail))}`);
       return;
     case "section":
-      line();
-      return line(tone.bold(event.title));
+      pendingSection = () => console.log(`\n${tone.bold(event.title)}`);
+      return;
     case "header": {
       const dry = state.dryRun ? `  ${tone.warn("dry run")}` : "";
       return line(`${brand()}  ${tone.bold(event.command)}${event.subject ? `  ${tone.muted(displayPath(event.subject))}` : ""}${dry}`);
     }
     case "finish": {
+      pendingSection = null;
       // "✓ 9 created, 2 already ok".
       const c = state.counts;
       const parts = [
@@ -140,6 +155,12 @@ export const terminalRenderer: Renderer = (event) => {
 };
 
 export const plainRenderer: Renderer = (event) => {
+  if (event.kind === "section") {
+    pendingSection = () => console.log(`\n${event.title}`);
+    return;
+  }
+  if (event.kind === "finish") pendingSection = null;
+  else flushSection();
   switch (event.kind) {
     case "result":
       return console.log(`${event.status.padEnd(13)}${event.target}${event.detail ? `  (${event.detail})` : ""}`);
@@ -147,8 +168,6 @@ export const plainRenderer: Renderer = (event) => {
       return console.log(`${(event.passed ? "ok" : "failed").padEnd(13)}${event.text}${!event.passed && event.detail ? `  (${event.detail})` : ""}`);
     case "warning":
       return console.log(`${"warning".padEnd(13)}${event.text}${event.detail ? `  (${event.detail})` : ""}`);
-    case "section":
-      return console.log(`\n${event.title}`);
     case "header":
       return;
     case "finish":
