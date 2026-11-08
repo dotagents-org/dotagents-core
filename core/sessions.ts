@@ -5,9 +5,11 @@
 // sessions live in the slot of the side that ran them (ADR 0011).
 //
 // A session still running is never deleted: on this side, its sessions/<pid>.json names it while
-// the process lives; on the other side, where the process can't be probed, a transcript written
-// in the last RECENT_MS counts as running.
+// the process lives; on the other side, whose processes can't be probed from here, dotagents asks
+// that side's dotagents (`sessions --running`), when the caller passes that adapter. Either way a
+// transcript written in the last RECENT_MS counts as running too.
 
+import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { type AccountLabels, archiveFile, parseTranscript, promptText, renderArchive } from "../skills/session-archive/scripts/archive-session.ts";
@@ -72,6 +74,9 @@ export type Session = {
   // .artifacts/session-archives/. Null outside a workspace that follows the standard.
   root: string | null;
   running: boolean;
+  // Whether `running` comes from the process records: always on this side; on the other side only
+  // when its dotagents answered. When false, a session idle there for RECENT_MS counts as stopped.
+  checked: boolean;
 };
 
 // The nearest folder at or above dir with .artifacts/session-archives/.
@@ -88,7 +93,7 @@ export function archiveRoot(dir: string | null) {
 }
 
 // The sessions this side's Claude Code processes are running, by id.
-function runningIds(configDir: string, running: ProcessProbe) {
+export function runningIds(configDir: string = defaultConfigDir(), running: ProcessProbe = runningProcess) {
   const ids = new Set<string>();
   let names: string[];
   try {
@@ -169,7 +174,21 @@ function summary(file: string) {
   return { cwd, started, ended, accounts, title: clip(titles.at(-1) ?? prompt ?? "(no messages)", 80) };
 }
 
-export type ListOptions = { dirs?: ConfigDir[]; under?: string; now?: number; running?: ProcessProbe };
+// Asks the other side's dotagents which sessions its Claude Code is running; null when it can't
+// say (no dotagents there, one older than `sessions --running`, or no answer in time). Runs a
+// command there, so it goes through this adapter; the tests pass a fake one.
+export type PeerRunning = (peer: Peer) => Set<string> | null;
+
+export const peerRunning: PeerRunning = () => {
+  const run = isWindows
+    ? spawnSync("wsl.exe", ["-e", "bash", "-lc", "dotagents sessions --running"], { encoding: "utf8", timeout: 30_000, windowsHide: true })
+    : spawnSync("powershell.exe", ["-NoProfile", "-Command", "dotagents sessions --running"], { encoding: "utf8", timeout: 30_000, cwd: "/mnt/c" });
+  if (run.status !== 0) return null;
+  return new Set((run.stdout ?? "").split(/\r?\n/).map((l) => l.trim()).filter((l) => /^[0-9a-f-]{36}$/i.test(l)));
+};
+
+// peerRunning: how to ask the other side; without it, its sessions count as running only by RECENT_MS.
+export type ListOptions = { dirs?: ConfigDir[]; under?: string; now?: number; running?: ProcessProbe; peerRunning?: PeerRunning };
 
 const inside = (child: string, parent: string) => {
   const rel = path.relative(parent, child);
@@ -177,10 +196,18 @@ const inside = (child: string, parent: string) => {
 };
 
 // Every session of the config folders, newest first; under: only those started inside that folder.
-export function listSessions({ dirs = configDirs(), under, now = Date.now(), running = runningProcess }: ListOptions = {}): Session[] {
+export function listSessions({ dirs = configDirs(), under, now = Date.now(), running = runningProcess, peerRunning: askPeer }: ListOptions = {}): Session[] {
   const list: Session[] = [];
   for (const cd of dirs) {
-    const live = cd.peer ? new Set<string>() : runningIds(cd.dir, running);
+    // The other side is asked once, and only when it has a session to ask about.
+    let asked = false;
+    let peerLive: Set<string> | null = null;
+    const liveThere = () => {
+      if (!asked && cd.peer && askPeer) peerLive = askPeer(cd.peer);
+      asked = true;
+      return peerLive;
+    };
+    const live = cd.peer ? null : runningIds(cd.dir, running);
     const projects = path.join(cd.dir, "projects");
     let slugs: string[];
     try {
@@ -208,6 +235,7 @@ export function listSessions({ dirs = configDirs(), under, now = Date.now(), run
         const localCwd = info.cwd && cd.peer ? fromPeer(info.cwd, cd.peer) : info.cwd;
         if (under && !(localCwd && inside(localCwd, under))) continue;
         const id = path.basename(name, ".jsonl");
+        const known = live ?? liveThere();
         list.push({
           id,
           side: cd.side,
@@ -222,7 +250,8 @@ export function listSessions({ dirs = configDirs(), under, now = Date.now(), run
           mtime: st.mtimeMs,
           accounts: info.accounts,
           root: archiveRoot(localCwd),
-          running: live.has(id) || now - st.mtimeMs < RECENT_MS,
+          running: Boolean(known?.has(id)) || now - st.mtimeMs < RECENT_MS,
+          checked: known !== null,
         });
       }
     }

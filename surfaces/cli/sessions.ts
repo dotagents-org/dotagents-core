@@ -8,7 +8,7 @@ import * as p from "@clack/prompts";
 import type { AccountLabels } from "../../skills/session-archive/scripts/archive-session.ts";
 import { UsageError } from "../../core/common.ts";
 import { checkWarn, displayPath, fancy, finish, header, interactive, line, report, section, tone } from "../../core/output.ts";
-import { type Session, accountLabels, archiveSession, deleteSession, listSessions } from "../../core/sessions.ts";
+import { RECENT_MS, type Session, accountLabels, archiveSession, deleteSession, listSessions, peerRunning, runningIds } from "../../core/sessions.ts";
 import { state } from "../../core/state.ts";
 import { type Command, type Context, fitHint, workspaceArg } from "./shared.ts";
 
@@ -65,6 +65,8 @@ export const sessions: Command = {
   more: ["the ones started in this folder; --all: every project's"],
   group: "Workspace",
   run(ctx) {
+    // For the other side's `sessions rm`: the ids of the sessions this side's Claude Code runs.
+    if (ctx.args.running) return void [...runningIds()].forEach((id) => console.log(id));
     const under = scope(ctx);
     const list = listSessions({ under });
     const labels = accountLabels();
@@ -85,6 +87,14 @@ export const sessions: Command = {
     line();
   },
 };
+
+// A side whose dotagents couldn't say which sessions it runs: said once, before anything is picked.
+function warnUnchecked(list: Session[]) {
+  const sides = [...new Set(list.filter((s) => !s.checked).map((s) => s.side))];
+  for (const side of sides) {
+    checkWarn(`couldn't ask ${side} which sessions run there`, `a session idle there for over ${RECENT_MS / 60_000} minutes counts as stopped; close it there first, and update dotagents there with: dotagents update`);
+  }
+}
 
 // Ids, or unique starts of ids, to sessions; an unknown or ambiguous one fails.
 function byIds(ids: string[], all: Session[]) {
@@ -118,14 +128,16 @@ export const sessionsRm: Command = {
     if (!interactive && !args.yes && !state.dryRun) throw new UsageError("Add --yes to delete without a terminal to confirm in, or --dry-run to see what would go");
     let chosen: Session[];
     if (positional.length) {
-      chosen = byIds(positional, listSessions());
+      chosen = byIds(positional, listSessions({ peerRunning }));
       header("sessions rm");
+      warnUnchecked(chosen);
     } else {
       if (!interactive) throw new UsageError("Pass the ids to delete (dotagents sessions lists them), or run it in a terminal to pick them");
       const under = scope(ctx);
-      const pool = listSessions({ under });
+      const pool = listSessions({ under, peerRunning });
       const labels = accountLabels();
       header("sessions rm", under ?? "every project");
+      warnUnchecked(pool);
       const free = pool.filter((s) => !s.running);
       if (!free.length) {
         line();
