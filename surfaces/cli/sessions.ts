@@ -118,7 +118,7 @@ const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
 
 export const sessionsRm: Command = {
   name: "sessions rm",
-  usage: "[ids…] [--no-archive]",
+  usage: "[ids…]",
   summary: "delete sessions, archiving each into .artifacts first",
   more: ["without ids, pick from this folder's (--all: every project's);", "asks before deleting one that can't be archived;", "--no-archive: delete without archiving"],
   group: "Workspace",
