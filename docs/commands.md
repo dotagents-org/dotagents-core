@@ -20,6 +20,8 @@ dotagents <command> [options]
 | [`check [path]`](#dotagents-check) | Runs the standards checklist on a workspace, changing nothing. |
 | [`workspaces`](#dotagents-workspaces) | Lists the workspaces tracked on this machine. |
 | [`untrack <path>`](#dotagents-untrack) | Stops tracking a workspace. Its files are not touched. |
+| [`sessions [path] [--all] [--json]`](#dotagents-sessions) | Lists Claude Code's sessions on both sides of the machine: title, account, size, where they would be archived. |
+| [`sessions rm [ids…] [--all] [--yes]`](#dotagents-sessions-rm) | Deletes sessions, archiving each first into its project's `.artifacts/session-archives/`. |
 | [`skills`](#dotagents-skills) | Lists the own skills and the registered third-party ones. |
 | [`skills add <source>`](#dotagents-skills-add) | Registers third-party skills in the catalog. |
 | [`skills remove <name>`](#dotagents-skills-remove) | Removes a third-party skill from the catalog. |
@@ -250,6 +252,47 @@ dotagents untrack <path>
 
 Removes a workspace from the tracked list, so `update --all` skips it. Its files are not touched.
 
+## dotagents sessions
+
+```bash
+dotagents sessions [path] [--all] [--json]
+```
+
+Lists the Claude Code sessions started in a folder (the current one by default) or, with `--all`, in every project, newest first. It reads every config folder of the machine: this side's `~/.claude` and, when `install` found the other side (WSL or Windows), that side's too, with its paths translated (`C:\x` is `/mnt/c/x` from WSL).
+
+Each session shows when it was last active, its id, its title (the one Claude Code gave it, or the first message), and then:
+
+- the side it ran on;
+- the account: the profile whose claude.ai account ran it, from the `session-owner` records Claude Code writes, and `(shared)` when more than one account did, which happens when a session continues after a `switch`. Older transcripts don't record it: `account unknown`;
+- its size;
+- with `--all`, the folder it started in;
+- where `sessions rm` would archive it: the nearest folder at or above where it started that has `.artifacts/session-archives/`, or `no .artifacts`;
+- `running`: a session this side's Claude Code still runs (its `sessions/<pid>.json`, while the process lives), or one whose transcript changed in the last 10 minutes, which is how a session on the other side is told apart.
+
+Piped, one tab-separated line per session: id, side, last activity, bytes, `running` or `-`, archive folder or `-`, account ids joined with `+`, title. `--json` prints the list with each account's id and label, `shared`, `archiveRoot`, `running` and the transcript's path.
+
+## dotagents sessions rm
+
+```bash
+dotagents sessions rm [ids…] [--all] [--yes]
+```
+
+Deletes sessions. Without ids, it lists the ones started in this folder (`--all`: every project's) to pick from, leaving out the running ones; ids may be given in full or by a unique start, such as the eight characters `sessions` shows.
+
+Before anything changes it shows the plan and asks:
+
+1. **Delete N sessions?** The default is no.
+2. When some sessions started outside a workspace with `.artifacts/session-archives/`: **they can't be archived first; delete them anyway?** No keeps them.
+
+Then, for each session, it writes the archive (the same file the `session-archive` skill writes, with the account line) and deletes:
+
+- the transcript, `projects/<slug>/<id>.jsonl`;
+- its folder beside it, with subagents and tool results;
+- `file-history/<id>/` and `session-env/<id>/`;
+- the project folder, when nothing else is left in it.
+
+A session whose archive fails is kept unless you answer yes to deleting it anyway. A running session is never deleted. `--yes` skips the questions, deleting the sessions without an archive folder too, but never one whose archive failed; without a terminal, `sessions rm` needs `--yes`. `--dry-run` shows the archives and deletions without making them.
+
 ## dotagents skills
 
 Lists the own skills and the registered third-party ones, each with the full description its author wrote and, for third-party ones, where it comes from.
@@ -286,13 +329,13 @@ Removes a skill from the catalog. Workspaces that already installed it keep it; 
 |---|---|---|
 | `--dry-run` | all that change something | Shows what would be done and changes nothing. |
 | `--skills a,b` | `init`, `new`, `skills add` | Skills to use, or to register. |
-| `--all` | `update`, `skills add` | Every tracked workspace, or every skill of the source. |
+| `--all` | `update`, `skills add`, `sessions`, `sessions rm` | Every tracked workspace, every skill of the source, or every project's sessions. |
 | `--wrap` | `init` | Move a repository into `<name>-workspace/` before applying the standards. |
 | `--default` | `profile add` | The profile in `~/.claude`. |
 | `--color #RRGGBB` | `profile add` | The profile's color in the listings. |
 | `--short` | `usage` | One line, for a prompt or a status line. |
-| `--json` | `usage` | The data, for scripts. |
-| `--yes` | `init`, `new`, `skills add` | Never ask. |
+| `--json` | `usage`, `sessions` | The data, for scripts. |
+| `--yes` | `init`, `new`, `skills add`, `sessions rm` | Never ask. |
 | `--no-pull` | `update` | Skip `git pull`. |
 | `--from <profile>` | `settings pull` | The profile to take the settings from. |
 | `--port <n>` | `start` | The port; `0` picks a free one. |

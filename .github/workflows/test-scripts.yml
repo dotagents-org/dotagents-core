@@ -56,6 +56,8 @@ jobs:
           dotagents usage
           dotagents usage --short
           dotagents usage --json | node -e "JSON.parse(require('fs').readFileSync(0, 'utf8'))"
+          dotagents sessions --all
+          dotagents sessions --all --json | node -e "JSON.parse(require('fs').readFileSync(0, 'utf8'))"
           dotagents profile remove personal
           dotagents profile list | grep -F work
           ! dotagents profile list | grep -F personal

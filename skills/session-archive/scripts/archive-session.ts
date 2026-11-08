@@ -80,7 +80,8 @@ function oneLine(label: string, val: string) {
   return `- \`${label}\` - ${clip(val.split(/\s+/).filter(Boolean).join(" "), 200)}`;
 }
 
-function userText(content: unknown) {
+// The text of a user message, without injected context; a slash command as `/name args`.
+export function promptText(content: unknown) {
   let text = Array.isArray(content)
     ? content.filter((b) => isObject(b) && b.type === "text").map((b) => (typeof b.text === "string" ? b.text : "")).join("\n")
     : typeof content === "string"
@@ -169,7 +170,7 @@ export function parseTranscript(file: string): ArchivedSession {
         }
       }
     } else if (t === "user") {
-      const text = userText(content);
+      const text = promptText(content);
       if (text) {
         s.userTurns++;
         s.out.push("", `## 👤 User - ${(ts ?? "").slice(0, 16).replace("T", " ")} UTC`, "", text, "");
