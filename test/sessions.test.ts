@@ -208,3 +208,31 @@ test("sessions --running prints the ids this side's Claude Code runs, for the ot
   assert.equal(res.status, 0, res.stderr);
   assert.deepEqual(res.stdout.trim().split(/\r?\n/), ["11111111-2222-3333-4444-555555555555"]);
 });
+
+test("sessions rm archives before deleting, and --no-archive deletes without archiving", (t) => {
+  const s = setup(t);
+  const home = path.join(s.root, "home");
+  const dir: ConfigDir = { side: "Here", dir: path.join(home, ".claude") };
+  const kept = session(dir, "11111111-0000-0000-0000-000000000001", lines(s.ws, "11111111-0000-0000-0000-000000000001"));
+  const bare = session(dir, "22222222-0000-0000-0000-000000000002", lines(s.ws, "22222222-0000-0000-0000-000000000002"));
+  const rm = (...args: string[]) =>
+    spawnSync(process.execPath, [path.join(REPO, "cli.ts"), "sessions", "rm", ...args], {
+      encoding: "utf8",
+      env: { ...process.env, HOME: home, USERPROFILE: home, DOTAGENTS_STATE_DIR: path.join(s.root, "state") },
+    });
+  const archives = path.join(s.ws, ".artifacts", "session-archives");
+
+  let res = rm("11111111", "--yes");
+  assert.equal(res.status, 0, res.stderr + res.stdout);
+  assert.ok(!fs.existsSync(kept));
+  assert.deepEqual(fs.readdirSync(archives), ["2026-01-02-11111111-0000-0000-0000-000000000001.md"]);
+
+  res = rm("22222222", "--yes", "--no-archive");
+  assert.equal(res.status, 0, res.stderr + res.stdout);
+  assert.match(res.stdout, /without an archive \(--no-archive\)/);
+  assert.ok(!fs.existsSync(bare));
+  assert.equal(fs.readdirSync(archives).length, 1, "no archive written");
+
+  res = rm("33333333", "--yes");
+  assert.notEqual(res.status, 0, "an unknown id fails");
+});

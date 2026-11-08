@@ -1,7 +1,7 @@
 // `sessions` lists Claude Code's sessions on both sides of the machine; `sessions rm` deletes the
 // ones picked, archiving each first into its project's .artifacts/session-archives/ when there is
 // one. A session without that folder, or whose archive failed, is deleted only when the user says
-// so; --yes never deletes one whose archive failed.
+// so; --yes never deletes one whose archive failed. --no-archive deletes without archiving any.
 
 import path from "node:path";
 import * as p from "@clack/prompts";
@@ -118,12 +118,13 @@ const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
 
 export const sessionsRm: Command = {
   name: "sessions rm",
-  usage: "[ids…] [--yes]",
+  usage: "[ids…] [--no-archive]",
   summary: "delete sessions, archiving each into .artifacts first",
-  more: ["without ids, pick from this folder's (--all: every project's);", "asks before deleting one that can't be archived"],
+  more: ["without ids, pick from this folder's (--all: every project's);", "asks before deleting one that can't be archived;", "--no-archive: delete without archiving"],
   group: "Workspace",
   async run(ctx) {
     const { args, positional } = ctx;
+    const archive = !args["no-archive"];
     const ask_ = interactive && !args.yes && !state.dryRun;
     if (!interactive && !args.yes && !state.dryRun) throw new UsageError("Add --yes to delete without a terminal to confirm in, or --dry-run to see what would go");
     let chosen: Session[];
@@ -164,17 +165,18 @@ export const sessionsRm: Command = {
     const bare = doomed.filter((s) => !s.root);
     section("Plan");
     for (const s of running) report("skipped", s.file, `${s.id.slice(0, 8)} is still running; close it first`);
-    if (doomed.length) {
+    if (doomed.length && !archive) line(`  ${warn(`${plural(doomed.length, "session")} deleted without an archive (--no-archive)`)}`);
+    else if (doomed.length) {
       line(`  ${plural(doomed.length - bare.length, "session")} archived, then deleted`);
       if (bare.length) line(`  ${warn(`${plural(bare.length, "session")} deleted without an archive: ${bare.map((s) => path.basename(s.localCwd ?? s.cwd ?? "?")).filter((v, i, a) => a.indexOf(v) === i).join(", ")} has no .artifacts/session-archives/`)}`);
     }
     if (!doomed.length) return finish();
     if (ask_) {
-      if (!(await ask(`Delete ${plural(doomed.length, "session")}?`, false))) {
+      if (!(await ask(`Delete ${plural(doomed.length, "session")}${archive ? "" : " without archiving"}?`, false))) {
         p.cancel("Nothing was deleted.");
         return;
       }
-      if (bare.length && !(await ask(`${plural(bare.length, "session")} can't be archived first. Delete ${bare.length === 1 ? "it" : "them"} anyway?`, false))) {
+      if (archive && bare.length && !(await ask(`${plural(bare.length, "session")} can't be archived first. Delete ${bare.length === 1 ? "it" : "them"} anyway?`, false))) {
         doomed.splice(0, doomed.length, ...doomed.filter((s) => s.root));
         for (const s of bare) report("ok", s.file, "kept, as answered");
       }
@@ -183,7 +185,9 @@ export const sessionsRm: Command = {
     const labels = accountLabels();
     section("Sessions");
     for (const s of doomed) {
-      if (s.root) {
+      if (!archive) {
+        // Asked for with --no-archive: nothing to warn about.
+      } else if (s.root) {
         const archived = archiveSession(s, labels);
         if (!archived.ok) {
           const keep = !ask_ || !(await ask(`Couldn't archive ${s.id.slice(0, 8)} (${archived.error}). Delete it anyway?`, false));

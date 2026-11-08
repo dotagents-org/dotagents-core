@@ -21,7 +21,7 @@ dotagents <command> [options]
 | [`workspaces`](#dotagents-workspaces) | Lists the workspaces tracked on this machine. |
 | [`untrack <path>`](#dotagents-untrack) | Stops tracking a workspace. Its files are not touched. |
 | [`sessions [path] [--all] [--json]`](#dotagents-sessions) | Lists Claude Code's sessions on both sides of the machine: title, account, size, where they would be archived. |
-| [`sessions rm [ids…] [--all] [--yes]`](#dotagents-sessions-rm) | Deletes sessions, archiving each first into its project's `.artifacts/session-archives/`. |
+| [`sessions rm [ids…] [--all] [--yes] [--no-archive]`](#dotagents-sessions-rm) | Deletes sessions, archiving each first into its project's `.artifacts/session-archives/`; `--no-archive` skips the archive. |
 | [`skills`](#dotagents-skills) | Lists the own skills and the registered third-party ones. |
 | [`skills add <source>`](#dotagents-skills-add) | Registers third-party skills in the catalog. |
 | [`skills remove <name>`](#dotagents-skills-remove) | Removes a third-party skill from the catalog. |
@@ -276,7 +276,7 @@ Piped, one tab-separated line per session: id, side, last activity, bytes, `runn
 ## dotagents sessions rm
 
 ```bash
-dotagents sessions rm [ids…] [--all] [--yes]
+dotagents sessions rm [ids…] [--all] [--yes] [--no-archive]
 ```
 
 Deletes sessions. Without ids, it lists the ones started in this folder (`--all`: every project's) to pick from, leaving out the running ones; ids may be given in full or by a unique start, such as the eight characters `sessions` shows.
@@ -293,7 +293,7 @@ Then, for each session, it writes the archive (the same file the `session-archiv
 - `file-history/<id>/` and `session-env/<id>/`;
 - the project folder, when nothing else is left in it.
 
-A session whose archive fails is kept unless you answer yes to deleting it anyway. A running session is never deleted. For the other side's sessions it asks that side's dotagents (`dotagents sessions --running`, through `powershell.exe` from WSL or `wsl.exe` from Windows), so a session left open and idle there is protected too. When that side can't say (no dotagents there, or an older one), it warns and falls back to the 10 minutes. `--yes` skips the questions, deleting the sessions without an archive folder too, but never one whose archive failed; without a terminal, `sessions rm` needs `--yes`. `--dry-run` shows the archives and deletions without making them.
+A session whose archive fails is kept unless you answer yes to deleting it anyway. A running session is never deleted. For the other side's sessions it asks that side's dotagents (`dotagents sessions --running`, through `powershell.exe` from WSL or `wsl.exe` from Windows), so a session left open and idle there is protected too. When that side can't say (no dotagents there, or an older one), it warns and falls back to the 10 minutes. `--yes` skips the questions, deleting the sessions without an archive folder too, but never one whose archive failed; without a terminal, `sessions rm` needs `--yes`. `--no-archive` deletes without archiving any session: the plan says so, the question becomes **Delete N sessions without archiving?**, and the one about sessions outside a workspace is not asked. `--dry-run` shows the archives and deletions without making them.
 
 ## dotagents skills
 
@@ -340,6 +340,7 @@ Removes a skill from the catalog. Workspaces that already installed it keep it; 
 | `--running` | `sessions` | Only the ids of the sessions this side's Claude Code runs. |
 | `--yes` | `init`, `new`, `skills add`, `sessions rm` | Never ask. |
 | `--no-pull` | `update` | Skip `git pull`. |
+| `--no-archive` | `sessions rm` | Delete without archiving. |
 | `--from <profile>` | `settings pull` | The profile to take the settings from. |
 | `--port <n>` | `start` | The port; `0` picks a free one. |
 | `--here` | `switch` | Only this side of the machine. |
