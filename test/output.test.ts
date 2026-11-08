@@ -2,7 +2,7 @@
 
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { capture, captureAsync, checkItem, checkWarn, finish, report, section } from "../core/output.ts";
+import { capture, captureAsync, checkItem, checkWarn, finish, flushSection, line, plainRenderer, report, section, setRenderer, terminalRenderer } from "../core/output.ts";
 import { state } from "../core/state.ts";
 import { quiet } from "./helpers.ts";
 
@@ -56,3 +56,42 @@ test("capture can run a preview or the real thing, whatever --dry-run said, and 
   assert.deepEqual(seen, [true, false]);
   assert.equal(state.dryRun, false);
 });
+
+// What a renderer prints, with console.log caught; colors stripped.
+function printed(t: import("node:test").TestContext, fn: () => void) {
+  const out: string[] = [];
+  const log = console.log;
+  console.log = (text = "") => void out.push(String(text).replace(/\x1b\[[0-9;]*m/g, ""));
+  t.after(() => {
+    console.log = log;
+    process.exitCode = 0;
+  });
+  try {
+    fn();
+  } finally {
+    console.log = log;
+  }
+  return out.join("\n");
+}
+
+for (const [name, renderer] of [["terminal", terminalRenderer], ["plain", plainRenderer]] as const) {
+  test(`${name} output: a section's title waits for its first line, and an empty section prints nothing`, (t) => {
+    quiet();
+    const out = printed(t, () => {
+      setRenderer(renderer);
+      section("Empty");
+      section("Files");
+      report("created", "/tmp/a");
+      section("Drawn by the command");
+      line("a list line");
+      section("Before a spinner");
+      flushSection();
+      section("Left empty at the end");
+      finish();
+    });
+    assert.doesNotMatch(out, /Empty|Left empty/);
+    assert.match(out, /Files\n.*\/tmp\/a/);
+    assert.match(out, /Drawn by the command\na list line/);
+    assert.match(out, /Before a spinner/);
+  });
+}
