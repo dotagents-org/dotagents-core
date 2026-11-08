@@ -267,7 +267,9 @@ Each session shows when it was last active, its id, its title (the one Claude Co
 - its size;
 - with `--all`, the folder it started in;
 - where `sessions rm` would archive it: the nearest folder at or above where it started that has `.artifacts/session-archives/`, or `no .artifacts`;
-- `running`: a session this side's Claude Code still runs (its `sessions/<pid>.json`, while the process lives), or one whose transcript changed in the last 10 minutes, which is how a session on the other side is told apart.
+- `running`: a session this side's Claude Code still runs (its `sessions/<pid>.json`, while the process lives), or one whose transcript changed in the last 10 minutes. The list doesn't ask the other side, which takes a few seconds, so there a session counts as running only by that time; `sessions rm` asks.
+
+`dotagents sessions --running` prints only the ids of the sessions this side's Claude Code runs, one per line. It is how `sessions rm` asks the other side.
 
 Piped, one tab-separated line per session: id, side, last activity, bytes, `running` or `-`, archive folder or `-`, account ids joined with `+`, title. `--json` prints the list with each account's id and label, `shared`, `archiveRoot`, `running` and the transcript's path.
 
@@ -291,7 +293,7 @@ Then, for each session, it writes the archive (the same file the `session-archiv
 - `file-history/<id>/` and `session-env/<id>/`;
 - the project folder, when nothing else is left in it.
 
-A session whose archive fails is kept unless you answer yes to deleting it anyway. A running session is never deleted. `--yes` skips the questions, deleting the sessions without an archive folder too, but never one whose archive failed; without a terminal, `sessions rm` needs `--yes`. `--dry-run` shows the archives and deletions without making them.
+A session whose archive fails is kept unless you answer yes to deleting it anyway. A running session is never deleted. For the other side's sessions it asks that side's dotagents (`dotagents sessions --running`, through `powershell.exe` from WSL or `wsl.exe` from Windows), so a session left open and idle there is protected too. When that side can't say (no dotagents there, or an older one), it warns and falls back to the 10 minutes. `--yes` skips the questions, deleting the sessions without an archive folder too, but never one whose archive failed; without a terminal, `sessions rm` needs `--yes`. `--dry-run` shows the archives and deletions without making them.
 
 ## dotagents skills
 
@@ -335,6 +337,7 @@ Removes a skill from the catalog. Workspaces that already installed it keep it; 
 | `--color #RRGGBB` | `profile add` | The profile's color in the listings. |
 | `--short` | `usage` | One line, for a prompt or a status line. |
 | `--json` | `usage`, `sessions` | The data, for scripts. |
+| `--running` | `sessions` | Only the ids of the sessions this side's Claude Code runs. |
 | `--yes` | `init`, `new`, `skills add`, `sessions rm` | Never ask. |
 | `--no-pull` | `update` | Skip `git pull`. |
 | `--from <profile>` | `settings pull` | The profile to take the settings from. |

@@ -2,6 +2,7 @@
 // into a project's .artifacts/session-archives/, and deleting everything a session leaves.
 
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -9,7 +10,7 @@ import { test, type TestContext } from "node:test";
 import type { Peer } from "../core/machine-state.ts";
 import { type ConfigDir, archiveRoot, archiveSession, deleteSession, fromPeer, listSessions, sessionFiles } from "../core/sessions.ts";
 import { state } from "../core/state.ts";
-import { quiet } from "./helpers.ts";
+import { REPO, quiet } from "./helpers.ts";
 
 const A = "aaaaaaaa-0000-0000-0000-000000000001";
 const B = "bbbbbbbb-0000-0000-0000-000000000002";
@@ -86,6 +87,7 @@ test("sessions are listed from every config folder, newest first, with title, ac
   assert.equal(three.cwd, "C:\\Users\\me\\app");
   assert.equal(three.localCwd, fromPeer("C:\\Users\\me\\app", peer.peer!));
   assert.ok(all.every((x) => !x.running));
+  assert.deepEqual(all.map((x) => x.checked), [true, true, false], "the other side, not asked, is unchecked");
 
   assert.deepEqual(listSessions({ dirs: [s.here, peer], under: s.ws }).map((x) => x.id), ["one"], "only the ones started inside the folder");
 });
@@ -161,4 +163,48 @@ test("a running session is never deleted, and a dry run touches nothing", (t) =>
   state.dryRun = false;
   for (const target of sessionFiles(byId.old)) assert.ok(fs.existsSync(target), `${target} is kept`);
   assert.deepEqual(fs.readdirSync(path.join(s.ws, ".artifacts", "session-archives")), []);
+});
+
+test("the other side is asked once which sessions it runs, and a side that can't say is marked unchecked", (t) => {
+  const s = setup(t);
+  const peer: ConfigDir = { side: "There", dir: path.join(s.root, "peer-claude"), peer: { name: "There", home: path.join(s.root, "peer"), nativeHome: "/home/me" } };
+  session(peer, "idle", lines("/home/me/app", "idle"));
+  session(peer, "gone", lines("/home/me/app", "gone"));
+  session(s.here, "local", lines(s.ws, "local"));
+
+  let asked = 0;
+  const answer = (ids: string[] | null) => () => {
+    asked++;
+    return ids && new Set(ids);
+  };
+  const byId = (peerRunning: (p: unknown) => Set<string> | null) => Object.fromEntries(listSessions({ dirs: [s.here, peer], peerRunning }).map((x) => [x.id, x]));
+
+  const told = byId(answer(["idle"]));
+  assert.equal(asked, 1, "one question for the whole side");
+  assert.equal(told.idle.running, true, "idle for an hour, but its process runs there");
+  assert.equal(told.gone.running, false);
+  assert.ok(told.idle.checked && told.local.checked);
+
+  const silent = byId(answer(null));
+  assert.equal(silent.idle.running, false);
+  assert.equal(silent.idle.checked, false);
+
+  asked = 0;
+  listSessions({ dirs: [s.here, peer], under: s.ws, peerRunning: answer([]) });
+  assert.equal(asked, 0, "not asked when none of its sessions is listed");
+});
+
+test("sessions --running prints the ids this side's Claude Code runs, for the other side to ask", (t) => {
+  const s = setup(t);
+  const home = path.join(s.root, "home");
+  const sessionsDir = path.join(home, ".claude", "sessions");
+  fs.mkdirSync(sessionsDir, { recursive: true });
+  fs.writeFileSync(path.join(sessionsDir, `${process.pid}.json`), JSON.stringify({ pid: process.pid, sessionId: "11111111-2222-3333-4444-555555555555" }));
+  fs.writeFileSync(path.join(sessionsDir, "999999999.json"), JSON.stringify({ pid: 999_999_999, sessionId: "99999999-2222-3333-4444-555555555555" }));
+  const res = spawnSync(process.execPath, [path.join(REPO, "cli.ts"), "sessions", "--running"], {
+    encoding: "utf8",
+    env: { ...process.env, HOME: home, USERPROFILE: home, DOTAGENTS_STATE_DIR: path.join(s.root, "state") },
+  });
+  assert.equal(res.status, 0, res.stderr);
+  assert.deepEqual(res.stdout.trim().split(/\r?\n/), ["11111111-2222-3333-4444-555555555555"]);
 });

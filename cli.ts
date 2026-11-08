@@ -138,7 +138,7 @@ function fail(err: Error) {
 let args: CliArgs | null = null;
 try {
   args = parseArgs<CliArgs>(process.argv.slice(2), {
-    booleans: ["all", "default", "dry-run", "help", "here", "json", "no-pull", "refresh", "short", "version", "watch", "wrap", "yes"],
+    booleans: ["all", "default", "dry-run", "help", "here", "json", "no-pull", "refresh", "running", "short", "version", "watch", "wrap", "yes"],
     lists: ["skills"],
     values: ["color", "from", "port", "save"],
   });
