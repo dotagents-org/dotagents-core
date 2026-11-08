@@ -271,6 +271,8 @@ Each session shows when it was last active, its id, its title (the one Claude Co
 
 `dotagents sessions --running` prints only the ids of the sessions this side's Claude Code runs, one per line. It is how `sessions rm` asks the other side.
 
+In a terminal the account is in its profile's color, as in every other view, and `running` and `no .artifacts` are in the warning color; the rest is muted.
+
 Piped, one tab-separated line per session: id, side, last activity, bytes, `running` or `-`, archive folder or `-`, account ids joined with `+`, title. `--json` prints the list with each account's id and label, `shared`, `archiveRoot`, `running` and the transcript's path.
 
 ## dotagents sessions rm

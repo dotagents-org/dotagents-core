@@ -249,3 +249,23 @@ test("the sessions list draws no glyphs between its parts, only spaces", (t) => 
   assert.match(res.stdout, /Plan the release/, "the terminal view, not the piped one");
   assert.doesNotMatch(res.stdout, /[◇·⚠└●]/);
 });
+
+test("in the terminal, a session's account is painted in its profile's color, and a missing archive folder in the warning one", (t) => {
+  const s = setup(t);
+  const home = path.join(s.root, "home");
+  const stateDir = path.join(s.root, "state");
+  const dir: ConfigDir = { side: "Here", dir: path.join(home, ".claude") };
+  session(dir, "11111111-0000-0000-0000-000000000001", [...lines(s.ws, "11111111-0000-0000-0000-000000000001"), { type: "session-owner", accountUuid: A }]);
+  session(dir, "22222222-0000-0000-0000-000000000002", lines(s.root, "22222222-0000-0000-0000-000000000002"));
+  fs.mkdirSync(path.join(stateDir, "vault", "work"), { recursive: true });
+  fs.writeFileSync(path.join(stateDir, "profiles.json"), JSON.stringify({ version: 1, profiles: [{ name: "work", configDir: dir.dir, color: "#D77655" }] }));
+  fs.writeFileSync(path.join(stateDir, "vault", "work", "account.json"), JSON.stringify({ accountUuid: A, emailAddress: "w@example.com" }));
+  fs.writeFileSync(path.join(stateDir, "vault", "work", "credentials.json"), "{}");
+  const res = spawnSync(process.execPath, [path.join(REPO, "cli.ts"), "sessions", "--all"], {
+    encoding: "utf8",
+    env: { ...process.env, HOME: home, USERPROFILE: home, DOTAGENTS_STATE_DIR: stateDir, FORCE_COLOR: "3", DOTAGENTS_THEME: "dark" },
+  });
+  assert.equal(res.status, 0, res.stderr);
+  assert.ok(res.stdout.includes("\x1b[38;2;215;118;85mwork\x1b[39m"), "the profile's color on its name");
+  assert.ok(res.stdout.includes("\x1b[38;2;254;153;17mno .artifacts, not archived\x1b[39m"), "the warning color");
+});
