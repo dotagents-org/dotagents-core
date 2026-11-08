@@ -35,7 +35,7 @@ function accountsShort(s: Session, labels: AccountLabels) {
 const archiveNote = (s: Session) => (s.root ? `archives to ${displayPath(s.root)}` : "no .artifacts, not archived");
 
 function details(s: Session, labels: AccountLabels, withProject: boolean) {
-  return [s.side, accountsShort(s, labels), size(s.bytes), withProject ? displayPath(s.localCwd ?? s.cwd ?? "?") : "", archiveNote(s), s.running ? "running" : ""].filter(Boolean).join(" · ");
+  return [s.side, accountsShort(s, labels), size(s.bytes), withProject ? displayPath(s.localCwd ?? s.cwd ?? "?") : "", archiveNote(s), s.running ? "running" : ""].filter(Boolean).join("  ");
 }
 
 function json(list: Session[], labels: AccountLabels) {

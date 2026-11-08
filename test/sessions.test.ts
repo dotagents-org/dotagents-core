@@ -236,3 +236,16 @@ test("sessions rm archives before deleting, and --no-archive deletes without arc
   res = rm("33333333", "--yes");
   assert.notEqual(res.status, 0, "an unknown id fails");
 });
+
+test("the sessions list draws no glyphs between its parts, only spaces", (t) => {
+  const s = setup(t);
+  const home = path.join(s.root, "home");
+  session({ side: "Here", dir: path.join(home, ".claude") }, "11111111-0000-0000-0000-000000000001", lines(s.ws, "11111111-0000-0000-0000-000000000001"));
+  const res = spawnSync(process.execPath, [path.join(REPO, "cli.ts"), "sessions", "--all"], {
+    encoding: "utf8",
+    env: { ...process.env, HOME: home, USERPROFILE: home, DOTAGENTS_STATE_DIR: path.join(s.root, "state"), FORCE_COLOR: "1" },
+  });
+  assert.equal(res.status, 0, res.stderr);
+  assert.match(res.stdout, /Plan the release/, "the terminal view, not the piped one");
+  assert.doesNotMatch(res.stdout, /[◇·⚠└●]/);
+});
