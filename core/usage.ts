@@ -223,9 +223,9 @@ function stateNote(a: ProfileUsage) {
 
 const nameSegment = (a: ProfileUsage): Segment => ({ text: a.name, bold: true, profile: a.color });
 
-// "2 working · 1 waiting", only the counts above zero; empty when nothing runs.
+// "2 working, 1 waiting", only the counts above zero; empty when nothing runs.
 export const activityText = (a: Activity | undefined) =>
-  a ? [a.working ? `${a.working} working` : "", a.waiting ? `${a.waiting} waiting` : ""].filter(Boolean).join(" · ") : "";
+  a ? [a.working ? `${a.working} working` : "", a.waiting ? `${a.waiting} waiting` : ""].filter(Boolean).join(", ") : "";
 
 // The usage view: per profile, its name, [default], the age of the data and its running sessions; then one line per
 // window, the labels in one column for every profile: the bar, the percentage and the reset.
@@ -245,7 +245,7 @@ export function usageLines(list: ProfileUsage[], now: Date): Line[] {
       continue;
     }
     if (a.fetchedAt) {
-      const age = `${span(now.getTime() - a.fetchedAt.getTime())} ago${a.source === "live" ? " · live" : ""}${a.from ? ` on ${a.from}` : ""}`;
+      const age = `${span(now.getTime() - a.fetchedAt.getTime())} ago${a.source === "live" ? ", live" : ""}${a.from ? ` on ${a.from}` : ""}`;
       head.push({ text: "  " }, stale ? { text: `${age}, stale: run dotagents usage --refresh`, role: "warn" } : { text: age, role: "muted" });
     }
     lines.push(head);

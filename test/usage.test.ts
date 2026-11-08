@@ -131,6 +131,13 @@ test("the usage view: the profile, then one aligned line per window, with no rai
   assert.equal(new Set(starts).size, 1);
 });
 
+test("running sessions and live data join the profile's line with commas, never a dot", () => {
+  const busy: ProfileUsage = { ...sample[0], activity: { working: 2, waiting: 1 }, source: "live" };
+  const out = text(usageLines([busy], NOW));
+  assert.match(out, /^work {2}\[default\] {2}2 working, 1 waiting {2}4m ago, live$/m);
+  assert.doesNotMatch(out, /[◇·⚠└●!]/);
+});
+
 test("from 70% the reset takes the level's color; below, it's muted, and so is a stale profile", () => {
   const segs = usageLines(sample, NOW).flat();
   assert.equal(segs.find((s) => s.text === "resets 3h 17m")?.role, "warn");
