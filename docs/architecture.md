@@ -104,7 +104,7 @@ npm test                 # type check (tsc, strict) + unit tests (node:test)
 node cli.ts --help      # run without npm link
 ```
 
-**Unit tests** (`test/`) go through the modules' interfaces on real temporary folders: applying and verifying a workspace, idempotency, dry run, links versus copies, wrapping a repository, third-party skills through a fake installer (no network), git exclusion inside a real repository, the global install with a temporary home folder, and the `move-sessions` script against a temporary Claude Code data folder. They run in a couple of seconds.
+**Unit tests** (`test/`) go through the modules' interfaces on real temporary folders: applying and verifying a workspace, idempotency, dry run, links versus copies, wrapping a repository, third-party skills through a fake installer (no network), git exclusion inside a real repository, the global install with a temporary home folder, and the `move-sessions` and `session-archive` scripts against a temporary Claude Code data folder. They run in a couple of seconds.
 
 **CI** runs on every push that touches the code:
 

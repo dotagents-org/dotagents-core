@@ -4,7 +4,7 @@ Source: `~/.claude/projects/<project-slug>/<session-id>.jsonl`, one JSON
 object per line, chronological. `<project-slug>` is the session's absolute
 `cwd` at start with each `/` replaced by `-` (leading slash included).
 Observed against CLI version 2.1.272; re-check this file first if
-`archive_session.py` starts silently producing empty fields after a CLI
+`archive-session.ts` starts silently producing empty fields after a CLI
 upgrade.
 
 ## Top-level `type` values seen
@@ -48,7 +48,7 @@ A subagent spawn is a `tool_use` block with `name` in `("Task", "Agent")` and
 `"fork"`); when absent, the invocation defaulted to `general-purpose`. The
 subagent's own turns are appended later in the **same file** with
 `isSidechain: true` and a `parentUuid`/`sourceToolAssistantUUID` linking back
-to the spawning tool call. `archive_session.py` skips sidechain lines; the
+to the spawning tool call. `archive-session.ts` skips sidechain lines; the
 spawn only appears as a tool line in the parent's transcript.
 
 ## Other line types worth knowing about

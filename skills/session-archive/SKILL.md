@@ -7,7 +7,7 @@ description: |
   assistant reply verbatim, plus one line per tool call. Use when asked to
   archive, log, save, or transcribe a session.
 metadata:
-  version: "4.0.0"
+  version: "5.0.0"
 ---
 
 # Session Archive
@@ -41,17 +41,18 @@ Contents, in chronological order:
 
 1. Find the session id: the UUID in your scratchpad directory path; it
    matches the transcript filename.
-2. Run from anywhere with the official Python: `py` on Windows (a bare `python`
-   may be the Microsoft Store stub), `python3` on Linux and macOS. The script
-   needs only the standard library.
+2. Run the script with Node 22.18 or newer, which runs TypeScript directly.
+   It needs no packages.
 
    ```bash
-   py .agents/skills/session-archive/scripts/archive_session.py --session-id <session-id>
+   node .agents/skills/session-archive/scripts/archive-session.ts --session-id <session-id>
    ```
 
    Without `--session-id`, the script picks the most recently modified
    session whose working directory is inside the project root. To force a
-   file, pass `--transcript /path/to/session.jsonl`.
+   file, pass `--transcript /path/to/session.jsonl`. The transcripts are read
+   from `CLAUDE_CONFIG_DIR` when it is set, else `~/.claude`; `--claude-home`
+   overrides both.
 3. Tell the user where the file landed.
 
 Re-running overwrites the file, so it is safe to run mid-session and again at
