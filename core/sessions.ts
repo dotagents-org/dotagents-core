@@ -275,6 +275,16 @@ export function accountLabels(): AccountLabels {
   return labels;
 }
 
+// Each account's profile color, for the lists to paint its name the way every other view does.
+export function accountColors(): Map<string, string> {
+  const colors = new Map<string, string>();
+  for (const profile of loadProfiles()) {
+    const account = profileAccount(profile);
+    if (account && !colors.has(account.accountUuid)) colors.set(account.accountUuid, profile.color);
+  }
+  return colors;
+}
+
 // Writes a session's archive into its project; the file, or why it couldn't. Honors --dry-run.
 export function archiveSession(s: Session, labels: AccountLabels = new Map()): { ok: true; file: string } | { ok: false; error: string } {
   if (!s.root) return { ok: false, error: "no .artifacts/session-archives/ in its project" };

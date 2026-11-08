@@ -7,8 +7,8 @@ import path from "node:path";
 import * as p from "@clack/prompts";
 import type { AccountLabels } from "../../skills/session-archive/scripts/archive-session.ts";
 import { UsageError } from "../../core/common.ts";
-import { checkWarn, displayPath, fancy, finish, header, interactive, line, report, section, tone } from "../../core/output.ts";
-import { RECENT_MS, type Session, accountLabels, archiveSession, deleteSession, listSessions, peerRunning, runningIds } from "../../core/sessions.ts";
+import { checkWarn, displayPath, fancy, finish, header, ink, interactive, line, report, section, tone } from "../../core/output.ts";
+import { RECENT_MS, type Session, accountColors, accountLabels, archiveSession, deleteSession, listSessions, peerRunning, runningIds } from "../../core/sessions.ts";
 import { state } from "../../core/state.ts";
 import { type Command, type Context, fitHint, workspaceArg } from "./shared.ts";
 
@@ -36,6 +36,24 @@ const archiveNote = (s: Session) => (s.root ? `archives to ${displayPath(s.root)
 
 function details(s: Session, labels: AccountLabels, withProject: boolean) {
   return [s.side, accountsShort(s, labels), size(s.bytes), withProject ? displayPath(s.localCwd ?? s.cwd ?? "?") : "", archiveNote(s), s.running ? "running" : ""].filter(Boolean).join("  ");
+}
+
+// The same details for the terminal: the account in its profile's color, what needs attention
+// (running, nothing to archive into) in the warning color, the rest muted.
+function paintedDetails(s: Session, labels: AccountLabels, colors: Map<string, string>, withProject: boolean) {
+  const account = s.accounts.length
+    ? s.accounts.map((a) => (colors.has(a) ? ink.profile(colors.get(a)!)(shortLabel(a, labels)) : muted(shortLabel(a, labels)))).join(muted(" + ")) + (s.accounts.length > 1 ? muted(" (shared)") : "")
+    : muted("account unknown");
+  return [
+    muted(s.side),
+    account,
+    muted(size(s.bytes)),
+    withProject ? muted(displayPath(s.localCwd ?? s.cwd ?? "?")) : "",
+    s.root ? muted(`archives to ${displayPath(s.root)}`) : warn("no .artifacts, not archived"),
+    s.running ? bold(warn("running")) : "",
+  ]
+    .filter(Boolean)
+    .join("  ");
 }
 
 function json(list: Session[], labels: AccountLabels) {
@@ -75,12 +93,13 @@ export const sessions: Command = {
       for (const s of list) console.log([s.id, s.side, when(s), s.bytes, s.running ? "running" : "-", s.root ?? "-", s.accounts.join("+") || "-", s.title].join("\t"));
       return;
     }
+    const colors = accountColors();
     header("sessions", under ?? "every project");
     line();
     if (!list.length) return line(muted(under ? "No sessions started here. --all lists every project's.\n" : "No sessions.\n"));
     for (const s of list) {
       line(`  ${muted(when(s))}  ${bold(s.id.slice(0, 8))}  ${s.title}`);
-      line(`  ${" ".repeat(28)}${(s.running ? warn : muted)(details(s, labels, !under))}`);
+      line(`  ${" ".repeat(28)}${paintedDetails(s, labels, colors, !under)}`);
     }
     line();
     line(muted(`${list.length} session${list.length === 1 ? "" : "s"}. Delete some with: dotagents sessions rm${under ? "" : " --all"}`));
