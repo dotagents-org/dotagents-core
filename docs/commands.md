@@ -129,7 +129,7 @@ Shows, for each profile, the newer of two sources: the usage Claude Code keeps i
 ```
  dotagents  usage
 
-work  [default]  1 working  4m ago · live
+work  [default]  1 working  4m ago, live
   5h      ━━━━━━━━━━━━━━━━━━━━━━━ ────────   72%  resets 3h 17m
   7d      ━━━━━━━━━━━━━━━ ────────────────   48%  resets 4d 18h
           runs out Fri 12:02 at this pace
@@ -138,7 +138,7 @@ work  [default]  1 working  4m ago · live
 2 profiles; --refresh asks Anthropic for fresh numbers
 ```
 
-Each profile shows its name, `[default]`, its running Claude Code sessions (`2 working · 1 waiting`, the ones busy and the ones waiting on you), how old its data is and, when it came from Anthropic rather than Claude Code's cache, `live`; then one line per window (`5h`, `7d`, and a model's own week): a bar, the percentage and when it resets. The percentage is green below 70%, yellow from 70% and red from 90%, and from 70% the reset takes that color too; the digits say it without color. A note says when a window runs out at the current pace. A window whose reset time has passed shows as reset, never with the old number.
+Each profile shows its name, `[default]`, its running Claude Code sessions (`2 working, 1 waiting`, the ones busy and the ones waiting on you), how old its data is and, when it came from Anthropic rather than Claude Code's cache, `live`; then one line per window (`5h`, `7d`, and a model's own week): a bar, the percentage and when it resets. The percentage is green below 70%, yellow from 70% and red from 90%, and from 70% the reset takes that color too; the digits say it without color. A note says when a window runs out at the current pace. A window whose reset time has passed shows as reset, never with the old number.
 
 `--short` prints one line per profile with the 5-hour and weekly windows, 8-cell bars, and the time to the reset from 70%:
 
