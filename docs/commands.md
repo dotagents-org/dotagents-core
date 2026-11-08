@@ -279,21 +279,24 @@ Piped, one tab-separated line per session: id, side, last activity, bytes, `runn
 dotagents sessions rm [ids…] [--all] [--yes] [--no-archive]
 ```
 
-Deletes sessions. Without ids, it lists the ones started in this folder (`--all`: every project's) to pick from, leaving out the running ones; ids may be given in full or by a unique start, such as the eight characters `sessions` shows.
+Deletes sessions. Without ids, it lists the ones started in this folder (`--all`: every project's) to pick from, leaving out the running ones: type to filter by title, folder, side or account, Tab marks a session, Enter goes on. Ids may be given instead, in full or by a unique start, such as the eight characters `sessions` shows.
 
-Before anything changes it shows the plan and asks:
+Then it asks what should happen to them:
 
-1. **Delete N sessions?** The default is no.
-2. When some sessions started outside a workspace with `.artifacts/session-archives/`: **they can't be archived first; delete them anyway?** No keeps them.
+1. **Archive, then delete**, with how many go into which workspace and how many have no `.artifacts/session-archives/`; it isn't offered when none can be archived.
+2. **Delete without archiving.**
+3. **Cancel**, the default.
 
-Then, for each session, it writes the archive (the same file the `session-archive` skill writes, with the account line) and deletes:
+With the first, when some sessions started outside a workspace with `.artifacts/session-archives/`, it asks once more: **they can't be archived first; delete them anyway?** No keeps them.
+
+Then, for each session, it writes the archive when asked to (the same file the `session-archive` skill writes, with the account line) and deletes:
 
 - the transcript, `projects/<slug>/<id>.jsonl`;
 - its folder beside it, with subagents and tool results;
 - `file-history/<id>/` and `session-env/<id>/`;
 - the project folder, when nothing else is left in it.
 
-A session whose archive fails is kept unless you answer yes to deleting it anyway. A running session is never deleted. For the other side's sessions it asks that side's dotagents (`dotagents sessions --running`, through `powershell.exe` from WSL or `wsl.exe` from Windows), so a session left open and idle there is protected too. When that side can't say (no dotagents there, or an older one), it warns and falls back to the 10 minutes. `--yes` skips the questions, deleting the sessions without an archive folder too, but never one whose archive failed; without a terminal, `sessions rm` needs `--yes`. `--no-archive` deletes without archiving any session: the plan says so, the question becomes **Delete N sessions without archiving?**, and the one about sessions outside a workspace is not asked. `--dry-run` shows the archives and deletions without making them.
+A session whose archive fails is kept unless you answer yes to deleting it anyway. A running session is never deleted. For the other side's sessions it asks that side's dotagents (`dotagents sessions --running`, through `powershell.exe` from WSL or `wsl.exe` from Windows), so a session left open and idle there is protected too. When that side can't say (no dotagents there, or an older one), it warns and falls back to the 10 minutes. `--yes` skips the questions, archiving what can be archived and deleting the sessions without an archive folder too, but never one whose archive failed; without a terminal, `sessions rm` needs `--yes`. `--no-archive` answers the first question with **Delete without archiving**. `--dry-run` shows the archives and deletions without making them.
 
 ## dotagents skills
 
