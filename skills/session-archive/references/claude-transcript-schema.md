@@ -3,14 +3,15 @@
 Source: `~/.claude/projects/<project-slug>/<session-id>.jsonl`, one JSON
 object per line, chronological. `<project-slug>` is the session's absolute
 `cwd` at start with each `/` replaced by `-` (leading slash included).
-Observed against CLI version 2.1.272; re-check this file first if
+Observed against CLI versions 2.1.272 to 2.1.319; re-check this file first if
 `archive-session.ts` starts silently producing empty fields after a CLI
 upgrade.
 
 ## Top-level `type` values seen
 
 `mode`, `permission-mode`, `ai-title`, `user`, `assistant`, `file-history-snapshot`,
-`last-prompt`, `attachment`, `atis-latch`.
+`last-prompt`, `attachment`, `atis-latch`, `session-owner`, `cost-state`,
+`queue-operation`, `api-request`, `api-request-blob`, `tools-used`.
 
 ## Fields present on most lines
 
@@ -54,6 +55,12 @@ spawn only appears as a tool line in the parent's transcript.
 ## Other line types worth knowing about
 
 - `ai-title` — `aiTitle` field holds a short auto-generated session title.
+- `session-owner` — `accountUuid`, `organizationUuid` and `sessionId` of the
+  claude.ai account signed in when the line was written; repeated during the
+  session. Seen from 2.1.312 on, not in every session. Two different
+  `accountUuid`s mean the session continued after the login changed.
+- `cost-state` — `totalCostUSD` and other totals, written when the session
+  closes.
 - `file-history-snapshot` — undo/redo checkpoints, not conversational content.
 - `last-prompt` — bookkeeping for prompt resumption, not conversational content.
 - `attachment` — a pasted/dropped file; check `attachment` payload if you need

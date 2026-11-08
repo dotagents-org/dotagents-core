@@ -29,8 +29,13 @@ Contents, in chronological order:
 - **Tool calls**, one line each (`name` - description/command/path), marked
   **(error)** when the call failed. Tool results are omitted, except the
   user's answers to `AskUserQuestion`, listed under that call.
-- **Header** with agent, model, dates, duration, effort, turns, tool calls,
-  tokens, and, when the transcript has it, cost.
+- **Header** with agent, account, model, dates, duration, effort, turns, tool
+  calls, tokens, and, when the transcript has it, cost.
+- **Account**: the claude.ai account that ran the session, named after its
+  dotagents profile when there is one (`turing (me@example.com)`). A session
+  that went on after the login changed lists the others too (`also used by
+  ...`). Transcripts from older Claude Code versions don't record it:
+  `unknown`.
 - **Files changed** (whole session) at the end: files touched by the edit
   tools (Edit/Write), plus files changed outside them. Changes made only
   through shell commands (`mv`, `rm`, `sed`, new files) are not detected.

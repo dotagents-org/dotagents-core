@@ -53,7 +53,15 @@ export type ArchivedSession = {
   changed: string[];
   userEdited: string[];
   cost: Json | null;
+  // The claude.ai accounts that ran the session, in the order they first did: Claude Code records
+  // the signed-in account in session-owner lines. More than one means the session went on after
+  // the login changed (a `dotagents switch`, then "continue"). Empty when no line records it, as
+  // in transcripts from older versions.
+  accounts: string[];
 };
+
+// How an account is shown: "turing (me@example.com)". Unknown ids show their first 8 characters.
+export type AccountLabels = Map<string, string>;
 
 const isObject = (v: unknown): v is Json => typeof v === "object" && v !== null && !Array.isArray(v);
 const str = (v: unknown) => (typeof v === "string" && v ? v : null);
@@ -127,6 +135,7 @@ export function parseTranscript(file: string): ArchivedSession {
     changed: [],
     userEdited: [],
     cost: null,
+    accounts: [],
   };
   const seenMsgs = new Set<string>();
   const toolLines = new Map<string, number>(); // tool_use id → index of its line in s.out
@@ -140,6 +149,7 @@ export function parseTranscript(file: string): ArchivedSession {
     const t = obj.type;
     if (t === "ai-title") s.title = str(obj.aiTitle) ?? s.title;
     if (t === "cost-state") s.cost = obj;
+    if (t === "session-owner" && str(obj.accountUuid)) addOnce(s.accounts, obj.accountUuid);
     if (t === "attachment" && isObject(obj.attachment) && obj.attachment.type === "edited_text_file") addOnce(s.userEdited, str(obj.attachment.filename) ?? "?");
     if (obj.isSidechain || obj.isMeta) continue;
     const msg = isObject(obj.message) ? obj.message : {};
@@ -216,7 +226,16 @@ const keep = (p: string) => {
   return !low.includes("\\temp\\claude\\") && !low.includes("/temp/claude/") && !low.includes("/tmp/claude-");
 };
 
-export function renderArchive(s: ArchivedSession) {
+export const accountLabel = (uuid: string, labels: AccountLabels = new Map()) => labels.get(uuid) ?? `\`${uuid.slice(0, 8)}\``;
+
+// "turing (a@x)", or "turing (a@x); also used by lovelace (b@x)" for a session shared by accounts.
+export function accountsText(accounts: string[], labels: AccountLabels = new Map()) {
+  if (!accounts.length) return "unknown (not in the transcript)";
+  const [owner, ...others] = accounts.map((a) => accountLabel(a, labels));
+  return others.length ? `${owner}; also used by ${others.join(", ")}` : owner;
+}
+
+export function renderArchive(s: ArchivedSession, labels: AccountLabels = new Map()) {
   const tools = [...s.tools].sort((a, b) => b[1] - a[1]);
   const header = [
     `# ${s.title ?? `${s.agent} session ${s.sessionId}`}`,
@@ -225,6 +244,7 @@ export function renderArchive(s: ArchivedSession) {
     "|---|---|",
     `| **Agent** | ${s.agent} |`,
     `| **Session** | \`${s.sessionId}\` |`,
+    `| **Account** | ${accountsText(s.accounts, labels)} |`,
     `| **Model** | \`${s.model ?? "unknown"}\` |`,
     `| **Started** | ${when(s.started)} |`,
     `| **Last activity** | ${when(s.ended)} |`,
@@ -254,12 +274,38 @@ export const archiveFile = (projectRoot: string, s: ArchivedSession) =>
   path.join(projectRoot, ".artifacts", "session-archives", `${(s.started ?? "").slice(0, 10)}-${s.sessionId}.md`);
 
 // Parses a transcript and writes its archive; returns the file written.
-export function writeArchive(transcript: string, projectRoot: string) {
+export function writeArchive(transcript: string, projectRoot: string, labels: AccountLabels = new Map()) {
   const session = parseTranscript(transcript);
   const out = archiveFile(projectRoot, session);
   fs.mkdirSync(path.dirname(out), { recursive: true });
-  fs.writeFileSync(out, renderArchive(session));
+  fs.writeFileSync(out, renderArchive(session, labels));
   return out;
+}
+
+// The accounts this machine knows, to name them: dotagents keeps each profile's account in
+// <state>/vault/<profile>/account.json (DOTAGENTS_STATE_DIR, else ~/.config/dotagents), and Claude
+// Code the signed-in one in ~/.claude.json. Only the id and the email are read, never a credential.
+export function knownAccounts(claudeHome: string): AccountLabels {
+  const labels: AccountLabels = new Map();
+  const read = (file: string) => {
+    try {
+      const data = JSON.parse(fs.readFileSync(file, "utf8"));
+      return isObject(data) ? data : null;
+    } catch {
+      return null;
+    }
+  };
+  const stateDir = process.env.DOTAGENTS_STATE_DIR || path.join(process.env.XDG_CONFIG_HOME || path.join(os.homedir(), ".config"), "dotagents");
+  const vault = path.join(stateDir, "vault");
+  for (const name of fs.existsSync(vault) ? fs.readdirSync(vault).sort() : []) {
+    const account = read(path.join(vault, name, "account.json"));
+    if (str(account?.accountUuid)) labels.set(account!.accountUuid, str(account!.emailAddress) ? `${name} (${account!.emailAddress})` : name);
+  }
+  // ~/.claude.json for the default folder, <folder>/.claude.json for another one.
+  const isDefault = path.resolve(claudeHome) === path.join(os.homedir(), ".claude");
+  const oauth = read(isDefault ? path.join(os.homedir(), ".claude.json") : path.join(claudeHome, ".claude.json"))?.oauthAccount;
+  if (isObject(oauth) && str(oauth.accountUuid) && !labels.has(oauth.accountUuid) && str(oauth.emailAddress)) labels.set(oauth.accountUuid, oauth.emailAddress);
+  return labels;
 }
 
 // ── Command line ──────────────────────────────────────────────────────────────────────────────
@@ -322,7 +368,7 @@ function main(argv: string[]) {
     console.error("error: transcript not found; pass --session-id or --transcript");
     return 1;
   }
-  console.log(`Claude transcript written -> ${writeArchive(transcript, projectRoot)}`);
+  console.log(`Claude transcript written -> ${writeArchive(transcript, projectRoot, knownAccounts(claudeHome))}`);
   return 0;
 }
 

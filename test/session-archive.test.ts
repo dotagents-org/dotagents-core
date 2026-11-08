@@ -7,7 +7,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { test, type TestContext } from "node:test";
-import { renderArchive, parseTranscript } from "../skills/session-archive/scripts/archive-session.ts";
+import { accountsText, parseTranscript, renderArchive } from "../skills/session-archive/scripts/archive-session.ts";
 import { REPO } from "./helpers.ts";
 
 const SCRIPT = path.join(REPO, "skills", "session-archive", "scripts", "archive-session.ts");
@@ -58,7 +58,7 @@ function setup(t: TestContext) {
   const transcript = path.join(project, `${ID}.jsonl`);
   fs.writeFileSync(transcript, `${LINES.map((l) => (typeof l === "string" ? l : JSON.stringify(l))).join("\n")}\n`);
   const run = (script: string, ...args: string[]) =>
-    spawnSync(process.execPath, [script, ...args], { encoding: "utf8", cwd: root, env: { ...process.env, CLAUDE_CONFIG_DIR: claude } });
+    spawnSync(process.execPath, [script, ...args], { encoding: "utf8", cwd: root, env: { ...process.env, CLAUDE_CONFIG_DIR: claude, DOTAGENTS_STATE_DIR: path.join(root, "state") } });
   return { root, claude, transcript, run };
 }
 
@@ -68,6 +68,7 @@ test("the archive keeps the conversation verbatim, one line per tool call, and t
   const expected = [
     "# Fix the parser",
     "| **Session** | `11111111-2222-3333-4444-555555555555` |",
+    "| **Account** | unknown (not in the transcript) |",
     "| **Model** | `claude-test-1` |",
     "| **Started** | 2026-01-02 10:00 UTC |",
     "| **Duration** | 1 h 15 min |",
@@ -118,4 +119,38 @@ test("without a session id, the newest transcript started inside the project roo
   fs.writeFileSync(s.transcript, fs.readFileSync(s.transcript, "utf8").replaceAll('"cwd":"/w"', `"cwd":${JSON.stringify(path.join(root, "sub"))}`));
   assert.equal(s.run(SCRIPT, "--project-root", root).status, 0);
   assert.ok(fs.existsSync(path.join(root, ".artifacts", "session-archives", `2026-01-02-${ID}.md`)));
+});
+
+// ── Accounts ──────────────────────────────────────────────────────────────────────────────────
+
+const A = "aaaaaaaa-0000-0000-0000-000000000001";
+const B = "bbbbbbbb-0000-0000-0000-000000000002";
+const owner = (account: string) => JSON.stringify({ type: "session-owner", accountUuid: account, organizationUuid: "org", sessionId: ID });
+
+test("the archive names the account that ran the session, and the others when it was shared", (t) => {
+  const s = setup(t);
+  fs.appendFileSync(s.transcript, `${owner(A)}\n${owner(A)}\n`);
+  const labels = new Map([[A, "turing (a@example.com)"], [B, "lovelace (b@example.com)"]]);
+  assert.match(renderArchive(parseTranscript(s.transcript), labels), /^\| \*\*Account\*\* \| turing \(a@example\.com\) \|$/m);
+
+  fs.appendFileSync(s.transcript, `${owner(B)}\n${owner(A)}\n`);
+  const session = parseTranscript(s.transcript);
+  assert.deepEqual(session.accounts, [A, B]);
+  assert.equal(accountsText(session.accounts, labels), "turing (a@example.com); also used by lovelace (b@example.com)");
+  assert.equal(accountsText(session.accounts), "`aaaaaaaa`; also used by `bbbbbbbb`", "an unknown account shows its id's start");
+});
+
+test("run as a command, the script names accounts from dotagents' vault and Claude Code's login", (t) => {
+  const s = setup(t);
+  fs.appendFileSync(s.transcript, `${owner(A)}\n${owner(B)}\n`);
+  const vault = path.join(s.root, "state", "vault", "turing");
+  fs.mkdirSync(vault, { recursive: true });
+  fs.writeFileSync(path.join(vault, "account.json"), JSON.stringify({ accountUuid: A, emailAddress: "a@example.com" }));
+  fs.writeFileSync(path.join(vault, "credentials.json"), "{\"secret\":\"never-read\"}");
+  fs.writeFileSync(path.join(s.claude, ".claude.json"), JSON.stringify({ oauthAccount: { accountUuid: B, emailAddress: "b@example.com" } }));
+  const root = path.join(s.root, "proj");
+  assert.equal(s.run(SCRIPT, "--transcript", s.transcript, "--project-root", root).status, 0);
+  const md = fs.readFileSync(path.join(root, ".artifacts", "session-archives", `2026-01-02-${ID}.md`), "utf8");
+  assert.match(md, /\| \*\*Account\*\* \| turing \(a@example\.com\); also used by b@example\.com \|/);
+  assert.ok(!md.includes("never-read"));
 });
