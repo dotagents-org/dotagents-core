@@ -16,6 +16,7 @@ import { init } from "./surfaces/cli/init.ts";
 import { install } from "./surfaces/cli/install.ts";
 import { newWorkspace } from "./surfaces/cli/new.ts";
 import type { CliArgs, Command } from "./surfaces/cli/shared.ts";
+import { sessions, sessionsRm } from "./surfaces/cli/sessions.ts";
 import { settingsPull } from "./surfaces/cli/settings.ts";
 import { switchCommand } from "./surfaces/cli/switch.ts";
 import { skills, skillsAdd, skillsRemove } from "./surfaces/cli/skills.ts";
@@ -65,7 +66,7 @@ const start: Command = {
 };
 
 // In the order the help lists them.
-const COMMANDS: Command[] = [install, update, settingsPull, profileAdd, profileList, profileRemove, switchCommand, usage, start, newWorkspace, init, check, workspaces, untrack, skills, skillsAdd, skillsRemove];
+const COMMANDS: Command[] = [install, update, settingsPull, profileAdd, profileList, profileRemove, switchCommand, usage, start, newWorkspace, init, check, workspaces, untrack, sessions, sessionsRm, skills, skillsAdd, skillsRemove];
 
 const repo = path.dirname(fileURLToPath(import.meta.url));
 const version = JSON.parse(fs.readFileSync(path.join(repo, "package.json"), "utf8")).version;
@@ -91,12 +92,13 @@ ${groups.join("\n\n")}
 
 ${title("Options")}
   ${bold("--dry-run")}    show what would be done, change nothing
-  ${bold("--yes")}        (init) don't ask anything
+  ${bold("--yes")}        (init, sessions rm) don't ask anything
   ${bold("--wrap")}       (init) move a repository into <name>-workspace/ first
   ${bold("--default")}    (profile add) the profile in ~/.claude
   ${bold("--color")}      (profile add) the profile's color, #RRGGBB
   ${bold("--short")}      (usage) one line, for a prompt or a status line
-  ${bold("--json")}       (usage) the data, for scripts
+  ${bold("--json")}       (usage, sessions) the data, for scripts
+  ${bold("--all")}        (sessions) every project's sessions, not only this folder's
   ${bold("--refresh")}    (usage) ask Claude Code for fresh numbers first
   ${bold("--no-pull")}    (update) skip git pull, only reapply
   ${bold("--from")}       (settings pull) the profile to take the settings from

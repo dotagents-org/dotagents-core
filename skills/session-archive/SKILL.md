@@ -63,6 +63,10 @@ Contents, in chronological order:
 Re-running overwrites the file, so it is safe to run mid-session and again at
 the end.
 
+`dotagents sessions rm` imports this script's parser and writes the same file
+before it deletes a session, so a change to the script's exports has to keep
+dotagents working (`npm test` in the dotagents repository covers both).
+
 ## Caveats
 
 - The transcript is unredacted: anything typed during the session, secrets
