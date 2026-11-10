@@ -30,6 +30,7 @@ A third-party skill that isn't in the catalog can still be installed by hand wit
 
 | Skill | What it does |
 |---|---|
+| [clean-artifacts](../skills/clean-artifacts/SKILL.md) | Cleans up the documentation folder: merges overlapping documents, deletes stale ones and proposes a structure that fits the workspace. |
 | [llm-wiki](../skills/llm-wiki/SKILL.md) | Maintains a Markdown wiki fed by sources (`raw/` → `wiki/`), with ingest, query and lint. |
 | [map-source-files](../skills/map-source-files/SKILL.md) | Builds a File / Location / Responsibility table of a repository's source files. |
 | [move-sessions](../skills/move-sessions/SKILL.md) | Makes past Claude Code conversations follow a project folder that moved, so Claude Code lists them again from the new folder. |
