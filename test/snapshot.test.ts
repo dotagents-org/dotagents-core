@@ -189,3 +189,13 @@ test("watchPeer never waits for the other side: the last answer stands until the
   await new Promise((r) => setImmediate(r));
   assert.deepEqual([...view.running!(peer)!], ["s1"]);
 });
+
+test("the account in this side's slot comes first, the others after in their order", (t) => {
+  const { home } = machine(t);
+  // personal's login is in the slot (~/.claude) and in its own folder.
+  fs.writeFileSync(path.join(home, ".claude", ".credentials.json"), "{}");
+  fs.writeFileSync(path.join(home, ".claude.json"), state("uuid-b", cache("uuid-b", "2026-10-28T11:50:00Z", 30)));
+  fs.writeFileSync(path.join(home, ".claude-personal", ".credentials.json"), "{}");
+  fs.writeFileSync(path.join(home, ".claude-personal", ".claude.json"), state("uuid-b"));
+  assert.deepEqual(readUsage(NOW).map((p) => p.name), ["personal", "work"]);
+});
