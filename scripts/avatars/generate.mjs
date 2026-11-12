@@ -1,15 +1,14 @@
 // Generates the dotagents avatars: the brand (the `..` face) and one per account, in each state.
 //
-// open-bot-avatar (MIT, github.com/DominikScholz/open-bot-avatar) is used here once and thrown
-// away; dotagents never depends on it. The output:
-//   still/<who>-<state>.svg   one frame, for documents and static places
-//   strip/<who>-<state>.svg   24 frames of 3 s side by side, for raster.sh to turn into PNG
-// The PNGs are what the tray panel plays: copy <output>/png/*.png to surfaces/tray/assets/.
+// The panel draws the avatars live (surfaces/web/page/avatar.js, with open-bot-avatar's
+// avatarFrame vendored in page/vendor/), so this script only makes pictures of them, for documents:
+//   still/<who>-<state>.svg   one frame
+//   strip/<who>-<state>.svg   24 frames of 3 s side by side
+// The rules here and in avatar.js are the same; a change goes to both.
 //
 // Run, from a scratch folder outside the repository:
 //   npm install --ignore-scripts open-bot-avatar@0.2.1
 //   node <repo>/scripts/avatars/generate.mjs node_modules/open-bot-avatar <output folder>
-//   CHROME=<headless chrome> sh <repo>/scripts/avatars/raster.sh <output folder>
 
 import fs from "node:fs";
 import path from "node:path";
