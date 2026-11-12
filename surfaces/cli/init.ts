@@ -5,7 +5,7 @@ import * as p from "@clack/prompts";
 import { gitRepoOf, isRepoRoot } from "../../core/git.ts";
 import { brand, displayPath, fancy, finish, header, interactive, line, tone } from "../../core/output.ts";
 import { registerWorkspace, untrackWorkspace } from "../../core/machine-state.ts";
-import { listSkills, resolveSkills, skillsIn } from "../../core/skills.ts";
+import { addedByCalls, listSkills, resolveSkills, skillsIn } from "../../core/skills.ts";
 import { state } from "../../core/state.ts";
 import { applyWorkspace, assertWorkspace, wrapRepository } from "../../core/workspace.ts";
 import { type Command, type Context, expandHome, fitHint, workspaceArg } from "./shared.ts";
@@ -47,8 +47,19 @@ export async function initWorkspace(ctx: Context, ws: string, { opened = false }
   assertWorkspace(repo, ws);
   state.base = ws;
   skills ??= [];
-  await applyWorkspace(repo, ws, resolveSkills(repo, skills));
-  if (!state.dryRun) registerWorkspace(ws, skills);
+  // The chosen skills bring the ones they call.
+  const chosen = resolveSkills(repo, skills);
+  const added = addedByCalls(chosen, skills);
+  if (added.length) {
+    // Grouped by the first skill that calls them: "pixijs brings pixijs-assets, pixijs-color, …".
+    for (const caller of new Set(added.map((a) => a.calledBy[0]))) {
+      const text = `${caller} brings ${added.filter((a) => a.calledBy[0] === caller).map((a) => a.name).join(", ")}`;
+      if (fancy) line(dim(text));
+      else console.log(text);
+    }
+  }
+  await applyWorkspace(repo, ws, chosen);
+  if (!state.dryRun) registerWorkspace(ws, chosen.map((s) => s.name));
   state.base = null; // the hints show the workspace itself, not a path inside it
   if (wrapFrom) await afterWrap(ctx, ws);
   return finish(`To check later: dotagents check "${displayPath(ws)}"`);
@@ -126,10 +137,13 @@ async function askInit(ctx: Context, defaultWs: string, { opened = false } = {})
     })
   );
 
+  // The skills they call come along; the confirmation counts them.
+  const extra = addedByCalls(resolveSkills(repo, skills), skills).length;
+
   if (!state.dryRun) {
     const ok = exit(
       await p.confirm({
-        message: `Apply the standards to ${bold(displayPath(ws))}${skills.length ? ` with ${skills.length} skill${skills.length === 1 ? "" : "s"}` : ""}?`,
+        message: `Apply the standards to ${bold(displayPath(ws))}${skills.length ? ` with ${skills.length} skill${skills.length === 1 ? "" : "s"}` : ""}${extra ? ` and ${extra} they call` : ""}?`,
       })
     );
     if (!ok) {

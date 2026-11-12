@@ -24,6 +24,26 @@ app-workspace/
 
 `skills-lock.json` sits at the workspace root because `npx skills` writes it where it runs, and `npx skills update` and `npx skills experimental_install` look for it there.
 
+## Skills that call other skills
+
+Many skills call others: `grill-with-docs` runs `grilling` and `domain-modeling`, and a router like `pixijs` sends each task to one of its 25 `pixijs-*` skills. Without them in the workspace, the agent can't follow the call. dotagents reads these calls from the text of every Markdown file in the skill's folder, in two forms:
+
+| Form | Example |
+|---|---|
+| a line about the Skill tool, with the name in quotes | `call the Skill tool with "codebase-design"` |
+| a relative link into the other skill's folder | `[pixijs-assets](../pixijs-assets/SKILL.md)` |
+
+Only names dotagents knows count (your skills and the catalog's), never the skill itself. A `/name` doesn't count: in a router's list it is a label for the person to pick from, and "tell the user to run `/setup-matt-pocock-skills`" is something for the user to do, not a call. Own skills are read when needed; for third-party ones, `dotagents skills add` stores the calls in the catalog as `requires`, and run again it refreshes them.
+
+A skill brings the ones it calls, and those bring theirs:
+
+- `dotagents init --skills pixijs` installs `pixijs` and its 25 `pixijs-*` skills; `--skills implement` brings `code-review` and `tdd`, and `tdd` brings `codebase-design`. `init` says what came along, and in a terminal the confirmation counts them;
+- `dotagents update --all` does the same for the tracked workspaces, so a skill that starts calling another gets it there;
+- `dotagents skills` shows what each skill calls;
+- `dotagents check` warns about each skill in the workspace that calls one it doesn't have, reading the installed copy.
+
+To write a skill of your own that calls another, use one of the two forms.
+
 A third-party skill that isn't in the catalog can still be installed by hand with `npx skills add <source>`. Always run it from the workspace root; from inside `.agents/` it creates `.agents/.agents/`.
 
 ## Own skills

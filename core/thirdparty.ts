@@ -9,7 +9,8 @@ import path from "node:path";
 import { runWithSpinner } from "./common.ts";
 
 // A registered third-party skill, as skills/third-party-skills.json stores it.
-export type CatalogEntry = { name: string; source: string; description?: string };
+// requires: the skills it calls (see findRequires), read when it was registered.
+export type CatalogEntry = { name: string; source: string; description?: string; requires?: string[] };
 // What an installer needs, and what it answers. Tests pass a fake with the same shape.
 export type Installer = (ws: string, skill: { name: string; source: string; description: string }) => Promise<{ ok: boolean; detail: string }>;
 
@@ -41,6 +42,35 @@ export function parseSkill(text: string) {
   return { name, description };
 }
 
+// The skills a skill calls, read from every Markdown file in its folder. Two forms count: a line
+// about the Skill tool with the name in quotes (`call the Skill tool with "grilling"`), and a
+// relative link into the other skill's folder (`[pixijs-assets](../pixijs-assets/SKILL.md)`, as
+// router skills do). Only names in known count, never the skill itself. A `/name` doesn't count:
+// it is a label in a router's list or something the user is told to run, not a call.
+export function findRequires(folder: string, known: Iterable<string>, self: string): string[] {
+  const names = new Set(known);
+  const found = new Set<string>();
+  const NAME = "[a-z0-9]+(?:-[a-z0-9]+)*";
+  const walk = (dir: string, depth: number) => {
+    if (depth > 4) return;
+    for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+      if (e.name === ".git" || e.name === "node_modules") continue;
+      const full = path.join(dir, e.name);
+      // A subfolder with its own SKILL.md is another skill, not part of this one.
+      if (e.isDirectory()) {
+        if (!fs.existsSync(path.join(full, "SKILL.md"))) walk(full, depth + 1);
+      } else if (e.name.endsWith(".md")) {
+        const text = fs.readFileSync(full, "utf8");
+        for (const line of text.split(/\r?\n/)) {
+          if (/skill tool/i.test(line)) for (const m of line.matchAll(new RegExp(`"(${NAME})"`, "g"))) found.add(m[1]);
+        }
+        for (const m of text.matchAll(new RegExp(`\\]\\((?:\\.\\./)+(${NAME})/(?:SKILL\\.md)?\\)`, "g"))) found.add(m[1]);
+      }
+    }
+  };
+  walk(folder, 0);
+  return [...found].filter((n) => n !== self && names.has(n)).sort();
+}
 
 // owner/repo → GitHub URL; URLs and local paths are used as given.
 function cloneUrl(source: string) {
@@ -49,12 +79,13 @@ function cloneUrl(source: string) {
 }
 
 // Skills a source provides: a shallow clone into a temporary folder, then every SKILL.md in it.
-export async function discoverSkills(source: string) {
+// known: names outside the source that a skill may call (your own and the catalog's).
+export async function discoverSkills(source: string, known: string[] = []) {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "dotagents-"));
   try {
     const res = await runWithSpinner(`Reading ${source}`, "git", ["clone", "--depth", "1", "--quiet", cloneUrl(source), tmp]);
     if (res.code !== 0) throw new Error(`Couldn't clone ${source}: ${res.last}`);
-    const found: { name: string; description: string }[] = [];
+    const found: { name: string; description: string; folder: string }[] = [];
     const walk = (dir: string, depth: number) => {
       if (depth > 4) return;
       for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
@@ -63,12 +94,13 @@ export async function discoverSkills(source: string) {
         if (e.isDirectory()) walk(full, depth + 1);
         else if (e.name === "SKILL.md") {
           const { name, description } = parseSkill(fs.readFileSync(full, "utf8"));
-          if (name && !found.some((s) => s.name === name)) found.push({ name, description });
+          if (name && !found.some((s) => s.name === name)) found.push({ name, description, folder: dir });
         }
       }
     };
     walk(tmp, 0);
-    return found;
+    const names = [...known, ...found.map((s) => s.name)];
+    return found.map(({ name, description, folder }) => ({ name, description, requires: findRequires(folder, names, name) }));
   } finally {
     fs.rmSync(tmp, { recursive: true, force: true });
   }

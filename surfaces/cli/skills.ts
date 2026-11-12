@@ -23,8 +23,9 @@ export const skills: Command = {
     const own = all.filter((s) => s.kind === "own");
     const thirdParty = all.filter((s) => s.kind === "third-party");
     if (!fancy) {
-      own.forEach((s) => console.log(`${s.name.padEnd(20)} ${s.description}`));
-      thirdParty.forEach((s) => console.log(`${s.name.padEnd(20)} ${s.description}  (third-party: ${s.source})`));
+      const calls = (s: { requires: string[] }) => (s.requires.length ? `  (calls: ${s.requires.join(", ")})` : "");
+      own.forEach((s) => console.log(`${s.name.padEnd(20)} ${s.description}${calls(s)}`));
+      thirdParty.forEach((s) => console.log(`${s.name.padEnd(20)} ${s.description}  (third-party: ${s.source})${calls(s)}`));
       return;
     }
     const width = Math.max(...all.map((s) => s.name.length)) + 2;
@@ -37,13 +38,20 @@ export const skills: Command = {
     console.log(`${brand()}  ${bold("skills")}`);
     line();
     line(`${bold(`${own.length} own`)}  ${muted(`in ${displayPath(path.join(repo, "skills"))}`)}`);
-    for (const s of own) row(s.name, s.description, bold);
+    const calls = (s: { requires: string[] }) => {
+      if (s.requires.length) for (const text of wrap(`calls ${s.requires.join(", ")}`, columns - width - 6)) line(`  ${" ".repeat(width)}${muted(text)}`);
+    };
+    for (const s of own) {
+      row(s.name, s.description, bold);
+      calls(s);
+    }
     line();
     line(`${bold(`${thirdParty.length} third-party`)}  ${muted("registered in skills/third-party-skills.json, installed with npx skills")}`);
     if (!thirdParty.length) line(muted("  None yet. Register one with: dotagents skills add <owner/repo>"));
     for (const s of thirdParty) {
       row(s.name, s.description, (text) => text);
       line(`  ${" ".repeat(width)}${muted(`from ${s.source}`)}`);
+      calls(s);
     }
     line();
     console.log(`${muted("Use in a workspace:")} dotagents init ${muted("<path>")} --skills ${muted("<name>")}\n`);
@@ -62,7 +70,7 @@ export const skillsAdd: Command = {
     if (!SAFE_SOURCE.test(source)) throw new Error(`'${source}' has characters that aren't allowed in a source`);
     header("skills add", source);
     section("Source");
-    const found = await discoverSkills(source);
+    const found = await discoverSkills(source, listSkills(repo).map((s) => s.name));
     if (!found.length) throw new Error(`No SKILL.md found in ${source}`);
 
     let chosen = found;
@@ -103,7 +111,8 @@ export const skillsAdd: Command = {
         continue;
       }
       const existing = catalog.find((s) => s.name === skill.name);
-      if (existing && existing.source === source && existing.description === skill.description) {
+      const same = (a: string[] = [], b: string[] = []) => a.join(",") === b.join(",");
+      if (existing && existing.source === source && existing.description === skill.description && same(existing.requires, skill.requires)) {
         report("ok", file, `${skill.name} from ${source}`);
         continue;
       }
@@ -113,9 +122,12 @@ export const skillsAdd: Command = {
       }
       report(state.dryRun ? (existing ? "would update" : "would create") : existing ? "updated" : "created", file, `${skill.name} from ${source}`);
       if (!state.dryRun) {
-        const entry = { name: skill.name, source, description: skill.description };
-        if (existing) Object.assign(existing, entry);
-        else catalog.push(entry);
+        // requires is left out when empty, so the catalog lists it only where it matters.
+        const entry = { name: skill.name, source, description: skill.description, ...(skill.requires.length ? { requires: skill.requires } : {}) };
+        if (existing) {
+          delete existing.requires;
+          Object.assign(existing, entry);
+        } else catalog.push(entry);
       }
     }
     if (!state.dryRun) saveCatalog(repo, catalog);

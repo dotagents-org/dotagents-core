@@ -28,7 +28,7 @@ export function quiet(overrides: Parameters<typeof resetState>[0] = {}) {
 }
 
 // A third-party skill that never touches the network.
-export const fakeThirdParty: Skill = { name: "fake-skill", kind: "third-party", source: "me/fake-skills", description: "A fake skill." };
+export const fakeThirdParty: Skill = { name: "fake-skill", kind: "third-party", source: "me/fake-skills", description: "A fake skill.", requires: [] };
 
 // Stands in for `npx skills add`: writes the skill folder and its lock entry, like the real one.
 export const fakeInstaller: Installer = async (ws, skill) => {
