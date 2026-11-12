@@ -198,12 +198,13 @@ The other side of the machine is read only while it runs: on Windows, the server
 
 Its data adds `slots`, the profile in each side's slot (`{ "WSL": "work", "Windows": "personal" }`), and `current`, the current account and its avatar state: the profile in a slot in the worst state, or the brand when no profile is in a slot.
 
-Two actions, for the panel, are the only writes. Each takes a JSON body, `{ "profile": "<name>" }`, with the token in the `x-dotagents-token` header (never in the address); a GET there answers 405, an unknown profile 404:
+Three actions, for the panel, are the only writes. Each takes a JSON body (`{ "profile": "<name>" }` for the first two), with the token in the `x-dotagents-token` header (never in the address); a GET there answers 405, an unknown profile 404:
 
 | Action | Does |
 |---|---|
 | `POST /api/switch` | [`switch`](#dotagents-switch) to the profile, on both sides. |
 | `POST /api/desktop` | Opens the profile's Desktop app (Windows), as its Start menu shortcut does. |
+| `POST /api/refresh` | Asks Anthropic for every profile's usage now, without waiting for the minute. |
 
 While it runs it leaves its port, token and pid in `<state>/start.json`, readable only by you, and takes it away when it stops.
 
