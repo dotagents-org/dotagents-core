@@ -12,7 +12,7 @@
 // to the normal app), claude:// links open in the normal app, and an update reopens only the
 // normal app.
 
-import { spawnSync } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -108,6 +108,17 @@ function ensureShortcut(lnk: string, wanted: Shortcut, shortcuts: Shortcuts) {
 }
 
 // The data folder, the launcher and the shortcut of a profile's Desktop app.
+// Opens a profile's Desktop app through its launcher, as its Start menu shortcut does (the tray
+// panel's "Open Desktop").
+export function openDesktop(name: string, launcherDir: string): { ok: boolean; detail: string } {
+  if (process.platform !== "win32") return { ok: false, detail: "the Desktop app opens on Windows" };
+  const launcher = desktopLauncherFile(launcherDir, name);
+  if (!fs.existsSync(launcher)) return { ok: false, detail: `${name} has no Desktop app here; add it with: dotagents profile add ${name}` };
+  // An error here (wscript missing) is the launcher's: it never takes the server down.
+  spawn(wscript(), [launcher], { detached: true, stdio: "ignore", windowsHide: true }).on("error", () => {}).unref();
+  return { ok: true, detail: `opening ${appTitle(name)}` };
+}
+
 export function applyDesktop(
   repo: string,
   profile: { name: string; default?: boolean },

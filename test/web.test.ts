@@ -1,5 +1,5 @@
 // dotagents serve: the local server the visual app reads from. It answers only on 127.0.0.1, to its
-// own Host, only GETs, and the API only with the token it printed.
+// own Host, reads except for the actions it is given, and the API only with the token it printed.
 
 import assert from "node:assert/strict";
 import http from "node:http";
@@ -63,4 +63,46 @@ test("the event stream sends the usage at once, with the token in the query (Eve
   assert.equal((await get(server.port, "/api/events")).status, 401);
   const event = await firstEvent(server.port, "/api/events?token=secret");
   assert.match(event, /event: usage\ndata: \{"version":1,"profiles":\[\]\}/);
+});
+
+// The tray panel's actions: POST only, with the token in the header (never the URL), JSON in, and
+// only the actions the server was given.
+function post(port: number, path: string, body: string, headers: Record<string, string> = {}): Promise<Res> {
+  return new Promise((resolve, reject) => {
+    const req = http.request({ host: "127.0.0.1", port, path, method: "POST", headers: { "content-length": Buffer.byteLength(body), ...headers } }, (res) => {
+      let data = "";
+      res.on("data", (d) => (data += d));
+      res.on("end", () => resolve({ status: res.statusCode ?? 0, headers: res.headers, body: data }));
+    });
+    req.on("error", reject);
+    req.end(body);
+  });
+}
+
+test("an action runs only by POST, with the token in the header and a JSON body, and answers what it returns", async (t) => {
+  const calls: unknown[] = [];
+  const server = await startServer({
+    port: 0,
+    read: () => ({}),
+    token: "secret",
+    actions: { switch: (body) => (calls.push(body), { status: 200, body: { ok: true } }) },
+  });
+  t.after(() => server.close());
+  const { port } = server;
+  const json = { "content-type": "application/json", "x-dotagents-token": "secret" };
+  const body = JSON.stringify({ profile: "work" });
+  assert.equal((await post(port, "/api/switch", body, { "content-type": "application/json" })).status, 401);
+  assert.equal((await post(port, "/api/switch?token=secret", body, { "content-type": "application/json" })).status, 401, "never the token in the URL");
+  assert.equal((await post(port, "/api/switch", body, { ...json, host: "evil.example" })).status, 403);
+  assert.equal((await post(port, "/api/switch", body, { "x-dotagents-token": "secret", "content-type": "text/plain" })).status, 415);
+  assert.equal((await post(port, "/api/switch", "{not json", json)).status, 400);
+  assert.equal((await post(port, "/api/switch", JSON.stringify({ profile: "x".repeat(5000) }), json)).status, 413);
+  assert.equal((await post(port, "/api/nothing", body, json)).status, 405);
+  assert.equal((await post(port, "/api/usage", body, json)).status, 405, "a read is no action");
+  assert.equal((await get(port, "/api/switch", { "x-dotagents-token": "secret" })).status, 405);
+  assert.deepEqual(calls, [], "nothing ran yet");
+  const ok = await post(port, "/api/switch", body, json);
+  assert.equal(ok.status, 200);
+  assert.deepEqual(JSON.parse(ok.body), { ok: true });
+  assert.deepEqual(calls, [{ profile: "work" }]);
 });

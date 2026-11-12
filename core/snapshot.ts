@@ -6,10 +6,12 @@
 
 import fs from "node:fs";
 import path from "node:path";
-import { sessionActivity } from "./claude-code.ts";
+import { type Activity, sessionActivity } from "./claude-code.ts";
 import { liveUsage, sideProfiles } from "./live.ts";
 import { type Peer, type Profile, loadMachine } from "./machine-state.ts";
+import { peerUp } from "./peer.ts";
 import { PALETTE } from "./profiles.ts";
+import { peerRunningLater } from "./sessions.ts";
 import { liveLogin } from "./switch.ts";
 import { type ProfileUsage, STALE_MS, elapsedPct, normalize, pace, profileUsage } from "./usage.ts";
 
@@ -69,7 +71,81 @@ function peerUsage(peer: Peer, now: Date): ProfileUsage[] {
 
 const hasNumbers = (p: ProfileUsage) => (p.state === "ok" || p.state === "stale") && p.fetchedAt !== null;
 
-export function readUsage(now: Date): ProfileUsage[] {
+// The other side's running sessions, for the account in its slot: every profile there uses its
+// ~/.claude (ADR 0011). Whether a session still runs can't be told from here (its pid is the other
+// side's), so live holds the session ids that side says are running.
+function peerActivity(peer: Peer, running: (peer: Peer) => Set<string> | null): { accountUuid: string; activity: Activity } | null {
+  let accountUuid: unknown;
+  let names: string[];
+  try {
+    accountUuid = JSON.parse(fs.readFileSync(path.join(peer.home, ".claude.json"), "utf8"))?.oauthAccount?.accountUuid;
+    names = fs.readdirSync(path.join(peer.home, ".claude", "sessions")).filter((n) => /^\d+\.json$/.test(n));
+  } catch {
+    return null;
+  }
+  if (typeof accountUuid !== "string") return null;
+  const busy: { id: string; status: string }[] = [];
+  for (const name of names.slice(0, 256)) {
+    try {
+      const s = JSON.parse(fs.readFileSync(path.join(peer.home, ".claude", "sessions", name), "utf8"));
+      if (typeof s?.sessionId === "string" && (s.status === "busy" || s.status === "waiting")) busy.push({ id: s.sessionId, status: s.status });
+    } catch {
+      // Being rewritten, or not one: skipped.
+    }
+  }
+  const activity = { working: 0, waiting: 0 };
+  // Nothing looks alive there: the other side isn't asked at all, so an idle WSL can shut down.
+  const live = busy.length ? running(peer) : null;
+  for (const s of busy) if (live?.has(s.id)) s.status === "busy" ? activity.working++ : activity.waiting++;
+  return { accountUuid, activity };
+}
+
+// How a reader that runs for a long time (the start server, every 2 s) looks at the other side:
+// whether it is up, and which of its sessions run. Both run a command there and may answer later
+// (a promise): the last answer stands until the new one comes, so a read never waits. The tests
+// pass fakes.
+export type PeerView = { up: (peer: Peer) => boolean; running?: (peer: Peer) => Set<string> | null };
+
+// Short, since a side that stopped meanwhile would be read, and started, until the next answer.
+const UP_EVERY_MS = 5_000;
+const RUNNING_EVERY_MS = 15_000;
+
+type Later<T> = (peer: Peer) => T | Promise<T>;
+
+// Asks at most every everyMs, one question at a time; keep decides whether an answer replaces the last.
+function lastAnswer<T>(ask: Later<T>, everyMs: number, first: T, now: () => number, keep: (value: T) => boolean = () => true) {
+  let at = -Infinity;
+  let value = first;
+  let asking = false;
+  return (peer: Peer): T => {
+    if (now() - at < everyMs || asking) return value;
+    at = now();
+    const answer = ask(peer);
+    if (!(answer instanceof Promise)) {
+      if (keep(answer)) value = answer;
+      return value;
+    }
+    asking = true;
+    answer.then((v) => keep(v) && (value = v)).catch(() => {}).finally(() => (asking = false));
+    return value;
+  };
+}
+
+// Running sessions are asked of the other side only after checking, right then, that it is still
+// up: wsl.exe -e would start a stopped distro.
+const runningIfUp: Later<Set<string> | null> = async (peer) => ((await peerUp(peer)) ? peerRunningLater() : null);
+
+export function watchPeer({ up = peerUp, running = runningIfUp, now = Date.now }: { up?: Later<boolean>; running?: Later<Set<string> | null>; now?: () => number } = {}): PeerView {
+  return {
+    up: lastAnswer(up, UP_EVERY_MS, false, now),
+    // A side that couldn't answer keeps its last known sessions.
+    running: lastAnswer(running, RUNNING_EVERY_MS, null, now, (v) => v !== null),
+  };
+}
+
+// view: how to look at the other side; without it, it is read whenever known, and its sessions
+// aren't counted (the usage command doesn't wait on the other side).
+export function readUsage(now: Date, view?: PeerView): ProfileUsage[] {
   const list = sideProfiles().map((p) => localUsage(p, now));
   let peer: Peer | undefined;
   try {
@@ -77,12 +153,19 @@ export function readUsage(now: Date): ProfileUsage[] {
   } catch {
     peer = undefined;
   }
-  if (!peer) return list;
+  if (!peer || (view && !view.up(peer))) return list;
   const others = peerUsage(peer, now).filter(hasNumbers);
+  const there = view?.running ? peerActivity(peer, view.running) : null;
   return list.map((mine) => {
     const twin = others.find((o) => o.accountUuid && o.accountUuid === mine.accountUuid);
-    if (!twin || (hasNumbers(mine) && mine.fetchedAt!.getTime() >= twin.fetchedAt!.getTime())) return mine;
-    return { ...mine, state: twin.state, fetchedAt: twin.fetchedAt, windows: twin.windows, source: twin.source, from: peer.name };
+    let out = mine;
+    if (twin && !(hasNumbers(mine) && mine.fetchedAt!.getTime() >= twin.fetchedAt!.getTime()))
+      out = { ...mine, state: twin.state, fetchedAt: twin.fetchedAt, windows: twin.windows, source: twin.source, from: peer.name };
+    if (there && there.accountUuid === mine.accountUuid) {
+      const here = out.activity ?? { working: 0, waiting: 0 };
+      out = { ...out, activity: { working: here.working + there.activity.working, waiting: here.waiting + there.activity.waiting } };
+    }
+    return out;
   });
 }
 
