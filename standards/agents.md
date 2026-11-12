@@ -76,6 +76,14 @@ The paths below were checked against Claude Code's documentation on 2026-10-13.
 
 ## Where each mechanism lives
 
+Claude Code's own map of what it reads, and from where, is
+[Explore the .claude directory](https://code.claude.com/docs/en/claude-directory.md). Read it
+before adding a mechanism or changing this layout: it lists every file in `.claude/` and
+`~/.claude/`, its scope, and whether it goes into git. Two facts from it shape this standard:
+Claude Code reads nothing under `.agents/`, so each folder here reaches it through a `.claude/`
+link; and a `.claude/rules/` link that points outside the workspace needs an approval and then
+loads only the rules without `paths`.
+
 | Mechanism | Source | How Claude Code reads it |
 |---|---|---|
 | Context file | `AGENTS.md` at the root | directly (v2.1.277+) while there is no `CLAUDE.md` |
