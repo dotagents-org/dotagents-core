@@ -41,22 +41,11 @@
     return `#${mix(1)}${mix(3)}${mix(5)}`;
   }
 
-  // An account without its own avatar shows the brand's, in the same state.
-  const missing = new Set();
-  function avatar(base, name, state) {
-    const node = el("div", { class: "av", role: "img", "aria-label": `${name}, ${state}` });
-    const set = (who) => (node.style.backgroundImage = `url("${base}${who}-${state}.png")`);
-    if (missing.has(name)) set("dotagents");
-    else {
-      set(name);
-      const probe = new Image();
-      probe.onerror = () => {
-        missing.add(name);
-        set("dotagents");
-      };
-      probe.src = `${base}${name}-${state}.png`;
-    }
-    return node;
+  // The avatar, live: avatar.js paints it on a canvas every animation frame.
+  function avatar(name, color, state) {
+    const canvas = el("canvas", { class: "av", role: "img", "aria-label": `${name}, ${state}` });
+    window.dotagentsAvatar.mount(canvas, { who: name, color, state, size: 52 });
+    return canvas;
   }
 
   function windowRow(p, w, now) {
@@ -81,8 +70,8 @@
   }
 
   // root: where to draw; data: the usage JSON; act(action, profile): runs an action, resolves to
-  // { ok, detail }; avatars: the folder of the avatar strips, ending in /.
-  function render(root, data, { act, avatars = "avatars/" }) {
+  // { ok, detail }.
+  function render(root, data, { act }) {
     const now = Date.now();
     const slots = data.slots || {};
     const sides = Object.keys(slots);
@@ -111,7 +100,7 @@
         el(
           "div",
           { class: "who" },
-          avatar(avatars, p.name, p.avatar || "asleep"),
+          avatar(p.name, p.color, p.avatar || "asleep"),
           el(
             "div",
             { class: "names" },
@@ -132,7 +121,7 @@
     const where = data.peer && !data.peer.up ? `${data.peer.name} off` : sides.join(" and ");
     root.replaceChildren(
       el("div", { class: "head" }, el("span", { class: "badge" }, "dotagents"), el("span", { class: "muted" }, age)),
-      ...cards,
+      el("div", { class: "cards" }, ...cards),
       message,
       el("div", { class: "foot" }, el("span", {}, where))
     );
@@ -146,7 +135,6 @@
     const vscode = acquireVsCodeApi();
     const waiting = new Map();
     let next = 0;
-    let avatars = "avatars/";
     const act = (action, profile) =>
       new Promise((resolve) => {
         const id = ++next;
@@ -155,10 +143,7 @@
       });
     addEventListener("message", (e) => {
       const m = e.data;
-      if (m.type === "usage") {
-        avatars = m.avatars || avatars;
-        render(root, m.data, { act, avatars });
-      } else if (m.type === "result" && waiting.has(m.id)) {
+      if (m.type === "usage") render(root, m.data, { act }); else if (m.type === "result" && waiting.has(m.id)) {
         waiting.get(m.id)(m.result);
         waiting.delete(m.id);
       } else if (m.type === "down") root.replaceChildren(el("p", { class: "message" }, m.detail));

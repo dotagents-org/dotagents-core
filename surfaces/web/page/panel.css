@@ -27,7 +27,9 @@ body.vscode-dark, body.vscode-high-contrast { --bg: transparent; --card: transpa
 
 * { box-sizing: border-box; }
 body { margin: 0; background: var(--bg); color: var(--text); font: 12px/1.45 "Geist Mono", ui-monospace, "Cascadia Mono", Menlo, Consolas, monospace; }
-.panel { max-width: 420px; margin: 0 auto; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+.panel { max-width: 1400px; margin: 0 auto; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+/* The cards fill the width: one column in a narrow side bar, several side by side in a window. */
+.cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr)); gap: 12px; align-items: start; }
 body.vscode-light .panel, body.vscode-dark .panel, body.vscode-high-contrast .panel { padding: 8px 4px; }
 
 .head { display: flex; align-items: center; gap: 10px; }
@@ -35,7 +37,7 @@ body.vscode-light .panel, body.vscode-dark .panel, body.vscode-high-contrast .pa
 .muted { color: var(--muted); }
 .small { font-size: 11px; }
 
-.card { border: 1px solid var(--border); border-radius: 10px; padding: 12px; display: flex; flex-direction: column; gap: 8px; background: var(--card); }
+.card { border: 1px solid var(--border); border-radius: 10px; padding: 12px; display: flex; flex-direction: column; gap: 8px; background: var(--card); min-width: 0; }
 .who { display: flex; align-items: center; gap: 12px; }
 .who .names { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .who .line { display: flex; align-items: baseline; flex-wrap: wrap; gap: 6px; }
@@ -43,13 +45,10 @@ body.vscode-light .panel, body.vscode-dark .panel, body.vscode-high-contrast .pa
 .slot { border: 1px solid var(--border); border-radius: 4px; padding: 0 5px; font-size: 11px; color: var(--muted); }
 .status.high { color: var(--high); }
 
-/* The avatar: a strip of 24 frames of 3 s, played by CSS, no script per frame. The offsets are
-   whole frames in pixels; a percentage can land between two frames. */
-.av { --av: 52px; width: var(--av); height: var(--av); flex-shrink: 0; background-repeat: no-repeat; background-size: calc(var(--av) * 24) var(--av); background-position: 0 0; animation: av-play 3s steps(24) infinite; }
-@keyframes av-play { to { background-position: calc(var(--av) * -24) 0; } }
-@media (prefers-reduced-motion: reduce) { .av { animation: none; } }
+/* The avatar: a canvas avatar.js paints, live. */
+.av { flex-shrink: 0; }
 
-.window { display: grid; grid-template-columns: 46px 1fr 44px; align-items: center; column-gap: 8px; row-gap: 1px; }
+.window { display: grid; grid-template-columns: 4.4em minmax(40px, 1fr) auto; align-items: center; column-gap: 8px; row-gap: 1px; }
 .window .label { color: var(--muted); }
 .bar { height: 6px; border-radius: 3px; background: var(--track); overflow: hidden; }
 .bar > span { display: block; height: 100%; border-radius: 3px; }
@@ -59,8 +58,8 @@ body.vscode-light .panel, body.vscode-dark .panel, body.vscode-high-contrast .pa
 .ok { color: var(--ok); } .warn { color: var(--warn); } .high { color: var(--high); }
 .bar .ok { background: var(--ok); } .bar .warn { background: var(--warn); } .bar .high { background: var(--high); }
 
-.actions { display: flex; gap: 8px; margin-top: 4px; }
-button { flex: 1; min-height: 34px; font: inherit; font-size: 12px; border-radius: 8px; cursor: pointer; border: 1px solid var(--border); background: transparent; color: var(--text); }
+.actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
+button { flex: 1 1 120px; min-height: 34px; padding: 0 8px; font: inherit; font-size: 12px; border-radius: 8px; cursor: pointer; border: 1px solid var(--border); background: transparent; color: var(--text); }
 button.primary { background: var(--text); color: var(--on-text); border-color: var(--text); font-weight: 600; }
 button:disabled { opacity: 0.5; cursor: default; }
 button:focus-visible { outline: 2px solid var(--warn); outline-offset: 2px; }
