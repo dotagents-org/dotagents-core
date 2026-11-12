@@ -71,7 +71,7 @@ dotagents profile add personal           # a second account
 dotagents profile add personal --color '#376B80'
 ```
 
-A profile is one claude.ai account the person holds (ADR 0009 and ADR 0011 in the workspace's `.artifacts/adr/`). Every profile uses the same config folder, `~/.claude`, on WSL and on Windows alike: the history, settings, skills and memory are shared, and [`switch`](#dotagents-switch) puts a profile's login in it. Two profiles can't hold the same account. Before 2.0.0 profiles were called accounts (`dotagents account add`, `accounts.json`); `install` moves `accounts.json` to `profiles.json`. For a profile, `profile add`:
+A profile is one claude.ai account the person holds (ADR 0009 and ADR 0011 in the workspace's `.artifacts/decisions/`). Every profile uses the same config folder, `~/.claude`, on WSL and on Windows alike: the history, settings, skills and memory are shared, and [`switch`](#dotagents-switch) puts a profile's login in it. Two profiles can't hold the same account. Before 2.0.0 profiles were called accounts (`dotagents account add`, `accounts.json`); `install` moves `accounts.json` to `profiles.json`. For a profile, `profile add`:
 
 - applies the configuration of `install` to `~/.claude`;
 - records the profile in `profiles.json`, next to `workspaces.json`;
@@ -103,7 +103,7 @@ dotagents switch personal --here   # only on this side
 dotagents switch --save work       # the login now in ~/.claude (after a /login) is work's
 ```
 
-For one person who holds several Claude seats (ADR 0009 in the workspace's `.artifacts/adr/`). Each side of the machine has one slot, `~/.claude` (its `.credentials.json`) with the `oauthAccount` block of `~/.claude.json`; the command line, the VS Code extension and the Desktop's Code tab in WSL mode read it, so they change together, and an open conversation goes on in the new account when you type "continue" in it.
+For one person who holds several Claude seats (ADR 0009 in the workspace's `.artifacts/decisions/`). Each side of the machine has one slot, `~/.claude` (its `.credentials.json`) with the `oauthAccount` block of `~/.claude.json`; the command line, the VS Code extension and the Desktop's Code tab in WSL mode read it, so they change together, and an open conversation goes on in the new account when you type "continue" in it.
 
 Every account's login is kept in a vault, one per profile and side, in `~/.config/dotagents/vault/<profile>/`, readable only by you. A switch:
 
