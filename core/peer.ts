@@ -3,7 +3,7 @@
 // Windows or WSL every time. Finding it runs a command on the other side, so it goes through an
 // adapter: the tests pass a fake one.
 
-import { spawnSync } from "node:child_process";
+import { execFile, spawnSync } from "node:child_process";
 import fs from "node:fs";
 import { type Peer, loadMachine, machineFile, saveMachine } from "./machine-state.ts";
 import { report, section } from "./output.ts";
@@ -40,6 +40,24 @@ export const findPeer: PeerFinder = () => {
     return fs.existsSync(home) ? { name: "WSL", home, nativeHome: native } : null;
   }
   return null;
+};
+
+// Whether the other side is up, without waking it: reading \\wsl.localhost starts the distro, so
+// Windows asks wsl.exe which distros run (its list comes out in UTF-16). From WSL, Windows is up.
+// Answers later, so a server that reads every 2 s never waits on wsl.exe.
+export type PeerUp = (peer: Peer) => boolean | Promise<boolean>;
+
+export const peerUp: PeerUp = (peer) => {
+  if (process.platform !== "win32") return true;
+  return new Promise((resolve) => {
+    execFile("wsl.exe", ["--list", "--running", "--quiet"], { encoding: "buffer", timeout: 10_000, windowsHide: true }, (err, stdout) => {
+      if (err) return resolve(false);
+      const names = stdout.toString("utf16le").replace(/\0/g, "").split(/\r?\n/).map((n) => n.trim().toLowerCase()).filter(Boolean);
+      // \\wsl.localhost\<distro>\home\me
+      const distro = peer.home.split("\\").filter(Boolean)[1]?.toLowerCase();
+      resolve(distro ? names.includes(distro) : names.length > 0);
+    });
+  });
 };
 
 export function applyPeer(find: PeerFinder = findPeer) {

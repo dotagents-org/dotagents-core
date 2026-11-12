@@ -24,7 +24,11 @@ import { skills, skillsAdd, skillsRemove } from "./surfaces/cli/skills.ts";
 import { update } from "./surfaces/cli/update.ts";
 import { usage } from "./surfaces/cli/usage.ts";
 import { startServer } from "./surfaces/web/server.ts";
-import { readUsage, usageJson } from "./core/snapshot.ts";
+import { readUsage, usageJson, watchPeer } from "./core/snapshot.ts";
+import { openDesktop } from "./core/desktop.ts";
+import { loadMachine, loadProfiles } from "./core/machine-state.ts";
+import { launcherDir } from "./core/profiles.ts";
+import { switchProfile } from "./core/switch.ts";
 import { LIVE_EVERY_MS, refreshUsage } from "./core/live.ts";
 import { untrack, workspaces } from "./surfaces/cli/workspaces.ts";
 import { UsageError, parseArgs } from "./core/common.ts";
@@ -37,23 +41,64 @@ const start: Command = {
   name: "start",
   usage: "[--port <n>]",
   summary: "start the dashboard's server on 127.0.0.1, live",
-  more: ["asks Anthropic for each profile's usage every minute;", "prints the address to open, with its token;", "Ctrl+C stops it"],
+  more: ["asks Anthropic for each profile's usage every minute;", "reads the other side only while it runs, never waking WSL;", "prints the address to open, with its token;", "Ctrl+C stops it"],
   group: "Profiles",
   async run({ args }) {
     const port = args.port === undefined ? undefined : Number(args.port);
     if (port !== undefined && !(Number.isInteger(port) && port >= 0 && port < 65536)) throw new UsageError(`--port takes a number, not ${args.port}`);
+    // The other side: whether it runs, asked every 5 s, and its running sessions, every 15 s.
+    const view = watchPeer();
+    // The refresh and the switch capture their events through one shared sink: one at a time, or
+    // one's failures land in the other's list.
+    let queue: Promise<unknown> = Promise.resolve();
+    const oneAtATime = <T>(fn: () => Promise<T>): Promise<T> => {
+      const run = queue.then(fn, fn);
+      queue = run.catch(() => {});
+      return run;
+    };
+    const known = (body: unknown) => {
+      const name = (body as { profile?: unknown } | null)?.profile;
+      return typeof name === "string" && loadProfiles().some((p) => p.name === name) ? name : null;
+    };
     const server = await startServer({
       read: () => {
         const now = new Date();
-        return usageJson(readUsage(now), now);
+        const json = usageJson(readUsage(now, view), now);
+        let peer;
+        try {
+          peer = loadMachine().peer;
+        } catch {
+          peer = undefined;
+        }
+        return peer ? { ...json, peer: { name: peer.name, up: view.up(peer) } } : json;
       },
       port,
+      // The tray panel's buttons.
+      actions: {
+        switch: async (body) => {
+          const name = known(body);
+          if (!name) return { status: 404, body: { ok: false, detail: "no such profile" } };
+          try {
+            const events = await oneAtATime(() => captureAsync(() => switchProfile({ name })));
+            const failed = events.filter((e) => e.kind === "result" && e.status === "failed");
+            return { status: failed.length ? 502 : 200, body: { ok: !failed.length, detail: failed.map((e) => ("detail" in e ? e.detail : "")).join("; ") || `now ${name}` } };
+          } catch (err) {
+            return { status: 409, body: { ok: false, detail: (err as Error).message } };
+          }
+        },
+        desktop: (body) => {
+          const name = known(body);
+          if (!name) return { status: 404, body: { ok: false, detail: "no such profile" } };
+          const opened = openDesktop(name, launcherDir());
+          return { status: opened.ok ? 200 : 409, body: opened };
+        },
+      },
     });
     console.log(`${brand()}  ${bold("start")}\n\nOpen ${server.url}\n${muted("Only this machine reaches it, and only with the token in that address. Ctrl+C stops it.")}`);
     // The live usage, every minute; a failure is printed when it changes, not on every tick.
     const said = new Map<string, string>();
     const tick = async () => {
-      const events = await captureAsync(() => refreshUsage());
+      const events = await oneAtATime(() => captureAsync(() => refreshUsage()));
       for (const e of events) {
         if (e.kind !== "result" || e.status === "ok") continue;
         const text = e.status === "failed" ? e.detail : "";

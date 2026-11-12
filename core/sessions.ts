@@ -9,7 +9,7 @@
 // that side's dotagents (`sessions --running`), when the caller passes that adapter. Either way a
 // transcript written in the last RECENT_MS counts as running too.
 
-import { spawnSync } from "node:child_process";
+import { execFile, spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { type AccountLabels, archiveFile, parseTranscript, promptText, renderArchive } from "../skills/session-archive/scripts/archive-session.ts";
@@ -186,6 +186,18 @@ export const peerRunning: PeerRunning = () => {
   if (run.status !== 0) return null;
   return new Set((run.stdout ?? "").split(/\r?\n/).map((l) => l.trim()).filter((l) => /^[0-9a-f-]{36}$/i.test(l)));
 };
+
+// The same question without blocking: a server that answers every 2 s can't wait the second or two
+// powershell.exe or wsl.exe takes to start.
+export const peerRunningLater = (): Promise<Set<string> | null> =>
+  new Promise((resolve) => {
+    const [command, args, cwd] = isWindows
+      ? ["wsl.exe", ["-e", "bash", "-lc", "dotagents sessions --running"], undefined]
+      : ["powershell.exe", ["-NoProfile", "-Command", "dotagents sessions --running"], "/mnt/c"];
+    execFile(command, args, { encoding: "utf8", timeout: 30_000, windowsHide: true, cwd }, (err, stdout) => {
+      resolve(err ? null : new Set(stdout.split(/\r?\n/).map((l) => l.trim()).filter((l) => /^[0-9a-f-]{36}$/i.test(l))));
+    });
+  });
 
 // peerRunning: how to ask the other side; without it, its sessions count as running only by RECENT_MS.
 export type ListOptions = { dirs?: ConfigDir[]; under?: string; now?: number; running?: ProcessProbe; peerRunning?: PeerRunning };

@@ -8,7 +8,7 @@ import path from "node:path";
 import { test, type TestContext } from "node:test";
 import { loadMachine, saveMachine, saveProfile } from "../core/machine-state.ts";
 import { applyPeer } from "../core/peer.ts";
-import { readUsage, usageJson } from "../core/snapshot.ts";
+import { readUsage, usageJson, watchPeer } from "../core/snapshot.ts";
 import { quiet } from "./helpers.ts";
 
 const NOW = new Date("2026-10-28T12:00:00Z");
@@ -113,4 +113,79 @@ test("a slot that holds another account's login doesn't lend its cache to the pr
   const work = readUsage(NOW).find((p) => p.name === "work")!;
   assert.equal(work.state, "other-account");
   assert.deepEqual(work.windows, []);
+});
+
+// The other side as a long-running reader sees it: asked whether it is up, and which sessions run.
+const known = (home: string, peer: string) => {
+  fs.writeFileSync(path.join(home, ".claude.json"), state("uuid-a", cache("uuid-a", "2026-10-28T09:00:00Z", 10)));
+  fs.writeFileSync(path.join(peer, ".claude.json"), state("uuid-a", cache("uuid-a", "2026-10-28T11:55:00Z", 70)));
+  fs.writeFileSync(path.join(peer, ".config", "dotagents", "profiles.json"), JSON.stringify({ version: 1, profiles: [{ name: "work", configDir: "C:\\Users\\me\\.claude", color: "#D77655", default: true }] }));
+  saveMachine({ peer: { name: "Windows", home: peer, nativeHome: "C:\\Users\\me" } });
+};
+
+test("a side that isn't up isn't read, so reading never wakes it", (t) => {
+  const { home, peer } = machine(t);
+  known(home, peer);
+  const [work] = readUsage(NOW, { up: () => false });
+  assert.equal(work.windows[0].pct, 10, "this side's own, though the other side's is newer");
+  assert.equal(work.from, undefined);
+});
+
+test("the other side's running sessions count for the account in its slot", (t) => {
+  const { home, peer } = machine(t);
+  known(home, peer);
+  fs.mkdirSync(path.join(peer, ".claude", "sessions"), { recursive: true });
+  const session = (pid: number, sessionId: string, status: string) => fs.writeFileSync(path.join(peer, ".claude", "sessions", `${pid}.json`), JSON.stringify({ pid, sessionId, status }));
+  session(1, "s-busy", "busy");
+  session(2, "s-waiting", "waiting");
+  session(3, "s-gone", "busy");
+  const [work, personal] = readUsage(NOW, { up: () => true, running: () => new Set(["s-busy", "s-waiting"]) });
+  assert.deepEqual(work.activity, { working: 1, waiting: 1 });
+  assert.equal(personal.activity, undefined);
+});
+
+test("watchPeer asks whether the side is up at most every 5 s, and for its sessions at most every 15 s", () => {
+  let clock = 0;
+  const asked = { up: 0, running: 0 };
+  const view = watchPeer({ up: () => (asked.up++, true), running: () => (asked.running++, new Set<string>()), now: () => clock });
+  const peer = { name: "WSL", home: "\\\\wsl.localhost\\Ubuntu\\home\\me", nativeHome: "/home/me" };
+  view.up(peer);
+  view.running!(peer);
+  clock = 4_000;
+  view.up(peer);
+  view.running!(peer);
+  assert.deepEqual(asked, { up: 1, running: 1 });
+  clock = 15_000;
+  view.up(peer);
+  view.running!(peer);
+  assert.deepEqual(asked, { up: 2, running: 2 });
+});
+
+test("the other side is asked about its sessions only when one looks alive there, and a failed answer keeps the last", (t) => {
+  const { home, peer } = machine(t);
+  known(home, peer);
+  let asked = 0;
+  let answer: Set<string> | null = new Set(["s-busy"]);
+  let clock = 0;
+  const view = watchPeer({ up: () => true, running: () => (asked++, answer), now: () => clock });
+  fs.mkdirSync(path.join(peer, ".claude", "sessions"), { recursive: true });
+  fs.writeFileSync(path.join(peer, ".claude", "sessions", "1.json"), JSON.stringify({ pid: 1, sessionId: "s-idle", status: "idle" }));
+  readUsage(NOW, view);
+  assert.equal(asked, 0, "nothing busy or waiting there: not asked, so an idle WSL can shut down");
+  fs.writeFileSync(path.join(peer, ".claude", "sessions", "2.json"), JSON.stringify({ pid: 2, sessionId: "s-busy", status: "busy" }));
+  assert.deepEqual(readUsage(NOW, view)[0].activity, { working: 1, waiting: 0 });
+  answer = null;
+  clock = 20_000;
+  assert.deepEqual(readUsage(NOW, view)[0].activity, { working: 1, waiting: 0 }, "the side couldn't answer: the last answer stands");
+  assert.equal(asked, 2);
+});
+
+test("watchPeer never waits for the other side: the last answer stands until the new one comes", async () => {
+  let resolve: (v: Set<string>) => void = () => {};
+  const view = watchPeer({ up: () => true, running: () => new Promise((r) => (resolve = r)), now: () => 0 });
+  const peer = { name: "WSL", home: "\\\\wsl.localhost\\Ubuntu\\home\\me", nativeHome: "/home/me" };
+  assert.equal(view.running!(peer), null, "nothing known yet, and no wait");
+  resolve(new Set(["s1"]));
+  await new Promise((r) => setImmediate(r));
+  assert.deepEqual([...view.running!(peer)!], ["s1"]);
 });
