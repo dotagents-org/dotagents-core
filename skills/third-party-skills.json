@@ -46,6 +46,11 @@
       "description": "Helps users discover and install agent skills when they ask questions like \"how do I do X\", \"find a skill for X\", \"is there a skill that can...\", or express interest in extending capabilities. This skill should be used when the user is looking for functionality that might exist as an installable skill."
     },
     {
+      "name": "frontend-design",
+      "source": "anthropics/claude-plugins-official",
+      "description": "Guidance for distinctive, intentional visual design when building new UI or reshaping an existing one. Helps with aesthetic direction, typography, and making choices that don't read as templated defaults."
+    },
+    {
       "name": "git-guardrails-claude-code",
       "source": "mattpocock/skills",
       "description": "Set up Claude Code hooks to block dangerous git commands (push, reset --hard, clean, branch -D, etc.) before they execute. Use when user wants to prevent destructive git operations, add git safety hooks, or block git push/reset in Claude Code."
@@ -74,6 +79,11 @@
       "name": "humanizer",
       "source": "blader/humanizer",
       "description": "Rewrite AI-sounding text so it reads like the writer without changing what it says. Use when editing or reviewing prose for AI tells: not-X-but-Y contrasts, one-line closers, staged openers, forced triads, dashes everywhere, inflated claims, sales language, stock AI words, bold labels, or filler. Based on Wikipedia's \"Signs of AI writing.\""
+    },
+    {
+      "name": "humanizer-pt-br",
+      "source": "https://github.com/mackswendhell/humanizer-pt-br",
+      "description": "Remove traços de escrita gerada por IA de textos em português brasileiro, tornando-os mais naturais, humanos e com personalidade real. Detecta e corrige padrões típicos de IA: linguagem promocional, estruturas mecânicas, vocabulário genérico de chatbot, excesso de conectivos, frases de preenchimento, análises rasas com gerúndio, três elementos em lista, atribuições vagas, conclusões genéricas, tom bajulador, ganchos dramáticos artificiais, intervalos falsos, ênfase indevida em notabilidade e aspas tipográficas. Ideal para roteiros falados, artigos, posts, roteiros de vídeo, e qualquer texto que precise soar como escrito por um ser humano real. Gatilhos: humanizar texto, remover IA, texto artificial, soar natural, roteiro humano, reescrever texto, tirar traços de IA, texto robótico, parece IA"
     },
     {
       "name": "implement",
