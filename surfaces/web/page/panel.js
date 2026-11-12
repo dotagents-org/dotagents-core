@@ -138,7 +138,7 @@
               "div",
               { class: "line" },
               el("span", { class: "name", style: { color: nameColor(p.color) } }, p.name),
-              el("button", { type: "button", class: "icon claude", title: `Open ${p.name}'s Claude Desktop`, "aria-label": `Open ${p.name}'s Claude Desktop`, onclick: run("desktop", { profile: p.name }, `opening ${p.name}...`) }, icon([CLAUDE]))
+              el("button", { type: "button", class: "icon", style: { color: nameColor(p.color) }, title: `Open ${p.name}'s Claude Desktop`, "aria-label": `Open ${p.name}'s Claude Desktop`, onclick: run("desktop", { profile: p.name }, `opening ${p.name}...`) }, icon([CLAUDE]))
             ),
             status && el("span", { class: `status small ${p.avatar === "error" ? "high" : "muted"}` }, status)
           )

@@ -63,8 +63,6 @@ button.icon { padding: 4px; line-height: 0; border-radius: 6px; }
 button.icon svg { width: 15px; height: 15px; }
 /* The name, and the Desktop's button at the end of its line. */
 .who .line { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
-/* Claude's mark in Claude's color. */
-button.claude, button.claude:hover:not(:disabled) { color: #d97757; }
 /* Where the account is: equal parts, one per side and "both" between them; filled where it is. */
 .sides { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; margin-top: auto; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
 .sides button { padding: 4px 0; border-radius: 0; }
