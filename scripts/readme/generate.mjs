@@ -25,10 +25,10 @@ const CHAR = 0.6; // a monospace character's width, in em
 const esc = (s) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 const width = (text, size) => text.length * size * CHAR;
 
-// One avatar, its ids made unique so several fit in one file.
-function avatarSvg(file, tag) {
+// One avatar, without its <svg> wrapper, to place inside a picture.
+function avatarSvg(file) {
   const svg = fs.readFileSync(path.join(avatarsDir, file), "utf8");
-  return svg.replace(/oba-/g, `oba-${tag}-`).replace(/^<svg[^>]*>/, "").replace(/<\/svg>$/, "").replace(/<title>[^<]*<\/title>/g, "");
+  return svg.replace(/^<svg[^>]*>/, "").replace(/<\/svg>$/, "").replace(/<title>[^<]*<\/title>/g, "");
 }
 
 // --- Building blocks ---------------------------------------------------------------------------
@@ -102,8 +102,8 @@ function write(name, make) {
 }
 
 // --- The avatars at work: the brand and the two accounts, hopping ------------------------------
-function animated(who, tag) {
-  const strip = fs.readFileSync(path.join(avatarsDir, "..", "strip", `${who}-working.svg`), "utf8").replace(/oba-/g, `oba-${tag}-`);
+function animated(who) {
+  const strip = fs.readFileSync(path.join(avatarsDir, "..", "strip", `${who}-working.svg`), "utf8");
   // The strip puts a frame every 100, but an avatar draws up to 6 past its frame, the margin the
   // -6 -6 112 112 window shows: the neighbours' edges would peek in. A frame every 200 keeps them out.
   let frames = 0;
@@ -121,7 +121,7 @@ write("avatars", (t) => {
   let body = "";
   who.forEach(([name], i) => {
     const x = i * (size + gap);
-    body += animated(name, `h${i}`).replace("<svg ", `<svg x="${x}" y="0" width="${size}" height="${size}" `);
+    body += animated(name).replace("<svg ", `<svg x="${x}" y="0" width="${size}" height="${size}" `);
     body += `<text x="${x + size / 2}" y="${size + 24}" font-size="13" font-weight="700" text-anchor="middle" fill="${name === "dotagents" ? t.text : t[name]}">${name}</text>`;
   });
   return frame(w, size + 34, t, body, "The dotagents avatars at work: the brand, turing and lovelace, hopping");
@@ -141,7 +141,7 @@ write("states", (t) => {
     const y = top + i * row;
     body += `<text x="0" y="${y + size / 2 + 5}" font-size="13" font-weight="700" fill="${who === "dotagents" ? t.text : t[who]}">${who}</text>`;
     STATES.forEach(([state], j) => {
-      body += `<svg x="${left + j * col}" y="${y}" width="${size}" height="${size}" viewBox="-6 -6 112 112" overflow="visible">${avatarSvg(`${who}-${state}.svg`, `s${i}${j}`)}</svg>`;
+      body += `<svg x="${left + j * col}" y="${y}" width="${size}" height="${size}" viewBox="-6 -6 112 112" overflow="visible">${avatarSvg(`${who}-${state}.svg`)}</svg>`;
     });
   });
   return frame(left + STATES.length * col - (col - size) + 30, top + 3 * row - (row - size) + 4, t, body, "The avatars' states: the eyes and the dot say how each account is");
@@ -190,7 +190,7 @@ write("git-clean", (t) => {
 
 // --- Several accounts, one view ----------------------------------------------------------------
 write("accounts", (t) => {
-  const tu = avatarSvg("turing-ok.svg", "at"), lo = avatarSvg("lovelace-working.svg", "al");
+  const tu = avatarSvg("turing-ok.svg"), lo = avatarSvg("lovelace-working.svg");
   let b = group(t, { x: 0, y: 0, w: 300, h: 300, label: "profiles" });
   b += card(t, { x: 20, y: 40, w: 260, h: 110, title: "turing", lines: ["a claude.ai account,", "its login in a vault", "per side"], icon: tu, accent: t.turing });
   b += card(t, { x: 20, y: 170, w: 260, h: 110, title: "lovelace", lines: ["another account,", "its own vault and", "its own Desktop app"], icon: lo, accent: t.lovelace });

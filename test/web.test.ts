@@ -107,11 +107,11 @@ test("an action runs only by POST, with the token in the header and a JSON body,
   assert.deepEqual(calls, [{ profile: "work" }]);
 });
 
-test("the page and its vendored scripts are served by plain name only, never from outside the page", async (t) => {
+test("the page's files are served by plain name only, never from outside the page", async (t) => {
   const server = await startServer({ port: 0, read: () => ({}), token: "secret" });
   t.after(() => server.close());
-  for (const file of ["/", "/panel.js", "/avatar.js", "/vendor/open-bot-avatar.js"]) assert.equal((await get(server.port, file)).status, 200, file);
-  assert.equal((await get(server.port, "/vendor/nothing.js")).status, 404);
-  assert.equal((await get(server.port, "/vendor/sub/open-bot-avatar.js")).status, 404);
-  assert.equal((await get(server.port, "/vendor/%2e%2e/%2e%2e/package.json")).status, 404, "never outside the page");
+  for (const file of ["/", "/panel.js", "/avatar.js"]) assert.equal((await get(server.port, file)).status, 200, file);
+  assert.equal((await get(server.port, "/nothing.js")).status, 404);
+  assert.equal((await get(server.port, "/sub/avatar.js")).status, 404);
+  assert.equal((await get(server.port, "/%2e%2e/package.json")).status, 404, "never outside the page");
 });

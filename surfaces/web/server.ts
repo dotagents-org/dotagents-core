@@ -123,9 +123,9 @@ export async function startServer({ read, port = 7337, token = randomBytes(24).t
       return send(404, "not found");
     }
 
-    // The page's own files, by name only: nothing outside page/, and its vendored scripts in page/vendor/.
+    // The page's own files, by name only: nothing outside page/.
     const name = url.pathname === "/" ? "index.html" : url.pathname.slice(1);
-    if (!/^(vendor\/)?[\w-]+\.(html|js|css|svg|png)$/.test(name)) return send(404, "not found");
+    if (!/^[\w-]+\.(html|js|css|svg|png)$/.test(name)) return send(404, "not found");
     const file = path.join(PAGE_DIR, name);
     if (!fs.existsSync(file)) return send(404, "not found");
     send(200, name.endsWith(".png") ? fs.readFileSync(file) : fs.readFileSync(file, "utf8"), TYPES[path.extname(name)]);
