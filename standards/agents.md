@@ -91,11 +91,30 @@ loads only the rules without `paths`.
 | Modular instructions | `.agents/rules/<topic>.md` | `.claude/rules` junction |
 | Subagents | `.agents/agents/<name>.md` | `.claude/agents` junction |
 | Hooks | scripts in `.agents/hooks/` | registered in `.claude/settings.json` |
-| Settings | not in `.agents/` | `.claude/settings.json` |
+| Settings | not in `.agents/` | `.claude/settings.json` and `.claude/settings.local.json` |
 | MCP | not in `.agents/` | `.mcp.json` |
 | Commands | don't use: make it a skill | the skill already is `/name` |
 
-Settings and MCP are in Claude Code's own format, so they go straight into its files. Credentials never go into these files. An MCP server that only exists on one
+Settings and MCP are in Claude Code's own format, so they go straight into its files. Credentials never go into these files.
+
+**Where a setting goes.** Three files, from the widest to the narrowest:
+
+- **Global**, `config/claude/settings.json` in dotagents (`~/.claude/settings.json`): only what
+  holds in every project, such as the theme, the effort per model or the update channel.
+  Nothing that names a project, a path or a sensitive file: the dotagents repository can be
+  public.
+- **Workspace**, `.claude/settings.json`: what the project needs, whoever runs it: hooks,
+  `plansDirectory`, the plugins and marketplaces the project uses.
+- **Local**, `.claude/settings.local.json`: what is yours or this machine's in this project:
+  `autoMemoryDirectory`, the standing permission approvals Claude Code saves there, a model or
+  effort different from the global one.
+
+Claude Code saves `/model`, `/effort`, `/plugin` and the auto mode setup in the global file,
+which in dotagents is the repository's file: check its `git diff` before a commit, and move a
+key that belongs to one project into that project's files. The exception is `autoMode`, read
+only from the global (or managed) file
+([settings reference](https://code.claude.com/docs/en/settings-reference.md)): keep it there,
+written for every project, never for one. An MCP server that only exists on one
 machine goes in the tool's local scope, not in the project file.
 
 ---
@@ -114,7 +133,8 @@ machine goes in the tool's local scope, not in the project file.
 │   ├── rules  → .agents/rules   junction
 │   ├── skills → .agents/skills  junction
 │   ├── agents → .agents/agents  junction, when it exists
-│   └── settings.json
+│   ├── settings.json            what the project needs
+│   └── settings.local.json      yours or this machine's (memory folder, approvals)
 ├── .artifacts/                  INDEX.md, the map of the documents, and the rest (.artifacts/ standard)
 └── <git-checkout>/
 ```
