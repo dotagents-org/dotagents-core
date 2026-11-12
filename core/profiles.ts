@@ -18,8 +18,9 @@ import { checkItem, checkWarn, displayPath, report, section } from "./output.ts"
 import { state } from "./state.ts";
 import { profileAccount } from "./switch.ts";
 
-// The colors given to profiles in the order they are added, unless --color picks one.
-export const PALETTE = ["#D77655", "#376B80"];
+// The colors given to profiles in the order they are added, unless --color picks one. None is
+// near a status color (red, amber, green, blue), which the avatar's dot and the bars use.
+export const PALETTE = ["#D77655", "#376B80", "#7A5C9E", "#B5607F", "#6B7F4A", "#5B6478"];
 
 const SAFE_PROFILE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const HEX = /^#[0-9a-fA-F]{6}$/;
