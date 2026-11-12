@@ -238,4 +238,4 @@ Issues and pull requests are welcome: a bug, an idea, a skill worth sharing, a b
 
 ## License
 
-[MIT](LICENSE). Third-party skills keep their own licenses; the avatars' renderer, [open-bot-avatar](https://www.npmjs.com/package/open-bot-avatar), is MIT too.
+[MIT](LICENSE). Third-party skills keep their own licenses.

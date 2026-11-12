@@ -60,7 +60,7 @@ class PanelView {
     webview.options = { enableScripts: true, localResourceRoots: [this.root] };
     const file = (name) => webview.asWebviewUri(vscode.Uri.joinPath(this.root, name));
     const csp = `default-src 'none'; style-src ${webview.cspSource}; script-src ${webview.cspSource};`;
-    const scripts = ["vendor/open-bot-avatar.js", "avatar.js", "panel.js"].map((f) => `<script src="${file(f)}"></script>`).join("");
+    const scripts = ["avatar.js", "panel.js"].map((f) => `<script src="${file(f)}"></script>`).join("");
     webview.html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="${csp}"><link rel="stylesheet" href="${file("panel.css")}"></head><body><main id="panel" class="panel" aria-live="polite"></main>${scripts}</body></html>`;
     webview.onDidReceiveMessage(async (m) => {
       if (m.type === "ready") this.post();
