@@ -81,7 +81,7 @@ A profile is one claude.ai account the person holds (ADR 0009 and ADR 0011 in th
 Then save the profile's login, once on each side: sign in with `claude auth login`, which puts the account in `~/.claude`, and run `dotagents switch --save personal`. In the second Desktop app, sign in with **e-mail and code**: Google sign-in returns to the normal app. Links `claude://` also open the normal app, and an app update reopens only the normal one. Running it again changes nothing.
 
 - Only one profile is the default: the one the normal Desktop app opens.
-- `--color #RRGGBB` sets the profile's color in the listings and its avatar. Without it, profiles get `#D77655`, `#376B80`, `#7A5C9E`, `#B5607F`, `#6B7F4A` and `#5B6478`, in the order they are added.
+- `--color #RRGGBB` sets the profile's color in the listings and its avatar. Without it, profiles get `#D77655`, `#376B80`, `#7A5C9E`, `#B5607F`, `#6B7F4A` and `#5B6478`, in the order they are added. The avatar's shape comes from the profile's name, always the same.
 
 ## dotagents profile list
 
