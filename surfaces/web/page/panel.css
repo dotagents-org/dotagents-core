@@ -40,10 +40,10 @@ body.vscode-light .panel, body.vscode-dark .panel, body.vscode-high-contrast .pa
 .muted { color: var(--muted); }
 .small { font-size: 11px; }
 
-.card { border: 1px solid var(--border); border-radius: 10px; padding: 12px; display: flex; flex-direction: column; gap: 8px; background: var(--card); min-width: 0; }
+.card { border: 1px solid var(--border); border-radius: 10px; padding: 12px; display: flex; flex-direction: column; gap: 8px; background: var(--card); min-width: 0; container-type: inline-size; }
 .who { display: flex; align-items: center; gap: 12px; }
 .who .names { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
-.name { font-weight: 600; font-size: 15px; }
+.name { font-weight: 600; font-size: 15px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .status.high { color: var(--high); }
 
 /* The avatar: a canvas avatar.js paints, live. */
@@ -86,3 +86,15 @@ button.icon.busy svg { animation: turn 1s linear infinite; }
 @media (prefers-reduced-motion: reduce) { .busy, button.icon.busy svg { animation: none; } }
 .message { margin: 0; text-align: center; font-size: 11px; color: var(--muted); }
 .message.high { color: var(--high); }
+
+/* A card narrower than its rows (the side bar dragged very thin): the avatar above the name, each
+   window's bar on a line of its own under the label and the percentage, and the sides one under
+   the other, so nothing spills past the card's border. */
+@container (max-width: 240px) {
+  .who { flex-direction: column; align-items: stretch; gap: 6px; }
+  .window { grid-template-columns: 1fr auto; }
+  .window .bar { grid-column: 1 / -1; grid-row: 2; margin: 2px 0; }
+  .window .note { grid-column: 1 / -1; }
+  .sides { grid-auto-flow: row; }
+  .sides button + button { border-left: 0; border-top: 1px solid var(--border); }
+}
