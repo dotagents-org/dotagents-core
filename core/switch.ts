@@ -7,6 +7,7 @@
 // Always manual (ADR 0001). Credentials are copied whole and never printed.
 
 import { spawnSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { defaultConfigDir, stateFile } from "./claude-code.ts";
@@ -14,8 +15,9 @@ import { type Peer, type Profile, loadMachine, loadProfiles, stateDir } from "./
 import { checkItem, checkWarn, report, section } from "./output.ts";
 import { state } from "./state.ts";
 
-// A login: the .credentials.json as Claude Code wrote it, and the account it belongs to.
-type Login = { credentials: string; account: Record<string, unknown>; accountUuid: string };
+// A login: the .credentials.json as Claude Code wrote it, the file it came from, and the account
+// it belongs to.
+type Login = { credentials: string; file: string; account: Record<string, unknown>; accountUuid: string };
 
 const slotDir = () => defaultConfigDir();
 const credentialsIn = (dir: string) => path.join(dir, ".credentials.json");
@@ -39,7 +41,7 @@ const loginOf = (credentialsFile: string, account: unknown): Login | null => {
   } catch {
     return null;
   }
-  return { credentials, account: a, accountUuid: a.accountUuid };
+  return { credentials, file: credentialsFile, account: a, accountUuid: a.accountUuid };
 };
 
 const slotLogin = () => loginOf(credentialsIn(slotDir()), readJson(stateFile(slotDir()))?.oauthAccount);
@@ -201,6 +203,7 @@ function switchHere(name: string | undefined, save: string | undefined, afterSav
   const wanted = knownLogin(target);
   if (!wanted) throw new Error(`There is no login saved for ${name}: put it in the slot with claude auth login, then run dotagents switch --save ${name}`);
   const slot = slotLogin();
+  const refused = refusedLogin(name, slot && slot.accountUuid === wanted.accountUuid ? slot : wanted);
 
   if (slot && slot.accountUuid === wanted.accountUuid) {
     section("Slot");
@@ -229,6 +232,7 @@ function switchHere(name: string | undefined, save: string | undefined, afterSav
       report("updated", slotDir(), `now ${name} (${wanted.account.emailAddress ?? wanted.accountUuid})`);
     }
   }
+  if (refused) checkWarn(`${name}'s login was refused by Anthropic`, renewHint(name));
   return name;
 }
 
@@ -263,12 +267,44 @@ function peerLogins(peer: Peer, uuids: Map<string, string>) {
   };
 }
 
-function checkExpiry(name: string, side: string, login: Login | null, now: Date) {
+const renewHint = (name: string) => `renew it: put ${name} in the slot (dotagents switch ${name} --here), run claude auth login, then dotagents switch --save ${name}`;
+
+// Names one login's refresh token without keeping it: a short hash, which tells the login a
+// refusal was about from a new one (a sign-in or a renewal brings a new refresh token), while a
+// copy (a switch, the vault) keeps the same. Null for credentials without one.
+export function loginMark(credentials: string): string | null {
+  try {
+    const token = JSON.parse(credentials)?.claudeAiOauth?.refreshToken;
+    return typeof token === "string" && token ? createHash("sha256").update(token).digest("hex").slice(0, 16) : null;
+  } catch {
+    return null;
+  }
+}
+
+// Whether Anthropic refused this login: the live usage marks the profile with the login it was
+// refused (refused in <state>/usage/<profile>.json, core/live.ts). A token revoked on the server
+// still has a good date, so the date alone can't tell.
+function refusedLogin(name: string, login: Login | null, dir = stateDir()) {
+  const mark = login && loginMark(login.credentials);
+  return mark !== null && readJson(path.join(dir, "usage", `${name}.json`))?.refused === mark;
+}
+
+// A slot whose .claude.json names an account but that has no .credentials.json: signed out (a
+// logout elsewhere deletes the file), though every date still looks good.
+function checkSlot(home: string, side: string, uuids: Map<string, string>) {
+  const account = readJson(path.join(home, ".claude.json"))?.oauthAccount as Record<string, unknown> | undefined;
+  if (typeof account?.accountUuid !== "string" || fs.existsSync(path.join(home, ".claude", ".credentials.json"))) return;
+  const owner = [...uuids].find(([, uuid]) => uuid === account.accountUuid)?.[0];
+  checkItem(false, `the slot on ${side} has no login${owner ? ` (it names ${owner})` : ""}`, `sign in there with claude auth login, then dotagents switch --save ${owner ?? "<profile>"}`);
+}
+
+function checkExpiry(name: string, side: string, login: Login | null, now: Date, stateHome?: string) {
+  if (refusedLogin(name, login, stateHome)) return checkItem(false, `${name} on ${side}: Anthropic refused the login`, renewHint(name));
   const expires = expiryOf(login);
   if (expires === null) return;
   const date = new Date(expires).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
   const days = Math.floor((expires - now.getTime()) / DAY);
-  const renew = `renew it: put ${name} in the slot (dotagents switch ${name} --here), run claude auth login, then dotagents switch --save ${name}`;
+  const renew = renewHint(name);
   if (expires <= now.getTime()) return checkItem(false, `${name} on ${side}: login expired on ${date}`, renew);
   if (days < WARN_DAYS) return checkWarn(`${name} on ${side}: login expires in ${days} day${days === 1 ? "" : "s"} (${date})`, renew);
   checkItem(true, `${name} on ${side}: login good until ${date}`);
@@ -289,8 +325,10 @@ export function verifyLogins(now = new Date()) {
     if (known) uuids.set(p.name, known.accountUuid);
     checkExpiry(p.name, sideName(), slot && known && slot.accountUuid === known.accountUuid ? slot : known, now);
   }
+  checkSlot(path.dirname(slotDir()), sideName(), uuids);
   const peer = loadMachine().peer;
   if (!peer) return;
   const other = peerLogins(peer, uuids);
-  for (const p of loadProfiles()) checkExpiry(p.name, peer.name, other(p.name), now);
+  for (const p of loadProfiles()) checkExpiry(p.name, peer.name, other(p.name), now, path.join(peer.home, ".config", "dotagents"));
+  checkSlot(peer.home, peer.name, uuids);
 }

@@ -84,7 +84,7 @@ Then save the profile's login, once on each side: sign in with `claude auth logi
 
 ## dotagents profile list
 
-Lists the profiles (color, default, the e-mail of the saved login, and which one is in the slot now) and checks them: each uses `~/.claude`, each has a saved login, and no two hold the same claude.ai account. It also warns when a variable such as `ANTHROPIC_API_KEY` is set in the shell, and checks the shared configuration: a settings copy (Windows) changed in a profile or behind the repository, a [`claude/global-config.json`](global-configuration.md) option changed in a profile, and changes to either file not committed yet. Last, it says until when each profile's saved login lasts, on each side of the machine (a login lasts a few weeks, and Claude Code renews it only up to that date): a week ahead it warns, and once a login has expired the item fails, with how to renew it. In WSL it also fails when `~/.claude` is a link to another folder: Windows reaches WSL's files through `\\wsl.localhost`, which doesn't follow a Linux link, so the Desktop's Code tab in WSL mode can't install its server there; the item says how to make it the folder. Exits with 1 when an item fails.
+Lists the profiles (color, default, the e-mail of the saved login, and which one is in the slot now) and checks them: each uses `~/.claude`, each has a saved login, and no two hold the same claude.ai account. It also warns when a variable such as `ANTHROPIC_API_KEY` is set in the shell, and checks the shared configuration: a settings copy (Windows) changed in a profile or behind the repository, a [`claude/global-config.json`](global-configuration.md) option changed in a profile, and changes to either file not committed yet. Last, it says until when each profile's saved login lasts, on each side of the machine (a login lasts a few weeks, and Claude Code renews it only up to that date): a week ahead it warns, and once a login has expired the item fails, with how to renew it. A date can't tell a login revoked on the server, so the item also fails when the live usage (`usage --refresh`, `start`) was refused by Anthropic for that same login, wherever a switch copied it (a new sign-in or a renewal brings another and clears it), and when a side's slot names an account in `.claude.json` but has no `.credentials.json` (a logout elsewhere deletes it). In WSL it also fails when `~/.claude` is a link to another folder: Windows reaches WSL's files through `\\wsl.localhost`, which doesn't follow a Linux link, so the Desktop's Code tab in WSL mode can't install its server there; the item says how to make it the folder. Exits with 1 when an item fails.
 
 ## dotagents profile remove
 
@@ -109,7 +109,7 @@ Every account's login is kept in a vault, one per profile and side, in `~/.confi
 
 1. saves the login in the slot back to its profile's vault, since Claude Code may have renewed the token, and saves it again if a running session renews it while the switch runs;
 2. writes the chosen profile's login into the slot, each file whole and in one step, leaving the rest of `~/.claude.json` as it is;
-3. checks that the slot holds that account.
+3. checks that the slot holds that account, and warns when Anthropic refused that login (as `profile list` reads it), even when it was already in the slot.
 
 The switch and the renewals of `usage --refresh` take the same lock (`logins.lock` in the state folder), so neither copies a token the other is spending.
 
