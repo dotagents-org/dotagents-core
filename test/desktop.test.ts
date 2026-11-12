@@ -8,7 +8,7 @@ import os from "node:os";
 import path from "node:path";
 import { test, type TestContext } from "node:test";
 import { dropProfile, installProfiles, launcherDir, setUpProfile } from "../core/profiles.ts";
-import { type Shortcut, type Shortcuts, profileIcon, appTitle, desktopDataDir, desktopExe, desktopLauncherFile, powershellShortcuts, shortcutFile, trayStartupFile } from "../core/desktop.ts";
+import { type Shortcut, type Shortcuts, openDesktop, profileIcon, appTitle, desktopDataDir, desktopExe, desktopLauncherFile, powershellShortcuts, shortcutFile, trayStartupFile } from "../core/desktop.ts";
 import { state } from "../core/state.ts";
 import { taskbarWatcher, taskbarWatcherFile } from "../core/taskbar.ts";
 import { REPO, quiet } from "./helpers.ts";
@@ -182,4 +182,19 @@ test("install takes away the dropped tray panel's launcher, but not a file there
   quiet();
   installProfiles(REPO, { desktop: fakeShortcuts().desktop });
   assert.ok(fs.existsSync(launcher), "not dotagents': kept");
+});
+
+test("Open Desktop from WSL runs the Windows side's launcher through the interop", { skip: process.platform === "win32" }, (t) => {
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), "dotagents-peer-"));
+  t.after(() => fs.rmSync(home, { recursive: true, force: true }));
+  const peer = { name: "Windows", home, nativeHome: "C:\\Users\\me" };
+  const ran: string[][] = [];
+  const run = (command: string, args: string[]) => void ran.push([command, ...args]);
+  const toWindows = (p: string) => `C:\\win${p.slice(home.length).replace(/\//g, "\\")}`;
+  assert.equal(openDesktop("work", "/unused", { run, toWindows, peer }).ok, false, "no launcher there yet");
+  fs.mkdirSync(path.join(home, ".local", "bin"), { recursive: true });
+  fs.writeFileSync(path.join(home, ".local", "bin", "claude-desktop-work.vbs"), "");
+  const opened = openDesktop("work", "/unused", { run, toWindows, peer });
+  assert.deepEqual([opened.ok, ran], [true, [["wscript.exe", "C:\\win\\.local\\bin\\claude-desktop-work.vbs"]]]);
+  assert.equal(openDesktop("work", "/unused", { run, toWindows, peer: undefined }).ok, false, "no Windows side: nothing to open");
 });

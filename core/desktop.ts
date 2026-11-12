@@ -17,6 +17,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { ensureDir, lstat, removeGenerated, writeGenerated } from "./common.ts";
+import { loadMachine } from "./machine-state.ts";
 import { checkItem, checkWarn, report, section } from "./output.ts";
 import { state } from "./state.ts";
 import { SHORTCUT_APP_ID_CS, appIdFor, taskbarWatcher, taskbarWatcherFile } from "./taskbar.ts";
@@ -108,14 +109,24 @@ function ensureShortcut(lnk: string, wanted: Shortcut, shortcuts: Shortcuts) {
 }
 
 // The data folder, the launcher and the shortcut of a profile's Desktop app.
-// Opens a profile's Desktop app through its launcher, as its Start menu shortcut does (the tray
-// panel's "Open Desktop").
-export function openDesktop(name: string, launcherDir: string): { ok: boolean; detail: string } {
-  if (process.platform !== "win32") return { ok: false, detail: "the Desktop app opens on Windows" };
-  const launcher = desktopLauncherFile(launcherDir, name);
-  if (!fs.existsSync(launcher)) return { ok: false, detail: `${name} has no Desktop app here; add it with: dotagents profile add ${name}` };
+// Opens a profile's Desktop app through its launcher, as its Start menu shortcut does (the panel's
+// "Open Desktop"). From WSL it runs the Windows side's launcher, through the interop (wscript.exe
+// and the launcher's Windows path), since the app lives on Windows.
+export type Launch = (command: string, args: string[]) => void;
+const launch: Launch = (command, args) => {
   // An error here (wscript missing) is the launcher's: it never takes the server down.
-  spawn(wscript(), [launcher], { detached: true, stdio: "ignore", windowsHide: true }).on("error", () => {}).unref();
+  spawn(command, args, { detached: true, stdio: "ignore", windowsHide: true }).on("error", () => {}).unref();
+};
+const windowsPath = (p: string) => spawnSync("wslpath", ["-w", p], { encoding: "utf8" }).stdout.trim();
+
+export function openDesktop(name: string, launcherDir: string, { run = launch, toWindows = windowsPath, peer = loadMachine().peer } = {}): { ok: boolean; detail: string } {
+  const here = process.platform === "win32";
+  if (!here && peer?.name !== "Windows") return { ok: false, detail: "the Desktop app opens on Windows" };
+  // On Windows, this side's launcher; from WSL, the one in the Windows home (its ~/.local/bin).
+  const launcher = here ? desktopLauncherFile(launcherDir, name) : desktopLauncherFile(path.join(peer!.home, ".local", "bin"), name);
+  if (!fs.existsSync(launcher)) return { ok: false, detail: `${name} has no Desktop app; add it on Windows with: dotagents profile add ${name}` };
+  if (here) run(wscript(), [launcher]);
+  else run("wscript.exe", [toWindows(launcher)]);
   return { ok: true, detail: `opening ${appTitle(name)}` };
 }
 
