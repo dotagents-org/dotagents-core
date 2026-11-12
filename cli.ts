@@ -172,7 +172,7 @@ ${title("Options")}
   ${bold("--short")}      (usage) one line, for a prompt or a status line
   ${bold("--json")}       (usage, sessions) the data, for scripts
   ${bold("--all")}        (sessions) every project's sessions, not only this folder's; (login) every login running out
-  ${bold("--refresh")}    (usage) ask Claude Code for fresh numbers first
+  ${bold("--refresh")}    (usage) ask Anthropic for fresh numbers first
   ${bold("--no-pull")}    (update) skip git pull, only reapply
   ${bold("--no-archive")} (sessions rm) delete without archiving
   ${bold("--from")}       (settings pull) the profile to take the settings from
