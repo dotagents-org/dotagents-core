@@ -49,8 +49,8 @@ dotagents update          # on the other machine
 ## New machine
 
 ```bash
-git clone git@github.com:<you>/dotagents.git
-cd dotagents && npm install && npm link && dotagents install
+git clone git@github.com:<you>/dotagents-cli.git
+cd dotagents-cli && npm install && npm link && dotagents install
 # for each workspace copied or cloned to this machine (links don't travel with the files):
 dotagents init <workspace>
 cd <workspace> && npx skills experimental_install   # third-party skills, from the lock
