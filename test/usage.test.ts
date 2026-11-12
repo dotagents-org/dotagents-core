@@ -71,6 +71,8 @@ test("the pace projects every window to its reset, says when one runs out, and w
   assert.deepEqual(pace({ kind: "session", pct: 90, resetsAt: at("2026-10-28T14:00:00Z"), reset: false }, NOW), { atResetPct: 150, runsOutAt: at("2026-10-28T12:20:00Z") });
   // 10 minutes into the window: too early, the projection starts once 10% (30 minutes) has gone by.
   assert.deepEqual(pace({ kind: "session", pct: 40, resetsAt: at("2026-10-28T16:50:00Z"), reset: false }, NOW), { from: at("2026-10-28T12:20:00Z") });
+  // At the limit already: it ran out, nothing left to project.
+  assert.equal(pace({ kind: "session", pct: 100, resetsAt: at("2026-10-28T14:00:00Z"), reset: false }, NOW), null);
   // Nothing used, or reset: nothing to project.
   assert.equal(pace({ kind: "week", pct: 0, resetsAt: at("2026-11-03T21:59:59Z"), reset: false }, NOW), null);
   assert.equal(pace({ kind: "session", pct: 40, resetsAt: null, reset: true }, NOW), null);
@@ -253,12 +255,12 @@ test("under every window with fresh data, a projection line: muted below 100%, w
   const out = text(lines);
   assert.match(out, /^ {2}5h .*40%.*\n {7,}~67% at reset$/m);
   assert.match(out, /^ {2}7d .*10%.*\n {7,}~70% at reset$/m);
-  assert.match(out, /^ {2}Opus .*90%.*\n {7,}~315% at reset, runs out [A-Z][a-z]{2} \d\d:\d\d$/m);
+  assert.match(out, /^ {2}Opus .*90%.*\n {7,}at this pace, runs out [A-Z][a-z]{2} \d\d:\d\d$/m);
   assert.match(out, /^ {7,}projection from \d\d:\d\d$/m);
   assert.doesNotMatch(out, /[◇·⚠└●!]/);
   const role = (start: string) => lines.flat().find((s) => s.text.startsWith(start))?.role;
   assert.equal(role("~67%"), "muted");
-  assert.equal(role("~315%"), "warn");
+  assert.equal(role("at this pace"), "warn");
   assert.equal(role("projection from"), "muted");
   const stale = text(usageLines([{ ...list[0], state: "stale", fetchedAt: at("2026-10-28T02:00:00Z") }], NOW));
   assert.doesNotMatch(stale, /at reset|projection/);
