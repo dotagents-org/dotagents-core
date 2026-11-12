@@ -99,13 +99,14 @@
       message.className = bad ? "message high" : "message";
       message.hidden = !text;
     };
-    // Runs an action with the card's or the foot's buttons off meanwhile.
+    // Runs an action with the card's or the foot's buttons off meanwhile; a quick one (no doing)
+    // changes nothing on screen unless it fails.
     const run = (action, body, doing) => async (e) => {
-      const buttons = e.currentTarget.closest(".card, .foot").querySelectorAll("button");
+      const buttons = doing ? e.currentTarget.closest(".card, .foot").querySelectorAll("button") : [];
       buttons.forEach((b) => (b.disabled = true));
-      say(doing);
+      if (doing) say(doing);
       const res = await act(action, body).catch((err) => ({ ok: false, detail: String(err) }));
-      say(action === "refresh" && res.ok ? "" : res.detail || "", !res.ok);
+      say(res.ok && (action === "refresh" || !doing) ? "" : res.detail || "", !res.ok);
       buttons.forEach((b) => (b.disabled = false));
     };
     const cards = data.profiles.map((p) => {
@@ -138,7 +139,7 @@
               "div",
               { class: "line" },
               el("span", { class: "name", style: { color: nameColor(p.color) } }, p.name),
-              el("button", { type: "button", class: "icon", style: { color: nameColor(p.color) }, title: `Open ${p.name}'s Claude Desktop`, "aria-label": `Open ${p.name}'s Claude Desktop`, onclick: run("desktop", { profile: p.name }, `opening ${p.name}...`) }, icon([CLAUDE]))
+              el("button", { type: "button", class: "icon", style: { color: nameColor(p.color) }, title: `Open ${p.name}'s Claude Desktop`, "aria-label": `Open ${p.name}'s Claude Desktop`, onclick: run("desktop", { profile: p.name }) }, icon([CLAUDE]))
             ),
             status && el("span", { class: `status small ${p.avatar === "error" ? "high" : "muted"}` }, status)
           )
