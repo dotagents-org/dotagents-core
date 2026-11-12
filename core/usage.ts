@@ -131,6 +131,22 @@ export function pace(w: UsageWindow, now: Date): Pace {
   return { atResetPct };
 }
 
+// The avatar's state, one of the identity's seven, most urgent first: what the tray icon and the
+// panel's cards show. The numbers stay in the bars and the text.
+export const AVATAR_STATES = ["error", "limit", "waiting", "warn", "working", "ok", "asleep"] as const;
+export type AvatarState = (typeof AVATAR_STATES)[number];
+
+export function avatarState(p: ProfileUsage, now: Date): AvatarState {
+  // No login, or one Anthropic refused (core/live.ts says to sign in again): it needs you.
+  if (p.state === "not-signed-in" || /sign in again|couldn't renew the login/.test(p.error ?? "")) return "error";
+  const open = p.state === "ok" ? p.windows.filter((w) => !w.reset) : [];
+  if (open.some((w) => w.pct >= 100)) return "limit";
+  if (p.activity?.waiting) return "waiting";
+  if (open.some((w) => w.pct >= 70 || "runsOutAt" in (pace(w, now) ?? {}))) return "warn";
+  if (p.activity?.working) return "working";
+  return p.state === "ok" ? "ok" : "asleep";
+}
+
 // How much of the window has gone by, in percent: where the bar would be at a uniform pace. Null
 // for a window that was reset or has no reset time.
 export function elapsedPct(w: UsageWindow, now: Date): number | null {

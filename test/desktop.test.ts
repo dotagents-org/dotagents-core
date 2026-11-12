@@ -8,7 +8,7 @@ import os from "node:os";
 import path from "node:path";
 import { test, type TestContext } from "node:test";
 import { dropProfile, launcherDir, setUpProfile } from "../core/profiles.ts";
-import { type Shortcut, type Shortcuts, profileIcon, appTitle, desktopDataDir, desktopExe, desktopLauncherFile, powershellShortcuts, shortcutFile } from "../core/desktop.ts";
+import { type Shortcut, type Shortcuts, applyTray, profileIcon, appTitle, desktopDataDir, desktopExe, desktopLauncherFile, powershellShortcuts, shortcutFile, trayStartupFile, verifyTray } from "../core/desktop.ts";
 import { state } from "../core/state.ts";
 import { taskbarWatcher, taskbarWatcherFile } from "../core/taskbar.ts";
 import { REPO, quiet } from "./helpers.ts";
@@ -165,4 +165,26 @@ test("the taskbar watcher compiles and ends on its own when no Claude instance s
   const params = ["-AppId", "dotagents.claude.ci", "-DisplayName", "Claude Ci", "-Icon", "C:\\x.ico", "-Launcher", "C:\\x.vbs", "-DataDir", "C:\\nowhere\\Claude-ci", "-StartupSeconds", "2"];
   const res = spawnSync("powershell.exe", [...args, ...params], { encoding: "utf8", timeout: 110_000 });
   assert.equal(res.status, 0, res.stderr);
+});
+
+test("the tray panel starts with Windows: a launcher in the Startup folder runs this repository's tray.ps1", (t) => {
+  tempWindowsHome(t);
+  quiet({ dryRun: true });
+  applyTray(REPO);
+  assert.ok(!fs.existsSync(trayStartupFile()), "a dry run writes nothing");
+  let events = quiet();
+  applyTray(REPO);
+  const vbs = fs.readFileSync(trayStartupFile(), "utf8");
+  assert.ok(vbs.includes(path.join(REPO, "surfaces", "tray", "tray.ps1")));
+  assert.match(vbs, /-WindowStyle Hidden/);
+  events = quiet();
+  applyTray(REPO);
+  assert.ok(events.every((e) => e.kind !== "result" || e.status === "ok"), "a second run changes nothing");
+  events = quiet();
+  verifyTray();
+  assert.equal(state.problems, 0);
+  fs.rmSync(trayStartupFile());
+  events = quiet();
+  verifyTray();
+  assert.equal(state.problems, 1);
 });

@@ -253,7 +253,7 @@ const expiryOf = (login: Login | null) => {
   }
 };
 
-const sideName = () => (process.platform === "win32" ? "Windows" : loadMachine().peer?.name === "Windows" ? "WSL" : "this machine");
+export const sideName = () => (process.platform === "win32" ? "Windows" : loadMachine().peer?.name === "Windows" ? "WSL" : "this machine");
 
 // The freshest login of each profile on the other side: its slot's when the account is there, else
 // its vault's. Read only.

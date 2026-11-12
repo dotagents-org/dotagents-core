@@ -24,9 +24,9 @@ import { skills, skillsAdd, skillsRemove } from "./surfaces/cli/skills.ts";
 import { update } from "./surfaces/cli/update.ts";
 import { usage } from "./surfaces/cli/usage.ts";
 import { startServer } from "./surfaces/web/server.ts";
-import { readUsage, usageJson, watchPeer } from "./core/snapshot.ts";
+import { readSlots, readUsage, trayFor, usageJson, watchPeer } from "./core/snapshot.ts";
 import { openDesktop } from "./core/desktop.ts";
-import { loadMachine, loadProfiles } from "./core/machine-state.ts";
+import { forgetServer, loadMachine, loadProfiles, recordServer } from "./core/machine-state.ts";
 import { launcherDir } from "./core/profiles.ts";
 import { switchProfile } from "./core/switch.ts";
 import { LIVE_EVERY_MS, refreshUsage } from "./core/live.ts";
@@ -63,7 +63,10 @@ const start: Command = {
     const server = await startServer({
       read: () => {
         const now = new Date();
-        const json = usageJson(readUsage(now, view), now);
+        const list = readUsage(now, view);
+        // Which account is in each side's slot, and what the tray icon shows.
+        const slots = readSlots(list, view);
+        const json = { ...usageJson(list, now), slots, tray: trayFor(list, slots, now) };
         let peer;
         try {
           peer = loadMachine().peer;
@@ -94,6 +97,10 @@ const start: Command = {
         },
       },
     });
+    // Where the tray panel finds it, taken away when it stops.
+    recordServer({ port: server.port, token: server.token });
+    process.on("exit", forgetServer);
+    for (const signal of ["SIGINT", "SIGTERM", "SIGHUP"] as const) process.on(signal, () => process.exit(0));
     console.log(`${brand()}  ${bold("start")}\n\nOpen ${server.url}\n${muted("Only this machine reaches it, and only with the token in that address. Ctrl+C stops it.")}`);
     // The live usage, every minute; a failure is printed when it changes, not on every tick.
     const said = new Map<string, string>();

@@ -12,8 +12,8 @@ import { type Peer, type Profile, loadMachine } from "./machine-state.ts";
 import { peerUp } from "./peer.ts";
 import { PALETTE } from "./profiles.ts";
 import { peerRunningLater } from "./sessions.ts";
-import { liveLogin, slotProfile } from "./switch.ts";
-import { type ProfileUsage, STALE_MS, elapsedPct, normalize, pace, profileUsage } from "./usage.ts";
+import { liveLogin, sideName, slotProfile } from "./switch.ts";
+import { AVATAR_STATES, type AvatarState, type ProfileUsage, STALE_MS, avatarState, elapsedPct, normalize, pace, profileUsage } from "./usage.ts";
 
 // The live record joined to what the cache gave: it wins when it is about the profile's account
 // (accountUuid) and newer. Its last error comes along either way.
@@ -173,6 +173,42 @@ export function readUsage(now: Date, view?: PeerView): ProfileUsage[] {
   });
 }
 
+// Which profile is in each side's slot: { "WSL": "work", "Windows": "personal" }. The other side
+// only while it is up (view), and only for an account this list knows.
+export function readSlots(list: ProfileUsage[], view?: PeerView): Record<string, string> {
+  const slots: Record<string, string> = {};
+  const here = slotProfile()?.name;
+  if (here) slots[sideName()] = here;
+  let peer: Peer | undefined;
+  try {
+    peer = loadMachine().peer;
+  } catch {
+    peer = undefined;
+  }
+  if (!peer || (view && !view.up(peer))) return slots;
+  try {
+    const uuid = JSON.parse(fs.readFileSync(path.join(peer.home, ".claude.json"), "utf8"))?.oauthAccount?.accountUuid;
+    const there = list.find((p) => p.accountUuid && p.accountUuid === uuid)?.name;
+    if (there) slots[peer.name] = there;
+  } catch {
+    // Nothing signed in there, or nothing to read.
+  }
+  return slots;
+}
+
+// What the tray icon shows: the account in a slot in the worst state (the same one on both sides
+// after a switch, else the worse of the two); with no account in a slot, the brand in the worst
+// state of all.
+export function trayFor(list: ProfileUsage[], slots: Record<string, string>, now: Date): { profile: string; state: AvatarState } {
+  const rank = (p: ProfileUsage) => AVATAR_STATES.indexOf(avatarState(p, now));
+  const current = list.filter((p) => Object.values(slots).includes(p.name));
+  const worst = (from: ProfileUsage[]) => from.reduce<ProfileUsage | null>((w, p) => (!w || rank(p) < rank(w) ? p : w), null);
+  const pick = worst(current);
+  if (pick) return { profile: pick.name, state: avatarState(pick, now) };
+  const any = worst(list);
+  return { profile: "dotagents", state: any ? avatarState(any, now) : "asleep" };
+}
+
 // A window's projection as JSON: { atResetPct, runsOutAt? }, { from } or null.
 const projection = (p: ReturnType<typeof pace>) =>
   p === null ? null : "from" in p ? { from: p.from.toISOString() } : { atResetPct: p.atResetPct, ...(p.runsOutAt ? { runsOutAt: p.runsOutAt.toISOString() } : {}) };
@@ -186,6 +222,7 @@ export function usageJson(list: ProfileUsage[], now: Date) {
     profiles: list.map(({ accountUuid, ...p }) => ({
       ...p,
       fetchedAt: p.fetchedAt?.toISOString() ?? null,
+      avatar: avatarState(p, now),
       windows: p.windows.map((w) => ({ ...w, resetsAt: w.resetsAt?.toISOString() ?? null, elapsedPct: elapsedPct(w, now), projection: projection(p.state === "ok" ? pace(w, now) : null) })),
     })),
   };
