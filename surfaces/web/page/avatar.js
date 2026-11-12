@@ -7,16 +7,34 @@
 
 (() => {
   const BRAND = "#171717";
-  // The bodies: the brand's rounded square, and each account's shape (any other account gets the
-  // brand's shape in its own color).
+  // The bodies, outlines in a 100x100 box, each with its eyes: the height of their center, the
+  // distance between them and their size. The brand is a rounded square; an account takes one of
+  // SHAPES, in its own color.
   const SQUARE = "M33 12H67C78.6 12 88 21.4 88 33V67C88 78.6 78.6 88 67 88H33C21.4 88 12 78.6 12 67V33C12 21.4 21.4 12 33 12Z";
-  // Each one's eyes: the height of their center, the distance between them and their size.
-  const DEFS = {
-    dotagents: { body: SQUARE, eyes: { y: 48, spacing: 24, scale: 1.3 } },
-    turing: { body: "M30 14H70C80 14 86 20 86 30V70C86 80 80 86 70 86H30C20 86 14 80 14 70V30C14 20 20 14 30 14Z", eyes: { y: 47, spacing: 26, scale: 1.4 } },
-    lovelace: { body: "M50 12A38 38 0 1 1 49.99 12Z", eyes: { y: 47, spacing: 24, scale: 1.3 } },
-  };
-  const defFor = (who) => DEFS[who] || DEFS.dotagents;
+  // A pebble: a circle bent by two low harmonics, uneven but smooth.
+  const PEBBLE = `M${Array.from({ length: 72 }, (_, i) => {
+    const a = (i / 72) * Math.PI * 2, r = 37.5 * (1 + 0.075 * Math.cos(2 * a + 0.5) + 0.035 * Math.cos(3 * a + 2.1));
+    return `${(50 + r * Math.cos(a)).toFixed(1)} ${(50 + r * Math.sin(a)).toFixed(1)}`;
+  }).join("L")}Z`;
+  const SHAPES = [
+    { body: "M30 14H70C80 14 86 20 86 30V70C86 80 80 86 70 86H30C20 86 14 80 14 70V30C14 20 20 14 30 14Z", eyes: { y: 47, spacing: 26, scale: 1.4 } }, // square
+    { body: "M50 12A38 38 0 1 1 49.99 12Z", eyes: { y: 47, spacing: 24, scale: 1.3 } }, // circle
+    { body: "M26.5 22.8Q31 15 40 15L60 15Q69 15 73.5 22.8L84.5 42.2Q89 50 84.5 57.8L73.5 77.2Q69 85 60 85L40 85Q31 85 26.5 77.2L15.5 57.8Q11 50 15.5 42.2Z", eyes: { y: 48, spacing: 26, scale: 1.3 } }, // hexagon
+    { body: "M14 50A36 36 0 0 1 86 50V72C86 80 80 86 72 86H28C20 86 14 80 14 72Z", eyes: { y: 49, spacing: 26, scale: 1.3 } }, // arch
+    { body: "M40.8 18.2Q50 9 59.2 18.2L81.8 40.8Q91 50 81.8 59.2L59.2 81.8Q50 91 40.8 81.8L18.2 59.2Q9 50 18.2 40.8Z", eyes: { y: 50, spacing: 22, scale: 1.15 } }, // diamond
+    { body: PEBBLE, eyes: { y: 49, spacing: 24, scale: 1.3 } },
+  ];
+  const BRAND_DEF = { body: SQUARE, eyes: { y: 48, spacing: 24, scale: 1.3 } };
+  // turing and lovelace keep the shapes they were drawn with; any other account gets one from
+  // its name, always the same.
+  const NAMED = { turing: SHAPES[0], lovelace: SHAPES[1] };
+  function defFor(who) {
+    if (who === "dotagents") return BRAND_DEF;
+    if (NAMED[who]) return NAMED[who];
+    let hash = 0;
+    for (const c of who) hash = (hash * 31 + c.charCodeAt(0)) >>> 0;
+    return SHAPES[hash % SHAPES.length];
+  }
 
   // The eyes' ink: the brand's are light; an account's, whichever contrasts more with its body.
   function inkFor(who, color) {
