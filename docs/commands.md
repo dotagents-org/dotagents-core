@@ -211,7 +211,7 @@ Applies the standards to a folder (the current one when no path is given) and pu
   4. for confirmation before changing anything.
 
   `Ctrl+C` leaves without changes.
-- **With `--skills a,b`,** it uses those names and asks nothing. Names can mix both kinds: `--skills to-cards,humanizer`.
+- **With `--skills a,b`,** it uses those names and asks nothing. Names can mix both kinds: `--skills to-cards,humanizer`. Either way, the chosen skills bring the ones they [call](skills.md#skills-that-call-other-skills), and those bring theirs (`--skills pixijs` installs its 25 `pixijs-*` skills too); `init` lists what came along.
 - **With `--wrap`,** it moves the repository into `<name>-workspace/` without asking.
 - **With `--yes`, in CI, or when input is piped,** it never asks, and a repository stays where it is unless `--wrap` is given.
 
@@ -238,7 +238,7 @@ dotagents check [path]
 
 Runs the checklist on a workspace and changes nothing. It exits with code 1 when something fails, so it also works in scripts. See [What check verifies](workspaces.md#what-check-verifies).
 
-Warnings (`!`) point out something worth knowing, such as a workspace whose root is itself a git repository, without failing the check.
+Warnings (`!`) point out something worth knowing, such as a workspace whose root is itself a git repository, or a skill that [calls another](skills.md#skills-that-call-other-skills) missing from the workspace, without failing the check.
 
 ## dotagents workspaces
 
@@ -302,7 +302,7 @@ A session whose archive fails is kept unless you answer yes to deleting it anywa
 
 ## dotagents skills
 
-Lists the own skills and the registered third-party ones, each with the full description its author wrote and, for third-party ones, where it comes from.
+Lists the own skills and the registered third-party ones, each with the full description its author wrote, for third-party ones where it comes from, and the skills it [calls](skills.md#skills-that-call-other-skills).
 
 ## dotagents skills add
 
@@ -318,9 +318,9 @@ dotagents skills add vercel-labs/agent-skills --skills web-design-guidelines,wri
 dotagents skills add mattpocock/skills --all
 ```
 
-It makes a shallow clone of the source in a temporary folder, finds every `SKILL.md` in it and stores the name, the source and the description exactly as the author wrote them. When the source has several skills, pick some with `--skills`, all of them with `--all`, or choose from a list in a terminal.
+It makes a shallow clone of the source in a temporary folder, finds every `SKILL.md` in it and stores the name, the source, the description exactly as the author wrote them and, under `requires`, the skills it [calls](skills.md#skills-that-call-other-skills). When the source has several skills, pick some with `--skills`, all of them with `--all`, or choose from a list in a terminal.
 
-A skill is skipped when its name matches one of the own skills, when it is already registered from another source, or when its name isn't valid. Running the command again updates the stored descriptions. Commit `skills/third-party-skills.json` afterwards to have the change on the other machine.
+A skill is skipped when its name matches one of the own skills, when it is already registered from another source, or when its name isn't valid. Running the command again updates the stored descriptions and calls. Commit `skills/third-party-skills.json` afterwards to have the change on the other machine.
 
 ## dotagents skills remove
 

@@ -126,6 +126,9 @@ subagents in 4.6%. A mechanism nobody uses is only maintenance.
   `.agents/skills/<name>/`. If it becomes useful elsewhere, move it to the repository and
   replace it with a link.
 - One folder per skill, named like its `name` field, in kebab-case.
+- A skill that calls another (`call the Skill tool with "<name>"`, or a link to
+  `../<name>/SKILL.md`) expects it in the same workspace: `dotagents init` brings it along, and
+  `dotagents check` warns when it isn't there.
 - `SKILL.md` with `name` and `description` in the frontmatter, the two fields the Agent
   Skills standard requires. The `description` says **what the skill does and when to use
   it**. It is the only part loaded in every session; the body only comes in when the task

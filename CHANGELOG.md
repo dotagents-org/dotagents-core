@@ -9,6 +9,7 @@ What changed for someone who updates a clone. The format follows [Keep a Changel
 - **`dotagents switch`:** for one person with several seats, puts a profile's login in `~/.claude` (and `~/.claude.json`'s `oauthAccount`), on both sides of the machine, saving the previous one in a vault per profile and side (`~/.config/dotagents/vault/`, readable only by you); `--here` for one side, `--save` to keep a fresh `/login`. Always manual.
 - **When each login expires:** `profile list` says until when each profile's saved login lasts, on both sides, warns a week ahead and fails once it has expired, so it is renewed calmly.
 - **Workspace memory:** `init` points every Claude profile's auto memory for a workspace at `.artifacts/memory/` (`autoMemoryDirectory` in `.claude/settings.local.json`) and copies in what each profile had learned there before; `check` verifies the folder, the index and the notes left behind.
+- **Skills that call other skills:** dotagents reads which skills a skill calls (the Skill tool with a quoted name, a link to `../name/SKILL.md`); `init` and `update --all` bring them along, and the ones they call (`--skills pixijs` installs its 25 `pixijs-*` skills), `skills` shows them, `skills add` stores them in the catalog as `requires`, and `check` warns about each one a workspace lacks.
 
 - **`dotagents start`:** the dashboard's local server, on 127.0.0.1 with a token, and a first page with the usage of every profile, live (server-sent events); a Windows window reaches it in WSL at the same address.
 

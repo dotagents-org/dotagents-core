@@ -11,31 +11,35 @@ import fs from "node:fs";
 import path from "node:path";
 import { projectFiles } from "./claude-code.ts";
 import { ensureDirLink, lstat, realpath, samePath } from "./common.ts";
-import { checkItem, report } from "./output.ts";
+import { checkItem, checkWarn, report } from "./output.ts";
 import { state } from "./state.ts";
-import { loadCatalog, npxInstaller, parseSkill, type Installer } from "./thirdparty.ts";
+import { findRequires, loadCatalog, npxInstaller, parseSkill, type Installer } from "./thirdparty.ts";
 
-export type Skill = { name: string; kind: "own" | "third-party"; source: string; description: string };
+// requires: the skills it calls, which a workspace needs next to it (findRequires).
+export type Skill = { name: string; kind: "own" | "third-party"; source: string; description: string; requires: string[] };
 
-// Every skill this repository knows: [{ name, kind: "own" | "third-party", source, description }].
+// Every skill this repository knows: [{ name, kind: "own" | "third-party", source, description, requires }].
+// An own skill's calls are read from its folder; a third-party one's, from the catalog.
 export function listSkills(repo: string): Skill[] {
   const dir = path.join(repo, "skills");
-  const own = fs
-    .readdirSync(dir)
-    .filter((name) => fs.existsSync(path.join(dir, name, "SKILL.md")))
-    .map((name): Skill => ({
-      name,
-      kind: "own",
-      source: path.join(dir, name),
-      description: parseSkill(fs.readFileSync(path.join(dir, name, "SKILL.md"), "utf8")).description,
-    }));
-  const thirdParty = loadCatalog(repo)
-    .filter((s) => !own.some((o) => o.name === s.name))
-    .map((s): Skill => ({ name: s.name, kind: "third-party", source: s.source, description: s.description ?? "" }));
+  const catalog = loadCatalog(repo);
+  const ownNames = fs.readdirSync(dir).filter((name) => fs.existsSync(path.join(dir, name, "SKILL.md")));
+  const known = [...ownNames, ...catalog.map((s) => s.name)];
+  const own = ownNames.map((name): Skill => ({
+    name,
+    kind: "own",
+    source: path.join(dir, name),
+    description: parseSkill(fs.readFileSync(path.join(dir, name, "SKILL.md"), "utf8")).description,
+    requires: findRequires(path.join(dir, name), known, name),
+  }));
+  const thirdParty = catalog
+    .filter((s) => !ownNames.includes(s.name))
+    .map((s): Skill => ({ name: s.name, kind: "third-party", source: s.source, description: s.description ?? "", requires: s.requires ?? [] }));
   return [...own, ...thirdParty];
 }
 
-// Names → skills. Unknown names fail with the list of what is available.
+// Names → skills, followed by every skill they call, and the ones those call (a router such as
+// pixijs brings its whole family). Unknown names fail with the list of what is available.
 export function resolveSkills(repo: string, names: string[]): Skill[] {
   const all = listSkills(repo);
   const unknown = names.filter((n) => !all.some((s) => s.name === n));
@@ -45,7 +49,24 @@ export function resolveSkills(repo: string, names: string[]): Skill[] {
         "Register a third-party one with: dotagents skills add <source>"
     );
   }
-  return names.map((n) => all.find((s) => s.name === n)!);
+  const byName = new Map(all.map((s) => [s.name, s]));
+  const result: Skill[] = [];
+  const visit = (name: string) => {
+    const skill = byName.get(name);
+    if (!skill || result.includes(skill)) return; // a call to a skill since unregistered is dropped
+    result.push(skill);
+    skill.requires.forEach(visit);
+  };
+  names.forEach(visit);
+  // The names asked for first, in their order; then what came in through calls.
+  return [...names.map((n) => byName.get(n)!), ...result.filter((s) => !names.includes(s.name))];
+}
+
+// The skills in resolved that came in because another one calls them, each with its callers.
+export function addedByCalls(resolved: Skill[], names: string[]) {
+  return resolved
+    .filter((s) => !names.includes(s.name))
+    .map((s) => ({ name: s.name, calledBy: resolved.filter((r) => r.requires.includes(s.name)).map((r) => r.name) }));
 }
 
 const skillsDir = (ws: string) => path.join(ws, ".agents", "skills");
@@ -101,9 +122,11 @@ export async function applySkills(ws: string, skills: Skill[], { installer = npx
 }
 
 // Checklist of the workspace's skills: every folder is a valid skill, own skills are links (not
-// copies) and not also in the lock, and every locked skill is installed.
+// copies) and not also in the lock, every locked skill is installed, and a warning for each skill
+// another one calls that isn't in the workspace.
 export function verifySkills(repo: string, ws: string) {
-  const own = listSkills(repo).filter((s) => s.kind === "own");
+  const all = listSkills(repo);
+  const own = all.filter((s) => s.kind === "own");
   const lock = lockNames(ws);
   if (lock === undefined) checkItem(false, "skills-lock.json is valid JSON");
 
@@ -115,7 +138,10 @@ export function verifySkills(repo: string, ws: string) {
   }
 
   const dir = skillsDir(ws);
-  for (const entry of fs.existsSync(dir) ? fs.readdirSync(dir) : []) {
+  const entries = fs.existsSync(dir) ? fs.readdirSync(dir) : [];
+  const known = [...new Set([...all.map((s) => s.name), ...entries])];
+  const calls: { label: string; requires: string[] }[] = [];
+  for (const entry of entries) {
     const label = `.agents/skills/${entry}`;
     const folder = path.join(dir, entry);
     if (!fs.existsSync(folder) || !fs.statSync(folder).isDirectory()) {
@@ -132,6 +158,7 @@ export function verifySkills(repo: string, ws: string) {
     checkItem(name === entry, `${label} name matches the folder`, `name: ${name}`);
     const lines = text.split(/\r?\n/).length;
     checkItem(lines < 500, `${label} under 500 lines`, `${lines} lines`);
+    calls.push({ label, requires: findRequires(folder, known, entry) });
 
     const mine = own.find((s) => s.name === entry);
     if (mine) {
@@ -146,5 +173,13 @@ export function verifySkills(repo: string, ws: string) {
 
   for (const name of lock ?? []) {
     checkItem(fs.existsSync(path.join(dir, name, "SKILL.md")), `skills-lock.json: ${name} is installed`, "listed in the lock but missing; run: npx skills experimental_install");
+  }
+
+  // Read from the installed folders, so a third-party skill is judged by the version in place.
+  // Only known names are found, so the missing one can always be added by init.
+  for (const { label, requires } of calls) {
+    for (const name of requires.filter((n) => !fs.existsSync(path.join(dir, n, "SKILL.md")))) {
+      checkWarn(`${label} calls ${name}, which isn't in this workspace`, `add it: dotagents init "${ws}" --skills ${name}`);
+    }
   }
 }
