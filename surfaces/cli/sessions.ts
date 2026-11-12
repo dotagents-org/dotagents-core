@@ -5,7 +5,7 @@
 
 import path from "node:path";
 import * as p from "@clack/prompts";
-import type { AccountLabels } from "../../skills/session-archive/scripts/archive-session.ts";
+import type { AccountLabels } from "../../config/skills/session-archive/scripts/archive-session.ts";
 import { UsageError } from "../../core/common.ts";
 import { checkWarn, displayPath, fancy, finish, header, ink, interactive, line, report, section, tone } from "../../core/output.ts";
 import { RECENT_MS, type Session, accountColors, accountLabels, archiveSession, deleteSession, listSessions, peerRunning, runningIds } from "../../core/sessions.ts";

@@ -18,7 +18,7 @@
 git rm -r --cached AGENTS.md .claude
 ```
 
-**`update --all` warns about skills no longer known.** A skill was removed from `skills/` or from the catalog. To drop it from the workspace's record, run `dotagents untrack <workspace>` and `dotagents init <workspace>` again.
+**`update --all` warns about skills no longer known.** A skill was removed from `config/skills/` or from the catalog. To drop it from the workspace's record, run `dotagents untrack <workspace>` and `dotagents init <workspace>` again.
 
 **A link points to an old location.** The clone or the workspace moved. Run `npm link` in the clone, then `dotagents install` and `dotagents init <workspace>`.
 

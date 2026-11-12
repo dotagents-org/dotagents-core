@@ -5,21 +5,21 @@ import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { defaultConfigDir, stateFile, userFiles } from "./claude-code.ts";
-import { backup, ensureDirLink, ensureFile, isWindows, lstat, mkdirFor, removeLink, writeGenerated } from "./common.ts";
+import { backup, configRoot, ensureDirLink, ensureFile, isWindows, lstat, mkdirFor, removeLink, writeGenerated } from "./common.ts";
 import { loadCopies, recordCopy } from "./machine-state.ts";
 import { checkItem, checkWarn, displayPath, report, section, toSlash } from "./output.ts";
 import { state } from "./state.ts";
 
 
-// The global instructions (global/instructions.md) have no machine paths: {{AGENTS_REPO}} becomes this
-// clone's location, and the file for the current platform (global/env/win32.md, linux.md, darwin.md)
+// The global instructions (config/global/instructions.md) have no machine paths: {{AGENTS_REPO}} becomes
+// this clone's location, {{AGENTS_CONFIG}} the configuration's, and the file for the current platform (config/global/env/win32.md, linux.md, darwin.md)
 // is appended. The template isn't named AGENTS.md, so Claude Code never mistakes it for project instructions.
 
 export function renderInstructions(repo: string) {
-  let text = fs.readFileSync(path.join(repo, "global", "instructions.md"), "utf8");
-  const envFile = path.join(repo, "global", "env", `${process.platform}.md`);
+  let text = fs.readFileSync(path.join(configRoot(repo), "global", "instructions.md"), "utf8");
+  const envFile = path.join(configRoot(repo), "global", "env", `${process.platform}.md`);
   if (fs.existsSync(envFile)) text = `${text.trimEnd()}\n\n${fs.readFileSync(envFile, "utf8")}`;
-  return text.replaceAll("{{AGENTS_REPO}}", toSlash(repo));
+  return text.replaceAll("{{AGENTS_CONFIG}}", toSlash(configRoot(repo))).replaceAll("{{AGENTS_REPO}}", toSlash(repo));
 }
 
 // Applies the configuration to one Claude Code config folder: ~/.claude by default. The settings
@@ -31,7 +31,7 @@ export function installGlobal(repo: string, configDir = defaultConfigDir(), { co
   writeGenerated(files.instructions, renderInstructions(repo), { onForeign: "backup" });
 
   section("Global rules");
-  ensureDirLink(files.rules, path.join(repo, "rules"));
+  ensureDirLink(files.rules, path.join(configRoot(repo), "rules"));
 
   section("Settings");
   if (copy) syncSettingsCopy(settingsSource(repo), files.settings);
@@ -40,8 +40,8 @@ export function installGlobal(repo: string, configDir = defaultConfigDir(), { co
   applyGlobalConfig(repo, stateFile(configDir));
 }
 
-const settingsSource = (repo: string) => path.join(repo, "claude", "settings.json");
-const globalConfigSource = (repo: string) => path.join(repo, "claude", "global-config.json");
+const settingsSource = (repo: string) => path.join(configRoot(repo), "claude", "settings.json");
+const globalConfigSource = (repo: string) => path.join(configRoot(repo), "claude", "global-config.json");
 
 const readText = (file: string) => {
   try {
@@ -88,7 +88,7 @@ function syncSettingsCopy(source: string, dest: string) {
 }
 
 // The options Claude Code keeps in .claude.json instead of settings.json (the /config "global
-// config"), which claude/global-config.json sets in every profile. Only these keys: the file also
+// config"), which config/claude/global-config.json sets in every profile. Only these keys: the file also
 // holds the sign-in and per-project state, which dotagents never touches.
 export const GLOBAL_CONFIG_KEYS = [
   "autoConnectIde",
@@ -191,12 +191,12 @@ export function verifyGlobal(repo: string, configDirs: string[]) {
     if (text === null) continue;
     try {
       for (const [key, value] of differing(JSON.parse(text), keys))
-        checkWarn(`${key} in ${displayPath(stateFile(dir))} isn't the repository's ${JSON.stringify(value)}`, "change claude/global-config.json, or put it back with: dotagents install");
+        checkWarn(`${key} in ${displayPath(stateFile(dir))} isn't the repository's ${JSON.stringify(value)}`, "change config/claude/global-config.json, or put it back with: dotagents install");
     } catch {
       // Not valid JSON: Claude Code reports that itself.
     }
   }
-  const status = spawnSync("git", ["-C", repo, "status", "--porcelain", "--", "claude/settings.json", "claude/global-config.json"], { encoding: "utf8" });
+  const status = spawnSync("git", ["-C", configRoot(repo), "status", "--porcelain", "--", "claude/settings.json", "claude/global-config.json"], { encoding: "utf8" });
   if (status.status === 0 && status.stdout.trim())
-    checkWarn("claude/settings.json or claude/global-config.json changed and not committed", `commit them so your other clones get them: git -C ${displayPath(repo)} commit`);
+    checkWarn("config/claude/settings.json or global-config.json changed and not committed", `commit them so your other clones get them: git -C ${displayPath(configRoot(repo))} commit`);
 }

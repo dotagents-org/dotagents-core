@@ -90,7 +90,7 @@ test("a copied skill instead of a link fails the checklist", async (t) => {
   await applyWorkspace(REPO, ws, resolveSkills(REPO, ["to-cards"]));
   const link = path.join(ws, ".agents", "skills", "to-cards");
   fs.rmSync(link, { recursive: false, force: true });
-  fs.cpSync(path.join(REPO, "skills", "to-cards"), link, { recursive: true });
+  fs.cpSync(path.join(REPO, "config", "skills", "to-cards"), link, { recursive: true });
 
   quiet();
   verifyWorkspace(REPO, ws);

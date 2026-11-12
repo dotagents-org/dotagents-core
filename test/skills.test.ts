@@ -55,11 +55,11 @@ function writeSkill(dir: string, name: string, body: string, extra: Record<strin
   return folder;
 }
 
-// A repository of its own: skills/ with the given own skills and a catalog.
+// A repository of its own: config/skills/ with the given own skills and a catalog.
 function tempRepo(t: Parameters<typeof tempWorkspace>[0], own: Record<string, string>, catalog: object[] = []) {
   const repo = tempWorkspace(t, "repo");
-  for (const [name, body] of Object.entries(own)) writeSkill(path.join(repo, "skills"), name, body);
-  fs.mkdirSync(path.join(repo, "skills"), { recursive: true });
+  for (const [name, body] of Object.entries(own)) writeSkill(path.join(repo, "config", "skills"), name, body);
+  fs.mkdirSync(path.join(repo, "config", "skills"), { recursive: true });
   fs.writeFileSync(catalogFile(repo), JSON.stringify({ skills: catalog }));
   return repo;
 }
@@ -119,4 +119,14 @@ test("check warns about a skill that calls one missing from the workspace", asyn
   events = quiet();
   verifySkills(repo, ws);
   assert.deepEqual(events.filter((e) => e.kind === "warning"), []);
+});
+
+test("DOTAGENTS_CONFIG points the configuration at a folder of your own", (t) => {
+  const mine = tempWorkspace(t, "my-config");
+  writeSkill(path.join(mine, "skills"), "mine-only", "Only in my folder.");
+  fs.writeFileSync(path.join(mine, "skills", "third-party-skills.json"), JSON.stringify({ skills: [] }));
+  process.env.DOTAGENTS_CONFIG = mine;
+  t.after(() => delete process.env.DOTAGENTS_CONFIG);
+  assert.deepEqual(listSkills(REPO).map((s) => s.name), ["mine-only"]);
+  assert.equal(catalogFile(REPO), path.join(mine, "skills", "third-party-skills.json"));
 });

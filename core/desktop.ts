@@ -16,7 +16,7 @@ import { spawn, spawnSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { ensureDir, lstat, removeGenerated, writeGenerated } from "./common.ts";
+import { configRoot, ensureDir, lstat, removeGenerated, writeGenerated } from "./common.ts";
 import { loadMachine } from "./machine-state.ts";
 import { checkItem, checkWarn, report, section } from "./output.ts";
 import { state } from "./state.ts";
@@ -77,10 +77,10 @@ function vbsLauncher(repo: string, launcherDir: string, name: string, isDefault:
 
 const wscript = () => path.join(process.env.SystemRoot ?? "C:\\Windows", "System32", "wscript.exe");
 
-// The profile's own icon, assets/claude-<name>.ico in this repository, when there is one; else
+// The profile's own icon, config/assets/claude-<name>.ico, when there is one; else
 // the app's. Shortcuts only take .ico (or an .exe), so the .svg next to it is the source.
 export function profileIcon(repo: string, name: string) {
-  const ico = path.join(repo, "assets", `claude-${name}.ico`);
+  const ico = path.join(configRoot(repo), "assets", `claude-${name}.ico`);
   return fs.existsSync(ico) ? `${ico},0` : `${desktopExe()},0`;
 }
 

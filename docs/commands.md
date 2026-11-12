@@ -38,7 +38,7 @@ dotagents install --dry-run    # show what would change
 dotagents install
 ```
 
-Run it again after editing `global/` or `rules/`, and on Windows also after editing the settings in `claude/`. On Linux and macOS the settings and the rules are links, so their changes apply right away.
+Run it again after editing `config/global/` or `config/rules/`, and on Windows also after editing the settings in `config/claude/`. On Linux and macOS the settings and the rules are links, so their changes apply right away.
 
 ## dotagents update
 
@@ -62,7 +62,7 @@ dotagents settings pull                  # the one profile whose settings change
 dotagents settings pull --from personal  # when several changed in different ways
 ```
 
-On Windows each profile has a copy of `claude/settings.json`, and `/config` writes to that copy. `install` remembers what it last copied, so it can tell a copy that only fell behind the repository (it updates it) from one changed in the profile (it keeps it and says so). `settings pull` copies the changed one into the repository; commit it, and the next `install` takes it to the other profiles. With several profiles changed in different ways it stops and asks for `--from`. On Linux and macOS the profiles link to the repository's file, so there is nothing to pull.
+On Windows each profile has a copy of `config/claude/settings.json`, and `/config` writes to that copy. `install` remembers what it last copied, so it can tell a copy that only fell behind the repository (it updates it) from one changed in the profile (it keeps it and says so). `settings pull` copies the changed one into the repository; commit it, and the next `install` takes it to the other profiles. With several profiles changed in different ways it stops and asks for `--from`. On Linux and macOS the profiles link to the repository's file, so there is nothing to pull.
 
 ## dotagents profile add
 
@@ -359,7 +359,7 @@ Lists the own skills and the registered third-party ones, each with the full des
 dotagents skills add <source> [--skills a,b | --all] [--dry-run]
 ```
 
-Registers third-party skills in `skills/third-party-skills.json`, so `init` and `new` offer them on every machine. The source can be `owner/repo` (GitHub), a git URL or a local path.
+Registers third-party skills in `config/skills/third-party-skills.json`, so `init` and `new` offer them on every machine. The source can be `owner/repo` (GitHub), a git URL or a local path.
 
 ```bash
 dotagents skills add blader/humanizer
