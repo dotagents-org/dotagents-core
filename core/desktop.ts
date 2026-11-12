@@ -139,28 +139,14 @@ export function applyDesktop(
   ensureShortcut(shortcutFile(profile.name), shortcutFor(repo, profile.name, launcherDir), shortcuts);
 }
 
-// The tray panel (surfaces/tray/tray.ps1, ADR 0010) starts with Windows: a launcher in the Startup
-// folder runs it hidden (a .vbs, so no console flashes), from this repository, which dotagents
-// update keeps current.
+// The tray panel (ADR 0010) was dropped for the panel in HTML (ADR 0012). Its launcher in the
+// Startup folder, which install wrote, goes; a file there that isn't dotagents' stays.
 export const trayStartupFile = () => path.join(appData(), "Microsoft", "Windows", "Start Menu", "Programs", "Startup", "dotagents-tray.vbs");
 
-function trayLauncher(repo: string) {
-  const script = path.join(repo, "surfaces", "tray", "tray.ps1").replace(/"/g, '""');
-  return [
-    "' The dotagents tray panel, started with Windows.",
-    'Set shell = CreateObject("WScript.Shell")',
-    `shell.Run "powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -STA -WindowStyle Hidden -File ""${script}""", 0, False`,
-    "",
-  ].join("\r\n");
-}
-
-export function applyTray(repo: string) {
+export function removeTray() {
+  if (!lstat(trayStartupFile())) return;
   section("Tray panel");
-  writeGenerated(trayStartupFile(), trayLauncher(repo), { comment: "'", onForeign: "backup" });
-}
-
-export function verifyTray() {
-  checkItem(fs.existsSync(trayStartupFile()), "the tray panel starts with Windows", "set it up with: dotagents install");
+  removeGenerated(trayStartupFile());
 }
 
 // Removes the launcher and the shortcut; the data folder, with the sign-in, stays.

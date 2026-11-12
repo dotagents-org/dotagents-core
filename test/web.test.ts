@@ -106,3 +106,14 @@ test("an action runs only by POST, with the token in the header and a JSON body,
   assert.deepEqual(JSON.parse(ok.body), { ok: true });
   assert.deepEqual(calls, [{ profile: "work" }]);
 });
+
+test("the page's avatars are served as PNG, by plain name only", async (t) => {
+  const server = await startServer({ port: 0, read: () => ({}), token: "secret" });
+  t.after(() => server.close());
+  const ok = await get(server.port, "/avatars/dotagents-ok.png");
+  assert.equal(ok.status, 200);
+  assert.equal(ok.headers["content-type"], "image/png");
+  assert.equal((await get(server.port, "/avatars/nobody.png")).status, 404);
+  assert.equal((await get(server.port, "/avatars/sub/dotagents-ok.png")).status, 404);
+  assert.equal((await get(server.port, "/avatars/%2e%2e/%2e%2e/package.json")).status, 404, "never outside the page");
+});

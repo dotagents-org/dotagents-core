@@ -1,0 +1,70 @@
+/* The dotagents panel (ADR 0012): every account's usage, the account in each side's slot, and the
+   switch and Desktop buttons. The same file styles the page dotagents start serves and the VS Code
+   extension's view. The identity's roles, light and dark. */
+
+:root {
+  --bg: #ffffff;
+  --card: #ffffff;
+  --text: #171717;
+  --muted: #4d4d4d;
+  --track: #e3e3e3;
+  --border: #e3e3e3;
+  --ok: #107d32;
+  --warn: #a25204;
+  --high: #d50322;
+  --on-text: #ffffff;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not(.light) {
+    --bg: #0a0a0a; --card: #0a0a0a; --text: #ededed; --muted: #a0a0a0; --track: #333333; --border: #2b2b2b;
+    --ok: #01ca54; --warn: #fe9911; --high: #fe6367; --on-text: #0a0a0a; color-scheme: dark;
+  }
+}
+/* VS Code says its theme with a class on the body. */
+body.vscode-light { --bg: transparent; --card: transparent; --text: #171717; --muted: #4d4d4d; --track: #e3e3e3; --border: #e3e3e3; --ok: #107d32; --warn: #a25204; --high: #d50322; --on-text: var(--vscode-sideBar-background, #ffffff); }
+body.vscode-dark, body.vscode-high-contrast { --bg: transparent; --card: transparent; --text: #ededed; --muted: #a0a0a0; --track: #333333; --border: #2b2b2b; --ok: #01ca54; --warn: #fe9911; --high: #fe6367; --on-text: var(--vscode-sideBar-background, #181818); }
+
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--text); font: 12px/1.45 "Geist Mono", ui-monospace, "Cascadia Mono", Menlo, Consolas, monospace; }
+.panel { max-width: 420px; margin: 0 auto; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+body.vscode-light .panel, body.vscode-dark .panel, body.vscode-high-contrast .panel { padding: 8px 4px; }
+
+.head { display: flex; align-items: center; gap: 10px; }
+.badge { background: var(--text); color: var(--on-text); font-weight: 600; font-size: 13px; padding: 2px 7px; border-radius: 3px; }
+.muted { color: var(--muted); }
+.small { font-size: 11px; }
+
+.card { border: 1px solid var(--border); border-radius: 10px; padding: 12px; display: flex; flex-direction: column; gap: 8px; background: var(--card); }
+.who { display: flex; align-items: center; gap: 12px; }
+.who .names { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.who .line { display: flex; align-items: baseline; flex-wrap: wrap; gap: 6px; }
+.name { font-weight: 600; font-size: 15px; }
+.slot { border: 1px solid var(--border); border-radius: 4px; padding: 0 5px; font-size: 11px; color: var(--muted); }
+.status.high { color: var(--high); }
+
+/* The avatar: a strip of 24 frames of 3 s, played by CSS, no script per frame. The offsets are
+   whole frames in pixels; a percentage can land between two frames. */
+.av { --av: 52px; width: var(--av); height: var(--av); flex-shrink: 0; background-repeat: no-repeat; background-size: calc(var(--av) * 24) var(--av); background-position: 0 0; animation: av-play 3s steps(24) infinite; }
+@keyframes av-play { to { background-position: calc(var(--av) * -24) 0; } }
+@media (prefers-reduced-motion: reduce) { .av { animation: none; } }
+
+.window { display: grid; grid-template-columns: 46px 1fr 44px; align-items: center; column-gap: 8px; row-gap: 1px; }
+.window .label { color: var(--muted); }
+.bar { height: 6px; border-radius: 3px; background: var(--track); overflow: hidden; }
+.bar > span { display: block; height: 100%; border-radius: 3px; }
+.pct { text-align: right; font-weight: 600; }
+.window .note { grid-column: 2 / 4; font-size: 11px; color: var(--muted); }
+.window .note.warn { color: var(--warn); }
+.ok { color: var(--ok); } .warn { color: var(--warn); } .high { color: var(--high); }
+.bar .ok { background: var(--ok); } .bar .warn { background: var(--warn); } .bar .high { background: var(--high); }
+
+.actions { display: flex; gap: 8px; margin-top: 4px; }
+button { flex: 1; min-height: 34px; font: inherit; font-size: 12px; border-radius: 8px; cursor: pointer; border: 1px solid var(--border); background: transparent; color: var(--text); }
+button.primary { background: var(--text); color: var(--on-text); border-color: var(--text); font-weight: 600; }
+button:disabled { opacity: 0.5; cursor: default; }
+button:focus-visible { outline: 2px solid var(--warn); outline-offset: 2px; }
+
+.foot { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); }
+.message { font-size: 11px; color: var(--muted); }
+.message.high { color: var(--high); }
