@@ -1,21 +1,21 @@
 // Catalog of third-party skills: skills you use but don't maintain, registered once in
-// skills/third-party-skills.json (versioned with this repository) and offered by `init` and `new` next to
+// config/skills/third-party-skills.json (versioned with the configuration) and offered by `init` and `new` next to
 // your own skills. They are installed with `npx skills add`, so the workspace's skills-lock.json
 // and `npx skills update` keep working as usual.
 
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { runWithSpinner } from "./common.ts";
+import { configRoot, runWithSpinner } from "./common.ts";
 
-// A registered third-party skill, as skills/third-party-skills.json stores it.
+// A registered third-party skill, as config/skills/third-party-skills.json stores it.
 // requires: the skills it calls (see findRequires), read when it was registered.
 export type CatalogEntry = { name: string; source: string; description?: string; requires?: string[] };
 // What an installer needs, and what it answers. Tests pass a fake with the same shape.
 export type Installer = (ws: string, skill: { name: string; source: string; description: string }) => Promise<{ ok: boolean; detail: string }>;
 
 // The catalog sits next to my own skills.
-export const catalogFile = (repo: string) => path.join(repo, "skills", "third-party-skills.json");
+export const catalogFile = (repo: string) => path.join(configRoot(repo), "skills", "third-party-skills.json");
 // The agent `npx skills add` installs for. The copy lands in .agents/skills, and .claude/skills
 // already links there.
 const AGENTS = "claude-code";

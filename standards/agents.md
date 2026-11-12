@@ -107,7 +107,7 @@ machine goes in the tool's local scope, not in the project file.
 ├── AGENTS.md                    core (writing rules in the .artifacts/ standard)
 ├── .agents/
 │   ├── rules/<topic>.md         only this project's rules
-│   ├── skills/<name>            link to dotagents/skills/<name>, or a project skill
+│   ├── skills/<name>            link to dotagents/config/skills/<name>, or a project skill
 │   ├── agents/<name>.md         only once there is a first subagent
 │   └── hooks/<script>           only once there is a first hook
 ├── .claude/
@@ -126,7 +126,7 @@ subagents in 4.6%. A mechanism nobody uses is only maintenance.
 
 ## `skills/`
 
-- **Reusable skills live in the `dotagents` repository**, in `skills/<name>/`, and enter a
+- **Reusable skills live in the `dotagents` repository**, in `config/skills/<name>/`, and enter a
   workspace as a `.agents/skills/<name>` link: `dotagents init <workspace> --skills <name>`. Each
   workspace links only the ones it uses. Editing through the link edits the repository;
   commit there.
@@ -169,7 +169,7 @@ subagents in 4.6%. A mechanism nobody uses is only maintenance.
 split by topic, that extend the context file.
 
 - **A rule that applies everywhere does not go here.** It lives in the `dotagents`
-  repository's `rules/` and is global: `dotagents install` links `~/.claude/rules` to it. Example: the commit convention.
+  repository's `config/rules/` and is global: `dotagents install` links `~/.claude/rules` to it. Example: the commit convention.
   `.agents/rules/` only holds what is specific to this project.
 - One topic per file, in kebab-case.
 - Claude Code loads every file in this folder in every session, the same way it loads

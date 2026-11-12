@@ -12,7 +12,7 @@
 import { execFile, spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
-import { type AccountLabels, archiveFile, parseTranscript, promptText, renderArchive } from "../skills/session-archive/scripts/archive-session.ts";
+import { type AccountLabels, archiveFile, parseTranscript, promptText, renderArchive } from "../config/skills/session-archive/scripts/archive-session.ts";
 import { type ProcessProbe, defaultConfigDir, runningProcess, signedIn } from "./claude-code.ts";
 import { isWindows } from "./common.ts";
 import { type Peer, loadMachine, loadProfiles } from "./machine-state.ts";

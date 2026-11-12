@@ -5,6 +5,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { test, type TestContext } from "node:test";
+import { configRoot } from "../core/common.ts";
 import { state } from "../core/state.ts";
 import { GLOBAL_CONFIG_KEYS, installGlobal, pullSettings, verifyGlobal } from "../core/global.ts";
 import { execFileSync } from "node:child_process";
@@ -71,7 +72,7 @@ test("install can target another config folder, for a second profile, and leaves
 function tempRepo(t: TestContext) {
   const repo = fs.mkdtempSync(path.join(os.tmpdir(), "dotagents-repo-"));
   t.after(() => fs.rmSync(repo, { recursive: true, force: true }));
-  for (const dir of ["global", "rules", "claude"]) fs.cpSync(path.join(REPO, dir), path.join(repo, dir), { recursive: true });
+  for (const dir of ["global", "rules", "claude"]) fs.cpSync(path.join(REPO, "config", dir), path.join(repo, "config", dir), { recursive: true });
   const git = (...args: string[]) => execFileSync("git", ["-C", repo, ...args], { stdio: "ignore" });
   git("init", "-q");
   git("-c", "user.name=t", "-c", "user.email=t@example.com", "add", "-A");
@@ -94,7 +95,7 @@ test("a settings copy follows the repository, but a change made in the profile i
   assert.ok(!fs.lstatSync(path.join(a, "settings.json")).isSymbolicLink());
 
   // The repository changes: both copies follow.
-  setKey(path.join(repo, "claude", "settings.json"), "verbose", true);
+  setKey(path.join(repo, "config", "claude", "settings.json"), "verbose", true);
   quiet();
   for (const dir of [a, b]) installGlobal(repo, dir, { copy: true });
   assert.equal(settingsOf(a).verbose, true);
@@ -113,7 +114,7 @@ test("a settings copy follows the repository, but a change made in the profile i
   // settings pull takes it into the repository, and the next install brings it to the other profile.
   quiet();
   pullSettings(repo, [a, b]);
-  assert.equal(JSON.parse(fs.readFileSync(path.join(repo, "claude", "settings.json"), "utf8")).showTurnDuration, false);
+  assert.equal(JSON.parse(fs.readFileSync(path.join(repo, "config", "claude", "settings.json"), "utf8")).showTurnDuration, false);
   quiet();
   for (const dir of [a, b]) installGlobal(repo, dir, { copy: true });
   assert.equal(settingsOf(b).showTurnDuration, false);
@@ -132,14 +133,14 @@ test("settings pull refuses two profiles changed in different ways, unless told 
   assert.throws(() => pullSettings(repo, [a, b]), /changed differently/);
   quiet();
   pullSettings(repo, [a, b], { from: b });
-  assert.equal(JSON.parse(fs.readFileSync(path.join(repo, "claude", "settings.json"), "utf8")).verbose, false);
+  assert.equal(JSON.parse(fs.readFileSync(path.join(repo, "config", "claude", "settings.json"), "utf8")).verbose, false);
 });
 
 test("the global config keys go into each profile's .claude.json, leaving the rest of it alone", (t) => {
   const home = tempHome(t);
   const repo = tempRepo(t);
   const other = path.join(home, ".claude-b");
-  fs.writeFileSync(path.join(repo, "claude", "global-config.json"), JSON.stringify({ copyOnSelect: false, oauthAccount: { x: 1 } }));
+  fs.writeFileSync(path.join(repo, "config", "claude", "global-config.json"), JSON.stringify({ copyOnSelect: false, oauthAccount: { x: 1 } }));
   // Claude Code has run in the default profile only: ~/.claude.json exists, .claude-b/.claude.json doesn't.
   fs.writeFileSync(path.join(home, ".claude.json"), JSON.stringify({ numStartups: 3, copyOnSelect: true }));
   const events = quiet();
@@ -169,8 +170,15 @@ test("the checklist warns about settings changed in the repository and not commi
   let checks = quiet();
   verifyGlobal(repo, [path.join(home, ".claude")]);
   assert.ok(!checks.some((e) => e.kind === "warning"));
-  setKey(path.join(repo, "claude", "settings.json"), "verbose", true);
+  setKey(path.join(repo, "config", "claude", "settings.json"), "verbose", true);
   checks = quiet();
   verifyGlobal(repo, [path.join(home, ".claude")]);
   assert.ok(checks.some((e) => e.kind === "warning" && /not committed/.test(e.text)));
+});
+
+test("the configuration is config/ in the repository, or the folder DOTAGENTS_CONFIG names", (t) => {
+  t.after(() => delete process.env.DOTAGENTS_CONFIG);
+  assert.equal(configRoot("/repo"), path.join("/repo", "config"));
+  process.env.DOTAGENTS_CONFIG = "/mine";
+  assert.equal(configRoot("/repo"), path.resolve("/mine"));
 });

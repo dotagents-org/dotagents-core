@@ -41,7 +41,7 @@ dotagents update
 ## Edit one of the own skills
 
 ```bash
-# edit <clone>/skills/<name>/  → already live in every workspace on this machine
+# edit <clone>/config/skills/<name>/  → already live in every workspace on this machine
 git commit -am "✨ feat(<name>): ..." && git push
 dotagents update          # on the other machine
 ```

@@ -3,6 +3,7 @@
 
 import path from "node:path";
 import * as p from "@clack/prompts";
+import { configRoot } from "../../core/common.ts";
 import { brand, displayPath, fancy, finish, header, interactive, line, report, section, tone } from "../../core/output.ts";
 import { listSkills } from "../../core/skills.ts";
 import { state } from "../../core/state.ts";
@@ -37,7 +38,7 @@ export const skills: Command = {
     };
     console.log(`${brand()}  ${bold("skills")}`);
     line();
-    line(`${bold(`${own.length} own`)}  ${muted(`in ${displayPath(path.join(repo, "skills"))}`)}`);
+    line(`${bold(`${own.length} own`)}  ${muted(`in ${displayPath(path.join(configRoot(repo), "skills"))}`)}`);
     const calls = (s: { requires: string[] }) => {
       if (s.requires.length) for (const text of wrap(`calls ${s.requires.join(", ")}`, columns - width - 6)) line(`  ${" ".repeat(width)}${muted(text)}`);
     };
@@ -46,7 +47,7 @@ export const skills: Command = {
       calls(s);
     }
     line();
-    line(`${bold(`${thirdParty.length} third-party`)}  ${muted("registered in skills/third-party-skills.json, installed with npx skills")}`);
+    line(`${bold(`${thirdParty.length} third-party`)}  ${muted("registered in config/skills/third-party-skills.json, installed with npx skills")}`);
     if (!thirdParty.length) line(muted("  None yet. Register one with: dotagents skills add <owner/repo>"));
     for (const s of thirdParty) {
       row(s.name, s.description, (text) => text);
@@ -131,7 +132,7 @@ export const skillsAdd: Command = {
       }
     }
     if (!state.dryRun) saveCatalog(repo, catalog);
-    finish("Commit skills/third-party-skills.json to have them on your other machines. Use one: dotagents init <path> --skills <name>");
+    finish("Commit config/skills/third-party-skills.json to have them on your other machines. Use one: dotagents init <path> --skills <name>");
   },
 };
 

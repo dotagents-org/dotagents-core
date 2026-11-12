@@ -2,9 +2,9 @@ name: Test scripts
 
 on:
   push:
-    paths: ["cli.ts", "core/**", "surfaces/**", "tsconfig.json", "package.json", "package-lock.json", "test/**", "templates/**", "global/**", ".github/workflows/test-scripts.yml"]
+    paths: ["cli.ts", "core/**", "surfaces/**", "tsconfig.json", "package.json", "package-lock.json", "test/**", "templates/**", "config/**", ".github/workflows/test-scripts.yml"]
   pull_request:
-    paths: ["cli.ts", "core/**", "surfaces/**", "tsconfig.json", "package.json", "package-lock.json", "test/**", "templates/**", "global/**", ".github/workflows/test-scripts.yml"]
+    paths: ["cli.ts", "core/**", "surfaces/**", "tsconfig.json", "package.json", "package-lock.json", "test/**", "templates/**", "config/**", ".github/workflows/test-scripts.yml"]
 
 jobs:
   test:
@@ -122,7 +122,7 @@ jobs:
       - name: third-party skills registered once are offered by init
         run: |
           dotagents skills add blader/humanizer
-          grep -F '"humanizer"' skills/third-party-skills.json
+          grep -F '"humanizer"' config/skills/third-party-skills.json
           ws="$RUNNER_TEMP/tp"
           mkdir -p "$ws"
           dotagents init "$ws" --skills to-cards,humanizer

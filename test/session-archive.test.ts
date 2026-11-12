@@ -7,10 +7,10 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { test, type TestContext } from "node:test";
-import { accountsText, parseTranscript, renderArchive } from "../skills/session-archive/scripts/archive-session.ts";
+import { accountsText, parseTranscript, renderArchive } from "../config/skills/session-archive/scripts/archive-session.ts";
 import { REPO } from "./helpers.ts";
 
-const SCRIPT = path.join(REPO, "skills", "session-archive", "scripts", "archive-session.ts");
+const SCRIPT = path.join(REPO, "config", "skills", "session-archive", "scripts", "archive-session.ts");
 const ID = "11111111-2222-3333-4444-555555555555";
 
 const user = (text: string, ts: string, extra = {}) => ({ type: "user", sessionId: ID, timestamp: ts, cwd: "/w", message: { role: "user", content: text }, ...extra });
@@ -97,7 +97,7 @@ test("run from a workspace's skill link, the script finds the session by id and 
   const ws = path.join(s.root, "ws");
   const skills = path.join(ws, ".agents", "skills");
   fs.mkdirSync(skills, { recursive: true });
-  fs.symlinkSync(path.join(REPO, "skills", "session-archive"), path.join(skills, "session-archive"), "junction");
+  fs.symlinkSync(path.join(REPO, "config", "skills", "session-archive"), path.join(skills, "session-archive"), "junction");
   const res = s.run(path.join(skills, "session-archive", "scripts", "archive-session.ts"), "--session-id", ID);
   assert.equal(res.status, 0, res.stderr);
   const out = path.join(ws, ".artifacts", "session-archives", `2026-01-02-${ID}.md`);

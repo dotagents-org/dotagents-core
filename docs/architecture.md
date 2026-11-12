@@ -4,16 +4,18 @@
 
 ```
 dotagents/
-├── global/
-│   ├── instructions.md        global instructions ({{AGENTS_REPO}} is filled in by install)
-│   └── env/                   machine notes appended per platform (win32.md, linux.md, darwin.md)
-├── rules/                     global rules
-├── claude/settings.json       → ~/.claude/settings.json
-├── skills/                    own skills
-│   └── third-party-skills.json  catalog of third-party skills
+├── config/                    the configuration, yours (DOTAGENTS_CONFIG can point elsewhere)
+│   ├── global/
+│   │   ├── instructions.md    global instructions ({{AGENTS_CONFIG}} is filled in by install)
+│   │   └── env/               machine notes appended per platform (win32.md, linux.md, darwin.md)
+│   ├── rules/                 global rules
+│   ├── claude/                settings.json → ~/.claude/settings.json; global-config.json → ~/.claude.json
+│   ├── skills/                own skills
+│   │   └── third-party-skills.json  catalog of third-party skills
+│   └── assets/                the profile icons: claude-<name>.svg, the source, and the .ico the Start menu shortcuts use
 ├── standards/                 the .agents/ and .artifacts/ standards
 ├── templates/workspace/       AGENTS.md and INDEX.md for new workspaces
-├── assets/                    the profile icons: claude-<name>.svg, the source, and the .ico the Start menu shortcuts use
+├── assets/                    the dotagents logo
 ├── docs/                      this documentation
 ├── cli.ts                     the dotagents command: reads the arguments, picks the command, prints the help
 ├── core/                      the data and the actions, drawing nothing (see below)
@@ -112,13 +114,13 @@ node cli.ts --help      # run without npm link
 
 **CI** runs on every push that touches the code:
 
-- **Validate skills:** runs [skills-ref](https://github.com/agentskills/agentskills/tree/main/skills-ref) on every skill in `skills/`.
+- **Validate skills:** runs [skills-ref](https://github.com/agentskills/agentskills/tree/main/skills-ref) on every skill in `config/skills/`.
 - **Test scripts:** on Linux, Windows and macOS, it:
   - runs `npm test` and links the command;
   - runs every command end to end, including real `npx skills` installations and `new` with local repositories;
   - checks that a second run changes nothing.
 
-**Commits** follow [the commit convention](../rules/commit-conventions.md): gitmoji plus Conventional Commits, one line in English, no co-author trailer.
+**Commits** follow [the commit convention](../config/rules/commit-conventions.md): gitmoji plus Conventional Commits, one line in English, no co-author trailer.
 
 **The brand and the README's captures:**
 
@@ -133,7 +135,7 @@ node cli.ts --help      # run without npm link
 
 - `docs/media/` holds the captures at the top of the README, drawn by `npm run media` (`scripts/media.ts`) from the same lines `usage` prints, for sample profiles at a fixed moment. `test/media.test.ts` fails when they no longer match the views: run `npm run media` after changing the views or the theme.
 
-**Changing a profile icon:** edit `assets/claude-<name>.svg`, then rebuild the `.ico` (16 to 256 px) and run `dotagents install` on Windows:
+**Changing a profile icon:** edit `config/assets/claude-<name>.svg`, then rebuild the `.ico` (16 to 256 px) and run `dotagents install` on Windows:
 
 ```bash
 uvx --from cairosvg==2.7.1 cairosvg assets/claude-<name>.svg -o /tmp/icon.png -W 256 -H 256

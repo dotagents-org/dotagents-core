@@ -22,6 +22,6 @@ export const settingsPull: Command = {
       from = profile.configDir;
     }
     pullSettings(repo, configDirs(), { from });
-    finish(state.counts.updated ? "Commit claude/settings.json, then run dotagents install to take it to the other profiles." : "");
+    finish(state.counts.updated ? "Commit config/claude/settings.json, then run dotagents install to take it to the other profiles." : "");
   },
 };

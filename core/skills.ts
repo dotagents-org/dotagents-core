@@ -1,16 +1,16 @@
-// The skills module: your skills (skills/ in this repository) and the registered third-party ones
-// (skills/third-party-skills.json) behind one interface. Callers ask what exists, what a workspace has,
+// The skills module: your skills (config/skills/) and the registered third-party ones
+// (config/skills/third-party-skills.json) behind one interface. Callers ask what exists, what a workspace has,
 // and to apply or verify a set of skills; they never need to know where a skill comes from.
 //
 // In a workspace both kinds live in .agents/skills/:
-// - own skills are links to this repository's skills/<name>;
+// - own skills are links to config/skills/<name>;
 // - third-party skills are folders installed by an installer adapter (npx skills add by
 //   default), recorded in skills-lock.json.
 
 import fs from "node:fs";
 import path from "node:path";
 import { projectFiles } from "./claude-code.ts";
-import { ensureDirLink, lstat, realpath, samePath } from "./common.ts";
+import { configRoot, ensureDirLink, lstat, realpath, samePath } from "./common.ts";
 import { checkItem, checkWarn, report } from "./output.ts";
 import { state } from "./state.ts";
 import { findRequires, loadCatalog, npxInstaller, parseSkill, type Installer } from "./thirdparty.ts";
@@ -21,7 +21,7 @@ export type Skill = { name: string; kind: "own" | "third-party"; source: string;
 // Every skill this repository knows: [{ name, kind: "own" | "third-party", source, description, requires }].
 // An own skill's calls are read from its folder; a third-party one's, from the catalog.
 export function listSkills(repo: string): Skill[] {
-  const dir = path.join(repo, "skills");
+  const dir = path.join(configRoot(repo), "skills");
   const catalog = loadCatalog(repo);
   const ownNames = fs.readdirSync(dir).filter((name) => fs.existsSync(path.join(dir, name, "SKILL.md")));
   const known = [...ownNames, ...catalog.map((s) => s.name)];
