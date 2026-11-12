@@ -42,9 +42,9 @@
   }
 
   // The avatar, live: avatar.js paints it on a canvas every animation frame.
-  function avatar(name, color, state) {
-    const canvas = el("canvas", { class: "av", role: "img", "aria-label": `${name}, ${state}` });
-    window.dotagentsAvatar.mount(canvas, { who: name, color, state, size: 52 });
+  function avatar(name, color, state, working) {
+    const canvas = el("canvas", { class: "av", role: "img", "aria-label": `${name}, ${state}${working ? ", working" : ""}` });
+    window.dotagentsAvatar.mount(canvas, { who: name, color, state, working, size: 52 });
     return canvas;
   }
 
@@ -100,7 +100,7 @@
         el(
           "div",
           { class: "who" },
-          avatar(p.name, p.color, p.avatar || "asleep"),
+          avatar(p.name, p.color, p.avatar || "asleep", Boolean(p.working)),
           el(
             "div",
             { class: "names" },

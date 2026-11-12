@@ -13,7 +13,7 @@ import { peerUp } from "./peer.ts";
 import { PALETTE } from "./profiles.ts";
 import { peerRunningLater } from "./sessions.ts";
 import { liveLogin, sideName, slotProfile } from "./switch.ts";
-import { AVATAR_STATES, type AvatarState, type ProfileUsage, STALE_MS, avatarState, elapsedPct, normalize, pace, profileUsage } from "./usage.ts";
+import { AVATAR_STATES, type AvatarState, type ProfileUsage, STALE_MS, avatarState, avatarWorking, elapsedPct, normalize, pace, profileUsage } from "./usage.ts";
 
 // The live record joined to what the cache gave: it wins when it is about the profile's account
 // (accountUuid) and newer. Its last error comes along either way.
@@ -223,6 +223,7 @@ export function usageJson(list: ProfileUsage[], now: Date) {
       ...p,
       fetchedAt: p.fetchedAt?.toISOString() ?? null,
       avatar: avatarState(p, now),
+      working: avatarWorking(p),
       windows: p.windows.map((w) => ({ ...w, resetsAt: w.resetsAt?.toISOString() ?? null, elapsedPct: elapsedPct(w, now), projection: projection(p.state === "ok" ? pace(w, now) : null) })),
     })),
   };
