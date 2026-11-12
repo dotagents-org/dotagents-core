@@ -39,7 +39,9 @@ repeat the logs, loaded whole in every session.
 │   ├── YYYY-MM-DD-<origin>-<slug>.md
 │   └── YYYY-MM-DD-<...>/           session attachments
 ├── plans/                          always exists: plans written before implementing
-│   └── <name>.md
+│   ├── PLAN.md                     the living plan, under a fixed name
+│   ├── <name>.md                   plans in progress
+│   └── done/                       plans done, replaced or dropped
 ├── memory/                         always exists: Claude Code's auto memory of the workspace
 │   ├── MEMORY.md                   the index Claude Code loads at the start of a session
 │   └── <note>.md
@@ -72,9 +74,18 @@ repeat the logs, loaded whole in every session.
   file names are the ones Claude Code generates.
 - A plan written outside plan mode (asked for in the conversation) also goes here, as
   `YYYY-MM-DD-<slug>.md`: the global instructions say so.
+- `PLAN.md` is the living plan: what the product is, the decisions in force, the state, and
+  the workstreams in order. Its fixed name is how an agent finds the current plan without
+  reading dates. When a new one replaces it, the old one moves to `done/` with its date in the
+  name.
+- A workstream that grows gets a plan of its own next to it, linked both ways. The pending
+  tasks stay as checklist items (in the plan or in a task list such as `TASKS.md`), never one
+  file per task: the detail of a task comes from plan mode when it is carried out.
 - A plan is a working document while it is being carried out, and a record once it is
-  done or dropped. It is not rewritten afterwards: what changed during the work belongs in
-  the transcript, and the current state in the documents that describe it.
+  done, replaced or dropped: then it moves to `done/`, with its state in its header. It is
+  not rewritten afterwards: what changed during the work belongs in the transcript, and the
+  current state in the documents that describe it. So `plans/` shows only what is in
+  progress, and the index points to `done/` in one line.
 
 ### `memory/`
 
