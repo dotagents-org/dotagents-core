@@ -5,6 +5,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { test, type TestContext } from "node:test";
+import { usageJson } from "../core/snapshot.ts";
 import { type ProfileUsage, type UsageWindow, bar, elapsedPct, faceOf, levelOf, normalize, pace, profileUsage, shortLines, span, thresholdAlerts, usageLines } from "../core/usage.ts";
 import { sessionActivity } from "../core/claude-code.ts";
 
@@ -63,14 +64,16 @@ test("anything that isn't a usage cache gives no data", () => {
   for (const raw of [undefined, null, 3, {}, { utilization: { limits: "x" } }]) assert.equal(normalize(raw, NOW), null);
 });
 
-test("the pace says when a window runs out, or how much is left at reset", () => {
-  // 40% used after 3 of 5 hours: at that rate, 66.7% at reset.
-  assert.deepEqual(pace({ kind: "session", pct: 40, resetsAt: at("2026-10-28T14:00:00Z"), reset: false }, NOW), { leftAtReset: 33 });
-  // 90% used after 3 hours: 100% after 3h20, at 12:20.
-  assert.deepEqual(pace({ kind: "session", pct: 90, resetsAt: at("2026-10-28T14:00:00Z"), reset: false }, NOW), { runsOutAt: at("2026-10-28T12:20:00Z") });
-  // Too early in the window, nothing used, or reset: no note.
-  assert.equal(pace({ kind: "session", pct: 40, resetsAt: at("2026-10-28T16:50:00Z"), reset: false }, NOW), null);
+test("the pace projects every window to its reset, says when one runs out, and when the projection starts", () => {
+  // 40% used after 3 of 5 hours: at that rate, ~67% at reset.
+  assert.deepEqual(pace({ kind: "session", pct: 40, resetsAt: at("2026-10-28T14:00:00Z"), reset: false }, NOW), { atResetPct: 67 });
+  // 90% used after 3 hours: 150% at reset, so 100% after 3h20, at 12:20.
+  assert.deepEqual(pace({ kind: "session", pct: 90, resetsAt: at("2026-10-28T14:00:00Z"), reset: false }, NOW), { atResetPct: 150, runsOutAt: at("2026-10-28T12:20:00Z") });
+  // 10 minutes into the window: too early, the projection starts once 10% (30 minutes) has gone by.
+  assert.deepEqual(pace({ kind: "session", pct: 40, resetsAt: at("2026-10-28T16:50:00Z"), reset: false }, NOW), { from: at("2026-10-28T12:20:00Z") });
+  // Nothing used, or reset: nothing to project.
   assert.equal(pace({ kind: "week", pct: 0, resetsAt: at("2026-11-03T21:59:59Z"), reset: false }, NOW), null);
+  assert.equal(pace({ kind: "session", pct: 40, resetsAt: null, reset: true }, NOW), null);
 });
 
 test("the bar has the same width at every percentage: used, a gap, the rest", () => {
@@ -229,4 +232,53 @@ test("a config folder's running sessions count as working or waiting; idle ones 
   const alive = (pid: number) => pid !== 14;
   assert.deepEqual(sessionActivity(dir, alive), { working: 2, waiting: 1 });
   assert.deepEqual(sessionActivity(path.join(dir, "missing"), alive), { working: 0, waiting: 0 });
+});
+
+test("under every window with fresh data, a projection line: muted below 100%, warn when it runs out, none when stale", () => {
+  const list: ProfileUsage[] = [
+    {
+      name: "work",
+      color: "#D77655",
+      state: "ok",
+      fetchedAt: at("2026-10-28T11:56:00Z"),
+      windows: [
+        { kind: "session", pct: 40, resetsAt: at("2026-10-28T14:00:00Z"), reset: false },
+        { kind: "week", pct: 10, resetsAt: at("2026-11-03T12:00:00Z"), reset: false },
+        { kind: "model-week", model: "Opus", pct: 90, resetsAt: at("2026-11-02T12:00:00Z"), reset: false },
+      ],
+    },
+    { name: "personal", color: "#376B80", state: "ok", fetchedAt: at("2026-10-28T11:56:00Z"), windows: [{ kind: "session", pct: 5, resetsAt: at("2026-10-28T16:50:00Z"), reset: false }] },
+  ];
+  const lines = usageLines(list, NOW);
+  const out = text(lines);
+  assert.match(out, /^ {2}5h .*40%.*\n {7,}~67% at reset$/m);
+  assert.match(out, /^ {2}7d .*10%.*\n {7,}~70% at reset$/m);
+  assert.match(out, /^ {2}Opus .*90%.*\n {7,}~315% at reset, runs out [A-Z][a-z]{2} \d\d:\d\d$/m);
+  assert.match(out, /^ {7,}projection from \d\d:\d\d$/m);
+  assert.doesNotMatch(out, /[◇·⚠└●!]/);
+  const role = (start: string) => lines.flat().find((s) => s.text.startsWith(start))?.role;
+  assert.equal(role("~67%"), "muted");
+  assert.equal(role("~315%"), "warn");
+  assert.equal(role("projection from"), "muted");
+  const stale = text(usageLines([{ ...list[0], state: "stale", fetchedAt: at("2026-10-28T02:00:00Z") }], NOW));
+  assert.doesNotMatch(stale, /at reset|projection/);
+});
+
+test("usage --json carries each window's projection, null when the data is stale or there is nothing to project", () => {
+  const list: ProfileUsage[] = [
+    {
+      name: "work",
+      color: "#D77655",
+      state: "ok",
+      fetchedAt: at("2026-10-28T11:56:00Z"),
+      windows: [
+        { kind: "session", pct: 90, resetsAt: at("2026-10-28T14:00:00Z"), reset: false },
+        { kind: "week", pct: 0, resetsAt: at("2026-11-03T12:00:00Z"), reset: false },
+      ],
+    },
+  ];
+  const [work] = usageJson(list, NOW).profiles;
+  assert.deepEqual(work.windows.map((w) => w.projection), [{ atResetPct: 150, runsOutAt: "2026-10-28T12:20:00.000Z" }, null]);
+  const [stale] = usageJson([{ ...list[0], state: "stale" }], NOW).profiles;
+  assert.deepEqual(stale.windows.map((w) => w.projection), [null, null]);
 });
