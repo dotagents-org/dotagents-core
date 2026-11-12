@@ -71,6 +71,8 @@ export function setUpProfile(
   section("Configuration");
   installGlobal(repo);
   applyProfile(repo, profile, desktop);
+  // Windows: the tray panel shows every profile, so the first one brings it.
+  if (desktop) applyTray(repo);
   record(profile, prior);
 }
 
