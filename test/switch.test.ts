@@ -7,8 +7,8 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { test, type TestContext } from "node:test";
-import { saveProfile } from "../core/machine-state.ts";
-import { peerFailure, slotProfile, switchProfile, verifyLogins, type PeerSwitch } from "../core/switch.ts";
+import { saveMachine, saveProfile } from "../core/machine-state.ts";
+import { loginMark, peerFailure, slotProfile, switchProfile, verifyLogins, type PeerSwitch } from "../core/switch.ts";
 import { state } from "../core/state.ts";
 import { quiet } from "./helpers.ts";
 
@@ -163,4 +163,69 @@ test("the checklist says when each profile's saved login expires, warning a week
   verifyLogins(now);
   assert.equal(state.problems, 1);
   assert.match(text("check"), /personal.*expired/);
+});
+
+// The live usage marks the login Anthropic refused (core/live.ts); the mark holds for that login,
+// wherever it is copied, until a new sign-in or a renewal brings another.
+const refuse = (home: string, name: string, token: string) => {
+  fs.mkdirSync(path.join(home, "state", "usage"), { recursive: true });
+  fs.writeFileSync(path.join(home, "state", "usage", `${name}.json`), JSON.stringify({ version: 1, refused: loginMark(creds(token)), error: "Anthropic refused the login (401); sign in again" }));
+};
+
+test("a login Anthropic refused fails the checklist and warns on a switch, until it is signed in again", async (t) => {
+  const home = machine(t);
+  login(path.join(home, ".claude"), path.join(home, ".claude.json"), "uuid-work", "work1");
+  quiet();
+  await switchProfile({ save: "work", peer: noPeer });
+  refuse(home, "work", "work1");
+  let events = quiet();
+  verifyLogins();
+  const text = (k: string) => events.filter((e) => e.kind === k).map((e) => ("text" in e ? e.text : "")).join("\n");
+  assert.equal(state.problems, 1);
+  assert.match(text("check"), /work on .*: Anthropic refused the login/);
+  events = quiet();
+  await switchProfile({ name: "work", peer: noPeer, here: true });
+  assert.match(text("warning"), /work.*refused/, "already in the slot, but not a good login");
+  // Signed in again: a new refresh token.
+  fs.writeFileSync(path.join(home, ".claude", ".credentials.json"), creds("work2"));
+  events = quiet();
+  verifyLogins();
+  assert.equal(state.problems, 0);
+});
+
+test("a refused login stays refused when a switch copies it into the slot", async (t) => {
+  const home = machine(t);
+  login(path.join(home, ".claude"), path.join(home, ".claude.json"), "uuid-work", "work1");
+  login(path.join(home, ".claude-personal"), path.join(home, ".claude-personal", ".claude.json"), "uuid-personal", "personal1");
+  quiet();
+  await switchProfile({ save: "work", peer: noPeer });
+  refuse(home, "personal", "personal1");
+  quiet();
+  await switchProfile({ name: "personal", peer: noPeer, here: true });
+  assert.equal(slotToken(home), "rt-personal1");
+  const events = quiet();
+  verifyLogins();
+  assert.ok(events.some((e) => e.kind === "check" && !e.passed && /personal on .*: Anthropic refused/.test(e.text)));
+});
+
+test("a slot that names an account but has no credentials fails the checklist, on either side", async (t) => {
+  const home = machine(t);
+  login(path.join(home, ".claude"), path.join(home, ".claude.json"), "uuid-work", "work1");
+  quiet();
+  await switchProfile({ save: "work", peer: noPeer });
+  const peerHome = path.join(home, "peer");
+  login(path.join(peerHome, ".claude"), path.join(peerHome, ".claude.json"), "uuid-work", "work1");
+  saveMachine({ peer: { name: "Windows", home: peerHome, nativeHome: "C:\\Users\\me" } });
+  let events = quiet();
+  verifyLogins();
+  assert.equal(state.problems, 0);
+  fs.rmSync(path.join(peerHome, ".claude", ".credentials.json"));
+  events = quiet();
+  verifyLogins();
+  const checks = events.filter((e) => e.kind === "check" && !e.passed).map((e) => ("text" in e ? e.text : ""));
+  assert.deepEqual(checks, ["the slot on Windows has no login (it names work)"]);
+  fs.rmSync(path.join(home, ".claude", ".credentials.json"));
+  events = quiet();
+  verifyLogins();
+  assert.equal(state.problems, 2);
 });

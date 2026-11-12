@@ -7,11 +7,11 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { test, type TestContext } from "node:test";
-import { type Fetcher, LIVE_EVERY_MS, fetchLive, refreshUsage } from "../core/live.ts";
+import { type Fetcher, LIVE_EVERY_MS, fetchLive, readRecord, refreshUsage } from "../core/live.ts";
 import { loadProfiles, saveProfile } from "../core/machine-state.ts";
 import { readUsage } from "../core/snapshot.ts";
 import { state } from "../core/state.ts";
-import { withLoginLock } from "../core/switch.ts";
+import { loginMark, withLoginLock } from "../core/switch.ts";
 import { quiet } from "./helpers.ts";
 
 const NOW = Date.parse("2026-10-30T12:00:00Z");
@@ -184,4 +184,22 @@ test("the login lock waits for the run that holds it, and takes over one left by
   fs.utimesSync(lock, old, old);
   assert.equal(await withLoginLock(() => "taken"), "taken");
   assert.ok(!fs.existsSync(lock));
+});
+
+test("a login Anthropic refuses is marked refused, and a good answer clears the mark; a network error doesn't mark it", async (t) => {
+  machine(t, { personal: -HOUR });
+  const offline: Fetcher = async () => {
+    throw new Error("getaddrinfo ENOTFOUND");
+  };
+  await fetchLive(profile("personal"), { fetcher: anthropic({ token: 400 }).fetcher, now: clock(NOW) });
+  assert.equal(readRecord("personal").refused, loginMark(creds("personal1", NOW - HOUR)), "a refused renewal");
+  await fetchLive(profile("work"), { fetcher: offline, now: clock(NOW) });
+  assert.equal(readRecord("work").refused, undefined, "a network error marks nothing");
+  await fetchLive(profile("work"), { fetcher: anthropic({ usage: 401 }).fetcher, now: clock(NOW + 10 * 60_000) });
+  assert.equal(readRecord("work").refused, loginMark(creds("work1", NOW)), "a refused usage request");
+  assert.ok(!JSON.stringify(readRecord("work")).includes("rt-"), "the mark isn't the token");
+  await fetchLive(profile("work"), { fetcher: offline, now: clock(NOW + 30 * 60_000) });
+  assert.ok(readRecord("work").refused, "a network error keeps the mark");
+  await fetchLive(profile("work"), { fetcher: anthropic().fetcher, now: clock(NOW + 2 * HOUR) });
+  assert.equal(readRecord("work").refused, undefined, "a good answer clears it");
 });

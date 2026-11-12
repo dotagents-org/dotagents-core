@@ -18,7 +18,7 @@ import { report, section } from "./output.ts";
 import { PALETTE } from "./profiles.ts";
 import { defaultConfigDir } from "./claude-code.ts";
 import { state } from "./state.ts";
-import { liveLogin, withLoginLock, writePrivate } from "./switch.ts";
+import { liveLogin, loginMark, withLoginLock, writePrivate } from "./switch.ts";
 import { normalize } from "./usage.ts";
 
 export type Fetcher = (url: string, init: { method: "GET" | "POST"; headers: Record<string, string>; body?: string }) => Promise<{ status: number; headers: { get(name: string): string | null }; text: string }>;
@@ -46,7 +46,9 @@ const MAX_BACKOFF_MS = 15 * 60_000;
 
 // What dotagents keeps per profile: the last usage, as Claude Code's cache keeps it (fetchedAtMs,
 // accountUuid, utilization), and the last attempt, with its error and when to try again.
-type LiveRecord = { fetchedAtMs?: number; accountUuid?: string; utilization?: unknown; askedAtMs?: number; failures?: number; retryAtMs?: number; error?: string };
+// refused: the mark of the login Anthropic last refused (a 401, a renewal turned down; loginMark in
+// core/switch.ts), which the checklist and the switch read; a good answer clears it.
+type LiveRecord = { fetchedAtMs?: number; accountUuid?: string; utilization?: unknown; askedAtMs?: number; failures?: number; retryAtMs?: number; error?: string; refused?: string };
 
 const recordFile = (name: string, dir = stateDir()) => path.join(dir, "usage", `${name}.json`);
 
@@ -94,7 +96,7 @@ const readCredentials = (file: string): { all: Record<string, unknown>; oauth: O
 
 // A valid access token for the login, renewed first when it is due. Under the lock, and read again
 // there: a switch, another dotagents or Claude Code may have renewed it a moment ago.
-async function accessToken(file: string, shared: boolean, fetcher: Fetcher, now: () => number): Promise<{ token: string } | { error: string }> {
+async function accessToken(file: string, shared: boolean, fetcher: Fetcher, now: () => number): Promise<{ token: string } | { error: string; refused?: boolean }> {
   return withLoginLock(async () => {
     const creds = readCredentials(file);
     if (!creds || typeof creds.oauth.accessToken !== "string" || !creds.oauth.accessToken) return { error: "no login in its credentials; sign in again" };
@@ -106,7 +108,8 @@ async function accessToken(file: string, shared: boolean, fetcher: Fetcher, now:
       headers: { "content-type": "application/json", "anthropic-beta": BETA, "user-agent": USER_AGENT },
       body: JSON.stringify({ grant_type: "refresh_token", client_id: CLIENT_ID, refresh_token: creds.oauth.refreshToken }),
     });
-    if (res.status !== 200) return { error: `couldn't renew the login (${errorText(res.status, res.text)})` };
+    // 400 and 401 are the refresh token turned down (invalid_grant); anything else may pass.
+    if (res.status !== 200) return { error: `couldn't renew the login (${errorText(res.status, res.text)})`, refused: res.status === 400 || res.status === 401 };
     let body: { access_token?: unknown; refresh_token?: unknown; expires_in?: unknown };
     try {
       body = JSON.parse(res.text);
@@ -138,10 +141,12 @@ export async function fetchLive(p: Profile, { fetcher = httpFetcher, now = Date.
   if (!login) return { status: "failed", detail: "no login saved for it" };
   if (state.dryRun) return { status: "ok", detail: "would ask Anthropic for the usage" };
 
-  const failed = (error: string, retryAfter?: number): LiveResult => {
+  const failed = (error: string, { retryAfter, refused = false }: { retryAfter?: number; refused?: boolean } = {}): LiveResult => {
     const failures = (record.failures ?? 0) + 1;
     const backoff = Math.max(retryAfter ?? 0, Math.min(BACKOFF_MS * 2 ** (failures - 1), MAX_BACKOFF_MS));
-    writeRecord(p.name, { ...record, askedAtMs: now(), failures, retryAtMs: now() + backoff, error });
+    // The login as it is now in its file: the one just refused.
+    const mark = refused ? loginMark(fs.readFileSync(login.file, "utf8")) : null;
+    writeRecord(p.name, { ...record, askedAtMs: now(), failures, retryAtMs: now() + backoff, error, ...(mark ? { refused: mark } : {}) });
     return { status: "failed", detail: error };
   };
   writeRecord(p.name, { ...record, askedAtMs: now() });
@@ -149,16 +154,16 @@ export async function fetchLive(p: Profile, { fetcher = httpFetcher, now = Date.
   let res: Awaited<ReturnType<Fetcher>>;
   try {
     const token = await accessToken(login.file, login.shared, fetcher, now);
-    if ("error" in token) return failed(token.error);
+    if ("error" in token) return failed(token.error, { refused: token.refused });
     res = await fetcher(USAGE_URL, { method: "GET", headers: { authorization: `Bearer ${token.token}`, "anthropic-beta": BETA, "user-agent": USER_AGENT, "content-type": "application/json" } });
   } catch (err) {
     return failed(`couldn't reach Anthropic (${(err as Error).name === "TimeoutError" ? "timed out" : (err as Error).message})`);
   }
   if (res.status === 429) {
     const seconds = Number(res.headers.get("retry-after"));
-    return failed("Anthropic asks to wait (429)", Number.isFinite(seconds) && seconds > 0 ? seconds * 1000 : undefined);
+    return failed("Anthropic asks to wait (429)", { retryAfter: Number.isFinite(seconds) && seconds > 0 ? seconds * 1000 : undefined });
   }
-  if (res.status === 401) return failed("Anthropic refused the login (401); sign in again");
+  if (res.status === 401) return failed("Anthropic refused the login (401); sign in again", { refused: true });
   if (res.status !== 200) return failed(`Anthropic answered ${errorText(res.status, res.text)}`);
   let utilization: unknown;
   try {
