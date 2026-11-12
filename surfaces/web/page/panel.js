@@ -56,7 +56,7 @@
     if (pr && pr.from) projection = el("span", { class: "note" }, `projection from ${hhmm(new Date(pr.from))}`);
     else if (pr && pr.runsOutAt) {
       const when = new Date(pr.runsOutAt);
-      projection = el("span", { class: "note warn" }, `~${pr.atResetPct}% at reset, runs out ${w.kind === "session" ? hhmm(when) : dayTime(when)}`);
+      projection = el("span", { class: "note warn" }, `at this pace, runs out ${w.kind === "session" ? hhmm(when) : dayTime(when)}`);
     } else if (pr) projection = el("span", { class: "note" }, `~${pr.atResetPct}% at reset`);
     return el(
       "div",

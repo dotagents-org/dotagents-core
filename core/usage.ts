@@ -117,11 +117,13 @@ export function profileUsage(profile: { name: string; color: string; default?: b
 
 // At the average rate since the window opened: how much it will have used at the reset (rounded,
 // with no cap) and, past 100%, when it runs out. In the window's first 10% the rate means little,
-// so it says when the projection starts instead. Nothing for a window unused or reset.
+// so it says when the projection starts instead. Nothing for a window unused, reset or already at
+// its limit (it ran out: the bar and the reset say it). Past 100% only when it runs out matters to
+// read; the percentage stays in the data.
 export type Pace = { atResetPct: number; runsOutAt?: Date } | { from: Date } | null;
 
 export function pace(w: UsageWindow, now: Date): Pace {
-  if (w.reset || !w.resetsAt || w.pct <= 0) return null;
+  if (w.reset || !w.resetsAt || w.pct <= 0 || w.pct >= 100) return null;
   const length = LENGTH[w.kind];
   const elapsed = length - (w.resetsAt.getTime() - now.getTime());
   if (elapsed < length * 0.1) return { from: new Date(w.resetsAt.getTime() - length * 0.9) };
@@ -294,7 +296,7 @@ export function usageLines(list: ProfileUsage[], now: Date): Line[] {
       const when = (d: Date) => (w.kind === "session" ? hhmm(d) : dayTime(d));
       const indent = { text: `  ${" ".repeat(labelWidth)}` };
       if (p && "from" in p) lines.push([indent, { text: `projection from ${when(p.from)}`, role: "muted" }]);
-      else if (p?.runsOutAt) lines.push([indent, { text: `~${p.atResetPct}% at reset, runs out ${when(p.runsOutAt)}`, role: "warn" }]);
+      else if (p?.runsOutAt) lines.push([indent, { text: `at this pace, runs out ${when(p.runsOutAt)}`, role: "warn" }]);
       else if (p) lines.push([indent, { text: `~${p.atResetPct}% at reset`, role: "muted" }]);
     }
   }
