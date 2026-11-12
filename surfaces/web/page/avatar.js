@@ -2,7 +2,8 @@
 // (vendor/open-bot-avatar.js) every animation frame, 60 a second, so blinking, breathing and
 // looking move smoothly; the eyes of each state and the status dot are dotagents', drawn on the
 // same canvas. One requestAnimationFrame loop paints every avatar on the page; one taken off the
-// page leaves it. Exposes window.dotagentsAvatar.mount(canvas, { who, color, state, size }).
+// page leaves it. Exposes window.dotagentsAvatar.mount(canvas, { who, color, state, working, size }):
+// state is in the eyes and the dot; working, a session at work, in the body, which hops.
 "use strict";
 
 (() => {
@@ -26,8 +27,7 @@
   }
 
   // The status dot, in the corner: red needs you (a ring around it when it comes back by itself),
-  // amber asks for attention (a ring: a session waits for you), green all good, blue asleep;
-  // working has none, its dots below say it.
+  // amber asks for attention (a ring: a session waits for you), green all good, blue asleep.
   const RED = "#ee1d36", AMBER = "#f58a00", GREEN = "#00b84d", BLUE = "#2f7bf5";
   const DOTS = { error: [RED, false], limit: [RED, true], waiting: [AMBER, true], warn: [AMBER, false], ok: [GREEN, false], asleep: [BLUE, false] };
 
@@ -41,8 +41,8 @@
   const reduced = matchMedia("(prefers-reduced-motion: reduce)");
   let running = false;
 
-  function mount(canvas, { who, color, state, size = 52 }) {
-    const a = { canvas, ctx: canvas.getContext("2d"), def: defFor(who), who, color: who === "dotagents" ? BRAND : color, state, size, open: 0, offset: Math.random() * 10 };
+  function mount(canvas, { who, color, state, working = false, size = 52 }) {
+    const a = { canvas, ctx: canvas.getContext("2d"), def: defFor(who), who, color: who === "dotagents" ? BRAND : color, state, working, size, open: 0, offset: Math.random() * 10 };
     a.ink = inkFor(who, a.color);
     canvas.width = canvas.height = Math.round(size * (devicePixelRatio || 1));
     canvas.style.width = canvas.style.height = `${size}px`;
@@ -105,7 +105,7 @@
     const frame = OpenBotAvatar.avatarFrame(a.def, {
       color: a.color,
       eyeColor: a.ink,
-      motion: s === "working" ? "thinking" : "idle",
+      motion: a.working ? "thinking" : "idle",
       time: t,
       gaze: s === "waiting" ? { x: 0, y: 0.2 } : undefined,
       depth: s === "asleep" ? 4 : undefined,
@@ -116,9 +116,9 @@
     const ctx = a.ctx;
     const k = a.canvas.width / VIEW.size;
     const view = [k, 0, 0, k, -VIEW.x * k, -VIEW.y * k];
-    // working hops twice a loop of 3 s and squashes a little where it lands.
+    // A session at work: the body hops twice a loop of 3 s and squashes a little where it lands.
     let root = frame.root;
-    if (s === "working") {
+    if (a.working) {
       const hop = Math.abs(Math.sin((t / 3) * Math.PI * 2));
       const sy = hop < 0.15 ? 0.93 : 1, sx = hop < 0.15 ? 1.05 : 1;
       root = mul([sx, 0, 0, sy, 50 - 50 * sx, 92 - 92 * sy - 6 * hop], root);
@@ -136,7 +136,7 @@
       } else eyeGlyph(ctx, a, { ...shape.mark, left: eye++ === 0 });
     }
     ctx.setTransform(view[0], 0, 0, view[3], view[4], view[5]);
-    if (s === "working") {
+    if (a.working) {
       const lit = Math.floor((t / 3) * 6) % 3;
       for (let i = 0; i < 3; i++) {
         ctx.globalAlpha = i === lit ? 1 : 0.3;

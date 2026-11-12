@@ -131,9 +131,10 @@ export function pace(w: UsageWindow, now: Date): Pace {
   return { atResetPct };
 }
 
-// The avatar's state, one of the identity's seven, most urgent first: what the tray icon and the
-// panel's cards show. The numbers stay in the bars and the text.
-export const AVATAR_STATES = ["error", "limit", "waiting", "warn", "working", "ok", "asleep"] as const;
+// The avatar shows two things at once (identity, "Avatares"): the state, in the eyes and the dot,
+// most urgent first; and whether a session works, in the body (it hops). The numbers stay in the
+// bars and the text.
+export const AVATAR_STATES = ["error", "limit", "waiting", "warn", "ok", "asleep"] as const;
 export type AvatarState = (typeof AVATAR_STATES)[number];
 
 export function avatarState(p: ProfileUsage, now: Date): AvatarState {
@@ -143,8 +144,16 @@ export function avatarState(p: ProfileUsage, now: Date): AvatarState {
   if (open.some((w) => w.pct >= 100)) return "limit";
   if (p.activity?.waiting) return "waiting";
   if (open.some((w) => w.pct >= 70 || "runsOutAt" in (pace(w, now) ?? {}))) return "warn";
-  if (p.activity?.working) return "working";
-  return p.state === "ok" ? "ok" : "asleep";
+  // A working account is never asleep, whatever the age of its numbers.
+  return p.state === "ok" || p.activity?.working ? "ok" : "asleep";
+}
+
+// Whether a session works on the account: its avatar hops. Not one that stopped (no login, a
+// window at 100%).
+export function avatarWorking(p: ProfileUsage): boolean {
+  if (!p.activity?.working) return false;
+  const state = avatarState(p, new Date());
+  return state !== "error" && state !== "limit";
 }
 
 // How much of the window has gone by, in percent: where the bar would be at a uniform pace. Null

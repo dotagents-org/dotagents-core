@@ -6,7 +6,7 @@ import os from "node:os";
 import path from "node:path";
 import { test, type TestContext } from "node:test";
 import { usageJson } from "../core/snapshot.ts";
-import { type ProfileUsage, type UsageWindow, avatarState, bar, elapsedPct, faceOf, levelOf, normalize, pace, profileUsage, shortLines, span, thresholdAlerts, usageLines } from "../core/usage.ts";
+import { type ProfileUsage, type UsageWindow, avatarState, avatarWorking, bar, elapsedPct, faceOf, levelOf, normalize, pace, profileUsage, shortLines, span, thresholdAlerts, usageLines } from "../core/usage.ts";
 import { sessionActivity } from "../core/claude-code.ts";
 
 const NOW = new Date("2026-10-28T12:00:00Z");
@@ -283,7 +283,7 @@ test("usage --json carries each window's projection, null when the data is stale
   assert.deepEqual(stale.windows.map((w) => w.projection), [null, null]);
 });
 
-test("each profile's avatar state, most urgent first: error, limit, waiting, warn, working, ok, asleep", () => {
+test("each profile's avatar state, most urgent first: error, limit, waiting, warn, ok, asleep; working apart", () => {
   const base: ProfileUsage = { name: "work", color: "#D77655", state: "ok", fetchedAt: at("2026-10-28T11:56:00Z"), windows: [{ kind: "session", pct: 20, resetsAt: at("2026-10-28T14:00:00Z"), reset: false }] };
   const win = (pct: number, resetsAt = "2026-10-28T14:00:00Z") => [{ kind: "session" as const, pct, resetsAt: at(resetsAt), reset: false }];
   assert.equal(avatarState({ ...base, state: "not-signed-in", windows: [] }, NOW), "error");
@@ -293,7 +293,13 @@ test("each profile's avatar state, most urgent first: error, limit, waiting, war
   assert.equal(avatarState({ ...base, windows: win(75) }, NOW), "warn");
   // 30% after 1 of 5 hours: 150% at the reset at that rate.
   assert.equal(avatarState({ ...base, windows: win(30, "2026-10-28T16:00:00Z") }, NOW), "warn", "the pace runs out before the reset");
-  assert.equal(avatarState({ ...base, activity: { working: 2, waiting: 0 } }, NOW), "working");
+  // Working is the body's (it hops), apart from the state: any state but one that stopped.
+  assert.equal(avatarState({ ...base, activity: { working: 2, waiting: 0 } }, NOW), "ok");
+  assert.equal(avatarWorking({ ...base, activity: { working: 2, waiting: 0 } }), true);
+  assert.equal(avatarWorking({ ...base, windows: win(75), activity: { working: 1, waiting: 0 } }), true, "warn and working at once");
+  assert.equal(avatarWorking({ ...base, windows: win(100), activity: { working: 1, waiting: 0 } }), false, "a stopped account doesn't hop");
+  assert.equal(avatarWorking(base), false);
+  assert.equal(avatarState({ ...base, state: "stale", activity: { working: 1, waiting: 0 } }, NOW), "ok", "a working account isn't asleep");
   assert.equal(avatarState(base, NOW), "ok");
   assert.equal(avatarState({ ...base, state: "stale" }, NOW), "asleep");
   assert.equal(avatarState({ ...base, state: "no-data", windows: [] }, NOW), "asleep");
