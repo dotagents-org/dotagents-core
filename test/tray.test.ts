@@ -6,7 +6,9 @@ import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { test } from "node:test";
-import { AVATAR_STATES } from "../core/usage.ts";
+import os from "node:os";
+import { trayFor, usageJson } from "../core/snapshot.ts";
+import { AVATAR_STATES, type ProfileUsage } from "../core/usage.ts";
 import { REPO } from "./helpers.ts";
 
 const TRAY = path.join(REPO, "surfaces", "tray");
@@ -34,5 +36,28 @@ test("Windows PowerShell parses the script and WPF loads the window", { skip: pr
     encoding: "utf8",
     env: { ...process.env, DA_PS1: path.join(TRAY, "tray.ps1"), DA_XAML: path.join(TRAY, "panel.xaml") },
   });
+  assert.equal(res.status, 0, res.stdout + res.stderr);
+});
+
+test("no two variables in the script differ only in case, which PowerShell takes for one", () => {
+  const spellings = new Map<string, Set<string>>();
+  for (const m of fs.readFileSync(path.join(TRAY, "tray.ps1"), "utf8").matchAll(/\$(?:script:)?([A-Za-z_][A-Za-z0-9_]*)/g)) {
+    const key = m[1].toLowerCase();
+    spellings.set(key, (spellings.get(key) ?? new Set()).add(m[1]));
+  }
+  assert.deepEqual([...spellings.values()].filter((s) => s.size > 1).map((s) => [...s]), []);
+});
+
+test("the panel builds its icon and window from real usage data, shows and hides", { skip: process.platform !== "win32" }, (t) => {
+  const now = new Date();
+  const list: ProfileUsage[] = [
+    { name: "work", color: "#D77655", state: "ok", fetchedAt: now, activity: { working: 1, waiting: 0 }, windows: [{ kind: "session", pct: 40, resetsAt: new Date(now.getTime() + 3_600_000), reset: false }, { kind: "model-week", model: "Opus", pct: 75, resetsAt: new Date(now.getTime() + 86_400_000), reset: false }] },
+    { name: "personal", color: "#376B80", state: "not-signed-in", fetchedAt: null, windows: [] },
+  ];
+  const slots = { Windows: "work", WSL: "personal" };
+  const file = path.join(fs.mkdtempSync(path.join(os.tmpdir(), "dotagents-tray-")), "usage.json");
+  t.after(() => fs.rmSync(path.dirname(file), { recursive: true, force: true }));
+  fs.writeFileSync(file, JSON.stringify({ ...usageJson(list, now), slots, tray: trayFor(list, slots, now), peer: { name: "WSL", up: true } }));
+  const res = spawnSync("powershell.exe", ["-NoProfile", "-NonInteractive", "-STA", "-ExecutionPolicy", "Bypass", "-File", path.join(TRAY, "tray.ps1"), "-Check", file], { encoding: "utf8", timeout: 60_000 });
   assert.equal(res.status, 0, res.stdout + res.stderr);
 });

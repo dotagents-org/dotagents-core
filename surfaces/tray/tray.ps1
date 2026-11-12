@@ -5,14 +5,17 @@
 # hidden, when none runs. The icon is the current account's avatar in its state (core/snapshot.ts,
 # trayFor). Keep this file ASCII: Windows PowerShell reads a script without a BOM as ANSI.
 
+# -Check <file>: build the icon and the panel from that usage JSON, show and hide it, and end; the
+# tests run it, since a wrong type or name only fails when the script runs.
+param([string]$Check)
+
 $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName PresentationFramework, PresentationCore, WindowsBase, System.Windows.Forms, System.Drawing, System.Net.Http
-Add-Type -Namespace DotAgents -Name Native -MemberDefinition '[DllImport("user32.dll")] public static extern bool DestroyIcon(System.IntPtr handle);'
 
 # One panel at a time.
 $created = $false
 $script:mutex = New-Object System.Threading.Mutex($true, 'Local\dotagents.tray', [ref]$created)
-if (-not $created) { exit 0 }
+if (-not $created -and -not $Check) { exit 0 }
 
 $here = Split-Path -Parent $MyInvocation.MyCommand.Path
 $assets = Join-Path $here 'assets'
@@ -21,8 +24,9 @@ $serverFile = Join-Path $stateDir 'start.json'
 $logFile = Join-Path $stateDir 'tray.log'
 # A failure inside an event would end the panel: it is written down instead, and the panel goes on.
 function Write-Failure($err) { try { Add-Content -Path $logFile -Value "$([DateTime]::Now.ToString('s'))  $err" } catch {} }
-$FRAME = 168
-$FRAMES = 24
+# PowerShell names ignore case: these can't share a name with any variable ($frames, $frame).
+$FRAME_SIZE = 168
+$FRAME_COUNT = 24
 
 # --- Colors: the identity's roles, light or dark like Windows' apps -------------------------
 function Get-Palette {
@@ -35,6 +39,13 @@ function Get-Palette {
 }
 $script:converter = New-Object System.Windows.Media.BrushConverter
 function Brush([string]$hex) { return $script:converter.ConvertFromString($hex) }
+# An account's color as text: on the dark theme, mixed a third of the way to white, or a dark one
+# (#376B80) fades into the background.
+function Get-NameColor([string]$hex, $p) {
+  if ($p.bg -ne '#0a0a0a' -or $hex -notmatch '^#[0-9a-fA-F]{6}$') { return $hex }
+  $mix = { param($c) [int]([Convert]::ToInt32($c, 16) + (255 - [Convert]::ToInt32($c, 16)) / 3) }
+  return '#{0:x2}{1:x2}{2:x2}' -f (& $mix $hex.Substring(1, 2)), (& $mix $hex.Substring(3, 2)), (& $mix $hex.Substring(5, 2))
+}
 
 # --- The server: its address, or one started hidden ----------------------------------------
 $script:startedAt = [DateTime]::MinValue
@@ -94,26 +105,32 @@ function Get-Frames([string]$name, [string]$state) {
     $image = New-Object System.Windows.Media.Imaging.BitmapImage
     $image.BeginInit(); $image.UriSource = New-Object System.Uri($file); $image.CacheOption = 'OnLoad'; $image.EndInit(); $image.Freeze()
     $frames = @()
-    for ($i = 0; $i -lt $FRAMES; $i++) { $frames += New-Object System.Windows.Media.Imaging.CroppedBitmap($image, (New-Object System.Windows.Int32Rect(($i * $FRAME), 0, $FRAME, $FRAME))) }
+    for ($i = 0; $i -lt $FRAME_COUNT; $i++) { $frames += New-Object System.Windows.Media.Imaging.CroppedBitmap($image, (New-Object System.Windows.Int32Rect(($i * $FRAME_SIZE), 0, $FRAME_SIZE, $FRAME_SIZE))) }
     $script:strips[$file] = $frames
   }
   return $script:strips[$file]
 }
 
-# The icon: the first frame of the strip, at 32 px.
-$script:iconHandle = [IntPtr]::Zero
+# The icon: the first frame of the strip, at 32 px, made once per account and state and kept:
+# the shell may still draw the one it had (the hidden icons' flyout), so none is ever destroyed.
+$script:icons = @{}
+$script:iconKey = ''
 function Set-TrayIcon([string]$name, [string]$state, [string]$tip) {
-  $strip = [System.Drawing.Image]::FromFile((Get-StripFile $name $state))
-  $bitmap = New-Object System.Drawing.Bitmap(32, 32)
-  $g = [System.Drawing.Graphics]::FromImage($bitmap)
-  $g.InterpolationMode = 'HighQualityBicubic'
-  $g.DrawImage($strip, (New-Object System.Drawing.Rectangle(0, 0, 32, 32)), (New-Object System.Drawing.Rectangle(0, 0, $FRAME, $FRAME)), 'Pixel')
-  $g.Dispose(); $strip.Dispose()
-  $handle = $bitmap.GetHicon()
-  $script:notify.Icon = [System.Drawing.Icon]::FromHandle($handle)
-  $bitmap.Dispose()
-  if ($script:iconHandle -ne [IntPtr]::Zero) { [void][DotAgents.Native]::DestroyIcon($script:iconHandle) }
-  $script:iconHandle = $handle
+  $key = "$name-$state"
+  if ($key -ne $script:iconKey) {
+    if (-not $script:icons.ContainsKey($key)) {
+      $strip = [System.Drawing.Image]::FromFile((Get-StripFile $name $state))
+      $bitmap = New-Object System.Drawing.Bitmap(32, 32)
+      $g = [System.Drawing.Graphics]::FromImage($bitmap)
+      $g.InterpolationMode = 'HighQualityBicubic'
+      $g.DrawImage($strip, (New-Object System.Drawing.Rectangle(0, 0, 32, 32)), (New-Object System.Drawing.Rectangle(0, 0, $FRAME_SIZE, $FRAME_SIZE)), 'Pixel')
+      $g.Dispose(); $strip.Dispose()
+      $script:icons[$key] = [System.Drawing.Icon]::FromHandle($bitmap.GetHicon())
+      $bitmap.Dispose()
+    }
+    $script:notify.Icon = $script:icons[$key]
+    $script:iconKey = $key
+  }
   if ($tip.Length -gt 63) { $tip = $tip.Substring(0, 63) }
   $script:notify.Text = $tip
 }
@@ -192,14 +209,14 @@ function Update-Panel {
     $avatar = New-Object System.Windows.Controls.Image
     $avatar.Width = 48; $avatar.Height = 48; $avatar.Margin = '0,0,12,0'
     $frames = Get-Frames $acct.name $acct.avatar
-    $avatar.Source = $frames[$script:frame % $FRAMES]
+    $avatar.Source = $frames[$script:frame % $FRAME_COUNT]
     [void]$script:avatars.Add(@{ image = $avatar; frames = $frames })
     [System.Windows.Automation.AutomationProperties]::SetName($avatar, "$($acct.name), $($acct.avatar)")
     [void]$head.Children.Add($avatar)
     $names = New-Object System.Windows.Controls.StackPanel
     $names.VerticalAlignment = 'Center'
     $line = New-Object System.Windows.Controls.WrapPanel
-    [void]$line.Children.Add((New-Text $acct.name $acct.color -bold -size 15))
+    [void]$line.Children.Add((New-Text $acct.name (Get-NameColor $acct.color $p) -bold -size 15))
     foreach ($s in $d.slots.PSObject.Properties) {
       if ($s.Value -ne $acct.name) { continue }
       $badge = New-Object System.Windows.Controls.Border
@@ -225,7 +242,7 @@ function Update-Panel {
       $color = Get-Level $w.pct $p
       $row = New-Object System.Windows.Controls.Grid
       $row.Margin = '0,10,0,0'
-      foreach ($width in '34', '*', '46') { $c = New-Object System.Windows.Controls.ColumnDefinition; $c.Width = $width; [void]$row.ColumnDefinitions.Add($c) }
+      foreach ($width in '46', '*', '46') { $c = New-Object System.Windows.Controls.ColumnDefinition; $c.Width = $width; [void]$row.ColumnDefinitions.Add($c) }
       $name = New-Text $label $p.muted; [System.Windows.Controls.Grid]::SetColumn($name, 0); [void]$row.Children.Add($name)
       $bar = New-Object System.Windows.Controls.Grid
       $bar.Height = 6; $bar.VerticalAlignment = 'Center'
@@ -241,7 +258,7 @@ function Update-Panel {
       $pct = New-Text "$($w.pct)%" $color -bold; $pct.TextAlignment = 'Right'; [System.Windows.Controls.Grid]::SetColumn($pct, 2); [void]$row.Children.Add($pct)
       [void]$stack.Children.Add($row)
       $reset = if ($w.reset -or -not $w.resetsAt) { if ($w.kind -eq 'session') { 'no window open' } else { 'reset' } } else { 'resets ' + (Format-Span ((Get-Date-Local $w.resetsAt) - [DateTime]::Now)) }
-      $resetText = New-Text $reset $p.muted -size 11; $resetText.Margin = '34,2,0,0'; [void]$stack.Children.Add($resetText)
+      $resetText = New-Text $reset $p.muted -size 11; $resetText.Margin = '46,2,0,0'; [void]$stack.Children.Add($resetText)
       if ($w.projection -and $acct.state -eq 'ok') {
         $proj = $w.projection; $projColor = $p.muted
         if ($proj.from) { $projText = 'projection from ' + (Get-Date-Local $proj.from).ToString('HH:mm') }
@@ -253,11 +270,11 @@ function Update-Panel {
             $projColor = $p.warn
           }
         }
-        $projLine = New-Text $projText $projColor -size 11; $projLine.Margin = '34,0,0,0'; [void]$stack.Children.Add($projLine)
+        $projLine = New-Text $projText $projColor -size 11; $projLine.Margin = '46,0,0,0'; [void]$stack.Children.Add($projLine)
       }
     }
     # Actions: switch to it (unless it's already in every slot), open its Desktop app.
-    $buttons = New-Object System.Windows.Controls.UniformGrid
+    $buttons = New-Object System.Windows.Controls.Primitives.UniformGrid
     $buttons.Rows = 1; $buttons.Margin = '0,12,0,0'
     $everywhere = $sides.Count -gt 0 -and -not ($d.slots.PSObject.Properties | Where-Object { $_.Value -ne $acct.name })
     # The account rides on the button (Tag): a handler runs later, when the loop has moved on.
@@ -329,6 +346,15 @@ $script:notify.Add_MouseClick({ param($s, $e) try { if ($e.Button -eq 'Left') { 
 Update-Tray
 $script:notify.Visible = $true
 
+if ($Check) {
+  $script:data = Get-Content -Raw $Check | ConvertFrom-Json
+  Update-Tray
+  Update-Panel
+  $window.Show(); $window.UpdateLayout(); Set-Place; $window.Hide()
+  $script:notify.Visible = $false; $script:notify.Dispose()
+  exit 0
+}
+
 # --- Timers: the requests' answers, the data every 5 s, the avatars while the panel shows ------
 $answers = New-Object System.Windows.Threading.DispatcherTimer
 $answers.Interval = [TimeSpan]::FromMilliseconds(100)
@@ -343,7 +369,7 @@ $poll.Start()
 $animate = New-Object System.Windows.Threading.DispatcherTimer
 $animate.Interval = [TimeSpan]::FromMilliseconds(125)
 $animate.Add_Tick({
-  $script:frame = ($script:frame + 1) % $FRAMES
+  $script:frame = ($script:frame + 1) % $FRAME_COUNT
   foreach ($a in $script:avatars) { $a.image.Source = $a.frames[$script:frame] }
 })
 $window.Add_IsVisibleChanged({ if ($window.IsVisible) { $animate.Start() } else { $animate.Stop() } })
