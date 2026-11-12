@@ -131,14 +131,16 @@ Shows, for each profile, the newer of two sources: the usage Claude Code keeps i
 
 work  [default]  1 working  4m ago, live
   5h      ━━━━━━━━━━━━━━━━━━━━━━━ ────────   72%  resets 3h 17m
+          ~210% at reset, runs out 12:40
   7d      ━━━━━━━━━━━━━━━ ────────────────   48%  resets 4d 18h
-          runs out Fri 12:02 at this pace
+          ~149% at reset, runs out Fri 12:02
   Fable   ━━━━━━━━━━━━━━━━━━━ ────────────   59%  resets 4d 18h
+          ~184% at reset, runs out Fri 01:10
 
 2 profiles; --refresh asks Anthropic for fresh numbers
 ```
 
-Each profile shows its name, `[default]`, its running Claude Code sessions (`2 working, 1 waiting`, the ones busy and the ones waiting on you), how old its data is and, when it came from Anthropic rather than Claude Code's cache, `live`; then one line per window (`5h`, `7d`, and a model's own week): a bar, the percentage and when it resets. The percentage is green below 70%, yellow from 70% and red from 90%, and from 70% the reset takes that color too; the digits say it without color. A note says when a window runs out at the current pace. A window whose reset time has passed shows as reset, never with the old number.
+Each profile shows its name, `[default]`, its running Claude Code sessions (`2 working, 1 waiting`, the ones busy and the ones waiting on you), how old its data is and, when it came from Anthropic rather than Claude Code's cache, `live`; then one line per window (`5h`, `7d`, and a model's own week): a bar, the percentage and when it resets. The percentage is green below 70%, yellow from 70% and red from 90%, and from 70% the reset takes that color too; the digits say it without color. Under each window with fresh data, a projection at the average rate since the window opened: `~79% at reset` (muted), or, past 100%, `~149% at reset, runs out Fri 12:02` (yellow). In a window's first 10% the rate means little, so it says when the projection starts (`projection from 14:30`); an unused or reset window has none. A window whose reset time has passed shows as reset, never with the old number.
 
 `--short` prints one line per profile with the 5-hour and weekly windows, 8-cell bars, and the time to the reset from 70%:
 
@@ -153,11 +155,11 @@ personal  5h ━━━━━━ ─  91% ↻ 58m     7d ━━ ─────  
 { "version": 1, "generatedAt": "2026-10-28T12:00:00.000Z", "profiles": [
   { "name": "work", "color": "#D77655", "default": true, "state": "ok", "fetchedAt": "2026-10-28T11:56:00.000Z",
     "source": "live", "activity": { "working": 1, "waiting": 0 },
-    "windows": [{ "kind": "session", "pct": 72, "resetsAt": "2026-10-28T15:17:00.000Z", "reset": false, "elapsedPct": 34 }] }
+    "windows": [{ "kind": "session", "pct": 72, "resetsAt": "2026-10-28T15:17:00.000Z", "reset": false, "elapsedPct": 34, "projection": { "atResetPct": 210, "runsOutAt": "2026-10-28T12:40:00.000Z" } }] }
 ] }
 ```
 
-`state` is `ok`, `stale`, `no-data`, `not-signed-in` or `other-account`; `source` is `cache` (Claude Code's) or `live` (asked of Anthropic); `kind` is `session`, `week` or `model-week` (with `model`); `elapsedPct` is how much of the window has gone by, where the bar would be at a uniform pace; `activity` counts the profile's running sessions, for a profile whose login Claude Code is using; `error` says why the last live ask failed; `from` names the other side of the machine when the numbers came from there.
+`state` is `ok`, `stale`, `no-data`, `not-signed-in` or `other-account`; `source` is `cache` (Claude Code's) or `live` (asked of Anthropic); `kind` is `session`, `week` or `model-week` (with `model`); `elapsedPct` is how much of the window has gone by, where the bar would be at a uniform pace; `projection` is `{ atResetPct, runsOutAt? }`, `{ from }` while the window is too young, or `null` (nothing used, reset, or stale data); `activity` counts the profile's running sessions, for a profile whose login Claude Code is using; `error` says why the last live ask failed; `from` names the other side of the machine when the numbers came from there.
 
 For a status line, which isn't a terminal, keep the colors with `FORCE_COLOR=3 dotagents usage --short` (`2` where the terminal has no 24-bit color). Piped, `usage` prints one plain line per window instead: `<profile> <window> <pct> <reset, ISO> fetched <ISO>`, with `(live)` on numbers from Anthropic and `(stale)` on old data.
 

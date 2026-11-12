@@ -11,7 +11,7 @@ import { liveUsage, sideProfiles } from "./live.ts";
 import { type Peer, type Profile, loadMachine } from "./machine-state.ts";
 import { PALETTE } from "./profiles.ts";
 import { liveLogin } from "./switch.ts";
-import { type ProfileUsage, STALE_MS, elapsedPct, normalize, profileUsage } from "./usage.ts";
+import { type ProfileUsage, STALE_MS, elapsedPct, normalize, pace, profileUsage } from "./usage.ts";
 
 // The live record joined to what the cache gave: it wins when it is about the profile's account
 // (accountUuid) and newer. Its last error comes along either way.
@@ -86,6 +86,10 @@ export function readUsage(now: Date): ProfileUsage[] {
   });
 }
 
+// A window's projection as JSON: { atResetPct, runsOutAt? }, { from } or null.
+const projection = (p: ReturnType<typeof pace>) =>
+  p === null ? null : "from" in p ? { from: p.from.toISOString() } : { atResetPct: p.atResetPct, ...(p.runsOutAt ? { runsOutAt: p.runsOutAt.toISOString() } : {}) };
+
 // What `usage --json` prints: a format version, when it was read, and each profile without its
 // account id. Fields are only added, so scripts that read it keep working.
 export function usageJson(list: ProfileUsage[], now: Date) {
@@ -95,7 +99,7 @@ export function usageJson(list: ProfileUsage[], now: Date) {
     profiles: list.map(({ accountUuid, ...p }) => ({
       ...p,
       fetchedAt: p.fetchedAt?.toISOString() ?? null,
-      windows: p.windows.map((w) => ({ ...w, resetsAt: w.resetsAt?.toISOString() ?? null, elapsedPct: elapsedPct(w, now) })),
+      windows: p.windows.map((w) => ({ ...w, resetsAt: w.resetsAt?.toISOString() ?? null, elapsedPct: elapsedPct(w, now), projection: projection(p.state === "ok" ? pace(w, now) : null) })),
     })),
   };
 }

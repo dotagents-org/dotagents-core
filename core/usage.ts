@@ -115,17 +115,20 @@ export function profileUsage(profile: { name: string; color: string; default?: b
   return { ...base, ...account, state: stale ? "stale" : "ok", fetchedAt: usage.fetchedAt, windows: usage.windows, source: "cache" };
 }
 
-// At the rate used so far in the window: when it runs out (before the reset), or how much is
-// left at the reset. Nothing for a window that just started, is unused or was reset.
-export function pace(w: UsageWindow, now: Date): { runsOutAt: Date } | { leftAtReset: number } | null {
+// At the average rate since the window opened: how much it will have used at the reset (rounded,
+// with no cap) and, past 100%, when it runs out. In the window's first 10% the rate means little,
+// so it says when the projection starts instead. Nothing for a window unused or reset.
+export type Pace = { atResetPct: number; runsOutAt?: Date } | { from: Date } | null;
+
+export function pace(w: UsageWindow, now: Date): Pace {
   if (w.reset || !w.resetsAt || w.pct <= 0) return null;
   const length = LENGTH[w.kind];
   const elapsed = length - (w.resetsAt.getTime() - now.getTime());
-  if (elapsed < length * 0.1) return null;
+  if (elapsed < length * 0.1) return { from: new Date(w.resetsAt.getTime() - length * 0.9) };
   const perMs = w.pct / elapsed;
-  const atReset = perMs * length;
-  if (atReset >= 100) return { runsOutAt: new Date(now.getTime() + (100 - w.pct) / perMs) };
-  return { leftAtReset: Math.round(100 - atReset) };
+  const atResetPct = Math.round(perMs * length);
+  if (perMs * length >= 100) return { atResetPct, runsOutAt: new Date(now.getTime() + (100 - w.pct) / perMs) };
+  return { atResetPct };
 }
 
 // How much of the window has gone by, in percent: where the bar would be at a uniform pace. Null
@@ -261,9 +264,13 @@ export function usageLines(list: ProfileUsage[], now: Date): Line[] {
         { text: "  " },
         { text: reset, role: !stale && w.pct >= 70 && !w.reset ? level : "muted" },
       ]);
+      // The projection, always in the same place under the window, so the view doesn't jump.
       const p = stale ? null : pace(w, now);
-      if (p && "runsOutAt" in p)
-        lines.push([{ text: `  ${" ".repeat(labelWidth)}` }, { text: `runs out ${w.kind === "session" ? hhmm(p.runsOutAt) : dayTime(p.runsOutAt)} at this pace`, role: "warn" }]);
+      const when = (d: Date) => (w.kind === "session" ? hhmm(d) : dayTime(d));
+      const indent = { text: `  ${" ".repeat(labelWidth)}` };
+      if (p && "from" in p) lines.push([indent, { text: `projection from ${when(p.from)}`, role: "muted" }]);
+      else if (p?.runsOutAt) lines.push([indent, { text: `~${p.atResetPct}% at reset, runs out ${when(p.runsOutAt)}`, role: "warn" }]);
+      else if (p) lines.push([indent, { text: `~${p.atResetPct}% at reset`, role: "muted" }]);
     }
   }
   return lines;
@@ -276,7 +283,7 @@ export function faceOf(list: ProfileUsage[], now: Date): "limit" | "warn" | "asl
   if (!live.length) return "asleep";
   const windows = live.flatMap((a) => a.windows);
   if (windows.some((w) => w.pct >= 90)) return "limit";
-  if (windows.some((w) => w.pct >= 70 || "runsOutAt" in (pace(w, now) ?? {}))) return "warn";
+  if (windows.some((w) => { const p = pace(w, now); return w.pct >= 70 || (p !== null && "runsOutAt" in p); })) return "warn";
   return "ok";
 }
 
