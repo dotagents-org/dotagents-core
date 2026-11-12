@@ -6,6 +6,7 @@ What changed for someone who updates a clone. The format follows [Keep a Changel
 
 ### Breaking
 
+- **The configuration moved into `config/`:** `global/`, `rules/`, `claude/`, `skills/` and the accounts' icons (`assets/claude-*`) now live in `config/`, apart from the tool; `DOTAGENTS_CONFIG` points the command at a folder of your own instead. After pulling, run `dotagents install` and `dotagents update --all`, which relink `~/.claude/rules`, the settings and every workspace's skills.
 - **No more full-screen view.** dotagents is a plain command line, for people and for agents; the visual side moves to a separate app, still to come. `dotagents` with no command prints the help, `usage --watch` stops with a message, and Ink and React are no longer dependencies.
 - **`usage --json` prints an envelope:** `{ "version": 1, "generatedAt": …, "profiles": [ … ] }` instead of a bare list, so new fields never break a script again.
 - **`usage --short` changed format** for status lines: one line per profile, `5h` and `7d` with 8-cell bars (`work  5h ━━━━━━ ─  72% ↻ 3h17m   7d …`).
@@ -17,6 +18,9 @@ What changed for someone who updates a clone. The format follows [Keep a Changel
 
 ### Added
 
+- **Open source, MIT.** A personal configuration project, published for anyone to use, fork and adapt.
+- **The panel switches one side or both:** each account has `WSL | both | Windows`; `POST /api/switch` takes `"side"`, and `POST /api/refresh` asks Anthropic now.
+
 - **`dotagents switch`:** for one person with several seats, puts a profile's login in `~/.claude` (and `~/.claude.json`'s `oauthAccount`), on both sides of the machine, saving the previous one in a vault per profile and side (`~/.config/dotagents/vault/`, readable only by you); `--here` for one side, `--save` to keep a fresh `/login`. Always manual.
 - **When each login expires:** `profile list` says until when each profile's saved login lasts, on both sides, warns a week ahead and fails once it has expired, so it is renewed calmly.
 - **Workspace memory:** `init` points every Claude profile's auto memory for a workspace at `.artifacts/memory/` (`autoMemoryDirectory` in `.claude/settings.local.json`) and copies in what each profile had learned there before; `check` verifies the folder, the index and the notes left behind.
@@ -25,7 +29,7 @@ What changed for someone who updates a clone. The format follows [Keep a Changel
 - **`start` for the panel:** on Windows it reads WSL only while WSL runs, never waking it, and counts the running sessions of the other side; `POST /api/switch` and `POST /api/desktop` switch to a profile and open its Desktop app.
 - **`dotagents login`:** signs a profile in again on this side when its login runs out (every few weeks), keeping the new login in its vault and putting the previous account back; `--all` for every login running out within a week. `profile list` points to it.
 - **The account in use first:** `usage`, its `--short` and `--json`, and `start` list the profile in this side's slot first.
-- **Usage projection:** `usage` shows under every window with fresh data how much it will have used at the reset at the current pace (`~79% at reset`), and when it runs out past 100%, in yellow; `usage --json` carries it as `projection`.
+- **Usage projection:** `usage` shows under every window with fresh data how much it will have used at the reset at the current pace (`~79% at reset`), or, when it would pass 100%, when it runs out (`at this pace, runs out 16:40`), in yellow; a window already at its limit has none. `usage --json` carries it as `projection`.
 - **Skills that call other skills:** dotagents reads which skills a skill calls (the Skill tool with a quoted name, a link to `../name/SKILL.md`); `init` and `update --all` bring them along, and the ones they call (`--skills pixijs` installs its 25 `pixijs-*` skills), `skills` shows them, `skills add` stores them in the catalog as `requires`, and `check` warns about each one a workspace lacks.
 
 - **`dotagents start`:** the dashboard's local server, on 127.0.0.1 with a token, and a first page with the usage of every profile, live (server-sent events); a Windows window reaches it in WSL at the same address.

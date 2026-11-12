@@ -6,9 +6,10 @@
 //   strip/<who>-<state>.svg   24 frames of 3 s side by side
 // The rules here and in avatar.js are the same; a change goes to both.
 //
-// Run, from a scratch folder outside the repository:
+// The pictures are saved in assets/avatars/; run it again only after changing an avatar, from a
+// scratch folder outside the repository:
 //   npm install --ignore-scripts open-bot-avatar@0.2.1
-//   node <repo>/scripts/avatars/generate.mjs node_modules/open-bot-avatar <output folder>
+//   node <repo>/scripts/avatars/generate.mjs node_modules/open-bot-avatar <repo>/assets/avatars
 
 import fs from "node:fs";
 import path from "node:path";
