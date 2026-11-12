@@ -147,8 +147,8 @@ The command runs from your clone, so an edit there is live at once on that machi
 You need Node.js 22.18+ and git. Fork this repository (or copy it to your own GitHub account), make `config/` yours (start with `config/global/instructions.md` and `config/global/env/`), then, once per machine:
 
 ```bash
-git clone git@github.com:<you>/dotagents.git
-cd dotagents
+git clone git@github.com:<you>/dotagents-cli.git
+cd dotagents-cli
 npm install && npm link # the `dotagents` command, pointing to this clone
 dotagents install # global instructions, rules and settings
 ```

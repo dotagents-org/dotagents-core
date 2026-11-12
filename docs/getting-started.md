@@ -14,8 +14,8 @@ No administrator rights are needed on Windows: folders are linked with junctions
 Once per machine. WSL counts as a separate machine: it has its own home folder, its own Node and its own copies of the tools, so it needs its own clone and its own `dotagents install`.
 
 ```bash
-git clone git@github.com:<you>/dotagents.git
-cd dotagents
+git clone git@github.com:<you>/dotagents-cli.git
+cd dotagents-cli
 npm install            # the dependencies
 npm link               # creates the `dotagents` command, pointing to this clone
 dotagents install      # global instructions, rules and settings for this machine
