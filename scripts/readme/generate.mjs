@@ -143,7 +143,7 @@ write("states", (t) => {
 // --- How it works ------------------------------------------------------------------------------
 write("how-it-works", (t) => {
   let b = group(t, { x: 0, y: 0, w: 330, h: 300, label: "your dotagents clone" });
-  b += card(t, { x: 20, y: 40, w: 290, h: 110, title: "config/", lines: ["your configuration:", "instructions, rules, settings,", "skills, the accounts' icons"], accent: t.turing });
+  b += card(t, { x: 20, y: 40, w: 290, h: 110, title: "config/", lines: ["your configuration:", "instructions, rules, settings,", "skills, the Desktop icons"], accent: t.turing });
   b += card(t, { x: 20, y: 170, w: 290, h: 110, title: "standards/ + templates/", lines: ["how a workspace looks:", "AGENTS.md, .agents/,", ".artifacts/"], accent: t.lovelace });
   b += card(t, { x: 560, y: 40, w: 300, h: 110, title: "~/.claude", lines: ["every profile on the machine:", "CLAUDE.md, rules/,", "settings.json"] });
   b += card(t, { x: 560, y: 170, w: 300, h: 110, title: "app-workspace/", lines: ["AGENTS.md, .agents/skills/,", ".artifacts/, and app/:", "the project's clone, untouched"] });
