@@ -56,6 +56,18 @@ const start: Command = {
       queue = run.catch(() => {});
       return run;
     };
+    // The live usage, every minute; a failure is printed when it changes, not on every tick.
+    const said = new Map<string, string>();
+    const tick = async () => {
+      const events = await oneAtATime(() => captureAsync(() => refreshUsage()));
+      for (const e of events) {
+        if (e.kind !== "result" || e.status === "ok") continue;
+        const text = e.status === "failed" ? e.detail : "";
+        if ((said.get(e.target) ?? "") !== text && text) console.error(`${new Date().toLocaleTimeString("en-GB")}  ${e.target}: ${text}`);
+        said.set(e.target, text);
+      }
+      return events;
+    };
     const known = (body: unknown) => {
       const name = (body as { profile?: unknown } | null)?.profile;
       return typeof name === "string" && loadProfiles().some((p) => p.name === name) ? name : null;
@@ -89,6 +101,11 @@ const start: Command = {
             return { status: 409, body: { ok: false, detail: (err as Error).message } };
           }
         },
+        // The panel's refresh: the minute's update, now.
+        refresh: async () => {
+          const failed = (await tick()).flatMap((e) => (e.kind === "result" && e.status === "failed" ? [`${e.target}: ${e.detail}`] : []));
+          return { status: failed.length ? 502 : 200, body: { ok: !failed.length, detail: failed.join("; ") } };
+        },
         desktop: (body) => {
           const name = known(body);
           if (!name) return { status: 404, body: { ok: false, detail: "no such profile" } };
@@ -102,17 +119,6 @@ const start: Command = {
     process.on("exit", forgetServer);
     for (const signal of ["SIGINT", "SIGTERM", "SIGHUP"] as const) process.on(signal, () => process.exit(0));
     console.log(`${brand()}  ${bold("start")}\n\nOpen ${server.url}\n${muted("Only this machine reaches it, and only with the token in that address. Ctrl+C stops it.")}`);
-    // The live usage, every minute; a failure is printed when it changes, not on every tick.
-    const said = new Map<string, string>();
-    const tick = async () => {
-      const events = await oneAtATime(() => captureAsync(() => refreshUsage()));
-      for (const e of events) {
-        if (e.kind !== "result" || e.status === "ok") continue;
-        const text = e.status === "failed" ? e.detail : "";
-        if ((said.get(e.target) ?? "") !== text && text) console.error(`${new Date().toLocaleTimeString("en-GB")}  ${e.target}: ${text}`);
-        said.set(e.target, text);
-      }
-    };
     await tick();
     setInterval(tick, LIVE_EVERY_MS + 5_000).unref();
   },

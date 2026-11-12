@@ -106,24 +106,32 @@
             { class: "names" },
             el("div", { class: "line" }, el("span", { class: "name", style: { color: nameColor(p.color) } }, p.name), ...here.map((s) => el("span", { class: "slot" }, s))),
             status && el("span", { class: `status small ${p.avatar === "error" ? "high" : "muted"}` }, status)
+          ),
+          el(
+            "div",
+            { class: "actions" },
+            !everywhere && el("button", { class: "primary", type: "button", title: "Use this account on both sides", onclick: run("switch", `switching to ${p.name}...`) }, "use"),
+            el("button", { type: "button", title: "Open this account's Claude Desktop", onclick: run("desktop", `opening ${p.name}...`) }, "desktop")
           )
         ),
-        ...p.windows.map((w) => windowRow(p, w, now)),
-        el(
-          "div",
-          { class: "actions" },
-          !everywhere && el("button", { class: "primary", type: "button", onclick: run("switch", `switching to ${p.name}...`) }, "Use on both sides"),
-          el("button", { type: "button", onclick: run("desktop", `opening ${p.name}...`) }, "Open Desktop")
-        )
+        ...p.windows.map((w) => windowRow(p, w, now))
       );
     });
-    const age = data.generatedAt ? `live, ${span(now - Date.parse(data.generatedAt))} ago` : "";
+    const age = data.generatedAt ? `updated ${span(now - Date.parse(data.generatedAt))} ago` : "";
     const where = data.peer && !data.peer.up ? `${data.peer.name} off` : sides.join(" and ");
+    const refresh = async (e) => {
+      const button = e.currentTarget;
+      button.disabled = true;
+      say("refreshing...");
+      const res = await act("refresh").catch((err) => ({ ok: false, detail: String(err) }));
+      say(res.ok ? "" : res.detail, !res.ok);
+      button.disabled = false;
+    };
     root.replaceChildren(
-      el("div", { class: "head" }, el("span", { class: "badge" }, "dotagents"), el("span", { class: "muted" }, age)),
+      el("div", { class: "head" }, el("span", { class: "badge" }, "dotagents")),
       el("div", { class: "cards" }, ...cards),
       message,
-      el("div", { class: "foot" }, el("span", {}, where))
+      el("div", { class: "foot" }, where && el("span", {}, where), age && el("span", {}, age), el("button", { type: "button", title: "Ask for fresh numbers now", onclick: refresh }, "refresh"))
     );
   }
 
