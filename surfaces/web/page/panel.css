@@ -28,22 +28,18 @@ body.vscode-dark, body.vscode-high-contrast { --bg: transparent; --card: transpa
 * { box-sizing: border-box; }
 body { margin: 0; background: var(--bg); color: var(--text); font: 12px/1.45 "Geist Mono", ui-monospace, "Cascadia Mono", Menlo, Consolas, monospace; }
 .panel { max-width: 1400px; margin: 0 auto; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
-/* The cards fill the width: one column in a narrow side bar, several side by side in a window. */
-/* Every card as tall as the tallest, stacked or side by side. */
-.cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr)); grid-auto-rows: 1fr; gap: 12px; }
+/* The cards, centered: one column in a narrow side bar, several side by side in a window, every
+   one as tall as the tallest. */
+.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 420px)); justify-content: center; grid-auto-rows: 1fr; gap: 12px; }
 body.vscode-light .panel, body.vscode-dark .panel, body.vscode-high-contrast .panel { padding: 8px 4px; }
 
-.head { display: flex; align-items: center; gap: 10px; }
-.badge { background: var(--text); color: var(--on-text); font-weight: 600; font-size: 13px; padding: 2px 7px; border-radius: 3px; }
 .muted { color: var(--muted); }
 .small { font-size: 11px; }
 
 .card { border: 1px solid var(--border); border-radius: 10px; padding: 12px; display: flex; flex-direction: column; gap: 8px; background: var(--card); min-width: 0; }
 .who { display: flex; align-items: center; gap: 12px; }
-.who .names { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-.who .line { display: flex; align-items: baseline; flex-wrap: wrap; gap: 6px; }
+.who .names { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
 .name { font-weight: 600; font-size: 15px; }
-.slot { border: 1px solid var(--border); border-radius: 4px; padding: 0 5px; font-size: 11px; color: var(--muted); }
 .status.high { color: var(--high); }
 
 /* The avatar: a canvas avatar.js paints, live. */
@@ -59,14 +55,22 @@ body.vscode-light .panel, body.vscode-dark .panel, body.vscode-high-contrast .pa
 .ok { color: var(--ok); } .warn { color: var(--warn); } .high { color: var(--high); }
 .bar .ok { background: var(--ok); } .bar .warn { background: var(--warn); } .bar .high { background: var(--high); }
 
-/* The actions: quiet text in the card's corner, outlined only under the pointer. */
-.actions { display: flex; gap: 2px; margin-left: auto; align-self: flex-start; }
-button { padding: 3px 7px; font: inherit; font-size: 11px; border-radius: 6px; cursor: pointer; border: 1px solid transparent; background: transparent; color: var(--muted); white-space: nowrap; }
-button:hover:not(:disabled) { border-color: var(--border); color: var(--text); }
-button.primary { color: var(--text); }
+button { font: inherit; font-size: 11px; cursor: pointer; border: 0; background: transparent; color: var(--muted); white-space: nowrap; }
+button:hover:not(:disabled) { color: var(--text); }
 button:disabled { opacity: 0.5; cursor: default; }
+/* An icon button: the Desktop's in the card's corner, the refresh in the foot. */
+button.icon { padding: 4px; line-height: 0; border-radius: 6px; }
+button.icon svg { width: 15px; height: 15px; }
+.who button.icon { align-self: flex-start; }
+/* Where the account is: equal parts, one per side and "both" between them; filled where it is. */
+.sides { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; margin-top: auto; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
+.sides button { padding: 4px 0; border-radius: 0; }
+.sides button + button { border-left: 1px solid var(--border); }
+.sides button.on { color: #fcf2ee; cursor: default; }
+.sides button.on:disabled { opacity: 1; }
 button:focus-visible { outline: 2px solid var(--warn); outline-offset: 2px; }
 
-.foot { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 4px 12px; font-size: 11px; color: var(--muted); }
+.foot { display: flex; flex-direction: column; align-items: center; gap: 2px; font-size: 11px; color: var(--muted); }
+.foot .line { display: flex; align-items: center; gap: 4px; }
 .message { font-size: 11px; color: var(--muted); }
 .message.high { color: var(--high); }

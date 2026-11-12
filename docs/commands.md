@@ -192,17 +192,17 @@ dotagents start              # on 127.0.0.1:7337, or the next free port
 dotagents start --port 0     # any free port
 ```
 
-Starts the dashboard's server: the panel, a page with the usage of every profile, live (the account in each side's slot, the projection, and buttons to switch to an account and open its Desktop app), and the data it reads (`/api/usage`, the same as `usage --json`, and `/api/events`, which sends it again whenever it changes). While it runs, it asks Anthropic for each profile's usage every minute, as `usage --refresh` does, and prints a failure when it changes. It prints the address to open, with a token after `#`; the page keeps the token and the API answers nothing without it. It listens only on `127.0.0.1` and answers only requests addressed to itself (so a web page elsewhere can't reach it). From WSL, a Windows browser reaches it at the same address; `msedge --app=<address>` opens it in a window of its own. Ctrl+C stops it.
+Starts the dashboard's server: the panel, a page with the usage of every profile, live (the account in each side's slot, the projection, a switch for each account, on one side or both, and a button that opens its Desktop app), and the data it reads (`/api/usage`, the same as `usage --json`, and `/api/events`, which sends it again whenever it changes). While it runs, it asks Anthropic for each profile's usage every minute, as `usage --refresh` does, and prints a failure when it changes. It prints the address to open, with a token after `#`; the page keeps the token and the API answers nothing without it. It listens only on `127.0.0.1` and answers only requests addressed to itself (so a web page elsewhere can't reach it). From WSL, a Windows browser reaches it at the same address; `msedge --app=<address>` opens it in a window of its own. Ctrl+C stops it.
 
 The other side of the machine is read only while it runs: on Windows, the server asks `wsl.exe` every 5 seconds whether the distro is running and never reads `\\wsl.localhost` when it isn't, so it doesn't start WSL. The data then carries `"peer": { "name": "WSL", "up": false }`. While the other side runs, its running Claude Code sessions count for the account in its slot (`working`, `waiting`); the server asks that side's `dotagents sessions --running` every 15 seconds, in the background, so a read never waits on it.
 
-Its data adds `slots`, the profile in each side's slot (`{ "WSL": "work", "Windows": "personal" }`), and `current`, the current account and its avatar state: the profile in a slot in the worst state, or the brand when no profile is in a slot.
+Its data adds `sides`, the sides of the machine (`["WSL", "Windows"]`, this one first), `slots`, the profile in each side's slot (`{ "WSL": "work", "Windows": "personal" }`), and `current`, the current account and its avatar state: the profile in a slot in the worst state, or the brand when no profile is in a slot.
 
 Three actions, for the panel, are the only writes. Each takes a JSON body (`{ "profile": "<name>" }` for the first two), with the token in the `x-dotagents-token` header (never in the address); a GET there answers 405, an unknown profile 404:
 
 | Action | Does |
 |---|---|
-| `POST /api/switch` | [`switch`](#dotagents-switch) to the profile, on both sides. |
+| `POST /api/switch` | [`switch`](#dotagents-switch) to the profile, on both sides, or only on the side `"side"` names (`{ "profile": "work", "side": "Windows" }`). |
 | `POST /api/desktop` | Opens the profile's Desktop app (Windows), as its Start menu shortcut does. |
 | `POST /api/refresh` | Asks Anthropic for every profile's usage now, without waiting for the minute. |
 

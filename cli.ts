@@ -28,7 +28,7 @@ import { readSlots, readUsage, currentFor, usageJson, watchPeer } from "./core/s
 import { openDesktop } from "./core/desktop.ts";
 import { forgetServer, loadMachine, loadProfiles, recordServer } from "./core/machine-state.ts";
 import { launcherDir } from "./core/profiles.ts";
-import { switchProfile } from "./core/switch.ts";
+import { peerSwitch, sideName, switchProfile } from "./core/switch.ts";
 import { LIVE_EVERY_MS, refreshUsage } from "./core/live.ts";
 import { untrack, workspaces } from "./surfaces/cli/workspaces.ts";
 import { UsageError, parseArgs } from "./core/common.ts";
@@ -85,16 +85,30 @@ const start: Command = {
         } catch {
           peer = undefined;
         }
-        return peer ? { ...json, peer: { name: peer.name, up: view.up(peer) } } : json;
+        // The sides, in the panel's order: this one, then the other.
+        return peer ? { ...json, sides: [sideName(), peer.name], peer: { name: peer.name, up: view.up(peer) } } : { ...json, sides: [sideName()] };
       },
       port,
       // The tray panel's buttons.
       actions: {
+        // On both sides, or on one: { "side": "WSL" } names it.
         switch: async (body) => {
           const name = known(body);
           if (!name) return { status: 404, body: { ok: false, detail: "no such profile" } };
+          const side = (body as { side?: unknown }).side;
+          let peer;
           try {
-            const events = await oneAtATime(() => captureAsync(() => switchProfile({ name })));
+            peer = loadMachine().peer;
+          } catch {
+            peer = undefined;
+          }
+          if (side !== undefined && side !== sideName() && side !== peer?.name) return { status: 404, body: { ok: false, detail: "no such side" } };
+          if (side !== undefined && side === peer?.name) {
+            const other = await oneAtATime(async () => peerSwitch(name));
+            return { status: other?.ok ? 200 : 502, body: other ?? { ok: false, detail: "no other side" } };
+          }
+          try {
+            const events = await oneAtATime(() => captureAsync(() => switchProfile({ name, here: side !== undefined })));
             const failed = events.filter((e) => e.kind === "result" && e.status === "failed");
             return { status: failed.length ? 502 : 200, body: { ok: !failed.length, detail: failed.map((e) => ("detail" in e ? e.detail : "")).join("; ") || `now ${name}` } };
           } catch (err) {
