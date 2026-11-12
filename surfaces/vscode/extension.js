@@ -67,7 +67,7 @@ class PanelView {
       if (m.type === "action") {
         let result;
         try {
-          const { ok, json } = await api("POST", `/api/${m.action}`, { profile: m.profile });
+          const { ok, json } = await api("POST", `/api/${m.action}`, m.body || {});
           result = { ok, detail: json.detail || "" };
         } catch (err) {
           result = { ok: false, detail: err.message };
