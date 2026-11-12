@@ -15,7 +15,7 @@ dotagents/
 │   └── assets/                the profile icons: claude-<name>.svg, the source, and the .ico the Start menu shortcuts use
 ├── standards/                 the .agents/ and .artifacts/ standards
 ├── templates/workspace/       AGENTS.md and INDEX.md for new workspaces
-├── assets/                    the dotagents logo
+├── assets/                    the logo, the avatars and the README's pictures
 ├── docs/                      this documentation
 ├── cli.ts                     the dotagents command: reads the arguments, picks the command, prints the help
 ├── core/                      the data and the actions, drawing nothing (see below)
@@ -125,7 +125,8 @@ node cli.ts --help      # run without npm link
 **The brand and the README's captures:**
 
 - `assets/dotagents.svg` is the symbol, the face `..` on a `#171717` square.
-- `assets/face/` holds one SVG per state of the face (ok, working, warn, limit, asleep, done, error), for the graphic surfaces.
+- `assets/avatars/` holds the avatars, one still per avatar and state and the working animation strips, made by `scripts/avatars/generate.mjs`; run it again only after changing an avatar.
+- `assets/readme/` holds the README's pictures (the avatars, their states, the diagrams, the panel), each light and dark, made by `node scripts/readme/generate.mjs`.
 - `assets/dotagents-lockup-light.svg` and `-dark.svg` are the symbol with "dotagents" in Geist Mono 600, the text as outlines, since GitHub shows SVGs through `<img>`, which loads no web fonts. To make them again, download the font and run `scripts/lockup.py` with fontTools:
 
   ```bash
