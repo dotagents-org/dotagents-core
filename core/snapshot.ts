@@ -12,7 +12,7 @@ import { type Peer, type Profile, loadMachine } from "./machine-state.ts";
 import { peerUp } from "./peer.ts";
 import { PALETTE } from "./profiles.ts";
 import { peerRunningLater } from "./sessions.ts";
-import { liveLogin } from "./switch.ts";
+import { liveLogin, slotProfile } from "./switch.ts";
 import { type ProfileUsage, STALE_MS, elapsedPct, normalize, pace, profileUsage } from "./usage.ts";
 
 // The live record joined to what the cache gave: it wins when it is about the profile's account
@@ -146,7 +146,11 @@ export function watchPeer({ up = peerUp, running = runningIfUp, now = Date.now }
 // view: how to look at the other side; without it, it is read whenever known, and its sessions
 // aren't counted (the usage command doesn't wait on the other side).
 export function readUsage(now: Date, view?: PeerView): ProfileUsage[] {
-  const list = sideProfiles().map((p) => localUsage(p, now));
+  // The account in use first: the one in this side's slot; the others after, in their order.
+  const current = slotProfile()?.name;
+  const list = sideProfiles()
+    .map((p) => localUsage(p, now))
+    .sort((a, b) => Number(b.name === current) - Number(a.name === current));
   let peer: Peer | undefined;
   try {
     peer = loadMachine().peer;
