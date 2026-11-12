@@ -6,10 +6,11 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { test } from "node:test";
+import { pathToFileURL } from "node:url";
 import { REPO } from "./helpers.ts";
 
 // Plain CommonJS, loaded as VS Code loads it; the tests see it untyped.
-const lib = (await import(path.join(REPO, "surfaces", "vscode", "lib.js"))).default;
+const lib = (await import(pathToFileURL(path.join(REPO, "surfaces", "vscode", "lib.js")).href)).default;
 
 const data = {
   current: { profile: "personal", state: "warn" },
