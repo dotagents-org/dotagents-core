@@ -194,7 +194,7 @@ dotagents start --port 0     # any free port
 
 Starts the dashboard's server: the panel, a page with the usage of every profile, live (the account in each side's slot, the projection, and buttons to switch to an account and open its Desktop app), and the data it reads (`/api/usage`, the same as `usage --json`, and `/api/events`, which sends it again whenever it changes). While it runs, it asks Anthropic for each profile's usage every minute, as `usage --refresh` does, and prints a failure when it changes. It prints the address to open, with a token after `#`; the page keeps the token and the API answers nothing without it. It listens only on `127.0.0.1` and answers only requests addressed to itself (so a web page elsewhere can't reach it). From WSL, a Windows browser reaches it at the same address; `msedge --app=<address>` opens it in a window of its own. Ctrl+C stops it.
 
-The other side of the machine is read only while it runs: on Windows, the server asks `wsl.exe` every 30 seconds whether the distro is running and never reads `\\wsl.localhost` when it isn't, so it doesn't start WSL. The data then carries `"peer": { "name": "WSL", "up": false }`. While the other side runs, its running Claude Code sessions count for the account in its slot (`working`, `waiting`); the server asks that side's `dotagents sessions --running` every 15 seconds, in the background, so a read never waits on it.
+The other side of the machine is read only while it runs: on Windows, the server asks `wsl.exe` every 5 seconds whether the distro is running and never reads `\\wsl.localhost` when it isn't, so it doesn't start WSL. The data then carries `"peer": { "name": "WSL", "up": false }`. While the other side runs, its running Claude Code sessions count for the account in its slot (`working`, `waiting`); the server asks that side's `dotagents sessions --running` every 15 seconds, in the background, so a read never waits on it.
 
 Its data adds `slots`, the profile in each side's slot (`{ "WSL": "work", "Windows": "personal" }`), and `current`, the current account and its avatar state: the profile in a slot in the worst state, or the brand when no profile is in a slot.
 
@@ -206,6 +206,22 @@ Two actions, for the panel, are the only writes. Each takes a JSON body, `{ "pro
 | `POST /api/desktop` | Opens the profile's Desktop app (Windows), as its Start menu shortcut does. |
 
 While it runs it leaves its port, token and pid in `<state>/start.json`, readable only by you, and takes it away when it stops.
+
+### The VS Code extension
+
+`surfaces/vscode/`, plain JavaScript (ADR 0012), shows the same panel. It runs on the side of the window, in WSL for a WSL window, and talks to that side's `dotagents start`, found through `start.json`; with none running, it starts one in the background.
+
+- **Status bar:** the current account and its usage (`personal 5h 79%  7d 38%`), on the warning background when it asks for attention (`warn`, `waiting`) and on the error one when it stopped (`error`, `limit`). The tooltip lists every account; a click lists them to switch, on both sides.
+- **Side bar:** a dotagents view with the panel; a button in its title opens it in the browser.
+- **Updates:** it isn't on the Marketplace, so once a day it looks for a newer GitHub release and offers to install it, show the notes or skip that version.
+
+To build and install it from the repository:
+
+```bash
+cd surfaces/vscode
+npm run package                              # copies the panel in and writes dotagents.vsix
+code --install-extension dotagents.vsix --force
+```
 
 
 ## dotagents new
