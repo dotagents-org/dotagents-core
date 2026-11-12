@@ -156,9 +156,11 @@
     });
     const age = data.generatedAt ? `updated ${span(now - Date.parse(data.generatedAt))} ago` : "";
     const where = data.peer && !data.peer.up ? `${data.peer.name} off` : sides.join(" and ");
+    // The brand and the cards in one block as wide as the cards side by side could be.
+    const sheet = el("div", { class: "sheet" }, el("div", { class: "badge" }, "dotagents"), el("div", { class: "cards" }, ...cards));
+    sheet.style.setProperty("--n", String(cards.length || 1));
     root.replaceChildren(
-      el("div", { class: "badge" }, "dotagents"),
-      el("div", { class: "cards" }, ...cards),
+      sheet,
       failure && el("p", { class: "message high" }, failure),
       el(
         "div",

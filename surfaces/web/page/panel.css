@@ -28,12 +28,14 @@ body.vscode-dark, body.vscode-high-contrast { --bg: transparent; --card: transpa
 * { box-sizing: border-box; }
 body { margin: 0; background: var(--bg); color: var(--text); font: 12px/1.45 "Geist Mono", ui-monospace, "Cascadia Mono", Menlo, Consolas, monospace; }
 .panel { max-width: 1400px; margin: 0 auto; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
-/* The cards, centered: one column in a narrow side bar, several side by side in a window, every
-   one as tall as the tallest. */
-.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 420px)); justify-content: center; grid-auto-rows: 1fr; gap: 12px; }
+/* The brand and the cards, centered, in a block as wide as the cards side by side (up to 420px
+   each, --n of them) could be: one column in a narrow side bar, several in a window, every card
+   as tall as the tallest. */
+.sheet { width: min(100%, calc(var(--n) * 420px + (var(--n) - 1) * 12px)); margin: 0 auto; display: flex; flex-direction: column; gap: 12px; }
+.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); grid-auto-rows: 1fr; gap: 12px; }
 body.vscode-light .panel, body.vscode-dark .panel, body.vscode-high-contrast .panel { padding: 8px 4px; }
 
-/* The brand, across the page's width, its name in the middle. */
+/* The brand, its name in the middle. */
 .badge { background: var(--text); color: var(--on-text); font-weight: 600; font-size: 13px; text-align: center; padding: 3px 7px; border-radius: 3px; }
 .muted { color: var(--muted); }
 .small { font-size: 11px; }
