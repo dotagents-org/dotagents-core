@@ -33,6 +33,8 @@ body { margin: 0; background: var(--bg); color: var(--text); font: 12px/1.45 "Ge
 .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 420px)); justify-content: center; grid-auto-rows: 1fr; gap: 12px; }
 body.vscode-light .panel, body.vscode-dark .panel, body.vscode-high-contrast .panel { padding: 8px 4px; }
 
+/* The brand, across the page's width, its name in the middle. */
+.badge { background: var(--text); color: var(--on-text); font-weight: 600; font-size: 13px; text-align: center; padding: 3px 7px; border-radius: 3px; }
 .muted { color: var(--muted); }
 .small { font-size: 11px; }
 
@@ -73,5 +75,12 @@ button:focus-visible { outline: 2px solid var(--warn); outline-offset: 2px; }
 
 .foot { display: flex; flex-direction: column; align-items: center; gap: 2px; font-size: 11px; color: var(--muted); }
 .foot .line { display: flex; align-items: center; gap: 4px; }
-.message { font-size: 11px; color: var(--muted); }
+/* An action under way: the button clicked pulses; the refresh turns. */
+.busy { animation: pulse 1.2s ease-in-out infinite; }
+button.icon.busy { animation: none; }
+button.icon.busy svg { animation: turn 1s linear infinite; }
+@keyframes pulse { 50% { opacity: 0.4; } }
+@keyframes turn { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .busy, button.icon.busy svg { animation: none; } }
+.message { margin: 0; text-align: center; font-size: 11px; color: var(--muted); }
 .message.high { color: var(--high); }

@@ -87,40 +87,46 @@
     return svg;
   }
 
+  // An action under way and the last failure live here, outside the drawing, so a redraw (new
+  // data comes in the middle of a switch) keeps them. No text while it runs: the button clicked
+  // pulses, the result shows in the data, and only a failure is written, until the next action.
+  let pending = null;
+  let failure = "";
+  let shown = null;
+
   // root: where to draw; data: the usage JSON; act(action, body): runs an action, resolves to
   // { ok, detail }.
   function render(root, data, { act }) {
+    shown = { root, data, act };
+    const redraw = () => render(shown.root, shown.data, shown);
     const now = Date.now();
     const slots = data.slots || {};
     const sides = data.sides || Object.keys(slots);
-    const message = el("p", { class: "message", hidden: "" });
-    const say = (text, bad) => {
-      message.textContent = text;
-      message.className = bad ? "message high" : "message";
-      message.hidden = !text;
-    };
-    // Runs an action with the card's or the foot's buttons off meanwhile; a quick one (no doing)
-    // changes nothing on screen unless it fails.
-    const run = (action, body, doing) => async (e) => {
-      const buttons = doing ? e.currentTarget.closest(".card, .foot").querySelectorAll("button") : [];
-      buttons.forEach((b) => (b.disabled = true));
-      if (doing) say(doing);
+    // key: which button shows the action under way; one action at a time.
+    const run = (action, body, key) => async () => {
+      if (pending) return;
+      pending = key;
+      failure = "";
+      redraw();
       const res = await act(action, body).catch((err) => ({ ok: false, detail: String(err) }));
-      say(res.ok && (action === "refresh" || !doing) ? "" : res.detail || "", !res.ok);
-      buttons.forEach((b) => (b.disabled = false));
+      pending = null;
+      failure = res.ok ? "" : res.detail || "it failed";
+      redraw();
     };
+    const busy = (key) => (pending && pending === key ? " busy" : "");
     const cards = data.profiles.map((p) => {
       const here = sides.filter((s) => slots[s] === p.name);
-      const busy = p.activity ? [p.activity.working && `${p.activity.working} working`, p.activity.waiting && `${p.activity.waiting} waiting on you`].filter(Boolean).join(", ") : "";
-      const status = p.avatar === "error" ? p.error || `no login here, run: dotagents login ${p.name}` : busy;
+      const doing = p.activity ? [p.activity.working && `${p.activity.working} working`, p.activity.waiting && `${p.activity.waiting} waiting on you`].filter(Boolean).join(", ") : "";
+      const status = p.avatar === "error" ? p.error || `no login here, run: dotagents login ${p.name}` : doing;
       // Where the account is: one part per side and, with two, "both" between them. A part is
       // filled where it already is; a click on an empty one puts it there.
       const part = (label, side, on, title) => {
-        const button = el("button", { type: "button", class: on ? "on" : "", title, "aria-pressed": String(on) }, label);
+        const key = `switch ${p.name} ${side || "both"}`;
+        const button = el("button", { type: "button", class: (on ? "on" : "") + busy(key), title, "aria-pressed": String(on) }, label);
         if (on) {
           button.style.background = p.color;
           button.tabIndex = -1;
-        } else button.addEventListener("click", run("switch", side ? { profile: p.name, side } : { profile: p.name }, `switching ${side || "both sides"} to ${p.name}...`));
+        } else button.addEventListener("click", run("switch", side ? { profile: p.name, side } : { profile: p.name }, key));
         return button;
       };
       const parts = sides.map((s) => part(s, s, here.includes(s), `Use ${p.name} on ${s}`));
@@ -139,7 +145,7 @@
               "div",
               { class: "line" },
               el("span", { class: "name", style: { color: nameColor(p.color) } }, p.name),
-              el("button", { type: "button", class: "icon", style: { color: nameColor(p.color) }, title: `Open ${p.name}'s Claude Desktop`, "aria-label": `Open ${p.name}'s Claude Desktop`, onclick: run("desktop", { profile: p.name }) }, icon([CLAUDE]))
+              el("button", { type: "button", class: "icon", style: { color: nameColor(p.color) }, title: `Open ${p.name}'s Claude Desktop`, "aria-label": `Open ${p.name}'s Claude Desktop`, onclick: run("desktop", { profile: p.name }, null) }, icon([CLAUDE]))
             ),
             status && el("span", { class: `status small ${p.avatar === "error" ? "high" : "muted"}` }, status)
           )
@@ -151,13 +157,14 @@
     const age = data.generatedAt ? `updated ${span(now - Date.parse(data.generatedAt))} ago` : "";
     const where = data.peer && !data.peer.up ? `${data.peer.name} off` : sides.join(" and ");
     root.replaceChildren(
+      el("div", { class: "badge" }, "dotagents"),
       el("div", { class: "cards" }, ...cards),
-      message,
+      failure && el("p", { class: "message high" }, failure),
       el(
         "div",
         { class: "foot" },
         el("span", {}, where),
-        el("span", { class: "line" }, age, el("button", { type: "button", class: "icon", title: "Ask for fresh numbers now", "aria-label": "Refresh", onclick: run("refresh", {}, "refreshing...") }, icon(["M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8", "M21 3v5h-5"], true)))
+        el("span", { class: "line" }, age, el("button", { type: "button", class: `icon${busy("refresh")}`, title: "Ask for fresh numbers now", "aria-label": "Refresh", onclick: run("refresh", {}, "refresh") }, icon(["M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8", "M21 3v5h-5"], true)))
       )
     );
   }
