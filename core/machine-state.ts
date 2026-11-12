@@ -183,3 +183,29 @@ export function loadMachine(): Machine {
 export function saveMachine(machine: Machine) {
   writeStateFile(machineFile(), MACHINE.version, { ...machine });
 }
+
+// The running `dotagents start`: its port, token and pid, for the tray panel to find it. Only the
+// user reads it (the token opens the API), and the server takes it away when it stops, unless
+// another server has written its own since.
+export type ServerAddress = { port: number; token: string; pid: number };
+export const serverFile = () => path.join(stateDir(), "start.json");
+
+export function recordServer({ port, token }: { port: number; token: string }) {
+  fs.mkdirSync(stateDir(), { recursive: true, mode: 0o700 });
+  const tmp = `${serverFile()}.${process.pid}`;
+  fs.writeFileSync(tmp, `${JSON.stringify({ port, token, pid: process.pid })}\n`, { mode: 0o600 });
+  fs.renameSync(tmp, serverFile());
+}
+
+export function readServer(): ServerAddress | null {
+  try {
+    const data = JSON.parse(fs.readFileSync(serverFile(), "utf8"));
+    return typeof data?.port === "number" && typeof data?.token === "string" && typeof data?.pid === "number" ? data : null;
+  } catch {
+    return null;
+  }
+}
+
+export function forgetServer() {
+  if (readServer()?.pid === process.pid) fs.rmSync(serverFile(), { force: true });
+}

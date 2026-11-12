@@ -5,7 +5,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { test, type TestContext } from "node:test";
-import { loadProfiles, loadWorkspaces, migrateLegacyProfiles, profilesFile, registerWorkspace, removeProfile, saveProfile, untrackWorkspace, workspacesFile } from "../core/machine-state.ts";
+import { forgetServer, loadProfiles, loadWorkspaces, migrateLegacyProfiles, profilesFile, readServer, recordServer, registerWorkspace, removeProfile, saveProfile, serverFile, untrackWorkspace, workspacesFile } from "../core/machine-state.ts";
 import { state } from "../core/state.ts";
 import { quiet } from "./helpers.ts";
 
@@ -108,4 +108,18 @@ test("a profiles file with a bad entry stops the command", (t) => {
   quiet();
   fs.writeFileSync(path.join(dir, "profiles.json"), JSON.stringify({ version: 1, profiles: [{ name: "x" }] }));
   assert.throws(() => loadProfiles(), /fix it or delete it/);
+});
+
+test("the running server leaves its address for the tray panel, only for the user, and takes it away, only its own", (t) => {
+  tempStateDir(t);
+  recordServer({ port: 7337, token: "secret" });
+  assert.deepEqual(readServer(), { port: 7337, token: "secret", pid: process.pid });
+  if (process.platform !== "win32") assert.equal(fs.statSync(serverFile()).mode & 0o777, 0o600);
+  // Another server took over: this one leaves that file alone.
+  fs.writeFileSync(serverFile(), JSON.stringify({ port: 7338, token: "other", pid: process.pid + 1 }));
+  forgetServer();
+  assert.equal(readServer()?.port, 7338);
+  recordServer({ port: 7337, token: "secret" });
+  forgetServer();
+  assert.equal(readServer(), null);
 });

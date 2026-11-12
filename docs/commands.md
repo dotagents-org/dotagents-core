@@ -31,7 +31,7 @@ dotagents <command> [options]
 
 ## dotagents install
 
-Writes the global configuration where Claude Code reads it, `~/.claude`, the one config folder every [profile](#dotagents-profile-add) uses, and on Windows each profile's Desktop app. A profile from before, with a folder of its own (`~/.claude-<name>`) and a launcher (`claude-<name>`), moves to `~/.claude`: its launcher is removed and its folder is left for you to delete. See [Global configuration](global-configuration.md) for exactly what goes where.
+Writes the global configuration where Claude Code reads it, `~/.claude`, the one config folder every [profile](#dotagents-profile-add) uses, and on Windows each profile's Desktop app and the [tray panel](#the-tray-panel), started with Windows from a launcher in the Startup folder. A profile from before, with a folder of its own (`~/.claude-<name>`) and a launcher (`claude-<name>`), moves to `~/.claude`: its launcher is removed and its folder is left for you to delete. See [Global configuration](global-configuration.md) for exactly what goes where.
 
 ```bash
 dotagents install --dry-run    # show what would change
@@ -177,7 +177,7 @@ personal  5h ━━━━━━ ─  91% ↻ 58m     7d ━━ ─────  
 ] }
 ```
 
-`state` is `ok`, `stale`, `no-data`, `not-signed-in` or `other-account`; `source` is `cache` (Claude Code's) or `live` (asked of Anthropic); `kind` is `session`, `week` or `model-week` (with `model`); `elapsedPct` is how much of the window has gone by, where the bar would be at a uniform pace; `projection` is `{ atResetPct, runsOutAt? }`, `{ from }` while the window is too young, or `null` (nothing used, reset, or stale data); `activity` counts the profile's running sessions, for a profile whose login Claude Code is using; `error` says why the last live ask failed; `from` names the other side of the machine when the numbers came from there.
+`state` is `ok`, `stale`, `no-data`, `not-signed-in` or `other-account`; `source` is `cache` (Claude Code's) or `live` (asked of Anthropic); `kind` is `session`, `week` or `model-week` (with `model`); `elapsedPct` is how much of the window has gone by, where the bar would be at a uniform pace; `projection` is `{ atResetPct, runsOutAt? }`, `{ from }` while the window is too young, or `null` (nothing used, reset, or stale data); `avatar` is the profile's state for its avatar, the most urgent of `error`, `limit`, `waiting`, `warn`, `working`, `ok` and `asleep`; `activity` counts the profile's running sessions, for a profile whose login Claude Code is using; `error` says why the last live ask failed; `from` names the other side of the machine when the numbers came from there.
 
 For a status line, which isn't a terminal, keep the colors with `FORCE_COLOR=3 dotagents usage --short` (`2` where the terminal has no 24-bit color). Piped, `usage` prints one plain line per window instead: `<profile> <window> <pct> <reset, ISO> fetched <ISO>`, with `(live)` on numbers from Anthropic and `(stale)` on old data.
 
@@ -196,12 +196,20 @@ Starts the dashboard's server: a page with the usage of every profile, live, and
 
 The other side of the machine is read only while it runs: on Windows, the server asks `wsl.exe` every 30 seconds whether the distro is running and never reads `\\wsl.localhost` when it isn't, so it doesn't start WSL. The data then carries `"peer": { "name": "WSL", "up": false }`. While the other side runs, its running Claude Code sessions count for the account in its slot (`working`, `waiting`); the server asks that side's `dotagents sessions --running` every 15 seconds, in the background, so a read never waits on it.
 
+Its data adds `slots`, the profile in each side's slot (`{ "WSL": "work", "Windows": "personal" }`), and `tray`, what the tray icon shows: the profile in a slot in the worst state, or the brand when no profile is in a slot.
+
 Two actions, for the tray panel, are the only writes. Each takes a JSON body, `{ "profile": "<name>" }`, with the token in the `x-dotagents-token` header (never in the address); a GET there answers 405, an unknown profile 404:
 
 | Action | Does |
 |---|---|
 | `POST /api/switch` | [`switch`](#dotagents-switch) to the profile, on both sides. |
 | `POST /api/desktop` | Opens the profile's Desktop app (Windows), as its Start menu shortcut does. |
+
+While it runs it leaves its port, token and pid in `<state>/start.json`, readable only by you, and takes it away when it stops.
+
+### The tray panel
+
+On Windows, an icon in the notification area: the avatar of the account in the slot, with the dot of its state (if the two sides hold different accounts, the one in the worse state). A click opens a panel above the clock with every profile's usage, the sides whose slot holds it, the projection, and two buttons, **Use on both sides** and **Open Desktop**; it closes when it loses the focus. A right click offers the dashboard, a refresh and quitting. It reads a running `dotagents start` (from `start.json`) and starts one, hidden, when none runs. Windows PowerShell and WPF run it, from `surfaces/tray/`, with nothing to build; `install` starts it with Windows, and `profile list` checks that it does. Its failures go to `<state>/tray.log`.
 
 The page is a first version; the dashboard, in the dotagents identity, replaces it.
 

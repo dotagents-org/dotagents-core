@@ -6,7 +6,7 @@ import os from "node:os";
 import path from "node:path";
 import { test, type TestContext } from "node:test";
 import { usageJson } from "../core/snapshot.ts";
-import { type ProfileUsage, type UsageWindow, bar, elapsedPct, faceOf, levelOf, normalize, pace, profileUsage, shortLines, span, thresholdAlerts, usageLines } from "../core/usage.ts";
+import { type ProfileUsage, type UsageWindow, avatarState, bar, elapsedPct, faceOf, levelOf, normalize, pace, profileUsage, shortLines, span, thresholdAlerts, usageLines } from "../core/usage.ts";
 import { sessionActivity } from "../core/claude-code.ts";
 
 const NOW = new Date("2026-10-28T12:00:00Z");
@@ -281,4 +281,23 @@ test("usage --json carries each window's projection, null when the data is stale
   assert.deepEqual(work.windows.map((w) => w.projection), [{ atResetPct: 150, runsOutAt: "2026-10-28T12:20:00.000Z" }, null]);
   const [stale] = usageJson([{ ...list[0], state: "stale" }], NOW).profiles;
   assert.deepEqual(stale.windows.map((w) => w.projection), [null, null]);
+});
+
+test("each profile's avatar state, most urgent first: error, limit, waiting, warn, working, ok, asleep", () => {
+  const base: ProfileUsage = { name: "work", color: "#D77655", state: "ok", fetchedAt: at("2026-10-28T11:56:00Z"), windows: [{ kind: "session", pct: 20, resetsAt: at("2026-10-28T14:00:00Z"), reset: false }] };
+  const win = (pct: number, resetsAt = "2026-10-28T14:00:00Z") => [{ kind: "session" as const, pct, resetsAt: at(resetsAt), reset: false }];
+  assert.equal(avatarState({ ...base, state: "not-signed-in", windows: [] }, NOW), "error");
+  assert.equal(avatarState({ ...base, error: "Anthropic refused the login (401); sign in again" }, NOW), "error");
+  assert.equal(avatarState({ ...base, windows: win(100) }, NOW), "limit");
+  assert.equal(avatarState({ ...base, activity: { working: 0, waiting: 1 } }, NOW), "waiting");
+  assert.equal(avatarState({ ...base, windows: win(75) }, NOW), "warn");
+  // 30% after 1 of 5 hours: 150% at the reset at that rate.
+  assert.equal(avatarState({ ...base, windows: win(30, "2026-10-28T16:00:00Z") }, NOW), "warn", "the pace runs out before the reset");
+  assert.equal(avatarState({ ...base, activity: { working: 2, waiting: 0 } }, NOW), "working");
+  assert.equal(avatarState(base, NOW), "ok");
+  assert.equal(avatarState({ ...base, state: "stale" }, NOW), "asleep");
+  assert.equal(avatarState({ ...base, state: "no-data", windows: [] }, NOW), "asleep");
+  // Two at once: the most urgent wins.
+  assert.equal(avatarState({ ...base, windows: win(100), activity: { working: 0, waiting: 1 } }, NOW), "limit");
+  assert.equal(avatarState({ ...base, windows: win(75), activity: { working: 1, waiting: 0 } }, NOW), "warn");
 });
