@@ -104,8 +104,15 @@ function write(name, make) {
 // --- The avatars at work: the brand and the two accounts, hopping ------------------------------
 function animated(who, tag) {
   const strip = fs.readFileSync(path.join(avatarsDir, "..", "strip", `${who}-working.svg`), "utf8").replace(/oba-/g, `oba-${tag}-`);
-  const inner = strip.replace(/^<svg[^>]*>/, "").replace(/<\/svg>$/, "");
-  const values = Array.from({ length: 24 }, (_, i) => `${-i * 100} 0`).join(";");
+  // The strip puts a frame every 100, but an avatar draws up to 6 past its frame, the margin the
+  // -6 -6 112 112 window shows: the neighbours' edges would peek in. A frame every 200 keeps them out.
+  let frames = 0;
+  const inner = strip
+    .replace(/^<svg[^>]*>/, "")
+    .replace(/<\/svg>$/, "")
+    .replace(/<svg x="(\d+)" y="0" width="100" height="100"/g, (_, x) => (frames++, `<svg x="${2 * x}" y="0" width="100" height="100"`));
+  if (frames !== 24) throw new Error(`${who}: expected 24 frames in the strip, found ${frames}`);
+  const values = Array.from({ length: 24 }, (_, i) => `${-i * 200} 0`).join(";");
   return `<svg viewBox="-6 -6 112 112" overflow="hidden"><g><animateTransform attributeName="transform" type="translate" values="${values}" dur="3s" calcMode="discrete" repeatCount="indefinite"/>${inner}</g></svg>`;
 }
 write("avatars", (t) => {
