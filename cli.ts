@@ -19,6 +19,7 @@ import type { CliArgs, Command } from "./surfaces/cli/shared.ts";
 import { sessions, sessionsRm } from "./surfaces/cli/sessions.ts";
 import { settingsPull } from "./surfaces/cli/settings.ts";
 import { switchCommand } from "./surfaces/cli/switch.ts";
+import { login } from "./surfaces/cli/login.ts";
 import { skills, skillsAdd, skillsRemove } from "./surfaces/cli/skills.ts";
 import { update } from "./surfaces/cli/update.ts";
 import { usage } from "./surfaces/cli/usage.ts";
@@ -66,7 +67,7 @@ const start: Command = {
 };
 
 // In the order the help lists them.
-const COMMANDS: Command[] = [install, update, settingsPull, profileAdd, profileList, profileRemove, switchCommand, usage, start, newWorkspace, init, check, workspaces, untrack, sessions, sessionsRm, skills, skillsAdd, skillsRemove];
+const COMMANDS: Command[] = [install, update, settingsPull, profileAdd, profileList, profileRemove, switchCommand, login, usage, start, newWorkspace, init, check, workspaces, untrack, sessions, sessionsRm, skills, skillsAdd, skillsRemove];
 
 const repo = path.dirname(fileURLToPath(import.meta.url));
 const version = JSON.parse(fs.readFileSync(path.join(repo, "package.json"), "utf8")).version;
@@ -98,7 +99,7 @@ ${title("Options")}
   ${bold("--color")}      (profile add) the profile's color, #RRGGBB
   ${bold("--short")}      (usage) one line, for a prompt or a status line
   ${bold("--json")}       (usage, sessions) the data, for scripts
-  ${bold("--all")}        (sessions) every project's sessions, not only this folder's
+  ${bold("--all")}        (sessions) every project's sessions, not only this folder's; (login) every login running out
   ${bold("--refresh")}    (usage) ask Claude Code for fresh numbers first
   ${bold("--no-pull")}    (update) skip git pull, only reapply
   ${bold("--no-archive")} (sessions rm) delete without archiving

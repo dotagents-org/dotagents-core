@@ -232,7 +232,7 @@ function switchHere(name: string | undefined, save: string | undefined, afterSav
       report("updated", slotDir(), `now ${name} (${wanted.account.emailAddress ?? wanted.accountUuid})`);
     }
   }
-  if (refused) checkWarn(`${name}'s login was refused by Anthropic`, renewHint(name));
+  if (refused) checkWarn(`${name}'s login was refused by Anthropic`, renewHint(name, sideName()));
   return name;
 }
 
@@ -267,7 +267,8 @@ function peerLogins(peer: Peer, uuids: Map<string, string>) {
   };
 }
 
-const renewHint = (name: string) => `renew it: put ${name} in the slot (dotagents switch ${name} --here), run claude auth login, then dotagents switch --save ${name}`;
+// Each side signs in on its own, so the hint names the side to run it on.
+const renewHint = (name: string, side: string) => `renew it, on ${side}: dotagents login ${name}`;
 
 // Names one login's refresh token without keeping it: a short hash, which tells the login a
 // refusal was about from a new one (a sign-in or a renewal brings a new refresh token), while a
@@ -299,12 +300,12 @@ function checkSlot(home: string, side: string, uuids: Map<string, string>) {
 }
 
 function checkExpiry(name: string, side: string, login: Login | null, now: Date, stateHome?: string) {
-  if (refusedLogin(name, login, stateHome)) return checkItem(false, `${name} on ${side}: Anthropic refused the login`, renewHint(name));
+  if (refusedLogin(name, login, stateHome)) return checkItem(false, `${name} on ${side}: Anthropic refused the login`, renewHint(name, side));
   const expires = expiryOf(login);
   if (expires === null) return;
   const date = new Date(expires).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
   const days = Math.floor((expires - now.getTime()) / DAY);
-  const renew = renewHint(name);
+  const renew = renewHint(name, side);
   if (expires <= now.getTime()) return checkItem(false, `${name} on ${side}: login expired on ${date}`, renew);
   if (days < WARN_DAYS) return checkWarn(`${name} on ${side}: login expires in ${days} day${days === 1 ? "" : "s"} (${date})`, renew);
   checkItem(true, `${name} on ${side}: login good until ${date}`);
@@ -331,4 +332,95 @@ export function verifyLogins(now = new Date()) {
   const other = peerLogins(peer, uuids);
   for (const p of loadProfiles()) checkExpiry(p.name, peer.name, other(p.name), now, path.join(peer.home, ".config", "dotagents"));
   checkSlot(peer.home, peer.name, uuids);
+}
+
+// ── Signing a profile in again ───────────────────────────────────────────────────────────────
+// A login lasts a few weeks and no renewal extends it, so each profile signs in again in the
+// browser, on each side. login does it through this side's slot: it puts the profile's account in
+// (saving the one there), runs `claude auth login`, checks that the account signed in is the
+// profile's, keeps the new login in its vault, and puts the previous account back. The lock is held
+// only around the slot changes, never while the browser waits for the person.
+
+export type ClaudeLogin = () => { ok: boolean; detail: string };
+
+export const claudeLogin: ClaudeLogin = () => {
+  const run = spawnSync("claude", ["auth", "login"], { stdio: "inherit", shell: process.platform === "win32" });
+  return { ok: run.status === 0, detail: run.error?.message ?? `exit ${run.status}` };
+};
+
+// The profiles of this side whose login needs a new sign-in: none saved, refused by Anthropic, or
+// running out within WARN_DAYS.
+function dueLogins(now: Date) {
+  const slot = slotLogin();
+  return loadProfiles().filter((p) => {
+    const known = knownLogin(p);
+    const login = slot && known && slot.accountUuid === known.accountUuid ? slot : known;
+    if (!login || refusedLogin(p.name, login)) return true;
+    const expires = expiryOf(login);
+    return expires !== null && expires - now.getTime() < WARN_DAYS * DAY;
+  });
+}
+
+export type LoginOptions = { name?: string; all?: boolean; now?: Date; run?: ClaudeLogin };
+
+export async function loginProfile({ name, all = false, now = new Date(), run = claudeLogin }: LoginOptions) {
+  const profiles = loadProfiles();
+  if (!all && !name) throw new Error("Usage: dotagents login <profile>, or dotagents login --all");
+  if (name && !profiles.some((p) => p.name === name)) throw new Error(`There is no profile named ${name}`);
+  const due = all ? dueLogins(now) : profiles.filter((p) => p.name === name);
+  if (!due.length) {
+    section("Logins");
+    return report("ok", sideName(), "every login lasts more than a week");
+  }
+  const before = slotProfile()?.name ?? null;
+  try {
+    for (const p of due) {
+      section(p.name);
+      // Into the slot: the profile's own login when it has one, or else the slot's saved first,
+      // since the sign-in replaces it.
+      await withLoginLock(() => {
+        const slot = slotLogin();
+        const known = knownLogin(p);
+        // Already in the slot: its copy there may be newer than the vault's (Claude Code renews
+        // it), so it is saved first, or a sign-in that fails would leave only a spent token.
+        if (slot && known && slot.accountUuid === known.accountUuid) return saveToVault(p.name, slot);
+        if (known) return switchHere(p.name, undefined);
+        if (!slot) return;
+        const owner = ownerOf(slot.accountUuid);
+        if (!owner) throw new Error(`The slot holds ${slot.account.emailAddress ?? slot.accountUuid}, which no profile knows; save it first with: dotagents switch --save <profile>`);
+        saveToVault(owner.name, slot);
+      });
+      if (state.dryRun) {
+        report("would update", vaultDir(p.name), `sign ${p.name} in with claude auth login`);
+        continue;
+      }
+      const signed = run();
+      if (!signed.ok) throw new Error(`claude auth login didn't finish (${signed.detail})`);
+      await withLoginLock(() => {
+        const slot = slotLogin();
+        if (!slot) throw new Error("claude auth login left no login in the slot");
+        const expected = knownLogin(p);
+        const owner = ownerOf(slot.accountUuid);
+        const email = slot.account.emailAddress ?? slot.accountUuid;
+        if ((expected && slot.accountUuid !== expected.accountUuid) || (owner && owner.name !== p.name)) {
+          // An account no profile knows was signed in just now, by this command: dropping it from
+          // the slot loses nothing, and lets the previous account go back.
+          if (!owner && !state.dryRun) fs.rmSync(credentialsIn(slotDir()), { force: true });
+          throw new Error(`Signed in as ${email}, not ${p.name}'s account; run it again and choose that account in the browser`);
+        }
+        saveToVault(p.name, slot);
+      });
+    }
+  } finally {
+    // The account that was in the slot goes back, also after a failure; a failure here is said,
+    // never put in place of the one that stopped the sign-in.
+    if (before && slotProfile()?.name !== before) {
+      try {
+        section("Slot");
+        await withLoginLock(() => switchHere(before, undefined));
+      } catch (err) {
+        report("failed", slotDir(), `couldn't put ${before} back: ${(err as Error).message}`);
+      }
+    }
+  }
 }

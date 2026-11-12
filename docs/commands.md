@@ -14,6 +14,7 @@ dotagents <command> [options]
 | [`profile remove <name>`](#dotagents-profile-remove) | Forgets a profile; its saved login is kept. |
 | [`start [--port <n>]`](#dotagents-start) | Starts the dashboard's server on 127.0.0.1: the usage of every profile, live. |
 | [`switch [<profile>] [--here] [--save <profile>]`](#dotagents-switch) | Puts a profile's login in `~/.claude`, on both sides of the machine. |
+| [`login <profile> \| --all`](#dotagents-login) | Signs a profile in again on this side, keeping the new login in its vault. |
 | [`usage [--short] [--json]`](#dotagents-usage) | Shows how much of each profile's plan is used (5-hour session, week), from Claude Code's cache. |
 | [`new <git-url> [folder]`](#dotagents-new) | Creates a workspace folder (any name; `<name>-workspace` by default), clones the repository into it and applies the standards. |
 | [`init [path]`](#dotagents-init) | Applies the standards to a folder and puts the chosen skills in it. |
@@ -84,7 +85,7 @@ Then save the profile's login, once on each side: sign in with `claude auth logi
 
 ## dotagents profile list
 
-Lists the profiles (color, default, the e-mail of the saved login, and which one is in the slot now) and checks them: each uses `~/.claude`, each has a saved login, and no two hold the same claude.ai account. It also warns when a variable such as `ANTHROPIC_API_KEY` is set in the shell, and checks the shared configuration: a settings copy (Windows) changed in a profile or behind the repository, a [`claude/global-config.json`](global-configuration.md) option changed in a profile, and changes to either file not committed yet. Last, it says until when each profile's saved login lasts, on each side of the machine (a login lasts a few weeks, and Claude Code renews it only up to that date): a week ahead it warns, and once a login has expired the item fails, with how to renew it. A date can't tell a login revoked on the server, so the item also fails when the live usage (`usage --refresh`, `start`) was refused by Anthropic for that same login, wherever a switch copied it (a new sign-in or a renewal brings another and clears it), and when a side's slot names an account in `.claude.json` but has no `.credentials.json` (a logout elsewhere deletes it). In WSL it also fails when `~/.claude` is a link to another folder: Windows reaches WSL's files through `\\wsl.localhost`, which doesn't follow a Linux link, so the Desktop's Code tab in WSL mode can't install its server there; the item says how to make it the folder. Exits with 1 when an item fails.
+Lists the profiles (color, default, the e-mail of the saved login, and which one is in the slot now) and checks them: each uses `~/.claude`, each has a saved login, and no two hold the same claude.ai account. It also warns when a variable such as `ANTHROPIC_API_KEY` is set in the shell, and checks the shared configuration: a settings copy (Windows) changed in a profile or behind the repository, a [`claude/global-config.json`](global-configuration.md) option changed in a profile, and changes to either file not committed yet. Last, it says until when each profile's saved login lasts, on each side of the machine (a login lasts a few weeks, and Claude Code renews it only up to that date): a week ahead it warns, and once a login has expired the item fails; either way it says to run [`login`](#dotagents-login) on that side. A date can't tell a login revoked on the server, so the item also fails when the live usage (`usage --refresh`, `start`) was refused by Anthropic for that same login, wherever a switch copied it (a new sign-in or a renewal brings another and clears it), and when a side's slot names an account in `.claude.json` but has no `.credentials.json` (a logout elsewhere deletes it). In WSL it also fails when `~/.claude` is a link to another folder: Windows reaches WSL's files through `\\wsl.localhost`, which doesn't follow a Linux link, so the Desktop's Code tab in WSL mode can't install its server there; the item says how to make it the folder. Exits with 1 when an item fails.
 
 ## dotagents profile remove
 
@@ -114,6 +115,23 @@ Every account's login is kept in a vault, one per profile and side, in `~/.confi
 The switch and the renewals of `usage --refresh` take the same lock (`logins.lock` in the state folder), so neither copies a token the other is spending.
 
 Then it runs the same switch on the other side of the machine (`--here` skips that), whose vault holds that side's own login: a refresh token copied to two slots would sign one of them out. An account in the slot that no profile knows is never overwritten: `--save <profile>` says whose it is. The switch is always manual.
+
+## dotagents login
+
+```bash
+dotagents login personal   # sign personal in again on this side
+dotagents login --all      # every profile whose login runs out within a week
+```
+
+A login lasts a few weeks, and no renewal extends it: `profile list` says when each one runs out. `login` signs a profile in again through this side's slot:
+
+1. saves the login in the slot to its profile's vault and puts the chosen profile's in, as [`switch --here`](#dotagents-switch) does;
+2. runs `claude auth login`, which opens the browser;
+3. checks that the account signed in is the profile's, and stops without saving anything when it isn't;
+4. keeps the new login in the profile's vault;
+5. puts the account that was in the slot back, also when a step failed.
+
+The login lock is held only around the slot changes, not while the browser waits for you. `--all` takes every profile on this side whose login runs out within a week, was refused by Anthropic, or isn't saved yet. Each side of the machine has its own login, so run it on the other side too.
 
 ## dotagents usage
 
