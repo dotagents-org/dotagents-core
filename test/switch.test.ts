@@ -8,7 +8,7 @@ import os from "node:os";
 import path from "node:path";
 import { test, type TestContext } from "node:test";
 import { saveMachine, saveProfile } from "../core/machine-state.ts";
-import { loginMark, peerFailure, slotProfile, switchProfile, verifyLogins, type PeerSwitch } from "../core/switch.ts";
+import { type ClaudeLogin, loginMark, loginProfile, peerFailure, slotProfile, switchProfile, verifyLogins, type PeerSwitch } from "../core/switch.ts";
 import { state } from "../core/state.ts";
 import { quiet } from "./helpers.ts";
 
@@ -228,4 +228,80 @@ test("a slot that names an account but has no credentials fails the checklist, o
   events = quiet();
   verifyLogins();
   assert.equal(state.problems, 2);
+});
+
+// Stands in for `claude auth login`: signs the slot in to an account with a new token.
+const signsIn = (home: string, uuid: string, token: string, calls: string[] = []): ClaudeLogin => () => {
+  calls.push(uuid);
+  login(path.join(home, ".claude"), path.join(home, ".claude.json"), uuid, token);
+  return { ok: true, detail: "" };
+};
+
+test("login signs a profile in through the slot, keeps the new login in its vault and puts the previous account back", async (t) => {
+  const home = machine(t);
+  login(path.join(home, ".claude"), path.join(home, ".claude.json"), "uuid-work", "work1");
+  login(path.join(home, ".claude-personal"), path.join(home, ".claude-personal", ".claude.json"), "uuid-personal", "personal1");
+  quiet();
+  await switchProfile({ save: "work", peer: noPeer });
+  quiet();
+  await switchProfile({ name: "personal", peer: noPeer, here: true });
+  await switchProfile({ name: "work", peer: noPeer, here: true });
+  quiet();
+  await loginProfile({ name: "personal", run: signsIn(home, "uuid-personal", "personal2") });
+  assert.equal(vault(home, "personal", "credentials.json").claudeAiOauth.refreshToken, "rt-personal2", "the new login is in the vault");
+  assert.equal(slotToken(home), "rt-work1", "the account that was in the slot is back");
+  assert.equal(slotProfile()?.name, "work");
+  // The profile already in the slot: nothing to put back, and the new login is still kept.
+  quiet();
+  await loginProfile({ name: "work", run: signsIn(home, "uuid-work", "work2") });
+  assert.equal(vault(home, "work", "credentials.json").claudeAiOauth.refreshToken, "rt-work2");
+});
+
+test("login refuses an account other than the profile's, and saves nothing for it", async (t) => {
+  const home = machine(t);
+  login(path.join(home, ".claude"), path.join(home, ".claude.json"), "uuid-work", "work1");
+  login(path.join(home, ".claude-personal"), path.join(home, ".claude-personal", ".claude.json"), "uuid-personal", "personal1");
+  quiet();
+  await switchProfile({ save: "work", peer: noPeer });
+  await switchProfile({ name: "personal", peer: noPeer, here: true });
+  await switchProfile({ name: "work", peer: noPeer, here: true });
+  quiet();
+  await assert.rejects(loginProfile({ name: "personal", run: signsIn(home, "uuid-other", "x1") }), /uuid-other@example.com, not personal's account/);
+  assert.equal(vault(home, "personal", "credentials.json").claudeAiOauth.refreshToken, "rt-personal1");
+  assert.equal(slotToken(home), "rt-work1", "the unknown account is dropped and work is back in the slot");
+});
+
+test("login keeps the slot's newer token when the sign-in fails for the profile already there", async (t) => {
+  const home = machine(t);
+  login(path.join(home, ".claude"), path.join(home, ".claude.json"), "uuid-work", "work1");
+  quiet();
+  await switchProfile({ save: "work", peer: noPeer });
+  // Claude Code renews the token in the slot after the last save.
+  fs.writeFileSync(path.join(home, ".claude", ".credentials.json"), creds("work1b"));
+  quiet();
+  await assert.rejects(loginProfile({ name: "work", run: () => ({ ok: false, detail: "exit 1" }) }), /didn't finish/);
+  assert.equal(vault(home, "work", "credentials.json").claudeAiOauth.refreshToken, "rt-work1b");
+});
+
+test("login --all signs in only the profiles whose login runs out within a week; a dry run signs in none", async (t) => {
+  const home = machine(t);
+  const day = 86_400_000;
+  const now = new Date();
+  const withExpiry = (token: string, ms: number) => JSON.stringify({ claudeAiOauth: { accessToken: `at-${token}`, refreshToken: `rt-${token}`, expiresAt: 1, refreshTokenExpiresAt: ms } });
+  login(path.join(home, ".claude"), path.join(home, ".claude.json"), "uuid-work", "work1");
+  fs.writeFileSync(path.join(home, ".claude", ".credentials.json"), withExpiry("work1", now.getTime() + 20 * day));
+  login(path.join(home, ".claude-personal"), path.join(home, ".claude-personal", ".claude.json"), "uuid-personal", "p1");
+  fs.writeFileSync(path.join(home, ".claude-personal", ".credentials.json"), withExpiry("p1", now.getTime() + 3 * day));
+  quiet();
+  await switchProfile({ save: "work", peer: noPeer });
+  await switchProfile({ name: "personal", peer: noPeer, here: true });
+  await switchProfile({ name: "work", peer: noPeer, here: true });
+  const calls: string[] = [];
+  quiet({ dryRun: true });
+  await loginProfile({ all: true, now, run: signsIn(home, "uuid-personal", "p2", calls) });
+  assert.deepEqual(calls, [], "a dry run runs no sign-in");
+  quiet();
+  await loginProfile({ all: true, now, run: signsIn(home, "uuid-personal", "p2", calls) });
+  assert.deepEqual(calls, ["uuid-personal"], "only personal, which runs out in 3 days");
+  assert.equal(slotProfile()?.name, "work");
 });
