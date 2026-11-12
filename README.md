@@ -181,7 +181,7 @@ dotagents usage --refresh # every account's usage, asked of Anthropic
 dotagents start # the panel, live, on 127.0.0.1
 ```
 
-The VS Code extension is built from [`surfaces/vscode/`](surfaces/vscode/) with `npm run package`, or installed from a [release](https://github.com/gabrieldulolmarques/dotagents/releases).
+The VS Code extension is built from [`surfaces/vscode/`](surfaces/vscode/) with `npm run package`, or installed from a [release](https://github.com/dotagents-org/dotagents-cli/releases).
 
 More in [Getting started](docs/getting-started.md), including WSL and npm without `sudo`. What changed in each version is in the [CHANGELOG](CHANGELOG.md).
 
