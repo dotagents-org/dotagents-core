@@ -19,7 +19,7 @@
       "activitybar": [{ "id": "dotagents", "title": "dotagents", "icon": "media/icon.svg" }]
     },
     "views": {
-      "dotagents": [{ "type": "webview", "id": "dotagents.panel", "name": "Accounts" }]
+      "dotagents": [{ "type": "webview", "id": "dotagents.panel", "name": "dotagents" }]
     },
     "commands": [
       { "command": "dotagents.switch", "title": "dotagents: Switch account" },
