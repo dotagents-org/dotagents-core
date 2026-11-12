@@ -1,6 +1,6 @@
 # Global configuration
 
-The configuration lives in `config/` in your clone: the global instructions, the rules, the settings, your skills and the accounts' icons. The rest of the repository is the tool. To keep your configuration somewhere else, such as a private repository of its own, point `DOTAGENTS_CONFIG` at that folder; it has the same layout as `config/`.
+The configuration lives in `config/` in your clone: the global instructions, the rules, the settings, your skills and each profile's Desktop icon. The rest of the repository is the tool. To keep your configuration somewhere else, such as a private repository of its own, point `DOTAGENTS_CONFIG` at that folder; it has the same layout as `config/`.
 
 `dotagents install` writes (paths inside `config/`):
 

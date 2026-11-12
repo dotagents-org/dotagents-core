@@ -195,7 +195,7 @@ my-config/
 ├── rules/        rules for every project
 ├── claude/       settings.json, global-config.json
 ├── skills/       your skills, and third-party-skills.json
-└── assets/       claude-<profile>.svg and .ico, the accounts' icons
+└── assets/       claude-<profile>.svg and .ico, each profile's Desktop icon
 ```
 
 ## Commands at a glance
