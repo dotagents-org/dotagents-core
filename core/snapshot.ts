@@ -196,10 +196,10 @@ export function readSlots(list: ProfileUsage[], view?: PeerView): Record<string,
   return slots;
 }
 
-// What the tray icon shows: the account in a slot in the worst state (the same one on both sides
+// The current account: the one in a slot, in the worst state (the same one on both sides
 // after a switch, else the worse of the two); with no account in a slot, the brand in the worst
 // state of all.
-export function trayFor(list: ProfileUsage[], slots: Record<string, string>, now: Date): { profile: string; state: AvatarState } {
+export function currentFor(list: ProfileUsage[], slots: Record<string, string>, now: Date): { profile: string; state: AvatarState } {
   const rank = (p: ProfileUsage) => AVATAR_STATES.indexOf(avatarState(p, now));
   const current = list.filter((p) => Object.values(slots).includes(p.name));
   const worst = (from: ProfileUsage[]) => from.reduce<ProfileUsage | null>((w, p) => (!w || rank(p) < rank(w) ? p : w), null);

@@ -11,7 +11,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const PAGE_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), "page");
-const TYPES: Record<string, string> = { ".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".css": "text/css; charset=utf-8", ".svg": "image/svg+xml" };
+const TYPES: Record<string, string> = { ".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".css": "text/css; charset=utf-8", ".svg": "image/svg+xml", ".png": "image/png" };
 const KEEPALIVE_MS = 15_000;
 
 export type ServerOptions = {
@@ -50,7 +50,7 @@ export async function startServer({ read, port = 7337, token = randomBytes(24).t
       "x-content-type-options": "nosniff",
       "content-security-policy": "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'",
     };
-    const send = (status: number, body = "", type = "text/plain; charset=utf-8") => {
+    const send = (status: number, body: string | Buffer = "", type = "text/plain; charset=utf-8") => {
       res.writeHead(status, { ...security, "content-type": type });
       res.end(body);
     };
@@ -123,12 +123,12 @@ export async function startServer({ read, port = 7337, token = randomBytes(24).t
       return send(404, "not found");
     }
 
-    // The page's own files, by name only: nothing outside page/.
+    // The page's own files, by name only: nothing outside page/, and its avatars in page/avatars/.
     const name = url.pathname === "/" ? "index.html" : url.pathname.slice(1);
-    if (!/^[\w-]+\.(html|js|css|svg)$/.test(name)) return send(404, "not found");
+    if (!/^(avatars\/)?[\w-]+\.(html|js|css|svg|png)$/.test(name)) return send(404, "not found");
     const file = path.join(PAGE_DIR, name);
     if (!fs.existsSync(file)) return send(404, "not found");
-    send(200, fs.readFileSync(file, "utf8"), TYPES[path.extname(name)]);
+    send(200, name.endsWith(".png") ? fs.readFileSync(file) : fs.readFileSync(file, "utf8"), TYPES[path.extname(name)]);
   });
 
   // A taken port tries the next ten; 0 lets the system pick.

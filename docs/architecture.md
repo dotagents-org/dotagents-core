@@ -19,8 +19,7 @@ dotagents/
 ├── core/                      the data and the actions, drawing nothing (see below)
 ├── surfaces/                  the ways in, each using core/ only
 │   ├── cli/                   one file per command: its help, its questions, its run
-│   ├── web/                   the dashboard: server.ts (127.0.0.1, token, live events) and page/
-│   └── tray/                  the Windows tray panel: tray.ps1, panel.xaml and the avatars in assets/
+│   └── web/                   the panel: server.ts (127.0.0.1, token, live events) and page/ (the panel and the avatars)
 ├── test/                      unit tests (node:test)
 ├── .github/workflows/         CI: skill validation and command tests on three systems
 └── package.json
@@ -30,7 +29,7 @@ dotagents/
 
 The command is TypeScript run directly by Node (type stripping, no build step) with one dependency: `@clack/prompts`, for the questions and the spinners. The colors come from `core/theme.ts`. `cli.ts` reads the arguments and hands them to one of the commands in `surfaces/cli/`, which asks the questions and calls the modules. Everything that decides what a workspace or a machine should look like lives in `core/`, in a few modules with small interfaces.
 
-**Core and surfaces.** `core/` holds the data and the actions and draws nothing. A surface is a way in: the commands (`surfaces/cli/`), the dashboard (`surfaces/web/`: its local server and page) and the Windows tray panel (`surfaces/tray/`, PowerShell and WPF, which talks to that server over HTTP), later the VS Code extension and the MCP server. Each surface uses `core/` and never another surface; `cli.ts`, at the root, is the one place that picks one, and where `start` joins the command line to the web server. `test/boundaries.test.ts` fails when an import breaks the rule.
+**Core and surfaces.** `core/` holds the data and the actions and draws nothing. A surface is a way in: the commands (`surfaces/cli/`), the panel (`surfaces/web/`: its local server and page, ADR 0012), later the VS Code extension, which shows the same page, and the MCP server. Each surface uses `core/` and never another surface; `cli.ts`, at the root, is the one place that picks one, and where `start` joins the command line to the web server. `test/boundaries.test.ts` fails when an import breaks the rule.
 
 The arrows point to what a part uses. The table below gives each module's interface.
 
@@ -40,8 +39,7 @@ flowchart TB
     subgraph surfaces["surfaces: the ways in"]
         direction LR
         cli["cli.ts + surfaces/cli/<br/>arguments, questions"]
-        web["surfaces/web/<br/>the dashboard's server and page"]
-        tray["surfaces/tray/<br/>the Windows tray panel"]
+        web["surfaces/web/<br/>the panel's server and page"]
     end
 
     subgraph features["core: what dotagents applies and reads"]

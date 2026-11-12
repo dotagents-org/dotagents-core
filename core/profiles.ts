@@ -11,7 +11,7 @@ import os from "node:os";
 import path from "node:path";
 import { CREDENTIAL_VARIABLES, defaultConfigDir } from "./claude-code.ts";
 import { isWindows, lstat, removeGenerated, samePath } from "./common.ts";
-import { type Shortcuts, applyDesktop, applyTray, powershellShortcuts, removeDesktop, verifyDesktop, verifyTray } from "./desktop.ts";
+import { type Shortcuts, applyDesktop, powershellShortcuts, removeDesktop, removeTray, verifyDesktop } from "./desktop.ts";
 import { installGlobal } from "./global.ts";
 import { type Profile, loadProfiles, migrateLegacyProfiles, profilesFile, removeProfile, saveProfile } from "./machine-state.ts";
 import { checkItem, checkWarn, displayPath, report, section } from "./output.ts";
@@ -71,8 +71,6 @@ export function setUpProfile(
   section("Configuration");
   installGlobal(repo);
   applyProfile(repo, profile, desktop);
-  // Windows: the tray panel shows every profile, so the first one brings it.
-  if (desktop) applyTray(repo);
   record(profile, prior);
 }
 
@@ -106,8 +104,8 @@ export function installProfiles(repo: string, { desktop = desktopDefault() }: De
     applyProfile(repo, profile, desktop);
     if (!samePath(prior.configDir, profile.configDir)) record(profile, prior);
   }
-  // Windows: the tray panel, which shows them all.
-  if (desktop) applyTray(repo);
+  // Windows: the dropped tray panel's launcher goes.
+  if (desktop) removeTray();
 }
 
 // The profiles' checklist: each one's login saved, each a different claude.ai account, and no
@@ -115,7 +113,6 @@ export function installProfiles(repo: string, { desktop = desktopDefault() }: De
 export function verifyProfiles({ desktop = desktopDefault() }: DesktopOption = {}) {
   section("Profiles");
   const seen = new Map<string, string>();
-  if (desktop) verifyTray();
   for (const profile of loadProfiles()) {
     if (desktop) verifyDesktop(profile.name, profile.default);
     checkItem(samePath(profile.configDir, defaultConfigDir()), `${profile.name} uses ${displayPath(defaultConfigDir())}`, "move it there with: dotagents install");

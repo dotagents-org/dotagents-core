@@ -8,7 +8,7 @@ import path from "node:path";
 import { test, type TestContext } from "node:test";
 import { loadMachine, saveMachine, saveProfile } from "../core/machine-state.ts";
 import { applyPeer } from "../core/peer.ts";
-import { readUsage, trayFor, usageJson, watchPeer } from "../core/snapshot.ts";
+import { readUsage, currentFor, usageJson, watchPeer } from "../core/snapshot.ts";
 import { quiet } from "./helpers.ts";
 
 const NOW = new Date("2026-10-28T12:00:00Z");
@@ -200,12 +200,12 @@ test("the account in this side's slot comes first, the others after in their ord
   assert.deepEqual(readUsage(NOW).map((p) => p.name), ["personal", "work"]);
 });
 
-test("the tray shows the account in a slot in the worst state: one account, or the worse of the two sides", () => {
+test("the current account is the one in a slot in the worst state: one account, or the worse of the two sides", () => {
   const list = [
     { name: "work", color: "#D77655", state: "ok" as const, fetchedAt: NOW, windows: [{ kind: "session" as const, pct: 20, resetsAt: new Date("2026-10-28T14:00:00Z"), reset: false }] },
     { name: "personal", color: "#376B80", state: "ok" as const, fetchedAt: NOW, windows: [{ kind: "session" as const, pct: 80, resetsAt: new Date("2026-10-28T14:00:00Z"), reset: false }] },
   ];
-  assert.deepEqual(trayFor(list, { WSL: "work", Windows: "work" }, NOW), { profile: "work", state: "ok" });
-  assert.deepEqual(trayFor(list, { WSL: "work", Windows: "personal" }, NOW), { profile: "personal", state: "warn" }, "the worse of the two");
-  assert.deepEqual(trayFor(list, {}, NOW), { profile: "dotagents", state: "warn" }, "no account in a slot: the brand, in the worst state of all");
+  assert.deepEqual(currentFor(list, { WSL: "work", Windows: "work" }, NOW), { profile: "work", state: "ok" });
+  assert.deepEqual(currentFor(list, { WSL: "work", Windows: "personal" }, NOW), { profile: "personal", state: "warn" }, "the worse of the two");
+  assert.deepEqual(currentFor(list, {}, NOW), { profile: "dotagents", state: "warn" }, "no account in a slot: the brand, in the worst state of all");
 });

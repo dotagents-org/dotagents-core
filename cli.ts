@@ -24,7 +24,7 @@ import { skills, skillsAdd, skillsRemove } from "./surfaces/cli/skills.ts";
 import { update } from "./surfaces/cli/update.ts";
 import { usage } from "./surfaces/cli/usage.ts";
 import { startServer } from "./surfaces/web/server.ts";
-import { readSlots, readUsage, trayFor, usageJson, watchPeer } from "./core/snapshot.ts";
+import { readSlots, readUsage, currentFor, usageJson, watchPeer } from "./core/snapshot.ts";
 import { openDesktop } from "./core/desktop.ts";
 import { forgetServer, loadMachine, loadProfiles, recordServer } from "./core/machine-state.ts";
 import { launcherDir } from "./core/profiles.ts";
@@ -64,9 +64,9 @@ const start: Command = {
       read: () => {
         const now = new Date();
         const list = readUsage(now, view);
-        // Which account is in each side's slot, and what the tray icon shows.
+        // Which account is in each side's slot, and the current one (the worse of the two).
         const slots = readSlots(list, view);
-        const json = { ...usageJson(list, now), slots, tray: trayFor(list, slots, now) };
+        const json = { ...usageJson(list, now), slots, current: currentFor(list, slots, now) };
         let peer;
         try {
           peer = loadMachine().peer;
