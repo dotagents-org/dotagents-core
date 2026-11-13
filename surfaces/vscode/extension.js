@@ -44,6 +44,23 @@ async function api(method, route, body) {
   return { ok: res.ok, json };
 }
 
+// An action of the panel (switch, desktop, refresh), answered as { ok, detail }.
+async function act(action, body) {
+  let result;
+  try {
+    const { ok, json } = await api("POST", `/api/${action}`, body || {});
+    result = { ok, detail: json.detail || "" };
+  } catch (err) {
+    result = { ok: false, detail: err.message };
+  }
+  refresh();
+  return result;
+}
+
+// What a panel is told: the usage, or why there is none yet.
+const message = () => (data ? { type: "usage", data } : { type: "down", detail: "Waiting for the dotagents server..." });
+const listeners = new Set();
+
 // --- The panel in the side bar --------------------------------------------------------------
 class PanelView {
   constructor(context) {
@@ -64,25 +81,13 @@ class PanelView {
     webview.html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="${csp}"><link rel="stylesheet" href="${file("panel.css")}"></head><body><main id="panel" class="panel" aria-live="polite"></main>${scripts}</body></html>`;
     webview.onDidReceiveMessage(async (m) => {
       if (m.type === "ready") this.post();
-      if (m.type === "action") {
-        let result;
-        try {
-          const { ok, json } = await api("POST", `/api/${m.action}`, m.body || {});
-          result = { ok, detail: json.detail || "" };
-        } catch (err) {
-          result = { ok: false, detail: err.message };
-        }
-        webview.postMessage({ type: "result", id: m.id, result });
-        refresh();
-      }
+      if (m.type === "action") webview.postMessage({ type: "result", id: m.id, result: await act(m.action, m.body) });
     });
     view.onDidChangeVisibility(() => view.visible && this.post());
   }
 
   post() {
-    if (!this.view) return;
-    if (data) this.view.webview.postMessage({ type: "usage", data });
-    else this.view.webview.postMessage({ type: "down", detail: "Waiting for the dotagents server..." });
+    if (this.view) this.view.webview.postMessage(message());
   }
 }
 
@@ -125,6 +130,7 @@ async function refresh() {
     showParts([{ text: "$(dotagents-accounts) dotagents", tone: "label" }], undefined, "Starting the dotagents server...");
   }
   panel.post();
+  for (const listener of listeners) listener(message());
 }
 
 async function switchAccount() {
@@ -198,6 +204,17 @@ function activate(context) {
     vscode.commands.registerCommand("dotagents.openInBrowser", openInBrowser)
   );
   refresh();
+  // For other extensions (the dotagents sidebar's accounts tab): the panel's files, what the panel
+  // is told and when it changes, and its actions; this extension keeps talking to the server.
+  return {
+    panelRoot: panel.root,
+    message,
+    onDidChange(listener) {
+      listeners.add(listener);
+      return { dispose: () => listeners.delete(listener) };
+    },
+    act,
+  };
 }
 
 function deactivate() {}
