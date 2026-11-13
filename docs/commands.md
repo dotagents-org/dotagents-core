@@ -221,8 +221,8 @@ To build and install it from the repository:
 
 ```bash
 cd surfaces/vscode
-npm run package                              # copies the panel in and writes dotagents.vsix
-code --install-extension dotagents.vsix --force
+npm run package                              # copies the panel in and writes dotagents-accounts.vsix
+code --install-extension dotagents-accounts.vsix --force
 ```
 
 
