@@ -9,10 +9,8 @@ import { configRoot } from "../core/common.ts";
 import { state } from "../core/state.ts";
 import { GLOBAL_CONFIG_KEYS, installGlobal, pullSettings, verifyGlobal } from "../core/global.ts";
 import { execFileSync } from "node:child_process";
-import { REPO, quiet } from "./helpers.ts";
+import { REPO, quiet, withConfig } from "./helpers.ts";
 
-// Each test here builds a clone of its own, with config/ inside.
-delete process.env.DOTAGENTS_CONFIG;
 
 function tempHome(t: TestContext) {
   const home = fs.mkdtempSync(path.join(os.tmpdir(), "dotagents-home-"));
@@ -66,13 +64,14 @@ test("install can target another config folder, for a second profile, and leaves
   installGlobal(REPO, other);
   assert.equal(state.problems, 0);
   assert.ok(fs.readFileSync(path.join(other, "CLAUDE.md"), "utf8").includes(REPO.replace(/\\/g, "/")));
-  assert.ok(fs.existsSync(path.join(other, "rules", "commit-conventions.md")));
+  assert.ok(fs.existsSync(path.join(other, "rules", "commits.md")));
   assert.ok(fs.existsSync(path.join(other, "settings.json")));
   assert.ok(!fs.existsSync(path.join(home, ".claude")));
 });
 
 // A clone of our own to change: the files install reads, under git.
 function tempRepo(t: TestContext) {
+  withConfig(t, undefined); // its own config/ inside, not the example
   const repo = fs.mkdtempSync(path.join(os.tmpdir(), "dotagents-repo-"));
   t.after(() => fs.rmSync(repo, { recursive: true, force: true }));
   for (const dir of ["global", "rules", "claude"]) fs.cpSync(path.join(REPO, "templates", "config", dir), path.join(repo, "config", dir), { recursive: true });
@@ -184,10 +183,10 @@ test("the configuration is the folder DOTAGENTS_CONFIG names, else config/ in th
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));
   const repo = path.join(root, "dotagents-core");
   fs.mkdirSync(repo);
+  withConfig(t, undefined);
   assert.equal(configRoot(repo), path.join(root, "dotagents-config"));
   fs.mkdirSync(path.join(repo, "config"));
   assert.equal(configRoot(repo), path.join(repo, "config"));
-  process.env.DOTAGENTS_CONFIG = "/mine";
-  t.after(() => delete process.env.DOTAGENTS_CONFIG);
+  withConfig(t, "/mine");
   assert.equal(configRoot(repo), path.resolve("/mine"));
 });

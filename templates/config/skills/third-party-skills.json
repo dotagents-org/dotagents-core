@@ -1,1 +1,9 @@
-{"skills":[]}
+{
+  "skills": [
+    {
+      "name": "humanizer",
+      "source": "blader/humanizer",
+      "description": "Rewrite AI-sounding text so it reads like the writer without changing what it says. Use when editing or reviewing prose for AI tells."
+    }
+  ]
+}

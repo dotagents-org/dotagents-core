@@ -14,6 +14,14 @@ export const REPO = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "
 // The tests read the example configuration, never the one installed next to the clone.
 process.env.DOTAGENTS_CONFIG = path.join(REPO, "templates", "config");
 
+// Points the configuration elsewhere for one test (undefined: a clone's own config/), and back after.
+export function withConfig(t: TestContext, value: string | undefined) {
+  const saved = process.env.DOTAGENTS_CONFIG;
+  const set = (v: string | undefined) => (v === undefined ? delete process.env.DOTAGENTS_CONFIG : (process.env.DOTAGENTS_CONFIG = v));
+  set(value);
+  t.after(() => set(saved));
+}
+
 export function tempWorkspace(t: TestContext, name = "ws") {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "dotagents-test-"));
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));
