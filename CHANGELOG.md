@@ -2,6 +2,12 @@
 
 What changed for someone who updates a clone. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow [Semantic Versioning](https://semver.org/). `dotagents update` names the version change after a pull.
 
+## Unreleased
+
+### Fixed
+
+- **Switching or listing sessions from Windows works with Node from nvm in WSL:** Windows ran `dotagents` in WSL through a login shell, which skips `~/.bashrc`, so nvm's Node wasn't on the PATH and an older system Node failed on the `.ts` sources. It now uses an interactive login shell (`bash -lic`).
+
 ## 0.1.0 - 2026-11-13
 
 The first release of dotagents-core, the tool on its own. The numbers below, 1.0.0 to 3.0.0, were the private versions before it, kept for what they changed.
