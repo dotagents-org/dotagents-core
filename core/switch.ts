@@ -164,8 +164,8 @@ export const peerSwitch: PeerSwitch = (name) => {
 export function peerFailure(output: string) {
   const lines = output.replace(/\x1b\[[0-9;]*m/g, "").split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
   if (lines.some((l) => /Unknown command 'switch'|--here/.test(l))) return "its dotagents doesn't know switch yet; update it there with: dotagents update";
-  const error = lines.find((l) => /^(✗ )?(\S*Error|dotagents):/.test(l));
-  return (error ?? lines.at(-1) ?? "").replace(/^(✗ )?(\S*Error|dotagents): /, "");
+  const error = /^(✗ )?(\S*Error( \[\w+\])?|dotagents): /;
+  return (lines.find((l) => error.test(l)) ?? lines.at(-1) ?? "").replace(error, "");
 }
 
 // afterSave: the moment between saving the slot's login and replacing it, where a running Claude
