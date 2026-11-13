@@ -184,10 +184,11 @@ export const sessionsRm: Command = {
       const labels = accountLabels();
       header("sessions rm", under ?? "every project");
       warnUnchecked(pool);
-      const free = pool.filter((s) => !s.running);
+      // Running sessions are listed too, marked running: deleting one asks once more.
+      const free = pool;
       if (!free.length) {
         line();
-        line(muted(pool.length ? "Every session here is running." : under ? "No sessions started here. --all picks from every project's." : "No sessions."));
+        line(muted(under ? "No sessions started here. --all picks from every project's." : "No sessions."));
         return;
       }
       // Searched by everything a row shows: title, folder, side, account, archive folder.
@@ -209,10 +210,24 @@ export const sessionsRm: Command = {
       chosen = free.filter((s) => picked.includes(s.id));
     }
 
+    // A running session goes only when the user says so in a terminal, and only archived: its
+    // Claude Code is ended first on this side. --yes doesn't answer this one.
     const running = chosen.filter((s) => s.running);
     const doomed = chosen.filter((s) => !s.running);
-    if (running.length) section("Plan");
-    for (const s of running) report("skipped", s.file, `${s.id.slice(0, 8)} is still running; close it first`);
+    let alsoRunning: Session[] = [];
+    if (running.length && ask_ && !args["no-archive"]) {
+      const here = running.filter((s) => s.pid !== null).length;
+      const what = here === running.length ? "its Claude Code is closed first" : here ? "on this side, its Claude Code is closed first; on the other, only its files go" : "only its files go: it runs on the other side, so close it there";
+      const archivable = running.filter((s) => s.root);
+      if (archivable.length && (await ask(`${plural(archivable.length, "session")} ${archivable.length === 1 ? "is" : "are"} still running. Archive and delete ${archivable.length === 1 ? "it" : "them"} anyway? (${what})`, false))) alsoRunning = archivable;
+    }
+    const kept = running.filter((s) => !alsoRunning.includes(s));
+    if (kept.length) section("Plan");
+    for (const s of kept) {
+      const why = !s.root ? "it can't be archived first" : args["no-archive"] ? "a running session is deleted only archived" : ask_ ? "kept, as answered" : "confirm in a terminal to delete it";
+      report("skipped", s.file, `${s.id.slice(0, 8)} is still running; ${why}`);
+    }
+    doomed.push(...alsoRunning);
     if (!doomed.length) return finish();
 
     // --no-archive and --yes answer for the user; --dry-run shows the archiving way.
@@ -222,6 +237,12 @@ export const sessionsRm: Command = {
       return;
     }
     const archive = mode === "archive";
+    if (!archive && alsoRunning.length) {
+      // Deleting without archiving leaves the running ones.
+      doomed.splice(0, doomed.length, ...doomed.filter((s) => !alsoRunning.includes(s)));
+      for (const s of alsoRunning) report("skipped", s.file, `${s.id.slice(0, 8)} is still running; a running session is deleted only archived`);
+      if (!doomed.length) return finish();
+    }
     const bare = doomed.filter((s) => !s.root);
     if (!ask_) {
       section("Plan");
@@ -244,7 +265,7 @@ export const sessionsRm: Command = {
       } else if (s.root) {
         const archived = archiveSession(s, labels);
         if (!archived.ok) {
-          const keep = !ask_ || !(await ask(`Couldn't archive ${s.id.slice(0, 8)} (${archived.error}). Delete it anyway?`, false));
+          const keep = s.running || !ask_ || !(await ask(`Couldn't archive ${s.id.slice(0, 8)} (${archived.error}). Delete it anyway?`, false));
           if (keep) {
             report("skipped", s.file, "kept: its archive failed");
             continue;
@@ -253,7 +274,7 @@ export const sessionsRm: Command = {
       } else {
         checkWarn(`${s.id.slice(0, 8)} not archived`, `${displayPath(s.localCwd ?? s.cwd ?? "?")} has no .artifacts/session-archives/`);
       }
-      deleteSession(s);
+      deleteSession(s, { evenRunning: alsoRunning.includes(s) });
     }
     finish();
   },

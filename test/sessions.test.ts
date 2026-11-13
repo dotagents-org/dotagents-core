@@ -165,6 +165,31 @@ test("a running session is never deleted, and a dry run touches nothing", (t) =>
   assert.deepEqual(fs.readdirSync(path.join(s.ws, ".artifacts", "session-archives")), []);
 });
 
+test("a running session, once confirmed, has its Claude Code ended and then its files deleted; a dry run ends nothing", (t) => {
+  const s = setup(t);
+  session(s.here, "live", lines(s.ws, "live"));
+  fs.mkdirSync(path.join(s.here.dir, "sessions"));
+  fs.writeFileSync(path.join(s.here.dir, "sessions", "100.json"), JSON.stringify({ pid: 100, sessionId: "live" }));
+  const [live] = listSessions({ dirs: [s.here], running: (pid) => pid === 100 });
+  assert.equal(live.running, true);
+  assert.equal(live.pid, 100);
+
+  const stopped: number[] = [];
+  const stop = (pid: number) => (stopped.push(pid), true);
+  quiet({ dryRun: true });
+  assert.ok(deleteSession(live, { evenRunning: true, stop }));
+  state.dryRun = false;
+  assert.deepEqual(stopped, [], "a dry run ends nothing");
+  assert.ok(fs.existsSync(live.file));
+
+  quiet();
+  assert.equal(deleteSession(live, { stop }), false, "not without being asked");
+  assert.deepEqual(stopped, []);
+  assert.ok(deleteSession(live, { evenRunning: true, stop }));
+  assert.deepEqual(stopped, [100]);
+  for (const target of sessionFiles(live)) assert.ok(!fs.existsSync(target), `${target} is gone`);
+});
+
 test("the other side is asked once which sessions it runs, and a side that can't say is marked unchecked", (t) => {
   const s = setup(t);
   const peer: ConfigDir = { side: "There", dir: path.join(s.root, "peer-claude"), peer: { name: "There", home: path.join(s.root, "peer"), nativeHome: "/home/me" } };
