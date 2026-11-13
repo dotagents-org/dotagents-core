@@ -1,4 +1,4 @@
-# Writes the dotagents and dotagents-accounts lockups (the mark + the name in Geist Mono 600, text
+# Writes the dotagents-core and dotagents-accounts lockups (the mark + the name in Geist Mono 600, text
 # as outlines) for light and dark backgrounds.
 #   uvx --from fonttools python -I scripts/lockup.py <GeistMono-600.ttf> assets
 import sys
@@ -53,7 +53,7 @@ def accounts(text_color):
   <circle cx="{82*s:.2f}" cy="{82*s:.2f}" r="{14*s:.2f}" fill="{text_color}"/>'''
 
 
-for name, mark, eyes_cy in (("dotagents", dotagents, 48), ("dotagents-accounts", accounts, 44)):
+for name, mark, eyes_cy in (("dotagents-core", dotagents, 48), ("dotagents-accounts", accounts, 44)):
     d, W = text(name, eyes_cy)
     for side, color in (("light", "#171717"), ("dark", "#ededed")):
         open(f"{out_dir}/{name}-lockup-{side}.svg", "w").write(f'''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {W:.1f} {H:.1f}" width="{W:.0f}" height="{H:.0f}" role="img" aria-label="{name}">

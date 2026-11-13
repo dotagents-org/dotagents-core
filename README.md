@@ -1,7 +1,7 @@
 <p align="center">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="assets/dotagents-lockup-dark.svg">
-    <img alt="dotagents" src="assets/dotagents-lockup-light.svg" width="320">
+    <source media="(prefers-color-scheme: dark)" srcset="assets/dotagents-core-lockup-dark.svg">
+    <img alt="dotagents-core" src="assets/dotagents-core-lockup-light.svg" width="460">
   </picture>
 </p>
 
@@ -147,8 +147,8 @@ The command runs from your clone, so an edit there is live at once on that machi
 You need Node.js 22.18+ and git. Fork this repository (or copy it to your own GitHub account), make `config/` yours (start with `config/global/instructions.md` and `config/global/env/`), then, once per machine:
 
 ```bash
-git clone git@github.com:<you>/dotagents.git
-cd dotagents
+git clone git@github.com:<you>/dotagents-core.git dotagents/dotagents-core
+cd dotagents/dotagents-core
 npm install && npm link # the `dotagents` command, pointing to this clone
 dotagents install # global instructions, rules and settings
 ```
@@ -181,7 +181,7 @@ dotagents usage --refresh # every account's usage, asked of Anthropic
 dotagents start # the panel, live, on 127.0.0.1
 ```
 
-The VS Code extension is built from [`surfaces/vscode/`](surfaces/vscode/) with `npm run package`, or installed from a [release](https://github.com/dotagents-org/dotagents/releases).
+The VS Code extension is built from [`surfaces/vscode/`](surfaces/vscode/) with `npm run package`, or installed from a [release](https://github.com/dotagents-org/dotagents-core/releases).
 
 More in [Getting started](docs/getting-started.md), including WSL and npm without `sudo`. What changed in each version is in the [CHANGELOG](CHANGELOG.md).
 
