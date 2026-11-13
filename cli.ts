@@ -205,7 +205,7 @@ function pick(words: string[]) {
   if (two) return { command: two, positional: words.slice(2) };
   const one = COMMANDS.find((c) => c.name === words[0]);
   if (one) return { command: one, positional: words.slice(1) };
-  if (words[0] === "account") throw new Error(`'account' is now 'profile' (since 2.0.0): dotagents profile ${words.slice(1).join(" ")}`.trimEnd());
+  if (words[0] === "account") throw new Error(`'account' is now 'profile': dotagents profile ${words.slice(1).join(" ")}`.trimEnd());
   throw new UsageError(`Unknown command '${words[0]}'. Run: dotagents --help`);
 }
 

@@ -97,7 +97,7 @@ export const configDirs = () => [defaultConfigDir()];
 export function installProfiles(repo: string, { desktop = desktopDefault() }: DesktopOption = {}) {
   if (migrateLegacyProfiles()) {
     section("Profiles");
-    report(state.dryRun ? "would update" : "updated", profilesFile(), "moved from accounts.json, the name before 2.0.0");
+    report(state.dryRun ? "would update" : "updated", profilesFile(), "moved from accounts.json, its earlier name");
   }
   installGlobal(repo);
   for (const prior of loadProfiles()) {

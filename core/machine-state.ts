@@ -3,7 +3,7 @@
 // - workspaces.json: the workspaces tracked since `dotagents init` (until `dotagents untrack`),
 //   so `dotagents update --all` can reach all of them;
 // - profiles.json: the Claude profiles of this machine, each with its config folder (accounts.json
-//   before 2.0.0, read and moved by the first write);
+//   in earlier versions, read and moved by the first write);
 // - machine.json: what install found about this machine: the other side (Windows from WSL, WSL
 //   from Windows), whose caches the usage reads too;
 // - copies.json: what install last copied to each settings copy (Windows), so it can tell a change
@@ -72,7 +72,7 @@ const isProfile = (v: unknown): v is Profile => {
   return typeof v === "object" && v !== null && typeof a.name === "string" && typeof a.configDir === "string" && typeof a.color === "string" && (a.default === undefined || typeof a.default === "boolean");
 };
 
-// Before 2.0.0 the profiles were "accounts", in accounts.json.
+// Earlier versions called the profiles "accounts", in accounts.json.
 const legacyProfilesFile = () => path.join(stateDir(), "accounts.json");
 
 export function loadProfiles(): Profile[] {
