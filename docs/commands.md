@@ -48,7 +48,7 @@ dotagents update --all         # also refresh every tracked workspace
 dotagents update --no-pull     # skip the pull and only reapply
 ```
 
-- When the pull changes `package-lock.json`, it runs `npm install` before going on, so the next run can start. When it changes the command's entry file (`bin` in `package.json`), it runs `npm link` too, so `dotagents` keeps working. When it changes the version, it says so (`version 1.0.0 → 2.0.0`) and points to [`CHANGELOG.md`](../CHANGELOG.md), which lists what changed and what to do.
+- When the pull changes `package-lock.json`, it runs `npm install` before going on, so the next run can start. When it changes the command's entry file (`bin` in `package.json`), it runs `npm link` too, so `dotagents` keeps working. When it changes the version, it says so (`version 0.1.0 → 0.2.0`) and points to [`CHANGELOG.md`](../CHANGELOG.md), which lists what changed and what to do.
 - If the pull fails (local changes, diverged history), it stops and asks you to fix the repository first.
 - With `--all`, for each tracked workspace it:
   - applies the standards again, which puts back any skill that is missing (useful on a new machine or after cloning a workspace again);
@@ -72,7 +72,7 @@ dotagents profile add personal           # a second account
 dotagents profile add personal --color '#376B80'
 ```
 
-A profile is one claude.ai account the person holds (ADR 0009 and ADR 0011 in the workspace's `.artifacts/decisions/`). Every profile uses the same config folder, `~/.claude`, on WSL and on Windows alike: the history, settings, skills and memory are shared, and [`switch`](#dotagents-switch) puts a profile's login in it. Two profiles can't hold the same account. Before 2.0.0 profiles were called accounts (`dotagents account add`, `accounts.json`); `install` moves `accounts.json` to `profiles.json`. For a profile, `profile add`:
+A profile is one claude.ai account the person holds (ADR 0009 and ADR 0011 in the workspace's `.artifacts/decisions/`). Every profile uses the same config folder, `~/.claude`, on WSL and on Windows alike: the history, settings, skills and memory are shared, and [`switch`](#dotagents-switch) puts a profile's login in it. Two profiles can't hold the same account. Earlier versions called profiles accounts (`dotagents account add`, `accounts.json`); `install` moves `accounts.json` to `profiles.json`. For a profile, `profile add`:
 
 - applies the configuration of `install` to `~/.claude`;
 - records the profile in `profiles.json`, next to `workspaces.json` (its format is [The profiles file](profiles-file.md));
@@ -212,7 +212,7 @@ Every answer of the API and every event carries `"apiVersion": 1`, the format of
 
 ### In VS Code
 
-The accounts in VS Code are part of the [dotagents sidebar](https://github.com/dotagents-org/dotagents-sidebar): its first tab is every account (usage, state, the switch on both sides, the Desktop app), and the status bar shows the current account as the statusLine does. It reads this API, on the side of the window (in WSL for a WSL window). Before 4.0.0 this came from a separate extension, `dotagents-accounts`, and `start` also served the panel as a page in the browser; both are gone.
+The accounts in VS Code are part of the [dotagents sidebar](https://github.com/dotagents-org/dotagents-sidebar): its first tab is every account (usage, state, the switch on both sides, the Desktop app), and the status bar shows the current account as the statusLine does. It reads this API, on the side of the window (in WSL for a WSL window). Earlier this came from a separate extension, `dotagents-accounts`, and `start` also served the panel as a page in the browser; both are gone.
 
 ## dotagents new
 

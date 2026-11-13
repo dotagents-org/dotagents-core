@@ -48,7 +48,7 @@ export const usage: Command = {
   more: ["from Claude Code's cache and the last live ask;", "--refresh: ask Anthropic for fresh numbers first"],
   group: "Profiles",
   async run({ args }) {
-    if (args.watch) throw new Error("usage --watch was removed in 3.0.0 with the full-screen view; run usage --refresh, or usage again");
+    if (args.watch) throw new Error("usage --watch was removed with the full-screen view; run usage --refresh, or usage again");
     if (args.refresh) {
       // Its lines would mix into the JSON or the short line: kept, and only failures shown.
       const events = await captureAsync(() => refreshUsage());
