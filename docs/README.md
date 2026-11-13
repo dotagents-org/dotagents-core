@@ -2,7 +2,7 @@
 
 | Page | What it covers |
 |---|---|
-| [Getting started](getting-started.md) | Requirements, installation on each system (WSL included), the first workspace. |
+| [Getting started](getting-started.md) | Requirements, installation on each system (WSL included), the first workspace, several Claude accounts, VS Code. |
 | [Commands](commands.md) | Every command and option, the output, exit codes and environment variables. |
 | [Workspaces](workspaces.md) | The workspace layout, wrapping a repository, what `init` creates and what `check` verifies, the standards behind them. |
 | [Skills](skills.md) | Own and third-party skills, skills that call other skills, writing one, taking over a third-party one. |
