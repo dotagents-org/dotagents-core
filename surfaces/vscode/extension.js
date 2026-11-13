@@ -157,7 +157,7 @@ function openInBrowser() {
 }
 
 // --- Updates: not on the Marketplace, so once a day it looks for a newer GitHub release --------
-const RELEASES = "https://api.github.com/repos/dotagents-org/dotagents-config/releases/latest";
+const RELEASES = "https://api.github.com/repos/dotagents-org/dotagents/releases/latest";
 
 async function checkForUpdate(context) {
   const state = context.globalState;
