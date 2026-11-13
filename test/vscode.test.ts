@@ -16,7 +16,7 @@ const data = {
   current: { profile: "personal", state: "warn" },
   slots: { WSL: "personal", Windows: "work" },
   profiles: [
-    { name: "personal", state: "ok", avatar: "warn", windows: [{ kind: "session", pct: 79 }, { kind: "week", pct: 38 }, { kind: "model-week", model: "Opus", pct: 13 }] },
+    { name: "personal", state: "ok", avatar: "warn", windows: [{ kind: "session", pct: 79, resetsAt: "2026-11-12T15:17:00Z" }, { kind: "week", pct: 38 }, { kind: "model-week", model: "Opus", pct: 13 }] },
     { name: "work", state: "ok", avatar: "ok", windows: [{ kind: "session", pct: 0 }, { kind: "week", pct: 11 }] },
   ],
 };
@@ -36,14 +36,38 @@ test("the extension finds the server's address where dotagents start leaves it, 
   }
 });
 
-test("the status bar shows the current account, its session and week, and warns in its state's tone", () => {
-  const status = lib.statusFor(data);
-  assert.equal(status.text, "$(account) personal 5h 79%  7d 38%");
-  assert.equal(status.severity, "warning");
+test("the status bar shows the current account and its windows as in the statusLine, in parts with a tone each", () => {
+  const status = lib.statusFor(data, Date.parse("2026-11-12T12:00:00Z"));
+  assert.deepEqual(status.parts, [
+    { text: "$(dotagents-accounts) personal", tone: "name" },
+    { text: "$(circle-filled)", tone: "amber" },
+    { text: "5h", tone: "label" },
+    { text: "━━━━━━", tone: "warn" },
+    { text: "──", tone: "track" },
+    { text: "79% ↻ 3h17m", tone: "warn" },
+    { text: "7d", tone: "label" },
+    { text: "━━━", tone: "ok" },
+    { text: "─────", tone: "track" },
+    { text: "38%", tone: "ok" },
+  ]);
   assert.match(status.tooltip, /\*\*work\*\* \(Windows\)  5h 0%  7d 11%/);
   assert.doesNotMatch(status.text, /·/, "no middle dot");
-  assert.equal(lib.statusFor({ ...data, current: { profile: "work", state: "limit" } }).severity, "error");
-  assert.equal(lib.statusFor({ ...data, current: { profile: "work", state: "ok" } }).severity, "none");
+});
+
+test("the status bar shows the state as the avatars' dot: its color, and a ring for limit and waiting", () => {
+  const dot = (state: string) => lib.statusFor({ ...data, current: { profile: "personal", state } }).parts[1];
+  assert.deepEqual(dot("error"), { text: "$(circle-filled)", tone: "red" });
+  assert.deepEqual(dot("limit"), { text: "$(target)", tone: "red" });
+  assert.deepEqual(dot("waiting"), { text: "$(target)", tone: "amber" });
+  assert.deepEqual(dot("ok"), { text: "$(circle-filled)", tone: "green" });
+  assert.deepEqual(dot("asleep"), { text: "$(circle-filled)", tone: "blue" });
+});
+
+test("the status bar's colors are the identity's terminal roles, the account's lighter on a dark theme", () => {
+  assert.equal(lib.toneColor("high", "#D77655", false), "#d50322");
+  assert.equal(lib.toneColor("track", "#D77655", true), "#454545");
+  assert.equal(lib.toneColor("name", "#376B80", false), "#376B80");
+  assert.equal(lib.toneColor("name", "#376B80", true), "#7a9caa");
 });
 
 test("the switch lists every account with its usage and where it is, the current one marked", () => {

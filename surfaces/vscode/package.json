@@ -15,6 +15,9 @@
   "main": "./extension.js",
   "activationEvents": ["onStartupFinished"],
   "contributes": {
+    "icons": {
+      "dotagents-accounts": { "description": "The dotagents accounts mark", "default": { "fontPath": "media/icons.woff", "fontCharacter": "\\E001" } }
+    },
     "viewsContainers": {
       "activitybar": [{ "id": "dotagents", "title": "dotagents", "icon": "media/icon.svg" }]
     },
