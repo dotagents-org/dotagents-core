@@ -7,7 +7,7 @@
   --card: #ffffff;
   --text: #171717;
   --muted: #4d4d4d;
-  --track: #e3e3e3;
+  --track: #c9c9c9;
   --border: #e3e3e3;
   --ok: #107d32;
   --warn: #a25204;
@@ -17,13 +17,13 @@
 }
 @media (prefers-color-scheme: dark) {
   :root:not(.light) {
-    --bg: #0a0a0a; --card: #0a0a0a; --text: #ededed; --muted: #a0a0a0; --track: #333333; --border: #2b2b2b;
-    --ok: #01ca54; --warn: #fe9911; --high: #fe6367; --on-text: #0a0a0a; color-scheme: dark;
+    --bg: #000000; --card: #000000; --text: #ededed; --muted: #a0a0a0; --track: #454545; --border: #2b2b2b;
+    --ok: #01ca54; --warn: #fe9911; --high: #fe6367; --on-text: #000000; color-scheme: dark;
   }
 }
 /* VS Code says its theme with a class on the body. */
-body.vscode-light { --bg: transparent; --card: transparent; --text: #171717; --muted: #4d4d4d; --track: #e3e3e3; --border: #e3e3e3; --ok: #107d32; --warn: #a25204; --high: #d50322; --on-text: var(--vscode-sideBar-background, #ffffff); }
-body.vscode-dark, body.vscode-high-contrast { --bg: transparent; --card: transparent; --text: #ededed; --muted: #a0a0a0; --track: #333333; --border: #2b2b2b; --ok: #01ca54; --warn: #fe9911; --high: #fe6367; --on-text: var(--vscode-sideBar-background, #181818); }
+body.vscode-light { --bg: transparent; --card: transparent; --text: #171717; --muted: #4d4d4d; --track: #c9c9c9; --border: #e3e3e3; --ok: #107d32; --warn: #a25204; --high: #d50322; --on-text: var(--vscode-sideBar-background, #ffffff); }
+body.vscode-dark, body.vscode-high-contrast { --bg: transparent; --card: transparent; --text: #ededed; --muted: #a0a0a0; --track: #454545; --border: #2b2b2b; --ok: #01ca54; --warn: #fe9911; --high: #fe6367; --on-text: var(--vscode-sideBar-background, #181818); }
 
 /* Every rule but the page's background stays inside .panel, so a page that hosts the panel (the
    dotagents sidebar's accounts tab) keeps its own styles. */
@@ -37,29 +37,33 @@ body { margin: 0; background: var(--bg); }
 .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); grid-auto-rows: 1fr; gap: 12px; }
 body.vscode-light .panel, body.vscode-dark .panel, body.vscode-high-contrast .panel { padding: 8px 4px; }
 
-/* The brand, its name in the middle. */
-.badge { background: var(--text); color: var(--on-text); font-weight: 600; font-size: 13px; text-align: center; padding: 3px 7px; border-radius: 3px; }
+/* The top: the seal, ` dotagents ` in reverse video as in the CLI, and how many profiles. */
+.top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.seal { background: var(--text); color: var(--on-text); font-weight: 600; white-space: pre; }
 .muted { color: var(--muted); }
 .small { font-size: 11px; }
 
-.card { border: 1px solid var(--border); border-radius: 10px; padding: 12px; display: flex; flex-direction: column; gap: 8px; background: var(--card); min-width: 0; container-type: inline-size; }
+/* No boxes: a dashed line over each account, as a terminal would separate them. */
+.card { border-top: 1px dashed var(--border); padding: 12px 0 0; display: flex; flex-direction: column; gap: 8px; background: var(--card); min-width: 0; container-type: inline-size; }
 .who { display: flex; align-items: center; gap: 12px; }
 .who .names { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
-.name { font-weight: 600; font-size: 15px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.name { font-weight: 600; font-size: 14px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .status.high { color: var(--high); }
 
 /* The avatar: a canvas avatar.js paints, live. */
 .av { flex-shrink: 0; }
 
-.window { display: grid; grid-template-columns: 4.4em minmax(40px, 1fr) auto; align-items: center; column-gap: 8px; row-gap: 1px; }
+/* A window as a line of `dotagents usage`: the label, the bar in text, the percentage in bold, the
+   reset; the projection on the line under it, under the bar. */
+.window { display: grid; grid-template-columns: var(--label, 2ch) max-content 4ch 1fr; align-items: baseline; column-gap: 1ch; }
 .window .label { color: var(--muted); }
-.bar { height: 6px; border-radius: 3px; background: var(--track); overflow: hidden; }
-.bar > span { display: block; height: 100%; border-radius: 3px; }
+.bar { white-space: pre; }
+.bar .trk { color: var(--track); }
 .pct { text-align: right; font-weight: 600; }
-.window .note { grid-column: 2 / 4; font-size: 11px; color: var(--muted); }
+.reset { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.window .note { grid-column: 2 / -1; color: var(--muted); }
 .window .note.warn { color: var(--warn); }
 .ok { color: var(--ok); } .warn { color: var(--warn); } .high { color: var(--high); }
-.bar .ok { background: var(--ok); } .bar .warn { background: var(--warn); } .bar .high { background: var(--high); }
 
 .panel button { font: inherit; font-size: 11px; cursor: pointer; border: 0; background: transparent; color: var(--muted); white-space: nowrap; }
 .panel button:hover:not(:disabled) { color: var(--text); }
@@ -76,9 +80,8 @@ body.vscode-light .panel, body.vscode-dark .panel, body.vscode-high-contrast .pa
 .sides .switch:disabled { opacity: 1; color: var(--muted); font-weight: 400; }
 .panel button:focus-visible { outline: 2px solid var(--warn); outline-offset: 2px; }
 
-/* The foot: where on the left, the age and the refresh on the right, inset like a card's content
-   (its padding and border), so the refresh sits right under the switches. */
-.foot { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 2px 8px; padding: 0 13px; font-size: 11px; color: var(--muted); }
+/* The foot: where on the left, the age and the refresh on the right, under the switches. */
+.foot { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 2px 8px; padding-top: 12px; border-top: 1px dashed var(--border); font-size: 11px; color: var(--muted); }
 .foot button.icon { margin-right: -4px; }
 .foot .line { display: flex; align-items: center; gap: 4px; }
 /* An action under way: the button clicked pulses; the refresh turns. */
@@ -91,13 +94,14 @@ body.vscode-light .panel, body.vscode-dark .panel, body.vscode-high-contrast .pa
 .message { margin: 0; text-align: center; font-size: 11px; color: var(--muted); }
 .message.high { color: var(--high); }
 
-/* A card narrower than its rows (the side bar dragged very thin): the avatar above the name, each
-   window's bar on a line of its own under the label and the percentage, and the switch under
+/* A card too narrow for a window's whole line (a side bar): the reset on the line under the bar. */
+@container (max-width: 380px) {
+  .window .reset { grid-column: 2 / -1; }
+}
+
+/* A card narrower than its rows (the side bar dragged very thin): the avatar above the name, and the switch under
    where the account is, so nothing spills past the card's border. */
 @container (max-width: 240px) {
   .who { flex-direction: column; align-items: stretch; gap: 6px; }
-  .window { grid-template-columns: 1fr auto; }
-  .window .bar { grid-column: 1 / -1; grid-row: 2; margin: 2px 0; }
-  .window .note { grid-column: 1 / -1; }
   .sides { flex-direction: column; align-items: flex-start; }
 }

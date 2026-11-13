@@ -20,6 +20,15 @@
     return node;
   }
 
+  // A bar in text, as in `dotagents usage`: the used part in ━, a space, the rest in ─, always as
+  // wide (core/usage.ts bar()).
+  const BAR = 16;
+  function bar(pct, tone) {
+    const p = Math.max(0, Math.min(100, pct));
+    const used = p >= 100 ? BAR : p <= 0 ? 0 : Math.max(1, Math.min(Math.round((p / 100) * BAR), BAR - 2));
+    const rest = p >= 100 ? 0 : p <= 0 ? BAR : BAR - used - 1;
+    return el("span", { class: "bar" }, used ? el("span", { class: tone }, "━".repeat(used)) : null, used && rest ? " " : null, rest ? el("span", { class: "trk" }, "─".repeat(rest)) : null);
+  }
   const level = (pct) => (pct >= 90 ? "high" : pct >= 70 ? "warn" : "ok");
   const label = (w) => (w.kind === "session" ? "5h" : w.kind === "week" ? "7d" : w.model || "model");
   const span = (ms) => {
@@ -44,7 +53,7 @@
   // The avatar, live: avatar.js paints it on a canvas every animation frame.
   function avatar(name, color, state, working) {
     const canvas = el("canvas", { class: "av", role: "img", "aria-label": `${name}, ${state}${working ? ", working" : ""}` });
-    window.dotagentsAvatar.mount(canvas, { who: name, color, state, working, size: 52 });
+    window.dotagentsAvatar.mount(canvas, { who: name, color, state, working, size: 40 });
     return canvas;
   }
 
@@ -62,9 +71,9 @@
       "div",
       { class: "window" },
       el("span", { class: "label" }, label(w)),
-      el("span", { class: "bar" }, el("span", { class: tone, style: { width: `${Math.max(0, Math.min(100, w.pct))}%` } })),
+      bar(w.pct, tone),
       el("span", { class: `pct ${tone}` }, `${w.pct}%`),
-      el("span", { class: "note" }, reset),
+      el("span", { class: `reset ${tone === "ok" ? "muted" : tone}` }, reset),
       projection
     );
   }
@@ -126,7 +135,8 @@
       const button = el("button", { type: "button", class: `switch${busy(key)}`, title: `Use ${p.name} on ${sides.join(" and ") || "this machine"}` }, everywhere ? "in use" : "switch");
       if (everywhere) button.disabled = true;
       else button.addEventListener("click", run("switch", { profile: p.name }, key));
-      return el(
+      // The windows' labels in one column, as wide as the profile's longest (5h, 7d, Fable).
+      const card = el(
         "article",
         { class: "card" },
         el(
@@ -148,15 +158,18 @@
         ...p.windows.map((w) => windowRow(p, w, now)),
         el("div", { class: "sides" }, where, button)
       );
+      card.style.setProperty("--label", `${Math.max(2, ...p.windows.map((w) => label(w).length))}ch`);
+      return card;
     });
     const age = data.generatedAt ? `updated ${span(now - Date.parse(data.generatedAt))} ago` : "";
     const where = data.peer && !data.peer.up ? `${data.peer.name} off` : sides.join(" and ");
+    const count = `${data.profiles.length} profile${data.profiles.length === 1 ? "" : "s"}`;
     // The brand, the cards and the foot in one block as wide as the cards side by side could be,
     // so the refresh lines up with the cards' switches.
     const sheet = el(
       "div",
       { class: "sheet" },
-      el("div", { class: "badge" }, "dotagents"),
+      el("div", { class: "top" }, el("span", { class: "seal" }, " dotagents "), el("span", { class: "muted" }, count)),
       el("div", { class: "cards" }, ...cards),
       failure && el("p", { class: "message high" }, failure),
       el(
