@@ -235,7 +235,13 @@ Every command that changes something takes `--dry-run`.
 
 ## Contributing
 
-Issues and pull requests are welcome: a bug, an idea, a skill worth sharing, a better default. Keep in mind that dotagents follows one person's way of working, so a change that fits everyone goes in the tool, and one that fits your way goes in your own `config/`. Before a pull request, run `npm test` (the type check and the unit tests); commits follow [the commit convention](config/rules/commit-conventions.md).
+Issues and pull requests are welcome: a bug, an idea, a skill worth sharing, a better default. Keep in mind that dotagents follows one person's way of working, so a change that fits everyone goes in the tool, and one that fits your way goes in your own configuration. Before a pull request, run `npm test` (the type check and the unit tests); commits are one line in English, gitmoji plus [Conventional Commits](https://www.conventionalcommits.org/) (`✨ feat(usage): …`).
+
+## The family
+
+- **dotagents-core**, this repository: the `dotagents` command, the workspace standards, and the Claude accounts with their panel and VS Code extension (`dotagents-accounts`).
+- **dotagents-config**: your configuration, a repository of your own next to this one; [`templates/config/`](templates/config/) is where it starts.
+- **[dotagents-sidebar](https://github.com/dotagents-org/dotagents-sidebar)**: coding agents in VS Code's secondary sidebar, with the accounts panel as a tab when the extension is installed. Works without dotagents.
 
 ## License
 
