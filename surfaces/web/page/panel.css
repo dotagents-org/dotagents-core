@@ -67,12 +67,11 @@ button.icon { padding: 4px; line-height: 0; border-radius: 6px; }
 button.icon svg { width: 15px; height: 15px; }
 /* The name, and the Desktop's button at the end of its line. */
 .who .line { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
-/* Where the account is: equal parts, one per side and "both" between them; filled where it is. */
-.sides { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; margin-top: auto; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
-.sides button { padding: 4px 0; border-radius: 0; }
-.sides button + button { border-left: 1px solid var(--border); }
-.sides button.on { color: #fcf2ee; cursor: default; }
-.sides button.on:disabled { opacity: 1; }
+/* Where the account is, and its switch, on both sides. */
+.sides { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: auto; font-size: 11px; }
+.sides .switch { font-size: 12px; font-weight: 600; color: var(--text); padding: 2px 0; }
+.sides .switch::before { content: "[ "; } .sides .switch::after { content: " ]"; }
+.sides .switch:disabled { opacity: 1; color: var(--muted); font-weight: 400; }
 button:focus-visible { outline: 2px solid var(--warn); outline-offset: 2px; }
 
 .foot { display: flex; flex-direction: column; align-items: center; gap: 2px; font-size: 11px; color: var(--muted); }
@@ -88,13 +87,12 @@ button.icon.busy svg { animation: turn 1s linear infinite; }
 .message.high { color: var(--high); }
 
 /* A card narrower than its rows (the side bar dragged very thin): the avatar above the name, each
-   window's bar on a line of its own under the label and the percentage, and the sides one under
-   the other, so nothing spills past the card's border. */
+   window's bar on a line of its own under the label and the percentage, and the switch under
+   where the account is, so nothing spills past the card's border. */
 @container (max-width: 240px) {
   .who { flex-direction: column; align-items: stretch; gap: 6px; }
   .window { grid-template-columns: 1fr auto; }
   .window .bar { grid-column: 1 / -1; grid-row: 2; margin: 2px 0; }
   .window .note { grid-column: 1 / -1; }
-  .sides { grid-auto-flow: row; }
-  .sides button + button { border-left: 0; border-top: 1px solid var(--border); }
+  .sides { flex-direction: column; align-items: flex-start; }
 }
