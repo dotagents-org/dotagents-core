@@ -206,7 +206,9 @@ Three actions, for the panel, are the only writes. Each takes a JSON body (`{ "p
 | `POST /api/desktop` | Opens the profile's Desktop app (Windows), as its Start menu shortcut does. |
 | `POST /api/refresh` | Asks Anthropic for every profile's usage now, without waiting for the minute. |
 
-While it runs it leaves its port, token and pid in `<state>/start.json`, readable only by you, and takes it away when it stops.
+While it runs it leaves its port, token and pid in `<state>/start.json`, readable only by you, and takes it away when it stops. A second `start`, while the server in `start.json` answers, says so and leaves it running: one server per side of the machine. A `start.json` whose server doesn't answer (left behind by a WSL shutdown, say) doesn't count.
+
+Every answer of the API and every event carries `"apiVersion": 1`, the format of what the server says, apart from the `version` of the usage data inside it. A client that doesn't know the version it gets refuses it, instead of misreading it; the number goes up only with a change an older client would misread. When the data can't be read (a state file being written, a bad one), the answer is `{ "apiVersion": 1, "error": "<why>" }` and the server keeps running.
 
 ### The VS Code extension
 

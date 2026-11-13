@@ -28,6 +28,11 @@ export type ServerOptions = {
 
 export type Action = { status: number; body: unknown };
 
+// The API's format (docs/start-api.md): every answer and every event carries it, and a client
+// refuses one it doesn't know. Raised by a change an older client would misread.
+export const API_VERSION = 1;
+const versioned = (body: unknown) => ({ apiVersion: API_VERSION, ...(body !== null && typeof body === "object" ? body : { value: body }) });
+
 const MAX_BODY = 4096;
 
 export type RunningServer = { port: number; token: string; url: string; close: () => Promise<void> };
@@ -39,9 +44,18 @@ const sameToken = (given: string | null, token: string) => {
   return a.length === b.length && timingSafeEqual(a, b);
 };
 
-export async function startServer({ read, port = 7337, token = randomBytes(24).toString("base64url"), pollMs = 2000, actions = {} }: ServerOptions): Promise<RunningServer> {
+export async function startServer({ read: readData, port = 7337, token = randomBytes(24).toString("base64url"), pollMs = 2000, actions = {} }: ServerOptions): Promise<RunningServer> {
   const streams = new Set<http.ServerResponse>();
   let actual = 0;
+  // A read that throws (a state file half written, say) answers its error instead of stopping
+  // the server.
+  const read = () => {
+    try {
+      return versioned(readData());
+    } catch (err) {
+      return versioned({ error: (err as Error).message });
+    }
+  };
 
   const server = http.createServer((req, res) => {
     const security = {
@@ -83,9 +97,9 @@ export async function startServer({ read, port = 7337, token = randomBytes(24).t
         }
         try {
           const answer = await action(body);
-          send(answer.status, JSON.stringify(answer.body), "application/json; charset=utf-8");
+          send(answer.status, JSON.stringify(versioned(answer.body)), "application/json; charset=utf-8");
         } catch (err) {
-          send(500, JSON.stringify({ error: (err as Error).message }), "application/json; charset=utf-8");
+          send(500, JSON.stringify(versioned({ error: (err as Error).message })), "application/json; charset=utf-8");
         }
       });
       return;

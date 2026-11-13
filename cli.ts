@@ -26,7 +26,7 @@ import { usage } from "./surfaces/cli/usage.ts";
 import { startServer } from "./surfaces/web/server.ts";
 import { readSlots, readUsage, currentFor, usageJson, watchPeer } from "./core/snapshot.ts";
 import { openDesktop } from "./core/desktop.ts";
-import { forgetServer, loadMachine, loadProfiles, recordServer } from "./core/machine-state.ts";
+import { forgetServer, liveServer, loadMachine, loadProfiles, recordServer } from "./core/machine-state.ts";
 import { launcherDir } from "./core/profiles.ts";
 import { peerSwitch, sideName, switchProfile } from "./core/switch.ts";
 import { LIVE_EVERY_MS, refreshUsage } from "./core/live.ts";
@@ -46,6 +46,12 @@ const start: Command = {
   async run({ args }) {
     const port = args.port === undefined ? undefined : Number(args.port);
     if (port !== undefined && !(Number.isInteger(port) && port >= 0 && port < 65536)) throw new UsageError(`--port takes a number, not ${args.port}`);
+    // One server per machine side: a second start leaves the running one alone.
+    const running = await liveServer();
+    if (running) {
+      console.log(`${brand()}  ${bold("start")}\n\nAlready running on 127.0.0.1:${running.port} (pid ${running.pid}).`);
+      return;
+    }
     // The other side: whether it runs, asked every 5 s, and its running sessions, every 15 s.
     const view = watchPeer();
     // The refresh and the switch capture their events through one shared sink: one at a time, or

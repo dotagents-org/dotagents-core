@@ -5,8 +5,9 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { test, type TestContext } from "node:test";
-import { forgetServer, loadProfiles, loadWorkspaces, migrateLegacyProfiles, profilesFile, readServer, recordServer, registerWorkspace, removeProfile, saveProfile, serverFile, untrackWorkspace, workspacesFile } from "../core/machine-state.ts";
+import { forgetServer, liveServer, loadProfiles, loadWorkspaces, migrateLegacyProfiles, profilesFile, readServer, recordServer, registerWorkspace, removeProfile, saveProfile, serverFile, untrackWorkspace, workspacesFile } from "../core/machine-state.ts";
 import { state } from "../core/state.ts";
+import { startServer } from "../surfaces/web/server.ts";
 import { quiet } from "./helpers.ts";
 
 function tempStateDir(t: TestContext) {
@@ -143,4 +144,17 @@ test("the running server leaves its address for the tray panel, only for the use
   recordServer({ port: 7337, token: "secret" });
   forgetServer();
   assert.equal(readServer(), null);
+});
+
+test("the recorded server counts only while it answers with its token", async (t) => {
+  tempStateDir(t);
+  assert.equal(await liveServer(), null, "no start.json");
+  const server = await startServer({ port: 0, read: () => ({}), token: "secret" });
+  recordServer({ port: server.port, token: server.token });
+  assert.equal((await liveServer())?.port, server.port);
+  recordServer({ port: server.port, token: "another" });
+  assert.equal(await liveServer(), null, "a wrong token is not ours");
+  recordServer({ port: server.port, token: server.token });
+  await server.close();
+  assert.equal(await liveServer(), null, "a file left behind by a server that stopped");
 });
