@@ -138,6 +138,8 @@ test("a failure on the other side reads as one line: an older dotagents says how
   const nodeTrace = "file:///D:/x/core/common.ts:268\n    throw new Error(`x`);\n\nError: Missing value for --here\n    at parseArgs (file:///D:/x)\n\nNode.js v24.20.0";
   assert.match(peerFailure(nodeTrace), /doesn't know switch yet.*dotagents update/);
   assert.match(peerFailure("dotagents: Unknown command 'switch'. Run: dotagents --help"), /doesn't know switch yet/);
+  const tooOld = "file:///x/cli.ts:1\nTypeError [ERR_UNKNOWN_FILE_EXTENSION]: Unknown file extension \".ts\" for /x/cli.ts\n    at defaultLoad (node:internal)\n}\n\nNode.js v22.22.1";
+  assert.equal(peerFailure(tooOld), 'Unknown file extension ".ts" for /x/cli.ts');
   assert.equal(peerFailure("✗ dotagents: There is no login saved for work: put it in the slot"), "There is no login saved for work: put it in the slot");
 });
 

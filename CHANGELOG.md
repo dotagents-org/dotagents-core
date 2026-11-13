@@ -6,7 +6,7 @@ What changed for someone who updates a clone. The format follows [Keep a Changel
 
 ### Fixed
 
-- **Switching or listing sessions from Windows works with Node from nvm in WSL:** Windows ran `dotagents` in WSL through a login shell, which skips `~/.bashrc`, so nvm's Node wasn't on the PATH and an older system Node failed on the `.ts` sources. It now uses an interactive login shell (`bash -lic`).
+- **Switching or listing sessions from Windows works with Node from nvm in WSL:** Windows ran `dotagents` in WSL through a login shell, which skips `~/.bashrc`, so nvm's Node wasn't on the PATH and an older system Node failed on the `.ts` sources. It now uses an interactive login shell (`bash -lic`), and a failure there shows Node's error line, not its version trailer.
 
 ## 0.1.0 - 2026-11-13
 
