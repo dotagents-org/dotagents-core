@@ -414,7 +414,7 @@ In a terminal, every command draws one vertical line from `┌` to `└`, with a
 ┌   dotagents  init  ~/projects/app-workspace
 │
 ◇  .agents/
-│  + created      .agents/skills/to-cards  → ~/dotagents/config/skills/to-cards
+│  + created      .agents/skills/to-cards  → ~/dotagents/dotagents-core/config/skills/to-cards
 │
 ◇  .artifacts/
 │  + created      .artifacts/plans
