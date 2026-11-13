@@ -59,3 +59,7 @@ What changed for someone who updates a clone. The format follows [Keep a Changel
 - **Switching or listing sessions from Windows works with Node from nvm in WSL:** Windows ran `dotagents` in WSL through a login shell, which skips `~/.bashrc`, so nvm's Node wasn't on the PATH and an older system Node failed on the `.ts` sources. It now uses an interactive login shell (`bash -lic`), and a failure there shows Node's error line, not its version trailer.
 - An unknown option (`check --bogus`) or command, or an option without its value, prints one line and exits with 2, instead of a stack trace or being ignored; `--` ends the options.
 - `FORCE_COLOR=0` turns colors off instead of on, and `TERM=dumb` turns them off too. `FORCE_COLOR=1`, `2` and `3` set how many colors the output uses.
+
+### Removed
+
+- **Other agents' files in the exclude list:** `init` no longer lists `opencode.json`, `.codex/`, `.opencode/`, `.copilot/`, `.cursor/` and `.gemini/` in a repository's `.git/info/exclude`; dotagents is for Anthropic's products only. Run `dotagents update --all` to rewrite the block in the workspaces that have one.

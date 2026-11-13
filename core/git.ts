@@ -18,13 +18,6 @@ export const AGENT_FILES = [
   ".agents/",
   ".artifacts/",
   ".claude/",
-  // Other agents you have installed: their project files are agent configuration too.
-  "opencode.json",
-  ".codex/",
-  ".opencode/",
-  ".copilot/",
-  ".cursor/",
-  ".gemini/",
 ];
 
 const BEGIN = "# >>> dotagents: agent configuration, kept out of this repository";

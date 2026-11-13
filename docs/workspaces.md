@@ -27,7 +27,7 @@ Some things need a git repository in the current folder, such as Claude Code wor
 
 Sometimes the root itself must be the repository: an Obsidian vault, for example, which the app and the sync expect in one place. When you answer no to [wrapping it](commands.md#wrapping-a-repository), `init` lists every agent file in the repository's `.git/info/exclude`. Git ignores them as it would with `.gitignore`, but the exclude file lives inside `.git/` and is never committed, so the project carries no trace of the configuration. `check` shows a warning that suggests the wrapping layout. The [Obsidian vault use case](use-cases/obsidian-vault.md) walks through it, with and without git.
 
-The excluded paths are `AGENTS.md`, `CLAUDE.md`, `INDEX.md`, `skills-lock.json`, `.agents/`, `.artifacts/`, `.claude/`, and the folders other agents create (`opencode.json`, `.codex/`, `.opencode/`, `.copilot/`, `.cursor/`, `.gemini/`), all anchored to the workspace.
+The excluded paths are `AGENTS.md`, `CLAUDE.md`, `INDEX.md`, `skills-lock.json`, `.agents/`, `.artifacts/` and `.claude/`, all anchored to the workspace.
 
 ## What init creates
 

@@ -12,9 +12,8 @@ Project documentation does not live here: it follows the [`.artifacts/` standard
 ## Never in the projects' git
 
 The agent configuration is personal: it never goes into a project's repository. That covers
-`AGENTS.md`, `CLAUDE.md`, `skills-lock.json`, `.agents/`, `.artifacts/`, `.claude/`, and
-the files of other agents (`opencode.json`, `.codex/`, `.opencode/`, `.copilot/`, `.cursor/`,
-`.gemini/`) at the workspace root.
+`AGENTS.md`, `CLAUDE.md`, `skills-lock.json`, `.agents/`, `.artifacts/` and `.claude/` at the
+workspace root.
 
 **Recommended layout: the workspace wraps the repositories.** The agent files sit at a root
 that is not a git repository, and each project repository is a folder inside it:
