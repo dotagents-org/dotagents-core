@@ -7,37 +7,35 @@ import path from "node:path";
 import { test } from "node:test";
 import { addedByCalls, applySkills, listSkills, resolveSkills, skillsIn, verifySkills } from "../core/skills.ts";
 import { catalogFile, findRequires, parseSkill } from "../core/thirdparty.ts";
-import { REPO, fakeInstaller, fakeThirdParty, quiet, tempWorkspace } from "./helpers.ts";
+import { REPO, fakeInstaller, fakeThirdParty, quiet, tempWorkspace, withConfig } from "./helpers.ts";
 
-// Each test here builds a clone of its own, with config/ inside.
-delete process.env.DOTAGENTS_CONFIG;
 
 test("own skills and registered third-party skills come from one list", () => {
   const all = listSkills(REPO);
-  const toCards = all.find((s) => s.name === "to-cards")!;
-  assert.equal(toCards.kind, "own");
-  assert.ok(toCards.description.startsWith("Turns loose text"));
+  const own = all.find((s) => s.name === "move-sessions")!;
+  assert.equal(own.kind, "own");
+  assert.ok(own.description.startsWith("Makes past Claude Code conversations"));
   const catalog = JSON.parse(fs.readFileSync(catalogFile(REPO), "utf8")).skills;
   for (const entry of catalog) assert.equal(all.find((s) => s.name === entry.name)?.kind, "third-party");
 });
 
 test("names resolve to skills of either kind", () => {
-  const [own, third] = resolveSkills(REPO, ["to-cards", "humanizer"]);
+  const [own, third] = resolveSkills(REPO, ["move-sessions", "humanizer"]);
   assert.equal(own.kind, "own");
   assert.equal(third.kind, "third-party");
   assert.equal(third.source, "blader/humanizer");
 });
 
 test("an unknown name fails and lists what exists", () => {
-  assert.throws(() => resolveSkills(REPO, ["not-a-skill"]), /Unknown skill: not-a-skill\. Available: .*to-cards/);
+  assert.throws(() => resolveSkills(REPO, ["not-a-skill"]), /Unknown skill: not-a-skill\. Available: .*move-sessions/);
 });
 
 test("skillsIn reports linked own skills and installed third-party ones", async (t) => {
   const ws = tempWorkspace(t);
   quiet();
-  await applySkills(ws, [...resolveSkills(REPO, ["to-cards"]), fakeThirdParty], { installer: fakeInstaller });
+  await applySkills(ws, [...resolveSkills(REPO, ["move-sessions"]), fakeThirdParty], { installer: fakeInstaller });
   // fake-skill isn't in the catalog, so only the known skill counts.
-  assert.deepEqual(skillsIn(REPO, ws), ["to-cards"]);
+  assert.deepEqual(skillsIn(REPO, ws), ["move-sessions"]);
 });
 
 test("the author's description is read whole, also from a block scalar", () => {
@@ -60,6 +58,7 @@ function writeSkill(dir: string, name: string, body: string, extra: Record<strin
 
 // A repository of its own: config/skills/ with the given own skills and a catalog.
 function tempRepo(t: Parameters<typeof tempWorkspace>[0], own: Record<string, string>, catalog: object[] = []) {
+  withConfig(t, undefined); // its own config/ inside, not the example
   const repo = tempWorkspace(t, "repo");
   for (const [name, body] of Object.entries(own)) writeSkill(path.join(repo, "config", "skills"), name, body);
   fs.mkdirSync(path.join(repo, "config", "skills"), { recursive: true });
@@ -128,8 +127,7 @@ test("DOTAGENTS_CONFIG points the configuration at a folder of your own", (t) =>
   const mine = tempWorkspace(t, "my-config");
   writeSkill(path.join(mine, "skills"), "mine-only", "Only in my folder.");
   fs.writeFileSync(path.join(mine, "skills", "third-party-skills.json"), JSON.stringify({ skills: [] }));
-  process.env.DOTAGENTS_CONFIG = mine;
-  t.after(() => delete process.env.DOTAGENTS_CONFIG);
+  withConfig(t, mine);
   // The skills dotagents brings come along; one of yours with the same name takes its place.
   assert.deepEqual(listSkills(REPO).map((s) => s.name), ["mine-only", "move-sessions", "session-archive"]);
   assert.equal(listSkills(REPO).find((s) => s.name === "session-archive")?.source, path.join(REPO, "skills", "session-archive"));
