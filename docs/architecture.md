@@ -127,7 +127,7 @@ node cli.ts --help      # run without npm link
 - `assets/dotagents.svg` is the symbol, the face `..` on a `#171717` square.
 - `assets/avatars/` holds the avatars, one still per avatar and state and the working animation strips, made by `scripts/avatars/generate.mjs`; run it again only after changing an avatar.
 - `assets/readme/` holds the README's pictures (the avatars, their states, the diagrams, the panel), each light and dark, made by `node scripts/readme/generate.mjs`.
-- `assets/dotagents-config-lockup-light.svg` and `-dark.svg` are the symbol with "dotagents-config" in Geist Mono 600 (and `dotagents-accounts-lockup-*.svg` the accounts mark with its name), the text as outlines, since GitHub shows SVGs through `<img>`, which loads no web fonts. To make them again, download the font and run `scripts/lockup.py` with fontTools:
+- `assets/dotagents-lockup-light.svg` and `-dark.svg` are the symbol with "dotagents" in Geist Mono 600 (and `dotagents-accounts-lockup-*.svg` the accounts mark with its name), the text as outlines, since GitHub shows SVGs through `<img>`, which loads no web fonts. To make them again, download the font and run `scripts/lockup.py` with fontTools:
 
   ```bash
   curl -sA "Mozilla/4.0" "https://fonts.googleapis.com/css2?family=Geist+Mono:wght@600" | grep -o 'https://[^)]*' | head -1 | xargs curl -so /tmp/geistmono600.ttf

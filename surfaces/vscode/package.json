@@ -6,7 +6,7 @@
   "publisher": "gabrieldulolmarques",
   "license": "MIT",
   "icon": "media/icon.png",
-  "repository": { "type": "git", "url": "https://github.com/dotagents-org/dotagents-config.git" },
+  "repository": { "type": "git", "url": "https://github.com/dotagents-org/dotagents.git" },
   "categories": ["Other"],
   "scripts": {
     "package": "node copy-panel.mjs && npx --yes @vscode/vsce@3 package --no-dependencies --skip-license -o dotagents-accounts.vsix"
