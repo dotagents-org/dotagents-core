@@ -35,13 +35,13 @@ import { UsageError, parseArgs } from "./core/common.ts";
 import { brand, captureAsync, displayPath, fancy, tone } from "./core/output.ts";
 import { state } from "./core/state.ts";
 
-// The dashboard's server. Defined here, at the root, because it joins two surfaces: the command
-// line starts it, surfaces/web/ serves it.
+// The local API the dotagents sidebar reads its accounts from. Defined here, at the root, because it
+// joins two surfaces: the command line starts it, surfaces/web/ serves it.
 const start: Command = {
   name: "start",
   usage: "[--port <n>]",
-  summary: "start the dashboard's server on 127.0.0.1, live",
-  more: ["asks Anthropic for each profile's usage every minute;", "reads the other side only while it runs, never waking WSL;", "prints the address to open, with its token;", "Ctrl+C stops it"],
+  summary: "start the accounts' local API on 127.0.0.1, live, for the dotagents sidebar",
+  more: ["asks Anthropic for each profile's usage every minute;", "reads the other side only while it runs, never waking WSL;", "leaves its address and token in start.json, for the sidebar;", "one per side: a second start leaves the running one alone;", "Ctrl+C stops it"],
   group: "Profiles",
   async run({ args }) {
     const port = args.port === undefined ? undefined : Number(args.port);
@@ -91,11 +91,11 @@ const start: Command = {
         } catch {
           peer = undefined;
         }
-        // The sides, in the panel's order: this one, then the other.
+        // The sides, in the accounts tab's order: this one, then the other.
         return peer ? { ...json, sides: [sideName(), peer.name], peer: { name: peer.name, up: view.up(peer) } } : { ...json, sides: [sideName()] };
       },
       port,
-      // The tray panel's buttons.
+      // The accounts tab's buttons, in the dotagents sidebar.
       actions: {
         // On both sides, or on one: { "side": "WSL" } names it.
         switch: async (body) => {
@@ -121,7 +121,7 @@ const start: Command = {
             return { status: 409, body: { ok: false, detail: (err as Error).message } };
           }
         },
-        // The panel's refresh: the minute's update, now.
+        // The accounts tab's refresh: the minute's update, now.
         refresh: async () => {
           const failed = (await tick()).flatMap((e) => (e.kind === "result" && e.status === "failed" ? [`${e.target}: ${e.detail}`] : []));
           return { status: failed.length ? 502 : 200, body: { ok: !failed.length, detail: failed.join("; ") } };
@@ -134,11 +134,11 @@ const start: Command = {
         },
       },
     });
-    // Where the tray panel finds it, taken away when it stops.
+    // Where the sidebar finds it, taken away when it stops.
     recordServer({ port: server.port, token: server.token });
     process.on("exit", forgetServer);
     for (const signal of ["SIGINT", "SIGTERM", "SIGHUP"] as const) process.on(signal, () => process.exit(0));
-    console.log(`${brand()}  ${bold("start")}\n\nOpen ${server.url}\n${muted("Only this machine reaches it, and only with the token in that address. Ctrl+C stops it.")}`);
+    console.log(`${brand()}  ${bold("start")}\n\nThe API is on 127.0.0.1:${server.port}; the dotagents sidebar reads it.\n${muted("Only this machine reaches it, and only with the token in start.json. Ctrl+C stops it.")}`);
     await tick();
     setInterval(tick, LIVE_EVERY_MS + 5_000).unref();
   },

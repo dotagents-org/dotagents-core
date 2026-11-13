@@ -1,6 +1,6 @@
 # The profiles file
 
-`profiles.json` lists the Claude profiles of a machine: one per claude.ai account the person holds. It is the contract between the parts of dotagents that share the profiles: `dotagents profile add/remove` writes it, and everything else (installing the configuration into each profile's config folder, pointing each profile's memory at a workspace, `switch`, `usage`, the panel) reads it. Another tool that reads or writes it follows this page.
+`profiles.json` lists the Claude profiles of a machine: one per claude.ai account the person holds. It is the contract between the parts of dotagents that share the profiles: `dotagents profile add/remove` writes it, and everything else (installing the configuration into each profile's config folder, pointing each profile's memory at a workspace, `switch`, `usage`, `start`) reads it. Another tool that reads or writes it follows this page.
 
 ## Where
 

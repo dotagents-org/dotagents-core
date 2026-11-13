@@ -109,7 +109,7 @@ function ensureShortcut(lnk: string, wanted: Shortcut, shortcuts: Shortcuts) {
 }
 
 // The data folder, the launcher and the shortcut of a profile's Desktop app.
-// Opens a profile's Desktop app through its launcher, as its Start menu shortcut does (the panel's
+// Opens a profile's Desktop app through its launcher, as its Start menu shortcut does (the accounts tab's
 // "Open Desktop"). From WSL it runs the Windows side's launcher, through the interop (wscript.exe
 // and the launcher's Windows path), since the app lives on Windows.
 export type Launch = (command: string, args: string[]) => void;

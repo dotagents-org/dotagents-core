@@ -12,7 +12,7 @@ dotagents <command> [options]
 | [`profile add <name>`](#dotagents-profile-add) | Adds a Claude profile, one claude.ai account; on Windows, a Desktop app of its own. |
 | [`profile list`](#dotagents-profile-list) | Lists the profiles and checks them. |
 | [`profile remove <name>`](#dotagents-profile-remove) | Forgets a profile; its saved login is kept. |
-| [`start [--port <n>]`](#dotagents-start) | Starts the dashboard's server on 127.0.0.1: the usage of every profile, live. |
+| [`start [--port <n>]`](#dotagents-start) | Starts the accounts' local API on 127.0.0.1, live, which the dotagents sidebar reads. |
 | [`switch [<profile>] [--here] [--save <profile>]`](#dotagents-switch) | Puts a profile's login in `~/.claude`, on both sides of the machine. |
 | [`login <profile> \| --all`](#dotagents-login) | Signs a profile in again on this side, keeping the new login in its vault. |
 | [`usage [--short] [--json]`](#dotagents-usage) | Shows how much of each profile's plan is used (5-hour session, week), from Claude Code's cache. |
@@ -192,13 +192,13 @@ dotagents start              # on 127.0.0.1:7337, or the next free port
 dotagents start --port 0     # any free port
 ```
 
-Starts the dashboard's server: the panel, a page with the usage of every profile, live (the account in each side's slot, the projection, a switch for each account, on both sides (`switch --here` is for one side only), and a button that opens its Desktop app), and the data it reads (`/api/usage`, the same as `usage --json`, and `/api/events`, which sends it again whenever it changes). While it runs, it asks Anthropic for each profile's usage every minute, as `usage --refresh` does, and prints a failure when it changes. It prints the address to open, with a token after `#`; the page keeps the token and the API answers nothing without it. It listens only on `127.0.0.1` and answers only requests addressed to itself (so a web page elsewhere can't reach it). From WSL, a Windows browser reaches it at the same address; `msedge --app=<address>` opens it in a window of its own. Ctrl+C stops it.
+Starts the accounts' local API, which the [dotagents sidebar](https://github.com/dotagents-org/dotagents-sidebar) reads to show every account (its accounts tab and the status bar) and to switch; the sidebar starts one in the background when none answers. It serves no pages: only `/api/usage` (the same data as `usage --json`, with what follows) and `/api/events`, which sends it again whenever it changes, and the actions below. While it runs, it asks Anthropic for each profile's usage every minute, as `usage --refresh` does, and prints a failure when it changes. It listens only on `127.0.0.1`, answers only requests addressed to itself (so a web page elsewhere can't reach it) and nothing without the token it leaves in `start.json`. Ctrl+C stops it.
 
 The other side of the machine is read only while it runs: on Windows, the server asks `wsl.exe` every 5 seconds whether the distro is running and never reads `\\wsl.localhost` when it isn't, so it doesn't start WSL. The data then carries `"peer": { "name": "WSL", "up": false }`. While the other side runs, its running Claude Code sessions count for the account in its slot (`working`, `waiting`); the server asks that side's `dotagents sessions --running` every 15 seconds, in the background, so a read never waits on it.
 
 Its data adds `sides`, the sides of the machine (`["WSL", "Windows"]`, this one first), `slots`, the profile in each side's slot (`{ "WSL": "work", "Windows": "personal" }`), and `current`, the current account and its avatar state: the profile in a slot in the worst state, or the brand when no profile is in a slot.
 
-Three actions, for the panel, are the only writes. Each takes a JSON body (`{ "profile": "<name>" }` for the first two), with the token in the `x-dotagents-token` header (never in the address); a GET there answers 405, an unknown profile 404:
+Three actions, for the sidebar's accounts tab, are the only writes. Each takes a JSON body (`{ "profile": "<name>" }` for the first two), with the token in the `x-dotagents-token` header (never in the address); a GET there answers 405, an unknown profile 404:
 
 | Action | Does |
 |---|---|
@@ -210,23 +210,9 @@ While it runs it leaves its port, token and pid in `<state>/start.json`, readabl
 
 Every answer of the API and every event carries `"apiVersion": 1`, the format of what the server says, apart from the `version` of the usage data inside it. A client that doesn't know the version it gets refuses it, instead of misreading it; the number goes up only with a change an older client would misread. When the data can't be read (a state file being written, a bad one), the answer is `{ "apiVersion": 1, "error": "<why>" }` and the server keeps running.
 
-### The VS Code extension
+### In VS Code
 
-`surfaces/vscode/`, plain JavaScript (ADR 0012), shows the same panel. It runs on the side of the window, in WSL for a WSL window, and talks to that side's `dotagents start`, found through `start.json`; with none running, it starts one in the background.
-
-- **Status bar:** the accounts mark and the current account in its color, the state as the avatars' dot (red needs you, amber asks for attention, a ring for `limit` and `waiting`, green fine, blue asleep), and the usage as in the statusLine (`personal ● 5h ━━━━━━── 79% ↻ 3h17m  7d ━━━───── 38%`), in the identity's terminal colors; each color is an item of its own, since an item has one color, and only the mark and the account show the tooltip and switch on a click. The mark is a glyph of `media/icons.woff`, which `scripts/vscode-icon.py` writes. A click lists the accounts to switch, on both sides.
-- **Side bar:** a dotagents view with the panel; a button in its title opens it in the browser.
-- **For other extensions:** `activate` returns the panel's folder (`panelRoot`), what the panel is told (`message()`, and `onDidChange` when it changes) and its actions (`act(action, body)`), so the dotagents sidebar shows the same panel as a fixed tab while this extension keeps talking to the server.
-- **Updates:** it isn't on the Marketplace, so once a day it looks for a newer GitHub release and offers to install it, show the notes or skip that version.
-
-To build and install it from the repository:
-
-```bash
-cd surfaces/vscode
-npm run package                              # copies the panel in and writes dotagents-accounts.vsix
-code --install-extension dotagents-accounts.vsix --force
-```
-
+The accounts in VS Code are part of the [dotagents sidebar](https://github.com/dotagents-org/dotagents-sidebar): its first tab is every account (usage, state, the switch on both sides, the Desktop app), and the status bar shows the current account as the statusLine does. It reads this API, on the side of the window (in WSL for a WSL window). Before 4.0.0 this came from a separate extension, `dotagents-accounts`, and `start` also served the panel as a page in the browser; both are gone.
 
 ## dotagents new
 

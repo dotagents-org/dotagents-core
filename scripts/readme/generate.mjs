@@ -1,7 +1,5 @@
-// Generates the README's pictures into assets/readme/, each in a light and a dark version (the
-// README picks one with <picture>): the avatars at work, their states, and the diagrams.
-//
-// The avatars come from assets/avatars/ (still/ and strip/, saved from scripts/avatars/generate.mjs):
+// Generates the README's diagrams into assets/readme/, each in a light and a dark version (the
+// README picks one with <picture>). The avatars' pictures live with the avatars, in dotagents-sidebar.
 //   node scripts/readme/generate.mjs
 // GitHub shows these through <img>, so they carry no web fonts and no scripts; the motion is SMIL.
 
@@ -10,7 +8,6 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const ASSETS = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "..", "assets");
-const avatarsDir = path.join(ASSETS, "avatars", "still");
 const OUT = path.join(ASSETS, "readme");
 fs.mkdirSync(OUT, { recursive: true });
 
@@ -24,12 +21,6 @@ const CHAR = 0.6; // a monospace character's width, in em
 
 const esc = (s) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 const width = (text, size) => text.length * size * CHAR;
-
-// One avatar, without its <svg> wrapper, to place inside a picture.
-function avatarSvg(file) {
-  const svg = fs.readFileSync(path.join(avatarsDir, file), "utf8");
-  return svg.replace(/^<svg[^>]*>/, "").replace(/<\/svg>$/, "").replace(/<title>[^<]*<\/title>/g, "");
-}
 
 // --- Building blocks ---------------------------------------------------------------------------
 function frame(w, h, t, body, label) {
@@ -101,52 +92,6 @@ function write(name, make) {
   }
 }
 
-// --- The avatars at work: the brand and the two accounts, hopping ------------------------------
-function animated(who) {
-  const strip = fs.readFileSync(path.join(avatarsDir, "..", "strip", `${who}-working.svg`), "utf8");
-  // The strip puts a frame every 100, but an avatar draws up to 6 past its frame, the margin the
-  // -6 -6 112 112 window shows: the neighbours' edges would peek in. A frame every 200 keeps them out.
-  let frames = 0;
-  const inner = strip
-    .replace(/^<svg[^>]*>/, "")
-    .replace(/<\/svg>$/, "")
-    .replace(/<svg x="(\d+)" y="0" width="100" height="100"/g, (_, x) => (frames++, `<svg x="${2 * x}" y="0" width="100" height="100"`));
-  if (frames !== 24) throw new Error(`${who}: expected 24 frames in the strip, found ${frames}`);
-  const values = Array.from({ length: 24 }, (_, i) => `${-i * 200} 0`).join(";");
-  return `<svg viewBox="-6 -6 112 112" overflow="hidden"><g><animateTransform attributeName="transform" type="translate" values="${values}" dur="3s" calcMode="discrete" repeatCount="indefinite"/>${inner}</g></svg>`;
-}
-write("avatars", (t) => {
-  const size = 96, gap = 56, w = 3 * size + 2 * gap;
-  const who = [["dotagents", "the brand"], ["turing", "an account"], ["lovelace", "another"]];
-  let body = "";
-  who.forEach(([name], i) => {
-    const x = i * (size + gap);
-    body += animated(name).replace("<svg ", `<svg x="${x}" y="0" width="${size}" height="${size}" `);
-    body += `<text x="${x + size / 2}" y="${size + 24}" font-size="13" font-weight="700" text-anchor="middle" fill="${name === "dotagents" ? t.text : t[name]}">${name}</text>`;
-  });
-  return frame(w, size + 34, t, body, "The dotagents avatars at work: the brand, turing and lovelace, hopping");
-});
-
-// --- The states, for each avatar ---------------------------------------------------------------
-const STATES = [["ok", "all good"], ["working", "a session works"], ["waiting", "waiting on you"], ["warn", "70% or runs out"], ["limit", "at the limit"], ["error", "sign in again"], ["asleep", "no fresh data"]];
-write("states", (t) => {
-  const size = 56, col = 104, row = 84, left = 108, top = 44;
-  let body = "";
-  STATES.forEach(([state, meaning], j) => {
-    const cx = left + j * col + size / 2;
-    body += `<text x="${cx}" y="16" font-size="12" font-weight="700" text-anchor="middle" fill="${t.text}">${state}</text>`;
-    body += `<text x="${cx}" y="32" font-size="10" text-anchor="middle" fill="${t.muted}">${meaning}</text>`;
-  });
-  ["dotagents", "turing", "lovelace"].forEach((who, i) => {
-    const y = top + i * row;
-    body += `<text x="0" y="${y + size / 2 + 5}" font-size="13" font-weight="700" fill="${who === "dotagents" ? t.text : t[who]}">${who}</text>`;
-    STATES.forEach(([state], j) => {
-      body += `<svg x="${left + j * col}" y="${y}" width="${size}" height="${size}" viewBox="-6 -6 112 112" overflow="visible">${avatarSvg(`${who}-${state}.svg`)}</svg>`;
-    });
-  });
-  return frame(left + STATES.length * col - (col - size) + 30, top + 3 * row - (row - size) + 4, t, body, "The avatars' states: the eyes and the dot say how each account is");
-});
-
 // --- How it works ------------------------------------------------------------------------------
 write("how-it-works", (t) => {
   let b = group(t, { x: 0, y: 0, w: 330, h: 300, label: "your dotagents clone" });
@@ -190,7 +135,9 @@ write("git-clean", (t) => {
 
 // --- Several accounts, one view ----------------------------------------------------------------
 write("accounts", (t) => {
-  const tu = avatarSvg("turing-ok.svg"), lo = avatarSvg("lovelace-working.svg");
+  // Each account as a plain square in its color; its avatar lives in the dotagents sidebar.
+  const tile = (color) => `<rect x="12" y="12" width="76" height="76" rx="18" fill="${color}"/>`;
+  const tu = tile(t.turing), lo = tile(t.lovelace);
   let b = group(t, { x: 0, y: 0, w: 300, h: 300, label: "profiles" });
   b += card(t, { x: 20, y: 40, w: 260, h: 110, title: "turing", lines: ["a claude.ai account,", "its login in a vault", "per side"], icon: tu, accent: t.turing });
   b += card(t, { x: 20, y: 170, w: 260, h: 110, title: "lovelace", lines: ["another account,", "its own vault and", "its own Desktop app"], icon: lo, accent: t.lovelace });
@@ -199,13 +146,13 @@ write("accounts", (t) => {
   b += card(t, { x: 420, y: 170, w: 190, h: 110, title: "Windows", lines: ["~/.claude", "the same, on", "the other side"] });
   b += arrow(t, 280, 95, 416, 95) + arrow(t, 280, 225, 416, 225, { dashed: true });
   b += pill(t, 348, 160, "switch");
-  b += note(t, 348, 186, "one side or both");
+  b += note(t, 348, 186, "on both sides");
   b += group(t, { x: 730, y: 0, w: 260, h: 300, label: "live usage" });
   b += card(t, { x: 750, y: 40, w: 220, h: 66, title: "dotagents usage", lines: ["and the status line"] });
-  b += card(t, { x: 750, y: 116, w: 220, h: 66, title: "the panel", lines: ["dotagents start"] });
-  b += card(t, { x: 750, y: 192, w: 220, h: 88, title: "VS Code", lines: ["the account in the", "status bar, the panel"] });
+  b += card(t, { x: 750, y: 116, w: 220, h: 66, title: "dotagents start", lines: ["the local API"] });
+  b += card(t, { x: 750, y: 192, w: 220, h: 88, title: "dotagents-sidebar", lines: ["the accounts tab and", "the status bar"] });
   b += arrow(t, 610, 150, 726, 150) + note(t, 668, 140, "asks Anthropic");
-  return frame(990, 300, t, b, "Several accounts, one view: switch puts a profile's login in each side's slot, and the usage of every account shows in the terminal, the panel and VS Code");
+  return frame(990, 300, t, b, "Several accounts, one view: switch puts a profile's login in each side's slot, and the usage of every account shows in the terminal and, through dotagents start, in the dotagents sidebar");
 });
 
 // --- Two machines, one setup -------------------------------------------------------------------
