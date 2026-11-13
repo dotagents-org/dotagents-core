@@ -118,19 +118,14 @@
       const here = sides.filter((s) => slots[s] === p.name);
       const doing = p.activity ? [p.activity.working && `${p.activity.working} working`, p.activity.waiting && `${p.activity.waiting} waiting on you`].filter(Boolean).join(", ") : "";
       const status = p.avatar === "error" ? p.error || `no login here, run: dotagents login ${p.name}` : doing;
-      // Where the account is: one part per side and, with two, "both" between them. A part is
-      // filled where it already is; a click on an empty one puts it there.
-      const part = (label, side, on, title) => {
-        const key = `switch ${p.name} ${side || "both"}`;
-        const button = el("button", { type: "button", class: (on ? "on" : "") + busy(key), title, "aria-pressed": String(on) }, label);
-        if (on) {
-          button.style.background = p.color;
-          button.tabIndex = -1;
-        } else button.addEventListener("click", run("switch", side ? { profile: p.name, side } : { profile: p.name }, key));
-        return button;
-      };
-      const parts = sides.map((s) => part(s, s, here.includes(s), `Use ${p.name} on ${s}`));
-      if (sides.length === 2) parts.splice(1, 0, part("both", null, here.length === 2, `Use ${p.name} on both sides`));
+      // Where the account is, and one switch that puts it on every side (the command's --here,
+      // for one side only, stays in the terminal).
+      const everywhere = sides.length > 0 && here.length === sides.length;
+      const key = `switch ${p.name}`;
+      const where = el("span", { class: "muted" }, here.length ? `on ${here.join(" and ")}` : "");
+      const button = el("button", { type: "button", class: `switch${busy(key)}`, title: `Use ${p.name} on ${sides.join(" and ") || "this machine"}` }, everywhere ? "in use" : "switch");
+      if (everywhere) button.disabled = true;
+      else button.addEventListener("click", run("switch", { profile: p.name }, key));
       return el(
         "article",
         { class: "card" },
@@ -151,7 +146,7 @@
           )
         ),
         ...p.windows.map((w) => windowRow(p, w, now)),
-        el("div", { class: "sides" }, ...parts)
+        el("div", { class: "sides" }, where, button)
       );
     });
     const age = data.generatedAt ? `updated ${span(now - Date.parse(data.generatedAt))} ago` : "";
