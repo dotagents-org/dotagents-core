@@ -22,7 +22,7 @@ dotagents <command> [options]
 | [`workspaces`](#dotagents-workspaces) | Lists the workspaces tracked on this machine. |
 | [`untrack <path>`](#dotagents-untrack) | Stops tracking a workspace. Its files are not touched. |
 | [`sessions [path] [--all] [--json]`](#dotagents-sessions) | Lists Claude Code's sessions on both sides of the machine: title, account, size, where they would be archived. |
-| [`sessions rm [ids…] [--all] [--yes] [--no-archive]`](#dotagents-sessions-rm) | Deletes sessions, archiving each first into its project's `.artifacts/session-archives/`; `--no-archive` skips the archive. |
+| [`sessions rm [ids…] [--all] [--yes] [--no-archive]`](#dotagents-sessions-rm) | Deletes sessions, archiving each first into its project's `.artifacts/session-archives/`; `--no-archive` skips the archive. A running one, once you confirm, is archived and its Claude Code closed first. |
 | [`skills`](#dotagents-skills) | Lists the own skills and the registered third-party ones. |
 | [`skills add <source>`](#dotagents-skills-add) | Registers third-party skills in the catalog. |
 | [`skills remove <name>`](#dotagents-skills-remove) | Removes a third-party skill from the catalog. |
@@ -331,7 +331,7 @@ Piped, one tab-separated line per session: id, side, last activity, bytes, `runn
 dotagents sessions rm [ids…] [--all] [--yes] [--no-archive]
 ```
 
-Deletes sessions. Without ids, it lists the ones started in this folder (`--all`: every project's) to pick from, leaving out the running ones: type to filter by title, folder, side or account, Tab marks a session, Enter goes on. Ids may be given instead, in full or by a unique start, such as the eight characters `sessions` shows.
+Deletes sessions. Without ids, it lists the ones started in this folder (`--all`: every project's) to pick from, the running ones marked `running`: type to filter by title, folder, side or account, Tab marks a session, Enter goes on. Ids may be given instead, in full or by a unique start, such as the eight characters `sessions` shows.
 
 Then it asks what should happen to them:
 
@@ -348,7 +348,9 @@ Then, for each session, it writes the archive when asked to (the same file the `
 - `file-history/<id>/` and `session-env/<id>/`;
 - the project folder, when nothing else is left in it.
 
-A session whose archive fails is kept unless you answer yes to deleting it anyway. A running session is never deleted. For the other side's sessions it asks that side's dotagents (`dotagents sessions --running`, through `powershell.exe` from WSL or `wsl.exe` from Windows), so a session left open and idle there is protected too. When that side can't say (no dotagents there, or an older one), it warns and falls back to the 10 minutes. `--yes` skips the questions, archiving what can be archived and deleting the sessions without an archive folder too, but never one whose archive failed; without a terminal, `sessions rm` needs `--yes`. `--no-archive` answers the first question with **Delete without archiving**. `--dry-run` shows the archives and deletions without making them.
+A session whose archive fails is kept unless you answer yes to deleting it anyway.
+
+A running session is deleted only when you confirm it in a terminal: **N sessions are still running. Archive and delete them anyway?** No keeps them. One you confirm is archived first and kept if its archive fails; then its Claude Code is closed (asked to stop, and killed after 5 seconds), so it doesn't write the transcript again, and its files are deleted. A session running on the other side of the machine can't be closed from here: only its files go, and it writes them again until you close it there. `--yes`, `--no-archive` and a session with no archive folder keep running sessions, and so does **Delete without archiving**. For the other side's sessions it asks that side's dotagents (`dotagents sessions --running`, through `powershell.exe` from WSL or `wsl.exe` from Windows), so a session left open and idle there counts as running too. When that side can't say (no dotagents there, or an older one), it warns and falls back to the 10 minutes. `--yes` skips the questions, archiving what can be archived and deleting the sessions without an archive folder too, but never one whose archive failed; without a terminal, `sessions rm` needs `--yes`. `--no-archive` answers the first question with **Delete without archiving**. `--dry-run` shows the archives and deletions without making them.
 
 ## dotagents skills
 

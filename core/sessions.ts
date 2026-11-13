@@ -4,8 +4,9 @@
 // folder is read: this side's ~/.claude and the other side's (core/peer.ts), since a profile's
 // sessions live in the slot of the side that ran them (ADR 0011).
 //
-// A session still running is never deleted: on this side, its sessions/<pid>.json names it while
-// the process lives; on the other side, whose processes can't be probed from here, dotagents asks
+// A session still running is deleted only when the caller asks (the user confirmed, and it is
+// archived first), ending its Claude Code on this side first. Running means: on this side, its
+// sessions/<pid>.json names it while the process lives; on the other side, whose processes can't be probed from here, dotagents asks
 // that side's dotagents (`sessions --running`), when the caller passes that adapter. Either way a
 // transcript written in the last RECENT_MS counts as running too.
 
@@ -74,6 +75,8 @@ export type Session = {
   // .artifacts/session-archives/. Null outside a workspace that follows the standard.
   root: string | null;
   running: boolean;
+  // The Claude Code process running it, on this side; null on the other side or with none.
+  pid: number | null;
   // Whether `running` comes from the process records: always on this side; on the other side only
   // when its dotagents answered. When false, a session idle there for RECENT_MS counts as stopped.
   checked: boolean;
@@ -92,9 +95,9 @@ export function archiveRoot(dir: string | null) {
   }
 }
 
-// The sessions this side's Claude Code processes are running, by id.
-export function runningIds(configDir: string = defaultConfigDir(), running: ProcessProbe = runningProcess) {
-  const ids = new Set<string>();
+// The sessions this side's Claude Code processes are running: session id -> process id.
+export function runningPids(configDir: string = defaultConfigDir(), running: ProcessProbe = runningProcess) {
+  const ids = new Map<string, number>();
   let names: string[];
   try {
     names = fs.readdirSync(path.join(configDir, "sessions")).filter((n) => /^\d+\.json$/.test(n));
@@ -104,13 +107,16 @@ export function runningIds(configDir: string = defaultConfigDir(), running: Proc
   for (const name of names) {
     try {
       const s = JSON.parse(fs.readFileSync(path.join(configDir, "sessions", name), "utf8"));
-      if (typeof s?.sessionId === "string" && typeof s.pid === "number" && running(s.pid, typeof s.procStart === "string" ? s.procStart : undefined)) ids.add(s.sessionId);
+      if (typeof s?.sessionId === "string" && typeof s.pid === "number" && running(s.pid, typeof s.procStart === "string" ? s.procStart : undefined)) ids.set(s.sessionId, s.pid);
     } catch {
       // Being rewritten: skipped.
     }
   }
   return ids;
 }
+
+// The sessions this side's Claude Code processes are running, by id.
+export const runningIds = (configDir: string = defaultConfigDir(), running: ProcessProbe = runningProcess) => new Set(runningPids(configDir, running).keys());
 
 const clip = (text: string, max: number) => {
   const flat = text.split(/\s+/).filter(Boolean).join(" ");
@@ -219,7 +225,8 @@ export function listSessions({ dirs = configDirs(), under, now = Date.now(), run
       asked = true;
       return peerLive;
     };
-    const live = cd.peer ? null : runningIds(cd.dir, running);
+    const pids = cd.peer ? null : runningPids(cd.dir, running);
+    const live = pids && new Set(pids.keys());
     const projects = path.join(cd.dir, "projects");
     let slugs: string[];
     try {
@@ -263,6 +270,7 @@ export function listSessions({ dirs = configDirs(), under, now = Date.now(), run
           accounts: info.accounts,
           root: archiveRoot(localCwd),
           running: Boolean(known?.has(id)) || now - st.mtimeMs < RECENT_MS,
+          pid: pids?.get(id) ?? null,
           checked: known !== null,
         });
       }
@@ -327,12 +335,42 @@ export const sessionFiles = (s: Pick<Session, "id" | "file" | "configDir">) => [
   path.join(s.configDir, "session-env", s.id),
 ];
 
+// Ends a Claude Code process: asks it to stop, waits up to 5 seconds for it to go (it writes its
+// transcript as it closes), then kills it. False when it was already gone.
+export type ProcessStopper = (pid: number) => boolean;
+export const stopProcess: ProcessStopper = (pid) => {
+  const alive = () => runningProcess(pid);
+  if (!alive()) return false;
+  try {
+    process.kill(pid, "SIGTERM");
+  } catch {
+    return false;
+  }
+  const tick = new Int32Array(new SharedArrayBuffer(4));
+  for (let waited = 0; waited < 5_000 && alive(); waited += 100) Atomics.wait(tick, 0, 0, 100);
+  if (alive()) {
+    try {
+      process.kill(pid, "SIGKILL");
+    } catch {
+      // Gone meanwhile.
+    }
+  }
+  return true;
+};
+
 // Deletes a session's files, and its project folder when nothing else is left in it. Refuses a
-// running session. Honors --dry-run; files already gone are left alone, so it can run again.
-export function deleteSession(s: Session) {
-  if (s.running) {
+// running session unless evenRunning, which the caller sets only once the user confirmed and the
+// session is archived: then its Claude Code process on this side is ended first, or the session
+// would write its transcript again. One on the other side has only its files deleted. Honors
+// --dry-run; files already gone are left alone, so it can run again.
+export function deleteSession(s: Session, { evenRunning = false, stop = stopProcess }: { evenRunning?: boolean; stop?: ProcessStopper } = {}) {
+  if (s.running && !evenRunning) {
     report("skipped", s.file, "still running; close it first");
     return false;
+  }
+  if (s.running && s.pid !== null) {
+    if (state.dryRun) report("would update", s.file, `would end its Claude Code (process ${s.pid})`);
+    else if (stop(s.pid)) report("updated", s.file, `ended its Claude Code (process ${s.pid})`);
   }
   for (const target of sessionFiles(s)) {
     if (!fs.existsSync(target)) continue;
