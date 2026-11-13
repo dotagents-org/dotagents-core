@@ -14,8 +14,7 @@ dotagents-core/
 ├── core/                      the data and the actions, drawing nothing (see below)
 ├── surfaces/                  the ways in, each using core/ only
 │   ├── cli/                   one file per command: its help, its questions, its run
-│   ├── web/                   the panel: server.ts (127.0.0.1, token, live events) and page/ (the panel and the avatars)
-│   └── vscode/                the VS Code extension: the status bar, the panel in the side bar, the updates
+│   └── web/                   server.ts: the local API of dotagents start (127.0.0.1, token, live events, apiVersion)
 ├── test/                      unit tests (node:test)
 ├── .github/workflows/         CI: skill validation and command tests on three systems
 └── package.json
@@ -27,7 +26,7 @@ The configuration (global instructions, rules, settings, own skills, profile ico
 
 The command is TypeScript run directly by Node (type stripping, no build step) with one dependency: `@clack/prompts`, for the questions and the spinners. The colors come from `core/theme.ts`. `cli.ts` reads the arguments and hands them to one of the commands in `surfaces/cli/`, which asks the questions and calls the modules. Everything that decides what a workspace or a machine should look like lives in `core/`, in a few modules with small interfaces.
 
-**Core and surfaces.** `core/` holds the data and the actions and draws nothing. A surface is a way in: the commands (`surfaces/cli/`), the panel (`surfaces/web/`: its local server and page, ADR 0012), the VS Code extension (`surfaces/vscode/`, which shows the same page and reaches the server over HTTP), later the MCP server. Each surface uses `core/` and never another surface; `cli.ts`, at the root, is the one place that picks one, and where `start` joins the command line to the web server. `test/boundaries.test.ts` fails when an import breaks the rule.
+**Core and surfaces.** `core/` holds the data and the actions and draws nothing. A surface is a way in: the commands (`surfaces/cli/`) and the local API (`surfaces/web/`, which the dotagents sidebar reads over HTTP; the panel, the avatars and everything else drawn live there). Nothing here draws a page. Each surface uses `core/` and never another surface; `cli.ts`, at the root, is the one place that picks one, and where `start` joins the command line to the web server. `test/boundaries.test.ts` fails when an import breaks the rule.
 
 The arrows point to what a part uses. The table below gives each module's interface.
 
@@ -37,8 +36,7 @@ flowchart TB
     subgraph surfaces["surfaces: the ways in"]
         direction LR
         cli["cli.ts + surfaces/cli/<br/>arguments, questions"]
-        web["surfaces/web/<br/>the panel's server and page"]
-        vscode["surfaces/vscode/<br/>the VS Code extension"]
+        web["surfaces/web/<br/>the local API"]
     end
 
     subgraph features["core: what dotagents applies and reads"]
@@ -120,9 +118,8 @@ node cli.ts --help      # run without npm link
 **The brand and the README's captures:**
 
 - `assets/dotagents.svg` is the symbol, the face `..` on a `#171717` square.
-- `assets/avatars/` holds the avatars, one still per avatar and state and the working animation strips, made by `scripts/avatars/generate.mjs`; run it again only after changing an avatar.
-- `assets/readme/` holds the README's pictures (the avatars, their states, the diagrams, the panel), each light and dark, made by `node scripts/readme/generate.mjs`.
-- `assets/dotagents-core-lockup-light.svg` and `-dark.svg` are the symbol with "dotagents-core" in Geist Mono 600 (and `dotagents-accounts-lockup-*.svg` the accounts mark with its name), the text as outlines, since GitHub shows SVGs through `<img>`, which loads no web fonts. To make them again, download the font and run `scripts/lockup.py` with fontTools:
+- `assets/readme/` holds the README's diagrams, each light and dark, made by `node scripts/readme/generate.mjs`.
+- `assets/dotagents-core-lockup-light.svg` and `-dark.svg` are the symbol with "dotagents-core" in Geist Mono 600 (the script also writes the dotagents-config lockup, which goes to that repository), the text as outlines, since GitHub shows SVGs through `<img>`, which loads no web fonts. To make them again, download the font and run `scripts/lockup.py` with fontTools:
 
   ```bash
   curl -sA "Mozilla/4.0" "https://fonts.googleapis.com/css2?family=Geist+Mono:wght@600" | grep -o 'https://[^)]*' | head -1 | xargs curl -so /tmp/geistmono600.ttf

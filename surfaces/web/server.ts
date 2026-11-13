@@ -1,17 +1,11 @@
-// The dashboard's local server (dotagents start): the page and its files, and the API it reads, built on what
-// core/ gives (the usage snapshot). Only on 127.0.0.1, only to its own Host (a page elsewhere can't
-// reach it through DNS rebinding), and the API only with the token printed at start. It reads, except
-// for the actions it is given (POST, the token in the header, JSON), which the tray panel uses.
+// The local API (dotagents start), built on what core/ gives (the usage snapshot), for the dotagents
+// sidebar's accounts. No pages: only /api/. Only on 127.0.0.1, only to its own Host (a page
+// elsewhere can't reach it through DNS rebinding), and only with the token in start.json. It reads,
+// except for the actions it is given (POST, the token in the header, JSON).
 // Live: /api/events sends the data again whenever it changes.
 
 import { randomBytes, timingSafeEqual } from "node:crypto";
-import fs from "node:fs";
 import http from "node:http";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
-
-const PAGE_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), "page");
-const TYPES: Record<string, string> = { ".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".css": "text/css; charset=utf-8", ".svg": "image/svg+xml", ".png": "image/png" };
 const KEEPALIVE_MS = 15_000;
 
 export type ServerOptions = {
@@ -21,7 +15,7 @@ export type ServerOptions = {
   port?: number;
   token?: string;
   pollMs?: number;
-  // What the page or the tray panel may ask for: POST /api/<name> with a JSON body; each answers
+  // What a client may ask for: POST /api/<name> with a JSON body; each answers
   // its status and body. Everything else stays read only.
   actions?: Record<string, (body: unknown) => Action | Promise<Action>>;
 };
@@ -62,7 +56,7 @@ export async function startServer({ read: readData, port = 7337, token = randomB
       "cache-control": "no-store",
       "referrer-policy": "no-referrer",
       "x-content-type-options": "nosniff",
-      "content-security-policy": "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'",
+      "content-security-policy": "default-src 'none'; frame-ancestors 'none'",
     };
     const send = (status: number, body: string | Buffer = "", type = "text/plain; charset=utf-8") => {
       res.writeHead(status, { ...security, "content-type": type });
@@ -137,12 +131,7 @@ export async function startServer({ read: readData, port = 7337, token = randomB
       return send(404, "not found");
     }
 
-    // The page's own files, by name only: nothing outside page/.
-    const name = url.pathname === "/" ? "index.html" : url.pathname.slice(1);
-    if (!/^[\w-]+\.(html|js|css|svg|png)$/.test(name)) return send(404, "not found");
-    const file = path.join(PAGE_DIR, name);
-    if (!fs.existsSync(file)) return send(404, "not found");
-    send(200, name.endsWith(".png") ? fs.readFileSync(file) : fs.readFileSync(file, "utf8"), TYPES[path.extname(name)]);
+    return send(404, "not found");
   });
 
   // A taken port tries the next ten; 0 lets the system pick.
@@ -164,7 +153,7 @@ export async function startServer({ read: readData, port = 7337, token = randomB
   return {
     port: actual,
     token,
-    url: `http://127.0.0.1:${actual}/#token=${token}`,
+    url: `http://127.0.0.1:${actual}/api/`,
     close: () =>
       new Promise((resolve) => {
         for (const res of streams) res.end();

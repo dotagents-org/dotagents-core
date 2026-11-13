@@ -132,7 +132,7 @@ test("a profiles file with a bad entry stops the command", (t) => {
   assert.throws(() => loadProfiles(), /fix it or delete it/);
 });
 
-test("the running server leaves its address for the tray panel, only for the user, and takes it away, only its own", (t) => {
+test("the running server leaves its address for the sidebar, only for the user, and takes it away, only its own", (t) => {
   tempStateDir(t);
   recordServer({ port: 7337, token: "secret" });
   assert.deepEqual(readServer(), { port: 7337, token: "secret", pid: process.pid });

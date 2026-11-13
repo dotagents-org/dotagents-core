@@ -1,5 +1,6 @@
-// dotagents serve: the local server the visual app reads from. It answers only on 127.0.0.1, to its
-// own Host, reads except for the actions it is given, and the API only with the token it printed.
+// dotagents start: the local API the dotagents sidebar reads its accounts from. It answers only on
+// 127.0.0.1, to its own Host, only under /api/, reads except for the actions it is given, and only
+// with its token.
 
 import assert from "node:assert/strict";
 import http from "node:http";
@@ -38,7 +39,7 @@ function firstEvent(port: number, path: string): Promise<string> {
   });
 }
 
-test("the API answers only with the token, and the page and the API only to the server's own Host", async (t) => {
+test("the API answers only with the token, only to the server's own Host, and serves no pages", async (t) => {
   let n = 0;
   const server = await startServer({ port: 0, read: () => ({ version: 1, profiles: [{ name: "work", pct: ++n }] }), token: "secret" });
   t.after(() => server.close());
@@ -50,9 +51,8 @@ test("the API answers only with the token, and the page and the API only to the 
   assert.equal(ok.headers["cache-control"], "no-store");
   assert.equal((await get(port, "/api/usage", { host: "evil.example", "x-dotagents-token": "secret" })).status, 403);
   assert.equal((await get(port, "/", { host: "evil.example" })).status, 403);
-  const page = await get(port, "/");
-  assert.equal(page.status, 200);
-  assert.match(String(page.headers["content-security-policy"]), /default-src 'none'/);
+  for (const page of ["/", "/index.html", "/panel.js"]) assert.equal((await get(port, page)).status, 404, page);
+  assert.match(String(ok.headers["content-security-policy"]), /default-src 'none'/);
   assert.equal((await get(port, "/api/usage", { "x-dotagents-token": "secret" }, "POST")).status, 405);
   assert.equal((await get(port, "/../package.json")).status, 404);
 });
@@ -84,7 +84,7 @@ test("the event stream sends the usage at once, with the token in the query (Eve
   assert.match(event, /event: usage\ndata: \{"apiVersion":1,"version":1,"profiles":\[\]\}/);
 });
 
-// The tray panel's actions: POST only, with the token in the header (never the URL), JSON in, and
+// The accounts tab's actions: POST only, with the token in the header (never the URL), JSON in, and
 // only the actions the server was given.
 function post(port: number, path: string, body: string, headers: Record<string, string> = {}): Promise<Res> {
   return new Promise((resolve, reject) => {
@@ -124,13 +124,4 @@ test("an action runs only by POST, with the token in the header and a JSON body,
   assert.equal(ok.status, 200);
   assert.deepEqual(JSON.parse(ok.body), { apiVersion: 1, ok: true });
   assert.deepEqual(calls, [{ profile: "work" }]);
-});
-
-test("the page's files are served by plain name only, never from outside the page", async (t) => {
-  const server = await startServer({ port: 0, read: () => ({}), token: "secret" });
-  t.after(() => server.close());
-  for (const file of ["/", "/panel.js", "/avatar.js"]) assert.equal((await get(server.port, file)).status, 200, file);
-  assert.equal((await get(server.port, "/nothing.js")).status, 404);
-  assert.equal((await get(server.port, "/sub/avatar.js")).status, 404);
-  assert.equal((await get(server.port, "/%2e%2e/package.json")).status, 404, "never outside the page");
 });

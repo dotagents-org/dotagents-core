@@ -23,26 +23,12 @@
   <img alt="MIT license" src="https://img.shields.io/badge/license-MIT-171717">
 </p>
 
-<p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="assets/readme/avatars-dark.svg">
-    <img alt="The dotagents avatars at work: the brand, turing and lovelace" src="assets/readme/avatars-light.svg" width="400">
-  </picture>
-</p>
-
 > [!NOTE]
 > **This is my personal configuration project.** Many things here are shaped to the way I work: the global instructions, the rules, the skills, the two accounts (`turing` and `lovelace`), Windows with WSL. Everything that is mine lives in a private repository of its own, `dotagents-config`; this one is the tool, with a generic starting point in [`templates/config/`](templates/config/). If it is useful to you, feel free to use it, fork it, give feedback, contribute, and set it up your own way.
 
 Claude Code reads its configuration from `~/.claude/` on each machine and from `.claude/`, `CLAUDE.md` or `AGENTS.md` in each project. Use it across a few projects and two machines, and the copies drift apart: the same skill copied into several projects, an instruction fixed on one machine and forgotten on the other, project files leaking into the repository's git. Hold more than one Claude seat and it gets worse: one login per machine at a time, and no single place that says how much of each plan is left.
 
-dotagents keeps all of it in one git repository, yours, and a single command writes or links what Claude Code expects. You never edit `~/.claude/` or a workspace's `.claude/` by hand again. And for several accounts, it switches the login in place, shows each account's usage live, and opens one Claude Desktop per account, in the terminal, in a panel and in VS Code.
-
-<p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="assets/readme/panel-dark.png">
-    <img alt="The dotagents panel: two accounts with their avatars, the 5-hour, weekly and model windows with projections, and a switch for WSL, both or Windows" src="assets/readme/panel-light.png" width="720">
-  </picture>
-</p>
+dotagents keeps all of it in one git repository, yours, and a single command writes or links what Claude Code expects. You never edit `~/.claude/` or a workspace's `.claude/` by hand again. And for several accounts, it switches the login in place, shows each account's usage live, and opens one Claude Desktop per account, in the terminal and, with the [dotagents sidebar](https://github.com/dotagents-org/dotagents-sidebar), in VS Code.
 
 ## Features
 
@@ -62,7 +48,7 @@ dotagents keeps all of it in one git repository, yours, and a single command wri
 
 - **Switch in place.** `dotagents switch` puts an account's login in `~/.claude`, on one side of the machine or both, keeping each login in a vault readable only by you. History and configuration stay shared.
 - **Usage, live.** How much of each plan's 5-hour, weekly and per-model windows is used, with a projection to the reset ("at this pace, runs out 16:40"), from Claude Code's cache or asked of Anthropic.
-- **A panel and VS Code.** `dotagents start` serves the panel on 127.0.0.1; the VS Code extension shows the current account in the status bar and the panel in the side bar. Each account has an avatar that says how it is at a glance.
+- **In VS Code, with the dotagents sidebar.** `dotagents start` is a local API on 127.0.0.1; the [dotagents sidebar](https://github.com/dotagents-org/dotagents-sidebar) reads it to show every account, with an avatar that says how it is at a glance, the current one in the status bar, and the switch.
 - **One Desktop app per account** on Windows, each with its own icon and taskbar button, open side by side.
 
 **Everywhere**
@@ -104,23 +90,16 @@ The agent files live next to the repositories, never inside them. `new` clones s
 
 ### Several accounts, one view
 
-A profile is one claude.ai account. Every profile uses `~/.claude`, so the history and the configuration are shared; `switch` puts a profile's login there, on one side of the machine or both, and its login waits in a vault while another is in use. `usage`, the panel and the VS Code extension show what each one has used, from Claude Code's own cache or asked of Anthropic. On Windows, each profile also gets its own Claude Desktop app.
+A profile is one claude.ai account. Every profile uses `~/.claude`, so the history and the configuration are shared; `switch` puts a profile's login there, on one side of the machine or both, and its login waits in a vault while another is in use. `usage` and the dotagents sidebar show what each one has used, from Claude Code's own cache or asked of Anthropic. On Windows, each profile also gets its own Claude Desktop app.
 
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="assets/readme/accounts-dark.svg">
-    <img alt="Profiles turing and lovelace, each with a vault; switch puts one in the WSL or Windows slot; the live usage shows in dotagents usage, the panel and VS Code" src="assets/readme/accounts-light.svg" width="840">
+    <img alt="Profiles turing and lovelace, each with a vault; switch puts one in the WSL or Windows slot; the live usage shows in dotagents usage and, through dotagents start, in the dotagents sidebar" src="assets/readme/accounts-light.svg" width="840">
   </picture>
 </p>
 
-Each account has an avatar, in its color and shape. Its eyes and the dot in the corner say how it is; a session at work makes it hop.
-
-<p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="assets/readme/states-dark.svg">
-    <img alt="The avatars' states: ok, working, waiting on you, warn, at the limit, sign in again, asleep" src="assets/readme/states-light.svg" width="760">
-  </picture>
-</p>
+In VS Code, each account has an avatar, in its color and shape, whose eyes and corner dot say how it is: that is the [dotagents sidebar](https://github.com/dotagents-org/dotagents-sidebar#the-accounts).
 
 In the terminal, the same numbers:
 
@@ -179,10 +158,10 @@ With more than one Claude account:
 dotagents profile add work # one profile per claude.ai account
 dotagents switch work # its login in ~/.claude, on both sides; --here for this side only
 dotagents usage --refresh # every account's usage, asked of Anthropic
-dotagents start # the panel, live, on 127.0.0.1
+dotagents start # the local API the dotagents sidebar reads
 ```
 
-The VS Code extension is built from [`surfaces/vscode/`](surfaces/vscode/) with `npm run package`, or installed from a [release](https://github.com/dotagents-org/dotagents-core/releases).
+In VS Code, install the [dotagents sidebar](https://github.com/dotagents-org/dotagents-sidebar/releases) for the accounts tab and the status bar.
 
 More in [Getting started](docs/getting-started.md), including WSL and npm without `sudo`. What changed in each version is in the [CHANGELOG](CHANGELOG.md).
 
@@ -210,7 +189,7 @@ dotagents-config/
 | [`switch <profile>`](docs/commands.md#dotagents-switch) | Puts a profile's login in `~/.claude` on both sides (`--here` for one), keeping each account's login in a vault. |
 | [`login <profile>`](docs/commands.md#dotagents-login) | Signs a profile in again on this side when its login runs out, then puts the previous account back; `--all` for every login running out. |
 | [`usage`](docs/commands.md#dotagents-usage) | How much of each profile's plan is used, with a projection to the reset, from Claude Code's cache or, with `--refresh`, asked of Anthropic. |
-| [`start`](docs/commands.md#dotagents-start) | Serves the panel on 127.0.0.1: every account live, the switch for one side or both, its Desktop app. The [VS Code extension](docs/commands.md#the-vs-code-extension) uses it. |
+| [`start`](docs/commands.md#dotagents-start) | Starts the accounts' local API on 127.0.0.1, live, which the dotagents sidebar reads. |
 | [`new <git-url> [folder]`](docs/commands.md#dotagents-new) | Creates a workspace, clones the repository into it and applies the standards. |
 | [`init [path]`](docs/commands.md#dotagents-init) | Applies the standards to a folder, offering to wrap a repository first. |
 | [`check [path]`](docs/commands.md#dotagents-check) | Runs the checklist on a workspace, changing nothing. |
@@ -223,7 +202,7 @@ Every command that changes something takes `--dry-run`.
 ## Documentation
 
 - [Getting started](docs/getting-started.md): requirements, installation, the first workspace.
-- [Commands](docs/commands.md): every command and option, output, exit codes; the panel and the VS Code extension.
+- [Commands](docs/commands.md): every command and option, output, exit codes; the local API.
 - [Workspaces](docs/workspaces.md): the layout, what `init` creates, what `check` verifies.
 - [Skills](docs/skills.md): own and third-party skills, writing one.
 - [Global configuration](docs/global-configuration.md): what `install` writes, and where; where the configuration lives.
@@ -239,9 +218,9 @@ Issues and pull requests are welcome: a bug, an idea, a skill worth sharing, a b
 
 ## The family
 
-- **dotagents-core**, this repository: the `dotagents` command, the workspace standards, and the Claude accounts with their panel and VS Code extension (`dotagents-accounts`).
+- **dotagents-core**, this repository: the `dotagents` command, the workspace standards, and the logic of the Claude accounts, with the local API (`dotagents start`).
 - **dotagents-config**: your configuration, a repository of your own next to this one; [`templates/config/`](templates/config/) is where it starts.
-- **[dotagents-sidebar](https://github.com/dotagents-org/dotagents-sidebar)**: coding agents in VS Code's secondary sidebar, with the accounts panel as a tab when the extension is installed. Works without dotagents.
+- **[dotagents-sidebar](https://github.com/dotagents-org/dotagents-sidebar)**: Claude Code and your Claude accounts in VS Code's secondary sidebar: the sessions, and the accounts as the first tab when dotagents is set up. Works without dotagents.
 
 ## License
 

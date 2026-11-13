@@ -187,7 +187,7 @@ export function saveMachine(machine: Machine) {
   writeStateFile(machineFile(), MACHINE.version, { ...machine });
 }
 
-// The running `dotagents start`: its port, token and pid, for the tray panel to find it. Only the
+// The running `dotagents start`: its port, token and pid, for the dotagents sidebar to find it. Only the
 // user reads it (the token opens the API), and the server takes it away when it stops, unless
 // another server has written its own since.
 export type ServerAddress = { port: number; token: string; pid: number };
