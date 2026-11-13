@@ -5,6 +5,7 @@
   "version": "3.0.0",
   "publisher": "gabrieldulolmarques",
   "license": "MIT",
+  "icon": "media/icon.png",
   "repository": { "type": "git", "url": "https://github.com/dotagents-org/dotagents-config.git" },
   "categories": ["Other"],
   "scripts": {
