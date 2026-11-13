@@ -57,12 +57,31 @@ test("the API answers only with the token, and the page and the API only to the 
   assert.equal((await get(port, "/../package.json")).status, 404);
 });
 
+test("every answer carries the API version, and a read that fails answers its error instead of stopping the server", async (t) => {
+  let broken = true;
+  const server = await startServer({
+    port: 0,
+    read: () => {
+      if (broken) throw new Error("profiles.json is not valid JSON");
+      return { profiles: [] };
+    },
+    token: "secret",
+  });
+  t.after(() => server.close());
+  const failed = await get(server.port, "/api/usage", { "x-dotagents-token": "secret" });
+  assert.equal(failed.status, 200);
+  assert.deepEqual(JSON.parse(failed.body), { apiVersion: 1, error: "profiles.json is not valid JSON" });
+  broken = false;
+  const ok = await get(server.port, "/api/usage", { "x-dotagents-token": "secret" });
+  assert.deepEqual(JSON.parse(ok.body), { apiVersion: 1, profiles: [] });
+});
+
 test("the event stream sends the usage at once, with the token in the query (EventSource sends no headers)", async (t) => {
   const server = await startServer({ port: 0, read: () => ({ version: 1, profiles: [] }), token: "secret", pollMs: 50 });
   t.after(() => server.close());
   assert.equal((await get(server.port, "/api/events")).status, 401);
   const event = await firstEvent(server.port, "/api/events?token=secret");
-  assert.match(event, /event: usage\ndata: \{"version":1,"profiles":\[\]\}/);
+  assert.match(event, /event: usage\ndata: \{"apiVersion":1,"version":1,"profiles":\[\]\}/);
 });
 
 // The tray panel's actions: POST only, with the token in the header (never the URL), JSON in, and
@@ -103,7 +122,7 @@ test("an action runs only by POST, with the token in the header and a JSON body,
   assert.deepEqual(calls, [], "nothing ran yet");
   const ok = await post(port, "/api/switch", body, json);
   assert.equal(ok.status, 200);
-  assert.deepEqual(JSON.parse(ok.body), { ok: true });
+  assert.deepEqual(JSON.parse(ok.body), { apiVersion: 1, ok: true });
   assert.deepEqual(calls, [{ profile: "work" }]);
 });
 

@@ -209,6 +209,20 @@ export function readServer(): ServerAddress | null {
   }
 }
 
+// The server start.json names, when it answers with its token: a pid can be reused and a file can
+// outlive its server (a WSL shutdown), so only an answer counts. Null when there is none.
+export async function liveServer(timeoutMs = 1500): Promise<ServerAddress | null> {
+  const address = readServer();
+  if (!address) return null;
+  try {
+    const res = await fetch(`http://127.0.0.1:${address.port}/api/usage`, { headers: { "x-dotagents-token": address.token }, signal: AbortSignal.timeout(timeoutMs) });
+    await res.body?.cancel();
+    return res.ok ? address : null;
+  } catch {
+    return null;
+  }
+}
+
 export function forgetServer() {
   if (readServer()?.pid === process.pid) fs.rmSync(serverFile(), { force: true });
 }
