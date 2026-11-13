@@ -11,10 +11,13 @@ No administrator rights are needed on Windows: folders are linked with junctions
 
 ## Installation
 
-Once per machine. WSL counts as a separate machine: it has its own home folder, its own Node and its own copies of the tools, so it needs its own clone and its own `dotagents install`.
+First, your configuration: copy [`templates/config/`](../templates/config/) into a repository of your own named `dotagents-config` and make it yours, starting with `global/instructions.md` ([Global configuration](global-configuration.md)).
+
+Then, once per machine, clone both into a `dotagents/` folder. WSL counts as a separate machine: it has its own home folder, its own Node and its own copies of the tools, so it needs its own clones and its own `dotagents install`.
 
 ```bash
-git clone git@github.com:<you>/dotagents-core.git dotagents/dotagents-core
+git clone git@github.com:<you>/dotagents-config.git dotagents/dotagents-config
+git clone git@github.com:dotagents-org/dotagents-core.git dotagents/dotagents-core
 cd dotagents/dotagents-core
 npm install            # the dependencies
 npm link               # creates the `dotagents` command, pointing to this clone
@@ -53,4 +56,24 @@ dotagents update --all
 
 Run Claude Code from the workspace root, where `AGENTS.md` and `.agents/` are.
 
-Next: [Commands](commands.md) for every option, or [Workspaces](workspaces.md) for what a workspace holds.
+## Several Claude accounts
+
+One profile per claude.ai account. Sign in once per account, and save each login in its profile's vault:
+
+```bash
+dotagents profile add work            # one profile per account
+claude auth login                     # sign in with that account
+dotagents switch --save work          # keeps the login in work's vault, once on each side
+dotagents switch personal             # later: puts another account in ~/.claude, on both sides
+dotagents usage --refresh             # every account's usage, asked of Anthropic
+```
+
+On Windows with WSL, each side has its own slot; `switch` changes both, `--here` only this one. Details in [Commands](commands.md#dotagents-profile-add).
+
+## In VS Code (strongly recommended)
+
+dotagents works on its own, from the terminal, and nothing in it needs VS Code. Still, if you use VS Code, install the [dotagents sidebar](https://github.com/dotagents-org/dotagents-sidebar): it is where dotagents is most useful day to day. Claude Code runs in the secondary sidebar, in sessions that survive a window reload, and your accounts sit beside it: every account's usage and state at a glance, the current one in the status bar, and the switch a click away. It reads `dotagents start` on its own, starting it when needed.
+
+Install its `.vsix` from the [latest release](https://github.com/dotagents-org/dotagents-sidebar/releases/latest) (in a WSL window, while connected), reload the window, and open **dotagents: Sidebar** in the secondary sidebar.
+
+Next: [Commands](commands.md) for every option, [Workspaces](workspaces.md) for what a workspace holds, or the [dotagents sidebar's docs](https://github.com/dotagents-org/dotagents-sidebar/tree/main/docs) for VS Code.
