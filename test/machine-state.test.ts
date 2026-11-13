@@ -103,6 +103,27 @@ test("the accounts.json of earlier versions is read as the profiles, and moved o
   assert.deepEqual(loadProfiles().map((p) => p.name), ["old", "personal"]);
 });
 
+// The contract in docs/profiles-file.md: what is written, and what another tool's file must be.
+test("the profiles file is written and read in the documented format", (t) => {
+  const dir = tempStateDir(t);
+  quiet();
+  saveProfile({ name: "work", configDir: "/home/me/.claude", color: "#D77655", default: true });
+  saveProfile({ name: "personal", configDir: "/home/me/.claude", color: "#376B80" });
+  const written = {
+    version: 1,
+    profiles: [
+      { name: "work", configDir: "/home/me/.claude", color: "#D77655", default: true },
+      { name: "personal", configDir: "/home/me/.claude", color: "#376B80" },
+    ],
+  };
+  assert.equal(fs.readFileSync(profilesFile(), "utf8"), `${JSON.stringify(written, null, 2)}\n`);
+  // Another tool's file: fields it adds are ignored, and a newer format is refused.
+  fs.writeFileSync(path.join(dir, "profiles.json"), JSON.stringify({ version: 1, profiles: [{ name: "work", configDir: "/home/me/.claude", color: "#D77655", avatar: "hexagon" }] }));
+  assert.deepEqual(loadProfiles().map((p) => [p.name, p.configDir, p.color, Boolean(p.default)]), [["work", "/home/me/.claude", "#D77655", false]]);
+  fs.writeFileSync(path.join(dir, "profiles.json"), JSON.stringify({ version: 2, profiles: [] }));
+  assert.throws(() => loadProfiles(), /newer dotagents/);
+});
+
 test("a profiles file with a bad entry stops the command", (t) => {
   const dir = tempStateDir(t);
   quiet();
