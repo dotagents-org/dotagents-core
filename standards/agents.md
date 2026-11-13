@@ -99,7 +99,7 @@ Settings and MCP are in Claude Code's own format, so they go straight into its f
 
 **Where a setting goes.** Three files, from the widest to the narrowest:
 
-- **Global**, `config/claude/settings.json` in dotagents (`~/.claude/settings.json`): only what
+- **Global**, `claude/settings.json` in the dotagents configuration (`~/.claude/settings.json`): only what
   holds in every project, such as the theme, the effort per model or the update channel.
   Nothing that names a project, a path or a sensitive file: the dotagents repository can be
   public.
@@ -126,7 +126,7 @@ machine goes in the tool's local scope, not in the project file.
 ├── AGENTS.md                    core (writing rules in the .artifacts/ standard)
 ├── .agents/
 │   ├── rules/<topic>.md         only this project's rules
-│   ├── skills/<name>            link to dotagents/config/skills/<name>, or a project skill
+│   ├── skills/<name>            link to a skill of dotagents or of its configuration, or a project skill
 │   ├── agents/<name>.md         only once there is a first subagent
 │   └── hooks/<script>           only once there is a first hook
 ├── .claude/
@@ -146,7 +146,8 @@ subagents in 4.6%. A mechanism nobody uses is only maintenance.
 
 ## `skills/`
 
-- **Reusable skills live in the `dotagents` repository**, in `config/skills/<name>/`, and enter a
+- **Reusable skills live in dotagents** (`skills/<name>/` in dotagents-core, or in the
+  configuration's `skills/<name>/`) and enter a
   workspace as a `.agents/skills/<name>` link: `dotagents init <workspace> --skills <name>`. Each
   workspace links only the ones it uses. Editing through the link edits the repository;
   commit there.
@@ -189,7 +190,7 @@ subagents in 4.6%. A mechanism nobody uses is only maintenance.
 split by topic, that extend the context file.
 
 - **A rule that applies everywhere does not go here.** It lives in the `dotagents`
-  repository's `config/rules/` and is global: `dotagents install` links `~/.claude/rules` to it. Example: the commit convention.
+  configuration's `rules/` and is global: `dotagents install` links `~/.claude/rules` to it. Example: the commit convention.
   `.agents/rules/` only holds what is specific to this project.
 - One topic per file, in kebab-case.
 - Claude Code loads every file in this folder in every session, the same way it loads

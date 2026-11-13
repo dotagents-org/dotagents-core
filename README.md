@@ -31,7 +31,7 @@
 </p>
 
 > [!NOTE]
-> **This is my personal configuration project.** Many things here are shaped to the way I work: the global instructions, the rules, the skills, the two accounts (`turing` and `lovelace`), Windows with WSL. Everything that is mine lives in [`config/`](config/); the rest is the tool. If it is useful to you, feel free to use it, fork it, give feedback, contribute, and set it up your own way.
+> **This is my personal configuration project.** Many things here are shaped to the way I work: the global instructions, the rules, the skills, the two accounts (`turing` and `lovelace`), Windows with WSL. Everything that is mine lives in a private repository of its own, `dotagents-config`; this one is the tool, with a generic starting point in [`templates/config/`](templates/config/). If it is useful to you, feel free to use it, fork it, give feedback, contribute, and set it up your own way.
 
 Claude Code reads its configuration from `~/.claude/` on each machine and from `.claude/`, `CLAUDE.md` or `AGENTS.md` in each project. Use it across a few projects and two machines, and the copies drift apart: the same skill copied into several projects, an instruction fixed on one machine and forgotten on the other, project files leaking into the repository's git. Hold more than one Claude seat and it gets worse: one login per machine at a time, and no single place that says how much of each plan is left.
 
@@ -48,9 +48,9 @@ dotagents keeps all of it in one git repository, yours, and a single command wri
 
 **Configuration**
 
-- **One source of truth.** Global instructions, rules, settings and skills are written once, in `config/`, and reach every machine and workspace.
+- **One source of truth.** Global instructions, rules, settings and skills are written once, in your configuration, and reach every machine and workspace.
 - **Machine setup in one command.** `dotagents install` writes the global configuration where Claude Code looks for it, on Windows, Linux (WSL included) and macOS.
-- **Your configuration, wherever you keep it.** `config/` in your fork, or any folder of your own through `DOTAGENTS_CONFIG`, such as a private repository.
+- **Your configuration, in a repository of its own.** `dotagents-config` next to the clone, `config/` inside a fork, or any folder through `DOTAGENTS_CONFIG`.
 
 **Workspaces**
 
@@ -71,18 +71,18 @@ dotagents keeps all of it in one git repository, yours, and a single command wri
 
 ## How it works
 
-Your dotagents clone is the source. `install` applies `config/` to every Claude profile on the machine; `new` and `init` apply the standards to a workspace.
+Your configuration is the source. `install` applies it to every Claude profile on the machine; `new` and `init` apply the standards to a workspace.
 
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="assets/readme/how-it-works-dark.svg">
-    <img alt="Your clone's config/ goes to ~/.claude with dotagents install; the standards and templates go to a workspace with dotagents new or init" src="assets/readme/how-it-works-light.svg" width="760">
+    <img alt="Your configuration goes to ~/.claude with dotagents install; the standards and templates go to a workspace with dotagents new or init" src="assets/readme/how-it-works-light.svg" width="760">
   </picture>
 </p>
 
 ### Inside a workspace
 
-Claude Code reads the skills through `.claude/skills`. Your own skills are links back to `config/skills/` in the clone; third-party ones are installed copies, pinned in `skills-lock.json`.
+Claude Code reads the skills through `.claude/skills`. Own skills are links back to their folder (the ones dotagents brings in its `skills/`, yours in the configuration's `skills/`); third-party ones are installed copies, pinned in `skills-lock.json`.
 
 <p align="center">
   <picture>
@@ -144,10 +144,11 @@ The command runs from your clone, so an edit there is live at once on that machi
 
 ## Quick start
 
-You need Node.js 22.18+ and git. Fork this repository (or copy it to your own GitHub account), make `config/` yours (start with `config/global/instructions.md` and `config/global/env/`), then, once per machine:
+You need Node.js 22.18+ and git. Copy [`templates/config/`](templates/config/) into a repository of your own named `dotagents-config` and make it yours (start with `global/instructions.md`), then, once per machine, clone both into a `dotagents/` folder:
 
 ```bash
-git clone git@github.com:<you>/dotagents-core.git dotagents/dotagents-core
+git clone git@github.com:<you>/dotagents-config.git dotagents/dotagents-config
+git clone git@github.com:dotagents-org/dotagents-core.git dotagents/dotagents-core
 cd dotagents/dotagents-core
 npm install && npm link # the `dotagents` command, pointing to this clone
 dotagents install # global instructions, rules and settings
@@ -185,12 +186,12 @@ The VS Code extension is built from [`surfaces/vscode/`](surfaces/vscode/) with 
 
 More in [Getting started](docs/getting-started.md), including WSL and npm without `sudo`. What changed in each version is in the [CHANGELOG](CHANGELOG.md).
 
-### Keeping your configuration elsewhere
+### Where the configuration lives
 
-The tool reads `config/` from the clone. To keep your configuration in a repository of its own, private or not, give it the same layout and point `DOTAGENTS_CONFIG` at it:
+The tool looks, in order, at the folder `DOTAGENTS_CONFIG` names, at `config/` inside the clone (a fork that keeps it there), and at `dotagents-config` next to the clone. Whichever it is has this layout:
 
 ```
-my-config/
+dotagents-config/
 ├── global/       instructions.md, env/<platform>.md
 ├── rules/        rules for every project
 ├── claude/       settings.json, global-config.json
@@ -225,7 +226,7 @@ Every command that changes something takes `--dry-run`.
 - [Commands](docs/commands.md): every command and option, output, exit codes; the panel and the VS Code extension.
 - [Workspaces](docs/workspaces.md): the layout, what `init` creates, what `check` verifies.
 - [Skills](docs/skills.md): own and third-party skills, writing one.
-- [Global configuration](docs/global-configuration.md): what `install` writes, and where; `config/` and `DOTAGENTS_CONFIG`.
+- [Global configuration](docs/global-configuration.md): what `install` writes, and where; where the configuration lives.
 - [Recipes](docs/recipes.md): common tasks, start to finish.
 - [Architecture and development](docs/architecture.md): modules, tests, CI.
 - [Troubleshooting and limits](docs/troubleshooting.md).

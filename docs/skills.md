@@ -6,8 +6,8 @@ Skills follow the [Agent Skills](https://agentskills.io/specification) format: a
 
 | | Own skills | Third-party skills |
 |---|---|---|
-| Live in | `config/skills/` in this repository | the author's repository |
-| Known through | the folder itself | `config/skills/third-party-skills.json` (`dotagents skills add`) |
+| Live in | `skills/` here (the ones dotagents uses) or your configuration's `skills/` | the author's repository |
+| Known through | the folder itself; yours wins over one here with the same name | your configuration's `skills/third-party-skills.json` (`dotagents skills add`) |
 | Put in a workspace by | `dotagents init --skills` | `dotagents init --skills`, which runs `npx skills add` |
 | In the workspace | a link to the clone | a folder in `.agents/skills/`, recorded in `skills-lock.json` |
 | Updated by | editing the clone (immediate) | `npx skills update`, or `dotagents update --all` |
@@ -62,7 +62,7 @@ A third-party skill that isn't in the catalog can still be installed by hand wit
 
 ## Writing a skill
 
-1. Create `config/skills/<name>/SKILL.md`. The folder name and the `name` field must match, in kebab-case.
+1. Create `skills/<name>/SKILL.md` in your configuration. The folder name and the `name` field must match, in kebab-case.
 2. Write a `description` that says what the skill does and when to use it: it is the only part every session loads.
 3. Keep `SKILL.md` under 500 lines. Details go to `references/`, code to `scripts/`.
 4. Validate it, then commit:
@@ -79,7 +79,7 @@ The full rules are in [standards/agents.md](../standards/agents.md#skills). A sk
 To change a third-party skill, make it yours:
 
 1. Run `npx skills remove <name>` at the workspace root.
-2. Copy the skill to `config/skills/<name>/` here, keeping its license.
+2. Copy the skill to your configuration's `skills/<name>/`, keeping its license.
 3. Run `dotagents skills remove <name>`.
 4. Run `dotagents init <workspace> --skills <name>`.
 

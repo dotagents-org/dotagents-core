@@ -11,6 +11,9 @@ import { GLOBAL_CONFIG_KEYS, installGlobal, pullSettings, verifyGlobal } from ".
 import { execFileSync } from "node:child_process";
 import { REPO, quiet } from "./helpers.ts";
 
+// Each test here builds a clone of its own, with config/ inside.
+delete process.env.DOTAGENTS_CONFIG;
+
 function tempHome(t: TestContext) {
   const home = fs.mkdtempSync(path.join(os.tmpdir(), "dotagents-home-"));
   const saved = { HOME: process.env.HOME, USERPROFILE: process.env.USERPROFILE, XDG_CONFIG_HOME: process.env.XDG_CONFIG_HOME };
@@ -72,7 +75,7 @@ test("install can target another config folder, for a second profile, and leaves
 function tempRepo(t: TestContext) {
   const repo = fs.mkdtempSync(path.join(os.tmpdir(), "dotagents-repo-"));
   t.after(() => fs.rmSync(repo, { recursive: true, force: true }));
-  for (const dir of ["global", "rules", "claude"]) fs.cpSync(path.join(REPO, "config", dir), path.join(repo, "config", dir), { recursive: true });
+  for (const dir of ["global", "rules", "claude"]) fs.cpSync(path.join(REPO, "templates", "config", dir), path.join(repo, "config", dir), { recursive: true });
   const git = (...args: string[]) => execFileSync("git", ["-C", repo, ...args], { stdio: "ignore" });
   git("init", "-q");
   git("-c", "user.name=t", "-c", "user.email=t@example.com", "add", "-A");
@@ -176,9 +179,15 @@ test("the checklist warns about settings changed in the repository and not commi
   assert.ok(checks.some((e) => e.kind === "warning" && /not committed/.test(e.text)));
 });
 
-test("the configuration is config/ in the repository, or the folder DOTAGENTS_CONFIG names", (t) => {
-  t.after(() => delete process.env.DOTAGENTS_CONFIG);
-  assert.equal(configRoot("/repo"), path.join("/repo", "config"));
+test("the configuration is the folder DOTAGENTS_CONFIG names, else config/ in the clone, else dotagents-config beside it", (t) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "dotagents-root-"));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const repo = path.join(root, "dotagents-core");
+  fs.mkdirSync(repo);
+  assert.equal(configRoot(repo), path.join(root, "dotagents-config"));
+  fs.mkdirSync(path.join(repo, "config"));
+  assert.equal(configRoot(repo), path.join(repo, "config"));
   process.env.DOTAGENTS_CONFIG = "/mine";
-  assert.equal(configRoot("/repo"), path.resolve("/mine"));
+  t.after(() => delete process.env.DOTAGENTS_CONFIG);
+  assert.equal(configRoot(repo), path.resolve("/mine"));
 });

@@ -2,9 +2,9 @@ name: Test scripts
 
 on:
   push:
-    paths: ["cli.ts", "core/**", "surfaces/**", "tsconfig.json", "package.json", "package-lock.json", "test/**", "templates/**", "config/**", ".github/workflows/test-scripts.yml"]
+    paths: ["cli.ts", "core/**", "surfaces/**", "tsconfig.json", "package.json", "package-lock.json", "test/**", "templates/**", "skills/**", ".github/workflows/test-scripts.yml"]
   pull_request:
-    paths: ["cli.ts", "core/**", "surfaces/**", "tsconfig.json", "package.json", "package-lock.json", "test/**", "templates/**", "config/**", ".github/workflows/test-scripts.yml"]
+    paths: ["cli.ts", "core/**", "surfaces/**", "tsconfig.json", "package.json", "package-lock.json", "test/**", "templates/**", "skills/**", ".github/workflows/test-scripts.yml"]
 
 jobs:
   test:
@@ -25,6 +25,7 @@ jobs:
       - name: npm install + npm link make the dotagents command
         run: |
           echo "DOTAGENTS_STATE_DIR=$RUNNER_TEMP/agents-state" >> "$GITHUB_ENV"
+          echo "DOTAGENTS_CONFIG=$GITHUB_WORKSPACE/templates/config" >> "$GITHUB_ENV" # the example configuration
           npm install
           npm test
           npm link
@@ -66,11 +67,11 @@ jobs:
         run: |
           ws="$RUNNER_TEMP/ws"
           mkdir -p "$ws"
-          dotagents init "$ws" --skills obsidian-docs,session-archive
-          dotagents init "$ws" --skills obsidian-docs,session-archive | tee second.txt
+          dotagents init "$ws" --skills move-sessions,session-archive
+          dotagents init "$ws" --skills move-sessions,session-archive | tee second.txt
           ! grep -E '^(created|updated|skipped|failed)' second.txt
           dotagents check "$ws"
-          test -f "$ws/.agents/skills/obsidian-docs/SKILL.md"
+          test -f "$ws/.agents/skills/move-sessions/SKILL.md"
           test -d "$ws/.artifacts/plans"
           grep -F '"plansDirectory": ".artifacts/plans"' "$ws/.claude/settings.json"
           dotagents workspaces | grep -F "ws"
@@ -101,7 +102,7 @@ jobs:
         run: |
           repo="$RUNNER_TEMP/project"
           mkdir -p "$repo" && cd "$repo" && git init -q
-          dotagents init "$repo" --skills to-cards
+          dotagents init "$repo" --skills move-sessions
           test -z "$(git status --porcelain)"
           dotagents check "$repo"
           git add -f AGENTS.md   # simulates an agent file committed by mistake
@@ -111,7 +112,7 @@ jobs:
         run: |
           cd "$RUNNER_TEMP"
           git init -q --bare app.git && git init -q --bare api.git
-          dotagents new "$RUNNER_TEMP/app.git" --skills to-cards
+          dotagents new "$RUNNER_TEMP/app.git" --skills move-sessions
           test -d app-workspace/app/.git && test -f app-workspace/AGENTS.md
           test -z "$(git -C app-workspace/app status --porcelain)"
           dotagents new "$RUNNER_TEMP/api.git" app-workspace --yes
@@ -122,10 +123,10 @@ jobs:
       - name: third-party skills registered once are offered by init
         run: |
           dotagents skills add blader/humanizer
-          grep -F '"humanizer"' config/skills/third-party-skills.json
+          grep -F '"humanizer"' templates/config/skills/third-party-skills.json
           ws="$RUNNER_TEMP/tp"
           mkdir -p "$ws"
-          dotagents init "$ws" --skills to-cards,humanizer
+          dotagents init "$ws" --skills move-sessions,humanizer
           test -f "$ws/.agents/skills/humanizer/SKILL.md"
           grep -F humanizer "$ws/skills-lock.json"
           dotagents check "$ws"

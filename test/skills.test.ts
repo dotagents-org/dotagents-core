@@ -9,6 +9,9 @@ import { addedByCalls, applySkills, listSkills, resolveSkills, skillsIn, verifyS
 import { catalogFile, findRequires, parseSkill } from "../core/thirdparty.ts";
 import { REPO, fakeInstaller, fakeThirdParty, quiet, tempWorkspace } from "./helpers.ts";
 
+// Each test here builds a clone of its own, with config/ inside.
+delete process.env.DOTAGENTS_CONFIG;
+
 test("own skills and registered third-party skills come from one list", () => {
   const all = listSkills(REPO);
   const toCards = all.find((s) => s.name === "to-cards")!;
@@ -127,6 +130,10 @@ test("DOTAGENTS_CONFIG points the configuration at a folder of your own", (t) =>
   fs.writeFileSync(path.join(mine, "skills", "third-party-skills.json"), JSON.stringify({ skills: [] }));
   process.env.DOTAGENTS_CONFIG = mine;
   t.after(() => delete process.env.DOTAGENTS_CONFIG);
-  assert.deepEqual(listSkills(REPO).map((s) => s.name), ["mine-only"]);
+  // The skills dotagents brings come along; one of yours with the same name takes its place.
+  assert.deepEqual(listSkills(REPO).map((s) => s.name), ["mine-only", "move-sessions", "session-archive"]);
+  assert.equal(listSkills(REPO).find((s) => s.name === "session-archive")?.source, path.join(REPO, "skills", "session-archive"));
+  writeSkill(path.join(mine, "skills"), "session-archive", "My own take.");
+  assert.equal(listSkills(REPO).find((s) => s.name === "session-archive")?.source, path.join(mine, "skills", "session-archive"));
   assert.equal(catalogFile(REPO), path.join(mine, "skills", "third-party-skills.json"));
 });

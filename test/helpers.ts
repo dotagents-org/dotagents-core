@@ -8,8 +8,11 @@ import { resetState } from "../core/state.ts";
 import type { Skill } from "../core/skills.ts";
 import type { Installer } from "../core/thirdparty.ts";
 
-// The real repository: templates and own skills come from it.
+// The real repository: templates and the skills dotagents brings come from it.
 export const REPO = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+
+// The tests read the example configuration, never the one installed next to the clone.
+process.env.DOTAGENTS_CONFIG = path.join(REPO, "templates", "config");
 
 export function tempWorkspace(t: TestContext, name = "ws") {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "dotagents-test-"));

@@ -1,9 +1,10 @@
-// The skills module: your skills (config/skills/) and the registered third-party ones
-// (config/skills/third-party-skills.json) behind one interface. Callers ask what exists, what a workspace has,
+// The skills module: own skills (the ones dotagents brings, in skills/, and yours, in the
+// configuration's skills/, which wins on a shared name) and the registered third-party ones
+// (the configuration's skills/third-party-skills.json) behind one interface. Callers ask what exists, what a workspace has,
 // and to apply or verify a set of skills; they never need to know where a skill comes from.
 //
 // In a workspace both kinds live in .agents/skills/:
-// - own skills are links to config/skills/<name>;
+// - own skills are links to their folder (skills/<name> here, or the configuration's);
 // - third-party skills are folders installed by an installer adapter (npx skills add by
 //   default), recorded in skills-lock.json.
 
@@ -21,16 +22,20 @@ export type Skill = { name: string; kind: "own" | "third-party"; source: string;
 // Every skill this repository knows: [{ name, kind: "own" | "third-party", source, description, requires }].
 // An own skill's calls are read from its folder; a third-party one's, from the catalog.
 export function listSkills(repo: string): Skill[] {
-  const dir = path.join(configRoot(repo), "skills");
   const catalog = loadCatalog(repo);
-  const ownNames = fs.readdirSync(dir).filter((name) => fs.existsSync(path.join(dir, name, "SKILL.md")));
+  const folders = new Map<string, string>();
+  for (const dir of [path.join(repo, "skills"), path.join(configRoot(repo), "skills")]) {
+    if (!fs.existsSync(dir)) continue;
+    for (const name of fs.readdirSync(dir)) if (fs.existsSync(path.join(dir, name, "SKILL.md"))) folders.set(name, path.join(dir, name));
+  }
+  const ownNames = [...folders.keys()].sort();
   const known = [...ownNames, ...catalog.map((s) => s.name)];
   const own = ownNames.map((name): Skill => ({
     name,
     kind: "own",
-    source: path.join(dir, name),
-    description: parseSkill(fs.readFileSync(path.join(dir, name, "SKILL.md"), "utf8")).description,
-    requires: findRequires(path.join(dir, name), known, name),
+    source: folders.get(name)!,
+    description: parseSkill(fs.readFileSync(path.join(folders.get(name)!, "SKILL.md"), "utf8")).description,
+    requires: findRequires(folders.get(name)!, known, name),
   }));
   const thirdParty = catalog
     .filter((s) => !ownNames.includes(s.name))
