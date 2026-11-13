@@ -55,7 +55,10 @@ function readStateFile(file: string, version: number): Record<string, unknown> |
 function writeStateFile(file: string, version: number, body: Record<string, unknown>) {
   if (state.dryRun) return;
   fs.mkdirSync(path.dirname(file), { recursive: true });
-  fs.writeFileSync(file, `${JSON.stringify({ version, ...body }, null, 2)}\n`);
+  // Whole or not at all: a reader (the server, the other side) never sees half a file.
+  const tmp = `${file}.${process.pid}`;
+  fs.writeFileSync(tmp, `${JSON.stringify({ version, ...body }, null, 2)}\n`);
+  fs.renameSync(tmp, file);
 }
 
 export type Profile = { name: string; configDir: string; color: string; default?: boolean };
