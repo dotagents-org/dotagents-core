@@ -149,9 +149,11 @@ export type PeerSwitch = (name: string) => { ok: boolean; detail: string } | nul
 export const peerSwitch: PeerSwitch = (name) => {
   const peer = loadMachine().peer;
   if (!peer) return null;
+  // -i too: a login shell alone skips ~/.bashrc, where nvm puts its Node on the PATH, and the
+  // distro's own Node may be too old to run dotagents
   const run =
     process.platform === "win32"
-      ? spawnSync("wsl.exe", ["-e", "bash", "-lc", `dotagents switch ${name} --here`], { encoding: "utf8", timeout: 60_000, windowsHide: true })
+      ? spawnSync("wsl.exe", ["-e", "bash", "-lic", `dotagents switch ${name} --here`], { encoding: "utf8", timeout: 60_000, windowsHide: true })
       : spawnSync("powershell.exe", ["-NoProfile", "-Command", `dotagents switch ${name} --here`], { encoding: "utf8", timeout: 60_000, cwd: "/mnt/c" });
   if (run.status === 0) return { ok: true, detail: `${peer.name}: ${name}` };
   return { ok: false, detail: `${peer.name}: ${peerFailure(`${run.stdout ?? ""}${run.stderr ?? ""}`) || run.error?.message || `exit ${run.status}`}` };

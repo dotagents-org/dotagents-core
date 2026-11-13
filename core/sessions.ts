@@ -185,9 +185,10 @@ function summary(file: string) {
 // command there, so it goes through this adapter; the tests pass a fake one.
 export type PeerRunning = (peer: Peer) => Set<string> | null;
 
+// From Windows, bash -lic as in switch.ts: an interactive shell reads ~/.bashrc, where nvm sets Node
 export const peerRunning: PeerRunning = () => {
   const run = isWindows
-    ? spawnSync("wsl.exe", ["-e", "bash", "-lc", "dotagents sessions --running"], { encoding: "utf8", timeout: 30_000, windowsHide: true })
+    ? spawnSync("wsl.exe", ["-e", "bash", "-lic", "dotagents sessions --running"], { encoding: "utf8", timeout: 30_000, windowsHide: true })
     : spawnSync("powershell.exe", ["-NoProfile", "-Command", "dotagents sessions --running"], { encoding: "utf8", timeout: 30_000, cwd: "/mnt/c" });
   if (run.status !== 0) return null;
   return new Set((run.stdout ?? "").split(/\r?\n/).map((l) => l.trim()).filter((l) => /^[0-9a-f-]{36}$/i.test(l)));
@@ -198,7 +199,7 @@ export const peerRunning: PeerRunning = () => {
 export const peerRunningLater = (): Promise<Set<string> | null> =>
   new Promise((resolve) => {
     const [command, args, cwd] = isWindows
-      ? ["wsl.exe", ["-e", "bash", "-lc", "dotagents sessions --running"], undefined]
+      ? ["wsl.exe", ["-e", "bash", "-lic", "dotagents sessions --running"], undefined]
       : ["powershell.exe", ["-NoProfile", "-Command", "dotagents sessions --running"], "/mnt/c"];
     execFile(command, args, { encoding: "utf8", timeout: 30_000, windowsHide: true, cwd }, (err, stdout) => {
       resolve(err ? null : new Set(stdout.split(/\r?\n/).map((l) => l.trim()).filter((l) => /^[0-9a-f-]{36}$/i.test(l))));
