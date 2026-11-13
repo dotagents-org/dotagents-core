@@ -9,7 +9,7 @@ import path from "node:path";
 import { test, type TestContext } from "node:test";
 import { REPO } from "./helpers.ts";
 
-const SCRIPT = path.join(REPO, "config", "skills", "move-sessions", "scripts", "move-sessions.mjs");
+const SCRIPT = path.join(REPO, "skills", "move-sessions", "scripts", "move-sessions.mjs");
 const isWindows = process.platform === "win32";
 const projectName = (dir: string) => dir.replace(/[^a-zA-Z0-9]/g, "-");
 const gitBash = (dir: string) => `/${dir[0].toLowerCase()}${dir.slice(2).replace(/\\/g, "/")}`;

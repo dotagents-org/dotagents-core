@@ -2,9 +2,9 @@ name: Validate skills
 
 on:
   push:
-    paths: ["config/skills/**", ".github/workflows/validate.yml"]
+    paths: ["skills/**", ".github/workflows/validate.yml"]
   pull_request:
-    paths: ["config/skills/**", ".github/workflows/validate.yml"]
+    paths: ["skills/**", ".github/workflows/validate.yml"]
 
 jobs:
   validate:
@@ -19,7 +19,7 @@ jobs:
       - name: Validate each skill
         run: |
           status=0
-          for dir in config/skills/*/; do
+          for dir in skills/*/; do
             echo "::group::$dir"
             skills-ref validate "$dir" || status=1
             echo "::endgroup::"

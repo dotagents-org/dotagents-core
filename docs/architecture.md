@@ -3,18 +3,11 @@
 ## Repository layout
 
 ```
-dotagents/
-├── config/                    the configuration, yours (DOTAGENTS_CONFIG can point elsewhere)
-│   ├── global/
-│   │   ├── instructions.md    global instructions ({{AGENTS_CONFIG}} is filled in by install)
-│   │   └── env/               machine notes appended per platform (win32.md, linux.md, darwin.md)
-│   ├── rules/                 global rules
-│   ├── claude/                settings.json → ~/.claude/settings.json; global-config.json → ~/.claude.json
-│   ├── skills/                own skills
-│   │   └── third-party-skills.json  catalog of third-party skills
-│   └── assets/                the profile icons: claude-<name>.svg, the source, and the .ico the Start menu shortcuts use
+dotagents-core/
+├── skills/                    the skills dotagents itself uses: session-archive (its parser serves `sessions`), move-sessions
 ├── standards/                 the .agents/ and .artifacts/ standards
 ├── templates/workspace/       AGENTS.md and INDEX.md for new workspaces
+├── templates/config/          a generic configuration: the tests and the CI run against it, and it is where a new one starts
 ├── assets/                    the logo, the avatars and the README's pictures
 ├── docs/                      this documentation
 ├── cli.ts                     the dotagents command: reads the arguments, picks the command, prints the help
@@ -27,6 +20,8 @@ dotagents/
 ├── .github/workflows/         CI: skill validation and command tests on three systems
 └── package.json
 ```
+
+The configuration (global instructions, rules, settings, own skills, profile icons) is not here: it lives in its own repository, `dotagents-config`, next to the clone ([Global configuration](global-configuration.md)).
 
 ## Modules
 
@@ -114,13 +109,13 @@ node cli.ts --help      # run without npm link
 
 **CI** runs on every push that touches the code:
 
-- **Validate skills:** runs [skills-ref](https://github.com/agentskills/agentskills/tree/main/skills-ref) on every skill in `config/skills/`.
+- **Validate skills:** runs [skills-ref](https://github.com/agentskills/agentskills/tree/main/skills-ref) on every skill in `skills/`.
 - **Test scripts:** on Linux, Windows and macOS, it:
   - runs `npm test` and links the command;
   - runs every command end to end, including real `npx skills` installations and `new` with local repositories;
   - checks that a second run changes nothing.
 
-**Commits** follow [the commit convention](../config/rules/commit-conventions.md): gitmoji plus Conventional Commits, one line in English, no co-author trailer.
+**Commits** follow the commit convention: gitmoji plus Conventional Commits, one line in English, no co-author trailer.
 
 **The brand and the README's captures:**
 

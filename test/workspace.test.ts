@@ -16,13 +16,13 @@ const read = (...parts: string[]) => fs.readFileSync(path.join(...parts), "utf8"
 test("an empty folder becomes a workspace that passes the checklist", async (t) => {
   const ws = tempWorkspace(t, "app-workspace");
   quiet();
-  await applyWorkspace(REPO, ws, resolveSkills(REPO, ["to-cards"]));
+  await applyWorkspace(REPO, ws, resolveSkills(REPO, ["move-sessions"]));
   assert.equal(state.problems, 0);
 
   assert.match(read(ws, "AGENTS.md"), /^# app\n/);
   assert.ok(!fs.existsSync(path.join(ws, "CLAUDE.md"))); // Claude Code reads AGENTS.md directly
   assert.equal(JSON.parse(read(ws, ".claude", "settings.json")).plansDirectory, ".artifacts/plans");
-  assert.ok(fs.lstatSync(path.join(ws, ".agents", "skills", "to-cards")).isSymbolicLink());
+  assert.ok(fs.lstatSync(path.join(ws, ".agents", "skills", "move-sessions")).isSymbolicLink());
   assert.ok(fs.existsSync(path.join(ws, ".artifacts", "session-archives")));
   assert.ok(fs.existsSync(path.join(ws, ".artifacts", "plans")));
   assert.match(read(ws, ".artifacts", "INDEX.md"), /\[AGENTS\.md\]\(\.\.\/AGENTS\.md\)/);
@@ -50,9 +50,9 @@ test("a CLAUDE.md that imports AGENTS.md in the middle of a sentence passes with
 test("applying twice changes nothing the second time", async (t) => {
   const ws = tempWorkspace(t);
   quiet();
-  await applyWorkspace(REPO, ws, resolveSkills(REPO, ["to-cards"]));
+  await applyWorkspace(REPO, ws, resolveSkills(REPO, ["move-sessions"]));
   quiet();
-  await applyWorkspace(REPO, ws, resolveSkills(REPO, ["to-cards"]));
+  await applyWorkspace(REPO, ws, resolveSkills(REPO, ["move-sessions"]));
   assert.equal(state.counts.created, undefined);
   assert.equal(state.counts.updated, undefined);
   assert.ok((state.counts.ok ?? 0) > 0);
@@ -61,7 +61,7 @@ test("applying twice changes nothing the second time", async (t) => {
 test("a dry run leaves the folder untouched", async (t) => {
   const ws = tempWorkspace(t);
   quiet({ dryRun: true });
-  await applyWorkspace(REPO, ws, resolveSkills(REPO, ["to-cards"]));
+  await applyWorkspace(REPO, ws, resolveSkills(REPO, ["move-sessions"]));
   assert.deepEqual(fs.readdirSync(ws), []);
   assert.ok((state.counts["would create"] ?? 0) > 0);
 });
@@ -87,10 +87,10 @@ test("your own AGENTS.md is never overwritten", async (t) => {
 test("a copied skill instead of a link fails the checklist", async (t) => {
   const ws = tempWorkspace(t);
   quiet();
-  await applyWorkspace(REPO, ws, resolveSkills(REPO, ["to-cards"]));
-  const link = path.join(ws, ".agents", "skills", "to-cards");
+  await applyWorkspace(REPO, ws, resolveSkills(REPO, ["move-sessions"]));
+  const link = path.join(ws, ".agents", "skills", "move-sessions");
   fs.rmSync(link, { recursive: false, force: true });
-  fs.cpSync(path.join(REPO, "config", "skills", "to-cards"), link, { recursive: true });
+  fs.cpSync(path.join(REPO, "skills", "move-sessions"), link, { recursive: true });
 
   quiet();
   verifyWorkspace(REPO, ws);
@@ -124,7 +124,7 @@ test("when the workspace is a git repository, the agent files stay out of it", a
   const ws = tempWorkspace(t);
   git(ws, "init", "-q");
   quiet();
-  await applyWorkspace(REPO, ws, resolveSkills(REPO, ["to-cards"]));
+  await applyWorkspace(REPO, ws, resolveSkills(REPO, ["move-sessions"]));
   assert.equal(git(ws, "status", "--porcelain").stdout, "");
 
   quiet();
@@ -141,7 +141,7 @@ async function initializedRepo(t: TestContext, name = "app") {
   git(dir, "add", "main.py");
   git(dir, "-c", "user.name=t", "-c", "user.email=t@t", "-c", "commit.gpgsign=false", "commit", "-q", "-m", "init");
   quiet();
-  await applyWorkspace(REPO, dir, resolveSkills(REPO, ["to-cards"]));
+  await applyWorkspace(REPO, dir, resolveSkills(REPO, ["move-sessions"]));
   return dir;
 }
 
@@ -156,13 +156,13 @@ test("wrapping a repository moves it into <name>-workspace with the agent files 
   assert.equal(read(moved, "main.py"), "print('hi')\n");
   assert.equal(git(moved, "status", "--porcelain").stdout, "");
   assert.ok(!fs.existsSync(path.join(moved, "AGENTS.md")));
-  assert.ok(fs.lstatSync(path.join(ws, ".agents", "skills", "to-cards")).isSymbolicLink());
+  assert.ok(fs.lstatSync(path.join(ws, ".agents", "skills", "move-sessions")).isSymbolicLink());
   assert.ok(fs.existsSync(path.join(ws, ".artifacts", "INDEX.md")));
   assert.doesNotMatch(read(moved, ".git", "info", "exclude"), /dotagents/);
   assert.match(read(ws, "AGENTS.md"), /- `app\/`/);
 
   quiet();
-  await applyWorkspace(REPO, ws, resolveSkills(REPO, ["to-cards"]));
+  await applyWorkspace(REPO, ws, resolveSkills(REPO, ["move-sessions"]));
   quiet();
   verifyWorkspace(REPO, ws);
   assert.equal(state.problems, 0);
