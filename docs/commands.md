@@ -212,7 +212,7 @@ While it runs it leaves its port, token and pid in `<state>/start.json`, readabl
 
 `surfaces/vscode/`, plain JavaScript (ADR 0012), shows the same panel. It runs on the side of the window, in WSL for a WSL window, and talks to that side's `dotagents start`, found through `start.json`; with none running, it starts one in the background.
 
-- **Status bar:** the current account and its usage (`personal 5h 79%  7d 38%`), on the warning background when it asks for attention (`warn`, `waiting`) and on the error one when it stopped (`error`, `limit`). The tooltip lists every account; a click lists them to switch, on both sides.
+- **Status bar:** the accounts mark and the current account in its color, the state as the avatars' dot (red needs you, amber asks for attention, a ring for `limit` and `waiting`, green fine, blue asleep), and the usage as in the statusLine (`personal ● 5h ━━━━━━── 79% ↻ 3h17m  7d ━━━───── 38%`), in the identity's terminal colors; each color is an item of its own, since an item has one color, and only the mark and the account show the tooltip and switch on a click. The mark is a glyph of `media/icons.woff`, which `scripts/vscode-icon.py` writes. A click lists the accounts to switch, on both sides.
 - **Side bar:** a dotagents view with the panel; a button in its title opens it in the browser.
 - **Updates:** it isn't on the Marketplace, so once a day it looks for a newer GitHub release and offers to install it, show the notes or skip that version.
 

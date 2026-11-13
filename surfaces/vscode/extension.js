@@ -87,8 +87,29 @@ class PanelView {
 }
 
 // --- The status bar -------------------------------------------------------------------------
-let item;
+// One item per part of the status (the name, each window's label, bar and percentage), side by
+// side, since an item has one color. Only the first (the mark and the account) has the tooltip and
+// switches on a click.
+let items = [];
 let panel;
+
+function showParts(parts, color, tooltip) {
+  const dark = [vscode.ColorThemeKind.Dark, vscode.ColorThemeKind.HighContrast].includes(vscode.window.activeColorTheme.kind);
+  while (items.length < parts.length) {
+    const i = vscode.window.createStatusBarItem(`dotagents.account.${items.length}`, vscode.StatusBarAlignment.Right, 100 - items.length / 100);
+    i.name = "dotagents account";
+    items.push(i);
+  }
+  items.forEach((item, n) => {
+    const part = parts[n];
+    if (!part) return item.hide();
+    item.text = part.text;
+    item.color = lib.toneColor(part.tone, color, dark);
+    item.tooltip = n === 0 ? tooltip : undefined;
+    item.command = n === 0 ? "dotagents.switch" : undefined;
+    item.show();
+  });
+}
 
 async function refresh() {
   try {
@@ -96,16 +117,12 @@ async function refresh() {
     if (!ok) throw new Error("no answer");
     data = json;
     const status = lib.statusFor(data);
-    item.text = status.text;
     const tip = new vscode.MarkdownString(status.tooltip);
     tip.appendMarkdown("\n\n---\n\nClick to switch account");
-    item.tooltip = tip;
-    item.backgroundColor = status.severity === "none" ? undefined : new vscode.ThemeColor(`statusBarItem.${status.severity}Background`);
+    showParts(status.parts, status.color, tip);
   } catch {
     data = null;
-    item.text = "$(account) dotagents";
-    item.tooltip = "Starting the dotagents server...";
-    item.backgroundColor = undefined;
+    showParts([{ text: "$(dotagents-accounts) dotagents", tone: "label" }], undefined, "Starting the dotagents server...");
   }
   panel.post();
 }
@@ -169,15 +186,12 @@ async function checkForUpdate(context) {
 
 function activate(context) {
   checkForUpdate(context).catch(() => {}); // offline or rate limited: try again tomorrow
-  item = vscode.window.createStatusBarItem("dotagents.account", vscode.StatusBarAlignment.Right, 100);
-  item.name = "dotagents account";
-  item.command = "dotagents.switch";
-  item.text = "$(account) dotagents";
-  item.show();
+  showParts([{ text: "$(dotagents-accounts) dotagents", tone: "label" }], undefined, "Starting the dotagents server...");
   panel = new PanelView(context);
   const timer = setInterval(refresh, POLL_MS);
   context.subscriptions.push(
-    item,
+    { dispose: () => items.forEach((i) => i.dispose()) },
+    vscode.window.onDidChangeActiveColorTheme(() => refresh()),
     { dispose: () => clearInterval(timer) },
     vscode.window.registerWebviewViewProvider("dotagents.panel", panel),
     vscode.commands.registerCommand("dotagents.switch", switchAccount),
