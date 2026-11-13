@@ -214,6 +214,7 @@ While it runs it leaves its port, token and pid in `<state>/start.json`, readabl
 
 - **Status bar:** the accounts mark and the current account in its color, the state as the avatars' dot (red needs you, amber asks for attention, a ring for `limit` and `waiting`, green fine, blue asleep), and the usage as in the statusLine (`personal ● 5h ━━━━━━── 79% ↻ 3h17m  7d ━━━───── 38%`), in the identity's terminal colors; each color is an item of its own, since an item has one color, and only the mark and the account show the tooltip and switch on a click. The mark is a glyph of `media/icons.woff`, which `scripts/vscode-icon.py` writes. A click lists the accounts to switch, on both sides.
 - **Side bar:** a dotagents view with the panel; a button in its title opens it in the browser.
+- **For other extensions:** `activate` returns the panel's folder (`panelRoot`), what the panel is told (`message()`, and `onDidChange` when it changes) and its actions (`act(action, body)`), so the dotagents sidebar shows the same panel as a fixed tab while this extension keeps talking to the server.
 - **Updates:** it isn't on the Marketplace, so once a day it looks for a newer GitHub release and offers to install it, show the notes or skip that version.
 
 To build and install it from the repository:

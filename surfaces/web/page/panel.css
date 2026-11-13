@@ -25,9 +25,11 @@
 body.vscode-light { --bg: transparent; --card: transparent; --text: #171717; --muted: #4d4d4d; --track: #e3e3e3; --border: #e3e3e3; --ok: #107d32; --warn: #a25204; --high: #d50322; --on-text: var(--vscode-sideBar-background, #ffffff); }
 body.vscode-dark, body.vscode-high-contrast { --bg: transparent; --card: transparent; --text: #ededed; --muted: #a0a0a0; --track: #333333; --border: #2b2b2b; --ok: #01ca54; --warn: #fe9911; --high: #fe6367; --on-text: var(--vscode-sideBar-background, #181818); }
 
-* { box-sizing: border-box; }
-body { margin: 0; background: var(--bg); color: var(--text); font: 12px/1.45 "Geist Mono", ui-monospace, "Cascadia Mono", Menlo, Consolas, monospace; }
-.panel { max-width: 1400px; margin: 0 auto; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+/* Every rule but the page's background stays inside .panel, so a page that hosts the panel (the
+   dotagents sidebar's accounts tab) keeps its own styles. */
+body { margin: 0; background: var(--bg); }
+.panel, .panel * { box-sizing: border-box; }
+.panel { max-width: 1400px; margin: 0 auto; padding: 16px; display: flex; flex-direction: column; gap: 12px; color: var(--text); font: 12px/1.45 "Geist Mono", ui-monospace, "Cascadia Mono", Menlo, Consolas, monospace; }
 /* The brand and the cards, centered, in a block as wide as the cards side by side (up to 420px
    each, --n of them) could be: one column in a narrow side bar, several in a window, every card
    as tall as the tallest. */
@@ -59,12 +61,12 @@ body.vscode-light .panel, body.vscode-dark .panel, body.vscode-high-contrast .pa
 .ok { color: var(--ok); } .warn { color: var(--warn); } .high { color: var(--high); }
 .bar .ok { background: var(--ok); } .bar .warn { background: var(--warn); } .bar .high { background: var(--high); }
 
-button { font: inherit; font-size: 11px; cursor: pointer; border: 0; background: transparent; color: var(--muted); white-space: nowrap; }
-button:hover:not(:disabled) { color: var(--text); }
-button:disabled { opacity: 0.5; cursor: default; }
+.panel button { font: inherit; font-size: 11px; cursor: pointer; border: 0; background: transparent; color: var(--muted); white-space: nowrap; }
+.panel button:hover:not(:disabled) { color: var(--text); }
+.panel button:disabled { opacity: 0.5; cursor: default; }
 /* An icon button: the Desktop's in the card's corner, the refresh in the foot. */
-button.icon { padding: 4px; line-height: 0; border-radius: 6px; }
-button.icon svg { width: 15px; height: 15px; }
+.panel button.icon { padding: 4px; line-height: 0; border-radius: 6px; }
+.panel button.icon svg { width: 15px; height: 15px; }
 /* The name, and the Desktop's button at the end of its line. */
 .who .line { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
 /* Where the account is, and its switch, on both sides. */
@@ -72,7 +74,7 @@ button.icon svg { width: 15px; height: 15px; }
 .sides .switch { font-size: 12px; font-weight: 600; color: var(--text); padding: 2px 0; }
 .sides .switch::before { content: "[ "; } .sides .switch::after { content: " ]"; }
 .sides .switch:disabled { opacity: 1; color: var(--muted); font-weight: 400; }
-button:focus-visible { outline: 2px solid var(--warn); outline-offset: 2px; }
+.panel button:focus-visible { outline: 2px solid var(--warn); outline-offset: 2px; }
 
 /* The foot: where on the left, the age and the refresh on the right, inset like a card's content
    (its padding and border), so the refresh sits right under the switches. */
@@ -81,8 +83,8 @@ button:focus-visible { outline: 2px solid var(--warn); outline-offset: 2px; }
 .foot .line { display: flex; align-items: center; gap: 4px; }
 /* An action under way: the button clicked pulses; the refresh turns. */
 .busy { animation: pulse 1.2s ease-in-out infinite; }
-button.icon.busy { animation: none; }
-button.icon.busy svg { animation: turn 1s linear infinite; }
+.panel button.icon.busy { animation: none; }
+.panel button.icon.busy svg { animation: turn 1s linear infinite; }
 @keyframes pulse { 50% { opacity: 0.4; } }
 @keyframes turn { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .busy, button.icon.busy svg { animation: none; } }
