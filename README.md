@@ -1,7 +1,7 @@
 <p align="center">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="assets/dotagents-lockup-dark.svg">
-    <img alt="dotagents" src="assets/dotagents-lockup-light.svg" width="320">
+    <source media="(prefers-color-scheme: dark)" srcset="assets/dotagents-config-lockup-dark.svg">
+    <img alt="dotagents-config" src="assets/dotagents-config-lockup-light.svg" width="515">
   </picture>
 </p>
 
