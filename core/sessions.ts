@@ -214,6 +214,10 @@ const inside = (child: string, parent: string) => {
   return rel === "" || (!rel.startsWith("..") && !path.isAbsolute(rel));
 };
 
+// The name of the folder Claude Code keeps a project's transcripts in: its path, with everything
+// but letters and digits written as "-".
+export const projectSlug = (dir: string) => path.resolve(dir).replace(/[^A-Za-z0-9]/g, "-");
+
 // Every session of the config folders, newest first; under: only those started inside that folder.
 export function listSessions({ dirs = configDirs(), under, now = Date.now(), running = runningProcess, peerRunning: askPeer }: ListOptions = {}): Session[] {
   const list: Session[] = [];
@@ -252,7 +256,11 @@ export function listSessions({ dirs = configDirs(), under, now = Date.now(), run
         } catch {
           continue;
         }
-        const localCwd = info.cwd && cd.peer ? fromPeer(info.cwd, cd.peer) : info.cwd;
+        let localCwd = info.cwd && cd.peer ? fromPeer(info.cwd, cd.peer) : info.cwd;
+        // A transcript with no record of its folder (Claude Code leaves a title-only stub when a
+        // session opens and closes with no message) still sits in its project's folder, whose
+        // name is that folder's path.
+        if (under && !info.cwd && slug === projectSlug(under)) localCwd = under;
         if (under && !(localCwd && inside(localCwd, under))) continue;
         const id = path.basename(name, ".jsonl");
         const known = live ?? liveThere();

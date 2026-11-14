@@ -58,6 +58,7 @@ What changed for someone who updates a clone. The format follows [Keep a Changel
 
 ### Fixed
 
+- **`sessions` and `sessions rm` now see title-only transcripts:** Claude Code leaves a stub with just a title (no message, no folder) when a session opens and closes empty. The list dropped it for lacking a folder, so `sessions rm` never deleted it and `/resume` kept showing it. It is now listed under the folder its project is named after.
 - **Switching or listing sessions from Windows works with Node from nvm in WSL:** Windows ran `dotagents` in WSL through a login shell, which skips `~/.bashrc`, so nvm's Node wasn't on the PATH and an older system Node failed on the `.ts` sources. It now uses an interactive login shell (`bash -lic`), and a failure there shows Node's error line, not its version trailer.
 - An unknown option (`check --bogus`) or command, or an option without its value, prints one line and exits with 2, instead of a stack trace or being ignored; `--` ends the options.
 - `FORCE_COLOR=0` turns colors off instead of on, and `TERM=dumb` turns them off too. `FORCE_COLOR=1`, `2` and `3` set how many colors the output uses.

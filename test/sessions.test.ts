@@ -8,7 +8,7 @@ import os from "node:os";
 import path from "node:path";
 import { test, type TestContext } from "node:test";
 import type { Peer } from "../core/machine-state.ts";
-import { type ConfigDir, archiveRoot, archiveSession, deleteSession, fromPeer, listSessions, sessionFiles } from "../core/sessions.ts";
+import { type ConfigDir, archiveRoot, archiveSession, deleteSession, fromPeer, listSessions, projectSlug, sessionFiles } from "../core/sessions.ts";
 import { state } from "../core/state.ts";
 import { REPO, quiet } from "./helpers.ts";
 
@@ -90,6 +90,21 @@ test("sessions are listed from every config folder, newest first, with title, ac
   assert.deepEqual(all.map((x) => x.checked), [true, true, false], "the other side, not asked, is unchecked");
 
   assert.deepEqual(listSessions({ dirs: [s.here, peer], under: s.ws }).map((x) => x.id), ["one"], "only the ones started inside the folder");
+});
+
+test("a title-only stub, with no folder recorded, is listed under the folder its project is named after", (t) => {
+  const s = setup(t);
+  const project = path.join(s.here.dir, "projects", projectSlug(s.ws));
+  fs.mkdirSync(project, { recursive: true });
+  const stub = path.join(project, "stub.jsonl");
+  fs.writeFileSync(stub, `${JSON.stringify({ type: "ai-title", aiTitle: "empty-conversation", sessionId: "stub" })}\n`);
+  const old = new Date(Date.now() - HOUR);
+  fs.utimesSync(stub, old, old);
+  session(s.here, "other", lines(s.ws, "other"));
+
+  assert.deepEqual(listSessions({ dirs: [s.here], under: s.ws }).map((x) => x.id).sort(), ["other", "stub"]);
+  assert.equal(listSessions({ dirs: [s.here], under: s.ws }).find((x) => x.id === "stub")!.root, s.ws);
+  assert.deepEqual(listSessions({ dirs: [s.here], under: path.join(s.root, "elsewhere") }), [], "not under another folder");
 });
 
 test("a session counts as running while its process lives on this side, or when written in the last minutes", (t) => {
