@@ -9,6 +9,7 @@ dotagents <command> [options]
 | [`install`](#dotagents-install) | Applies the global configuration to this machine, in every profile folder. |
 | [`update [--all]`](#dotagents-update) | Pulls this repository and runs `install`; with `--all`, also refreshes every tracked workspace. |
 | [`settings pull [--from <profile>]`](#dotagents-settings-pull) | Brings a settings change made in a profile (a Windows copy) into this repository. |
+| [`revision [on [--api] \| off]`](#dotagents-revision) | Prompt revision, off by default: each message you send, proofread by the cheapest Claude model, shown in the chat and kept in the session archive. |
 | [`profile add <name>`](#dotagents-profile-add) | Adds a Claude profile, one claude.ai account; on Windows, a Desktop app of its own. |
 | [`profile list`](#dotagents-profile-list) | Lists the profiles and checks them. |
 | [`profile remove <name>`](#dotagents-profile-remove) | Forgets a profile; its saved login is kept. |
@@ -63,6 +64,17 @@ dotagents settings pull --from personal  # when several changed in different way
 ```
 
 On Windows each profile has a copy of `config/claude/settings.json`, and `/config` writes to that copy. `install` remembers what it last copied, so it can tell a copy that only fell behind the repository (it updates it) from one changed in the profile (it keeps it and says so). `settings pull` copies the changed one into the repository; commit it, and the next `install` takes it to the other profiles. With several profiles changed in different ways it stops and asks for `--from`. On Linux and macOS the profiles link to the repository's file, so there is nothing to pull.
+
+## dotagents revision
+
+Prompt revision is off until you turn it on. With it on, each message you send to Claude Code is proofread before Claude answers: spelling, accents, punctuation, capitalization, small grammar errors and chat abbreviations, by the rules of the language it is written in. It corrects without rewriting: nothing is rephrased, reordered, added or removed, and an unclear part is left as written. Code, commands, paths, URLs and pasted text are left alone, and so are slash commands.
+
+- The revised message shows in the chat, under yours, after Claude Code's `UserPromptSubmit says:`, and Claude gets it next to yours, told that yours wins where they differ in meaning and to ask when the request is vague. A message that needs no change shows nothing.
+- Claude Code records the revised message in the session's transcript, so the [`session-archive`](../skills/session-archive/SKILL.md) skill and [`sessions rm`](#dotagents-sessions-rm) archive it in place of yours, with no extra step.
+- The revision runs on the newest Sonnet at low effort, to cost little. Your message reaches only Anthropic. By default it goes through the Claude account signed in to Claude Code, on its plan: a lean `claude -p` with no tools, no settings, no MCP and no saved session, about 3 seconds per message. With `--api` it goes through your own Anthropic API key instead, billed to the API, with the newest Sonnet in the API's model list, checked once a day. Sonnet, not the cheaper Haiku, because on a test set it got 11 of 14 messages right where Haiku got 3 of 12, and was no slower.
+- Past 8 seconds, or on any error, the message goes on as you wrote it: the hook never blocks it and never changes it.
+
+`revision on` adds the hook to your configuration's `claude/settings.json`: on Linux and macOS that file is `~/.claude/settings.json`, so it takes effect at once; on Windows, run [`install`](#dotagents-install) to copy it. `revision on --api` also asks for an API key the first time (from console.anthropic.com) and keeps it in `revision/api-key` in the [state folder](#environment-variables), readable only by you; it is never put in `ANTHROPIC_API_KEY`, which would make Claude Code itself bill the API. The choice between the account and the key is kept per side of the machine, in the same folder: run `revision on` or `revision on --api` on each side. `revision off` removes the hook and keeps the key. `revision` alone says whether it is on, and how, and what it cost: the revisions of the last 24 hours and since the start, their cost in dollars (as Claude Code reports it through the account, at API prices; from the price list through the API), split by the API key and the Claude account when both were used, and, for the revisions through the account, how far its 5-hour and 7-day usage went in the windows of the last one. A window that restarted is never compared with the one before: the log keeps when each window ends. Each revision is logged in `revision/log.jsonl` in the state folder with its tokens, its cost and that usage at the moment it ran; the usage comes from dotagents' live usage, so it is as fresh as [`start`](#dotagents-start) or `usage --refresh` keep it, and Anthropic reports it only as a whole-window percentage, so a single revision's share of it can't be told apart. `revision hook` is what the hook runs; Claude Code calls it.
 
 ## dotagents profile add
 
@@ -325,7 +337,7 @@ Deletes sessions. Without ids, it lists the ones started in this folder (`--all`
 
 Then it asks what should happen to them:
 
-1. **Archive, then delete**, with how many go into which workspace and how many have no `.artifacts/session-archives/`; it isn't offered when none can be archived.
+1. **Archive, then delete**, with how many go into which workspace and how many have no `.artifacts/session-archives/`; it isn't offered when none can be archived. The archive keeps the user messages a `session-archive` run revised (`<name>.revisions.json` next to it).
 2. **Delete without archiving.**
 3. **Cancel**, the default.
 
@@ -391,6 +403,7 @@ Removes a skill from the catalog. Workspaces that already installed it keep it; 
 | `--from <profile>` | `settings pull` | The profile to take the settings from. |
 | `--port <n>` | `start` | The port; `0` picks a free one. |
 | `--here` | `switch` | Only this side of the machine. |
+| `--api` | `revision on` | Revise through your Anthropic API key instead of the Claude account. |
 | `--save <profile>` | `switch` | Keep the login in `~/.claude` as that profile's. |
 | `--help`, `--version` | | |
 

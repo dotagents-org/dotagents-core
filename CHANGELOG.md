@@ -21,6 +21,7 @@ What changed for someone who updates a clone. The format follows [Keep a Changel
 
 ### Added
 
+- **Prompt revision, off by default (`dotagents revision on`):** each message you send is proofread (spelling, punctuation, grammar, without rewriting), by the newest Sonnet at low effort, through the signed-in Claude account (about 3 s per message) or, with `--api`, through your own Anthropic API key. The revision shows in the chat under your message, reaches Claude next to your message, and is what the session archive keeps. `revision off` turns it off, and `revision` shows what the revisions cost, next to the account's usage, from a log of each one. It adds `@anthropic-ai/sdk` as a dependency: run `npm install` after pulling.
 - **Open source, MIT.** A personal configuration project, published for anyone to use, fork and adapt.
 - **The panel switches one side or both:** each account has `WSL | both | Windows`; `POST /api/switch` takes `"side"`, and `POST /api/refresh` asks Anthropic now.
 
@@ -48,6 +49,7 @@ What changed for someone who updates a clone. The format follows [Keep a Changel
 
 ### Changed
 
+- **Session archives with the user's messages revised:** the `session-archive` skill (6.0.0) has the agent proofread each user message (spelling, punctuation, grammar, without rewriting), and the archive shows that version; the replies stay verbatim. The revisions live next to the archive in `<name>.revisions.json`, so a later run and `dotagents sessions rm` keep them. New script flags: `--prompts` and `--revise <file>`.
 - **The look follows the new identity** (Vercel's Geist palette, no accent): colors per background (`DOTAGENTS_THEME=light|dark`, else `COLORFGBG`, else dark), a profile's name in a readable variant of its color, exact 256 and 16 color mapping.
 - **Every command prints without the rail** (`┌ │ ◇ └`): the ` dotagents ` badge in reverse video and the command, bold section titles, one line per item, a summary without `·`. Warnings show `▲`, skipped items `–`. Command names in the help are bold, not cyan. The prompts drop their rail too.
 - **`usage` has a new layout:** no rail or dots, `5h`/`7d` labels, a thin bar of constant width, the percentage in bold, levels at 70% and 90% (were 50% and 80%), durations like `3h 17m`.

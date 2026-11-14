@@ -13,7 +13,7 @@
 import { execFile, spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
-import { type AccountLabels, archiveFile, parseTranscript, promptText, renderArchive } from "../skills/session-archive/scripts/archive-session.ts";
+import { type AccountLabels, archiveFile, parseTranscript, promptText, readRevisions, renderArchive, revise } from "../skills/session-archive/scripts/archive-session.ts";
 import { type ProcessProbe, defaultConfigDir, runningProcess, signedIn } from "./claude-code.ts";
 import { isWindows } from "./common.ts";
 import { type Peer, loadMachine, loadProfiles } from "./machine-state.ts";
@@ -313,7 +313,7 @@ export function archiveSession(s: Session, labels: AccountLabels = new Map()): {
     const session = parseTranscript(s.file);
     const file = archiveFile(s.root, session);
     const existed = fs.existsSync(file);
-    const text = renderArchive(session, labels);
+    const text = renderArchive(revise(session, readRevisions(file)), labels);
     if (!state.dryRun) {
       fs.mkdirSync(path.dirname(file), { recursive: true });
       fs.writeFileSync(file, text);

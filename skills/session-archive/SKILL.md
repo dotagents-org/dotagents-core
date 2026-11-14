@@ -3,11 +3,12 @@ name: session-archive
 description: |
   Write a direct, readable transcript of the current (or a named past)
   Claude Code session to
-  .artifacts/session-archives/<date>-<session-id>.md: every user message and
-  assistant reply verbatim, plus one line per tool call. Use when asked to
-  archive, log, save, or transcribe a session.
+  .artifacts/session-archives/<date>-<session-id>.md: every user message,
+  proofread (spelling, punctuation, grammar) with the same meaning, every assistant
+  reply verbatim, and one line per tool call. Use when asked to archive, log,
+  save, or transcribe a session.
 metadata:
-  version: "5.0.0"
+  version: "6.0.0"
 ---
 
 # Session Archive
@@ -23,8 +24,12 @@ The script reads Claude Code's local transcript:
 
 Contents, in chronological order:
 
-- **User messages**, verbatim. Injected context is stripped:
-  `<system-reminder>` blocks and local-command lines.
+- **User messages**, proofread (spelling, punctuation, grammar), with the same
+  meaning: by dotagents' prompt revision when it is on (`dotagents revision
+  on` revises each message as it is sent, and the transcript keeps that
+  version), else by you in step 3; verbatim when they need no change. Injected context is
+  stripped: `<system-reminder>` blocks and local-command lines. The header
+  says how many were revised.
 - **Assistant replies**, verbatim.
 - **Tool calls**, one line each (`name` - description/command/path), marked
   **(error)** when the call failed. Tool results are omitted, except the
@@ -58,14 +63,42 @@ Contents, in chronological order:
    file, pass `--transcript /path/to/session.jsonl`. The transcripts are read
    from `CLAUDE_CONFIG_DIR` when it is set, else `~/.claude`; `--claude-home`
    overrides both.
-3. Tell the user where the file landed.
+3. Revise the user messages that are not revised yet. With dotagents' prompt
+   revision on, there are usually none, and `--prompts` prints `[]`: skip to
+   step 4. List them:
+
+   ```bash
+   node .agents/skills/session-archive/scripts/archive-session.ts --session-id <session-id> --prompts
+   ```
+
+   It prints `[{ "id", "text" }]`. Write a JSON object of `id` to revised
+   text, only for the messages that change, to a file in your scratchpad, and
+   apply it:
+
+   ```bash
+   node .agents/skills/session-archive/scripts/archive-session.ts --session-id <session-id> --revise <file>
+   ```
+
+   The revisions are saved next to the archive
+   (`<date>-<session-id>.revisions.json`), so later runs, and the archive
+   `dotagents sessions rm` writes, keep them, and `--prompts` lists only new
+   messages.
+4. Tell the user where the file landed.
 
 Re-running overwrites the file, so it is safe to run mid-session and again at
-the end.
+the end; run steps 3 and 4 again for the messages since.
 
-`dotagents sessions rm` imports this script's parser and writes the same file
-before it deletes a session, so a change to the script's exports has to keep
-dotagents working (`npm test` in the dotagents repository covers both).
+## Revising a user message
+
+Follow [references/revision-rules.md](references/revision-rules.md): correct,
+don't rewrite. Fix spelling, accents, punctuation, capitalization, small
+grammar errors and chat abbreviations, by the rules of the message's own
+language; never rephrase, reorder, add, remove or guess. dotagents' prompt
+revision hook uses the same file. The rules follow the
+[proof](https://skills.sh/ahgraber/skills/proof) skill,
+[fix-grammar](https://claudskills.com/skills/fix-grammar/SKILL.md) (MIT) and
+Anthropic's [Grammar genie](https://platform.claude.com/docs/en/resources/prompt-library/grammar-genie)
+prompt.
 
 ## Caveats
 

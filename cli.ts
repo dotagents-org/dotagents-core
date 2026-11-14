@@ -17,6 +17,7 @@ import { install } from "./surfaces/cli/install.ts";
 import { newWorkspace } from "./surfaces/cli/new.ts";
 import type { CliArgs, Command } from "./surfaces/cli/shared.ts";
 import { sessions, sessionsRm } from "./surfaces/cli/sessions.ts";
+import { revision, revisionHook, revisionOff, revisionOn } from "./surfaces/cli/revision.ts";
 import { settingsPull } from "./surfaces/cli/settings.ts";
 import { switchCommand } from "./surfaces/cli/switch.ts";
 import { login } from "./surfaces/cli/login.ts";
@@ -145,7 +146,7 @@ const start: Command = {
 };
 
 // In the order the help lists them.
-const COMMANDS: Command[] = [install, update, settingsPull, profileAdd, profileList, profileRemove, switchCommand, login, usage, start, newWorkspace, init, check, workspaces, untrack, sessions, sessionsRm, skills, skillsAdd, skillsRemove];
+const COMMANDS: Command[] = [install, update, settingsPull, revision, revisionOn, revisionOff, revisionHook, profileAdd, profileList, profileRemove, switchCommand, login, usage, start, newWorkspace, init, check, workspaces, untrack, sessions, sessionsRm, skills, skillsAdd, skillsRemove];
 
 const repo = path.dirname(fileURLToPath(import.meta.url));
 const version = JSON.parse(fs.readFileSync(path.join(repo, "package.json"), "utf8")).version;
@@ -218,7 +219,7 @@ function fail(err: Error) {
 let args: CliArgs | null = null;
 try {
   args = parseArgs<CliArgs>(process.argv.slice(2), {
-    booleans: ["all", "default", "dry-run", "help", "here", "json", "no-archive", "no-pull", "refresh", "running", "short", "version", "watch", "wrap", "yes"],
+    booleans: ["all", "api", "default", "dry-run", "help", "here", "json", "no-archive", "no-pull", "refresh", "running", "short", "version", "watch", "wrap", "yes"],
     lists: ["skills"],
     values: ["color", "from", "port", "save"],
   });
