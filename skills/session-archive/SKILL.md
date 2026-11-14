@@ -7,7 +7,7 @@ metadata:
 
 # Session Archive
 
-Run the script and reply with the file path, nothing else. The session id is the UUID in your scratchpad directory path.
+Run the script, then reply with the file's path and nothing else: relative to the workspace root (`.artifacts/session-archives/<file>.md`), as plain text on a line of its own, with no backticks, quotes or label, so the terminal turns it into a link. The session id is the UUID in your scratchpad directory path.
 
 ```bash
 node .agents/skills/session-archive/scripts/archive-session.ts --session-id <session-id>
