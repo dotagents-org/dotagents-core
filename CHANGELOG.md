@@ -21,7 +21,7 @@ What changed for someone who updates a clone. The format follows [Keep a Changel
 
 ### Added
 
-- **Prompt revision, off by default (`dotagents revision on`):** each message you send is proofread (spelling, punctuation, grammar, without rewriting), by the newest Sonnet at low effort, through the signed-in Claude account (about 3 s per message) or, with `--api`, through your own Anthropic API key. The revision shows in the chat under your message, reaches Claude next to your message, and is what the session archive keeps. `revision off` turns it off, and `revision` shows what the revisions cost, next to the account's usage, from a log of each one. It adds `@anthropic-ai/sdk` as a dependency: run `npm install` after pulling.
+- **Prompt revision, off by default (`dotagents revision on`):** each message you send is proofread (spelling, punctuation, grammar, without rewriting), by the newest Sonnet at low effort, through the signed-in Claude account (about 3 s per message) or, with `--api`, through your own Anthropic API key. The revision shows in the chat under your message, reaches Claude next to your message, and is what the session archive keeps. `revision off` turns it off, and `revision` shows what the revisions cost, next to the account's usage, from a log of each one. `revision fix` proofreads the messages of past sessions that ran without it, and rewrites their archives. It adds `@anthropic-ai/sdk` as a dependency: run `npm install` after pulling.
 - **Open source, MIT.** A personal configuration project, published for anyone to use, fork and adapt.
 - **The panel switches one side or both:** each account has `WSL | both | Windows`; `POST /api/switch` takes `"side"`, and `POST /api/refresh` asks Anthropic now.
 

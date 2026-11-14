@@ -17,7 +17,7 @@ import { install } from "./surfaces/cli/install.ts";
 import { newWorkspace } from "./surfaces/cli/new.ts";
 import type { CliArgs, Command } from "./surfaces/cli/shared.ts";
 import { sessions, sessionsRm } from "./surfaces/cli/sessions.ts";
-import { revision, revisionHook, revisionOff, revisionOn } from "./surfaces/cli/revision.ts";
+import { revision, revisionFix, revisionHook, revisionOff, revisionOn } from "./surfaces/cli/revision.ts";
 import { settingsPull } from "./surfaces/cli/settings.ts";
 import { switchCommand } from "./surfaces/cli/switch.ts";
 import { login } from "./surfaces/cli/login.ts";
@@ -146,7 +146,7 @@ const start: Command = {
 };
 
 // In the order the help lists them.
-const COMMANDS: Command[] = [install, update, settingsPull, revision, revisionOn, revisionOff, revisionHook, profileAdd, profileList, profileRemove, switchCommand, login, usage, start, newWorkspace, init, check, workspaces, untrack, sessions, sessionsRm, skills, skillsAdd, skillsRemove];
+const COMMANDS: Command[] = [install, update, settingsPull, revision, revisionOn, revisionOff, revisionFix, revisionHook, profileAdd, profileList, profileRemove, switchCommand, login, usage, start, newWorkspace, init, check, workspaces, untrack, sessions, sessionsRm, skills, skillsAdd, skillsRemove];
 
 const repo = path.dirname(fileURLToPath(import.meta.url));
 const version = JSON.parse(fs.readFileSync(path.join(repo, "package.json"), "utf8")).version;

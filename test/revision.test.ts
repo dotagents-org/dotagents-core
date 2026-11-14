@@ -6,8 +6,10 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { test, type TestContext } from "node:test";
-import { type Client, FALLBACK_MODEL, keepsHardTokens, HOOK_COMMAND, currentModel, logFile, readLog, windowSpan, type LogEntry, disable, enable, isEnabled, keyFile, readBackend, readKey, runHook, saveBackend, saveKey } from "../core/revision.ts";
+import { type Client, FALLBACK_MODEL, keepsHardTokens, HOOK_COMMAND, currentModel, logFile, readLog, pendingMessages, reviseSession, windowSpan, type LogEntry, disable, enable, isEnabled, keyFile, readBackend, readKey, runHook, saveBackend, saveKey } from "../core/revision.ts";
+import type { Session } from "../core/sessions.ts";
 import { state } from "../core/state.ts";
+import { parseTranscript, readRevisions, renderArchive, revise as applyRevisions, revisionsFile } from "../skills/session-archive/scripts/archive-session.ts";
 import { quiet, withConfig } from "./helpers.ts";
 
 function setup(t: TestContext) {
@@ -192,4 +194,36 @@ test("a window's span never crosses its restart: by its end when logged, else by
   assert.deepEqual(windowSpan([e(5, a), e(5, b), e(7, "2026-11-13T20:00:00.9+00:00")], "fiveHour"), { from: 5, to: 7, revisions: 2 }, "another end is a restart, even at the same percentage");
   assert.deepEqual(windowSpan([e(1, null, "other"), e(2), e(4)], "fiveHour"), { from: 2, to: 4, revisions: 2 }, "and so is another account");
   assert.equal(windowSpan([], "fiveHour"), null);
+});
+
+test("a past session's messages are revised with the hook's rules, kept next to its archive, and a second run asks only for what was left", async (t) => {
+  const { root } = setup(t);
+  const project = path.join(root, "proj");
+  fs.mkdirSync(path.join(project, ".artifacts", "session-archives"), { recursive: true });
+  const file = path.join(root, "s.jsonl");
+  const user = (text: string, uuid: string) => JSON.stringify({ type: "user", uuid, sessionId: "sid", timestamp: "2026-01-02T10:00:00.000Z", cwd: project, message: { role: "user", content: text } });
+  fs.writeFileSync(file, [user("vc ve isso", "m1"), user("sim", "m2"), user("roda `npm test` ja", "m3"), user('<pasted_content id="x">log</pasted_content>', "m4"), user("falha esta", "m5"), user("ok", "m6")].join("\n") + "\n");
+  const session = { file, root: project } as Pick<Session, "file" | "root">;
+
+  const pending = pendingMessages(session)!;
+  assert.deepEqual(pending.messages.map((m) => m.id), ["m1", "m2", "m3", "m5", "m6"], "pasted text is never revised");
+  assert.equal(pendingMessages({ file, root: null }), null, "outside a project there is nowhere to keep revisions");
+
+  const answers: Record<string, string | null> = { "vc ve isso": "Você vê isso?", sim: "Sim.", "roda `npm test` ja": "Roda npm test já.", "falha esta": null, ok: "ok" };
+  const asked: string[] = [];
+  const claude = async (text: string) => (asked.push(text), answers[text] == null ? null : said(answers[text]!));
+
+  state.dryRun = true;
+  assert.deepEqual(await reviseSession(pending, { claude }), { revised: 0, unchanged: 0, failed: 0 });
+  assert.equal(asked.length, 0, "a dry run calls nothing");
+  assert.equal(fs.existsSync(revisionsFile(pending.archive)), false);
+  state.dryRun = false;
+
+  // m3 lost its backticks and m5 failed: both are left for later; m6 came back as it was.
+  assert.deepEqual(await reviseSession(pending, { claude }), { revised: 2, unchanged: 1, failed: 2 });
+  assert.deepEqual(readRevisions(pending.archive), { m1: "Você vê isso?", m2: "Sim.", m6: "ok" });
+  assert.deepEqual(pendingMessages(session)!.messages.map((m) => m.id), ["m3", "m5"]);
+  assert.equal(readLog().length, 4, "each call that answered was logged, with its cost");
+  const md = renderArchive(applyRevisions(parseTranscript(file), readRevisions(pending.archive)));
+  assert.ok(md.includes("Você vê isso?") && md.includes("Sim.") && md.includes("roda `npm test` ja"));
 });

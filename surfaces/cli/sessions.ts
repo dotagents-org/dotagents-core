@@ -116,7 +116,7 @@ function warnUnchecked(list: Session[]) {
 }
 
 // Ids, or unique starts of ids, to sessions; an unknown or ambiguous one fails.
-function byIds(ids: string[], all: Session[]) {
+export function byIds(ids: string[], all: Session[]) {
   return ids.map((id) => {
     const hits = all.filter((s) => s.id.startsWith(id));
     if (hits.length === 1) return hits[0];

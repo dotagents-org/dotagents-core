@@ -17,6 +17,8 @@ import { configRoot, mkdirFor } from "./common.ts";
 import { stateDir } from "./machine-state.ts";
 import { report } from "./output.ts";
 import { state } from "./state.ts";
+import { archiveFile, parseTranscript, readRevisions, revisionsFile } from "../skills/session-archive/scripts/archive-session.ts";
+import type { Session } from "./sessions.ts";
 
 // The mark that starts the revised text in the chat; the session archive looks for it.
 // How the revision reaches Claude, around the revised text. The session archive finds it by the
@@ -247,10 +249,13 @@ export function keepsHardTokens(original: string, revised: string) {
   return (original.match(HARD) ?? []).every((t) => revised.includes(t.replace(/[.,;:!?)]+$/, "")));
 }
 
-// What the hook prints for a prompt and its revision: nothing when they are the same, or when the
-// revision lost a part it must keep.
-export function hookOutput(prompt: string, revised: string | null) {
-  if (!revised || revised === prompt.trim() || !keepsHardTokens(prompt, revised)) return null;
+// A revision worth showing: not the message itself, and not one that lost a part it must keep.
+export const accepted = (prompt: string, revised: string | null) => (revised && revised !== prompt.trim() && keepsHardTokens(prompt, revised) ? revised : null);
+
+// What the hook prints for a prompt and its revision, or nothing when there is none worth showing.
+export function hookOutput(prompt: string, revision: string | null) {
+  const revised = accepted(prompt, revision);
+  if (!revised) return null;
   return {
     systemMessage: revised,
     hookSpecificOutput: {
@@ -260,26 +265,83 @@ export function hookOutput(prompt: string, revised: string | null) {
   };
 }
 
+type Deps = { claude?: ClaudeRunner; client?: Client };
+
+// Revises one text on this side's backend and logs what it cost. Null when there is nothing to
+// call (the API backend with no key); a revision of null when the call failed.
+async function reviseText(text: string, deps: Deps) {
+  const backend = readBackend();
+  let r: Revision | null;
+  if (backend === "claude") r = await (deps.claude ?? runClaude)(text);
+  else {
+    const key = readKey();
+    if (!deps.client && !key) return null;
+    const c = deps.client ?? (new Anthropic({ apiKey: key! }) as unknown as Client);
+    r = await revise(c, text, await currentModel(c));
+  }
+  if (r) logRevision(backend, r);
+  return { backend, text: r?.text ?? null };
+}
+
 // The hook: reads Claude Code's input, revises the prompt on this side's backend, prints the
 // output. Never throws. Tests pass a fake runner or client.
-export async function runHook(input: string, deps: { claude?: ClaudeRunner; client?: Client } = {}) {
+export async function runHook(input: string, deps: Deps = {}) {
   try {
     const prompt = JSON.parse(input)?.prompt;
     if (typeof prompt !== "string" || !prompt.trim() || prompt.trim().startsWith("/")) return null;
-    const backend = readBackend();
-    let r: Revision | null;
-    if (backend === "claude") r = await (deps.claude ?? runClaude)(prompt);
-    else {
-      const key = readKey();
-      if (!deps.client && !key) return null;
-      const c = deps.client ?? (new Anthropic({ apiKey: key! }) as unknown as Client);
-      r = await revise(c, prompt, await currentModel(c));
-    }
-    if (r) logRevision(backend, r);
-    return hookOutput(prompt, r?.text ?? null);
+    const done = await reviseText(prompt, deps);
+    return done && hookOutput(prompt, done.text);
   } catch {
     return null;
   }
+}
+
+// ── Sessions that ran without the revision (old ones, or with it off) ─────────────────────────────
+
+// What the archive can't take from the transcript: a message of the user's, sent as typed, that
+// has no revision yet. Slash commands, pasted text and the interruption notice are never revised.
+const skippable = (text: string) => text.startsWith("`/") || text.startsWith("[Request interrupted") || text.includes("<pasted_content");
+
+export type Pending = { archive: string; messages: { id: string; text: string }[] };
+
+// The messages of a session still to revise, and where its revisions live; null outside a project
+// with .artifacts/session-archives/, which has nowhere to keep them.
+export function pendingMessages(s: Pick<Session, "file" | "root">): Pending | null {
+  if (!s.root) return null;
+  const t = parseTranscript(s.file);
+  const archive = archiveFile(s.root, t);
+  const done = readRevisions(archive);
+  return { archive, messages: t.prompts.filter((p) => t.out[p.at] === p.text && !done[p.id] && !skippable(p.text)).map(({ id, text }) => ({ id, text })) };
+}
+
+export type FixResult = { revised: number; unchanged: number; failed: number };
+
+// Revises the pending messages of a session, four at a time, with the hook's backend and rules, and
+// keeps them next to its archive, so the archive and `sessions rm` show them. A message the model
+// left as it was is kept as it was, so it isn't asked for again; one that failed, or lost a part it
+// must keep, is left for the next run. Honors --dry-run: nothing is called or written.
+export async function reviseSession(pending: Pending, deps: Deps = {}): Promise<FixResult> {
+  const result: FixResult = { revised: 0, unchanged: 0, failed: 0 };
+  if (state.dryRun) return result;
+  const added: Record<string, string> = {};
+  for (let i = 0; i < pending.messages.length; i += 4) {
+    await Promise.all(
+      pending.messages.slice(i, i + 4).map(async (m) => {
+        const done = await reviseText(m.text, deps).catch(() => null);
+        if (!done?.text) return void result.failed++;
+        const better = accepted(m.text, done.text);
+        if (better) added[m.id] = better;
+        else if (done.text === m.text.trim()) added[m.id] = m.text;
+        else return void result.failed++;
+        better ? result.revised++ : result.unchanged++;
+      }),
+    );
+  }
+  if (Object.keys(added).length) {
+    mkdirFor(revisionsFile(pending.archive));
+    fs.writeFileSync(revisionsFile(pending.archive), `${JSON.stringify({ ...readRevisions(pending.archive), ...added }, null, 2)}\n`);
+  }
+  return result;
 }
 
 // ── The switch: the hook's entry in the configuration's claude/settings.json ──────────────────────

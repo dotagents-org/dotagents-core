@@ -2,10 +2,13 @@
 // configuration's claude/settings.json, off removes it. It revises through the signed-in Claude
 // account, or with --api through the user's API key.
 
+import path from "node:path";
 import * as p from "@clack/prompts";
-import { type LogEntry, windowSpan, disable, enable, isEnabled, keyFile, logFile, readBackend, readKey, readLog, runHook, saveBackend, saveKey } from "../../core/revision.ts";
+import { type LogEntry, type Pending, pendingMessages, reviseSession, windowSpan, disable, enable, isEnabled, keyFile, logFile, readBackend, readKey, readLog, runHook, saveBackend, saveKey } from "../../core/revision.ts";
 import { displayPath, finish, header, interactive, tone } from "../../core/output.ts";
+import { type Session, accountLabels, archiveSession, listSessions } from "../../core/sessions.ts";
 import { state } from "../../core/state.ts";
+import { byIds } from "./sessions.ts";
 import type { Command } from "./shared.ts";
 
 const { bold, muted } = tone;
@@ -82,6 +85,46 @@ export const revisionOff: Command = {
     header("revision off");
     disable(repo);
     finish(AFTER);
+  },
+};
+
+// Proofreads, after the fact, the messages of sessions that ran without the revision on, or from
+// before it existed, and rewrites their archives with them.
+export const revisionFix: Command = {
+  name: "revision fix",
+  usage: "[ids…] [--all] [--yes]",
+  summary: "proofread the messages of past sessions that were not revised",
+  more: ["the sessions started in this folder, or the ids given; --all: every project's", "uses the way revision is set up (the Claude account or your API key); asks first unless --yes"],
+  group: "Machine",
+  async run({ args, positional }) {
+    header("revision fix", positional.join(" ") || (args.all ? "every project" : ""));
+    const api = readBackend() === "api";
+    if (api && !readKey()) throw new Error("There is no API key yet: run dotagents revision on --api in a terminal, which asks for it");
+    const list = positional.length ? byIds(positional, listSessions({})) : listSessions({ under: args.all ? undefined : path.resolve(process.cwd()) });
+    const todo = list.flatMap((s) => {
+      const pending = pendingMessages(s);
+      return pending?.messages.length ? [{ s, pending }] : [];
+    });
+    const count = todo.reduce((n, t) => n + t.pending.messages.length, 0);
+    const noRoot = list.filter((s) => !s.root).length;
+    if (noRoot) console.log(muted(`${noRoot} session${noRoot === 1 ? "" : "s"} not in a workspace with .artifacts/session-archives/, which has nowhere to keep revisions: skipped.`));
+    if (!count) return finish("Nothing to revise.");
+    const how = api ? `through your API key, about US$ ${(count * 0.0012).toFixed(2)}` : "through the Claude account, on its plan";
+    console.log(`${bold(`${count} message${count === 1 ? "" : "s"}`)} in ${todo.length} session${todo.length === 1 ? "" : "s"} to revise, ${how}.`);
+    if (state.dryRun) return finish("Nothing was called or written.");
+    if (!args.yes) {
+      if (!interactive) throw new Error("Pass --yes to revise without asking");
+      const ok = await p.confirm({ message: "Revise them and rewrite those sessions' archives?", initialValue: false });
+      if (p.isCancel(ok) || !ok) return finish("Nothing was revised.");
+    }
+    const labels = accountLabels();
+    for (const { s, pending } of todo as { s: Session; pending: Pending }[]) {
+      const r = await reviseSession(pending);
+      const detail = `${r.revised} revised, ${r.unchanged} already fine${r.failed ? `, ${r.failed} left for the next run` : ""}`;
+      console.log(`${s.id.slice(0, 8)}  ${detail}`);
+      if (r.revised + r.unchanged) archiveSession(s, labels);
+    }
+    finish();
   },
 };
 
