@@ -23,6 +23,8 @@ On Linux, WSL and macOS, the vault, `start.json`, the usage records and the logs
 | Anthropic, through the `claude` command or your API key | `dotagents revision on` only (off by default) | the message you sent, to proofread it |
 | GitHub and npm | `update` (`git pull`), `skills add` (`npx skills`) | nothing of yours: they download code |
 
+The two requests to Anthropic's OAuth endpoints say who makes them: `User-Agent: dotagents/<version>`, never another client's name.
+
 Nothing else: no analytics, no crash reports, no update check of the tool itself.
 
 ## The local API

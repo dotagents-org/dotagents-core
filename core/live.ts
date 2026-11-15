@@ -34,9 +34,8 @@ const TOKEN_URL = "https://platform.claude.com/v1/oauth/token";
 // Claude Code's public OAuth client, not a secret.
 const CLIENT_ID = "9d1c250a-e61b-44d9-88ed-5944d1962f5e";
 const BETA = "oauth-2025-04-20";
-// The endpoint answers other clients with 429: this names a real Claude Code release, in the form
-// the endpoint reads.
-const USER_AGENT = "claude-cli/2.1.314 (external, cli)";
+// dotagents says who it is: the Usage Policy forbids misrepresenting the client being used.
+const USER_AGENT = `dotagents/${JSON.parse(fs.readFileSync(new URL("../package.json", import.meta.url), "utf8")).version}`;
 
 // At most one request per profile in this time, from any number of dotagents processes.
 export const LIVE_EVERY_MS = 55_000;

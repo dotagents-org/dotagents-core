@@ -79,7 +79,7 @@ test("each profile is asked with the login it lives in: the slot's, or its vault
   await refreshUsage({ fetcher, now: clock(NOW) });
   const usage = calls.filter((c) => c.url.includes("/api/oauth/usage"));
   assert.deepEqual(usage.map((c) => c.headers.authorization).sort(), ["Bearer at-personal1", "Bearer at-work1"]);
-  assert.ok(usage.every((c) => c.headers["anthropic-beta"] === "oauth-2025-04-20" && /^claude-cli\/\S+ \(external, cli\)$/.test(c.headers["user-agent"])));
+  assert.ok(usage.every((c) => c.headers["anthropic-beta"] === "oauth-2025-04-20" && /^dotagents\/\d+\.\d+\.\d+/.test(c.headers["user-agent"])), "dotagents says who it is");
   assert.ok(!calls.some((c) => c.url.includes("/oauth/token")), "tokens an hour from expiry aren't renewed");
 
   const list = readUsage(new Date(NOW + 60_000));
@@ -106,6 +106,7 @@ test("the vault's copy is renewed a few minutes early, and the rotated token rep
   assert.equal(res.status, "updated");
   const renewal = calls.find((c) => c.url.includes("/oauth/token"))!;
   assert.deepEqual(JSON.parse(renewal.body!), { grant_type: "refresh_token", client_id: "9d1c250a-e61b-44d9-88ed-5944d1962f5e", refresh_token: "rt-personal1" });
+  assert.match(renewal.headers["user-agent"], /^dotagents\/\d+\.\d+\.\d+/);
   const saved = vaultCreds(home);
   assert.equal(saved.refreshToken, "rt-personal1-new");
   assert.equal(saved.accessToken, "at-personal1-new");
