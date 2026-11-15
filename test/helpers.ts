@@ -14,6 +14,11 @@ export const REPO = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "
 // The tests read the example configuration, never the one installed next to the clone.
 process.env.DOTAGENTS_CONFIG = path.join(REPO, "templates", "config");
 
+// Nor to the real state folder (the logs, for one): a folder of their own, gone at the end.
+const testState = fs.mkdtempSync(path.join(os.tmpdir(), "dotagents-state-"));
+process.env.DOTAGENTS_STATE_DIR = testState;
+process.on("exit", () => fs.rmSync(testState, { recursive: true, force: true }));
+
 // Points the configuration elsewhere for one test (undefined: a clone's own config/), and back after.
 export function withConfig(t: TestContext, value: string | undefined) {
   const saved = process.env.DOTAGENTS_CONFIG;

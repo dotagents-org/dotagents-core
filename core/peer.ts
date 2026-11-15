@@ -8,11 +8,13 @@ import fs from "node:fs";
 import { type Peer, loadMachine, machineFile, saveMachine } from "./machine-state.ts";
 import { report, section } from "./output.ts";
 import { state } from "./state.ts";
+import { log } from "./log.ts";
 
 export type PeerFinder = () => Peer | null;
 
 const run = (command: string, args: string[], cwd?: string) => {
   const res = spawnSync(command, args, { encoding: "utf8", timeout: 15_000, cwd, windowsHide: true });
+  if (res.status !== 0) log("core", "error", "peer find", `${command} ${args.join(" ")}: exit ${res.status}${res.error ? `, ${res.error.message}` : ""}\n${res.stderr ?? ""}`);
   return res.status === 0 ? res.stdout.replace(/\r/g, "").trim() : "";
 };
 

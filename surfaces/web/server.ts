@@ -6,6 +6,7 @@
 
 import { randomBytes, timingSafeEqual } from "node:crypto";
 import http from "node:http";
+import { logChange } from "../../core/log.ts";
 const KEEPALIVE_MS = 15_000;
 
 export type ServerOptions = {
@@ -45,8 +46,11 @@ export async function startServer({ read: readData, port = 7337, token = randomB
   // the server.
   const read = () => {
     try {
-      return versioned(readData());
+      const data = versioned(readData());
+      logChange("core", "error", "start read", null);
+      return data;
     } catch (err) {
+      logChange("core", "error", "start read", (err as Error).stack ?? (err as Error).message);
       return versioned({ error: (err as Error).message });
     }
   };

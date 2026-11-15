@@ -3,6 +3,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { ROLES, backgroundOf, badge, colorLevel, contrast, hexColor, painter, readableOn } from "../core/theme.ts";
+import "./helpers.ts";
 
 test("a terminal gets colors, as deep as it says it supports", () => {
   assert.equal(colorLevel({}, true), 1);

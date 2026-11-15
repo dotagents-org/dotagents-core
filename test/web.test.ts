@@ -5,7 +5,10 @@
 import assert from "node:assert/strict";
 import http from "node:http";
 import { test } from "node:test";
+import fs from "node:fs";
 import { startServer } from "../surfaces/web/server.ts";
+import { logFile } from "../core/log.ts";
+import "./helpers.ts";
 
 type Res = { status: number; headers: http.IncomingHttpHeaders; body: string };
 
@@ -74,6 +77,24 @@ test("every answer carries the API version, and a read that fails answers its er
   broken = false;
   const ok = await get(server.port, "/api/usage", { "x-dotagents-token": "secret" });
   assert.deepEqual(JSON.parse(ok.body), { apiVersion: 1, profiles: [] });
+});
+
+test("a read that fails is written to core.log once, with its stack and without the token in it", async (t) => {
+  fs.rmSync(logFile("core"), { force: true });
+  const server = await startServer({
+    port: 0,
+    read: () => {
+      throw new Error('refresh failed: {"accessToken":"sk-ant-oat01-SECRET123"}');
+    },
+    token: "secret",
+  });
+  t.after(() => server.close());
+  await get(server.port, "/api/usage", { "x-dotagents-token": "secret" });
+  await get(server.port, "/api/usage", { "x-dotagents-token": "secret" });
+  const text = fs.readFileSync(logFile("core"), "utf8");
+  assert.equal(text.match(/error start read: /g)?.length, 1);
+  assert.match(text, /\n {2}at /);
+  assert.ok(!text.includes("sk-ant-oat01-SECRET123"));
 });
 
 test("the event stream sends the usage at once, with the token in the query (EventSource sends no headers)", async (t) => {

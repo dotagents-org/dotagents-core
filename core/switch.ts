@@ -7,6 +7,7 @@
 // Always manual (ADR 0001). Credentials are copied whole and never printed.
 
 import { spawnSync } from "node:child_process";
+import { log } from "./log.ts";
 import { createHash } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
@@ -156,6 +157,7 @@ export const peerSwitch: PeerSwitch = (name) => {
       ? spawnSync("wsl.exe", ["-e", "bash", "-lic", `dotagents switch ${name} --here`], { encoding: "utf8", timeout: 60_000, windowsHide: true })
       : spawnSync("powershell.exe", ["-NoProfile", "-Command", `dotagents switch ${name} --here`], { encoding: "utf8", timeout: 60_000, cwd: "/mnt/c" });
   if (run.status === 0) return { ok: true, detail: `${peer.name}: ${name}` };
+  log("core", "error", "peer switch", `dotagents switch ${name} --here on ${peer.name}: exit ${run.status}${run.error ? `, ${run.error.message}` : ""}\n${run.stdout ?? ""}${run.stderr ?? ""}`);
   return { ok: false, detail: `${peer.name}: ${peerFailure(`${run.stdout ?? ""}${run.stderr ?? ""}`) || run.error?.message || `exit ${run.status}`}` };
 };
 

@@ -11,6 +11,7 @@
 // transcript written in the last RECENT_MS counts as running too.
 
 import { execFile, spawnSync } from "node:child_process";
+import { logChange } from "./log.ts";
 import fs from "node:fs";
 import path from "node:path";
 import { type AccountLabels, archiveFile, parseTranscript, promptText, readRevisions, renderArchive, revise } from "../skills/session-archive/scripts/archive-session.ts";
@@ -190,6 +191,7 @@ export const peerRunning: PeerRunning = () => {
   const run = isWindows
     ? spawnSync("wsl.exe", ["-e", "bash", "-lic", "dotagents sessions --running"], { encoding: "utf8", timeout: 30_000, windowsHide: true })
     : spawnSync("powershell.exe", ["-NoProfile", "-Command", "dotagents sessions --running"], { encoding: "utf8", timeout: 30_000, cwd: "/mnt/c" });
+  logChange("core", "error", "peer sessions", run.status === 0 ? null : `dotagents sessions --running on the other side: exit ${run.status}${run.error ? `, ${run.error.message}` : ""}\n${run.stderr ?? ""}`);
   if (run.status !== 0) return null;
   return new Set((run.stdout ?? "").split(/\r?\n/).map((l) => l.trim()).filter((l) => /^[0-9a-f-]{36}$/i.test(l)));
 };
@@ -201,7 +203,8 @@ export const peerRunningLater = (): Promise<Set<string> | null> =>
     const [command, args, cwd] = isWindows
       ? ["wsl.exe", ["-e", "bash", "-lic", "dotagents sessions --running"], undefined]
       : ["powershell.exe", ["-NoProfile", "-Command", "dotagents sessions --running"], "/mnt/c"];
-    execFile(command, args, { encoding: "utf8", timeout: 30_000, windowsHide: true, cwd }, (err, stdout) => {
+    execFile(command, args, { encoding: "utf8", timeout: 30_000, windowsHide: true, cwd }, (err, stdout, stderr) => {
+      logChange("core", "error", "peer sessions", err ? `dotagents sessions --running on the other side: ${err.message}\n${stderr}` : null);
       resolve(err ? null : new Set(stdout.split(/\r?\n/).map((l) => l.trim()).filter((l) => /^[0-9a-f-]{36}$/i.test(l))));
     });
   });

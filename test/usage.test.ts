@@ -8,6 +8,7 @@ import { test, type TestContext } from "node:test";
 import { usageJson } from "../core/snapshot.ts";
 import { type ProfileUsage, type UsageWindow, avatarState, avatarWorking, bar, elapsedPct, faceOf, levelOf, normalize, pace, profileUsage, shortLines, span, thresholdAlerts, usageLines } from "../core/usage.ts";
 import { sessionActivity } from "../core/claude-code.ts";
+import "./helpers.ts";
 
 const NOW = new Date("2026-10-28T12:00:00Z");
 const at = (iso: string) => new Date(iso);

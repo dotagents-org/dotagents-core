@@ -3,6 +3,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { parseArgs } from "../core/common.ts";
+import "./helpers.ts";
 
 test("a list option takes commas, and the spaces PowerShell turns them into", () => {
   const lists = ["skills"];

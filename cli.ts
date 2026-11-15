@@ -35,6 +35,7 @@ import { untrack, workspaces } from "./surfaces/cli/workspaces.ts";
 import { UsageError, parseArgs } from "./core/common.ts";
 import { brand, captureAsync, displayPath, fancy, tone } from "./core/output.ts";
 import { state } from "./core/state.ts";
+import { log, logChange } from "./core/log.ts";
 
 // The local API the dotagents sidebar reads its accounts from. Defined here, at the root, because it
 // joins two surfaces: the command line starts it, surfaces/web/ serves it.
@@ -71,6 +72,7 @@ const start: Command = {
         if (e.kind !== "result" || e.status === "ok") continue;
         const text = e.status === "failed" ? e.detail : "";
         if ((said.get(e.target) ?? "") !== text && text) console.error(`${new Date().toLocaleTimeString("en-GB")}  ${e.target}: ${text}`);
+        logChange("core", "error", `usage ${e.target}`, text || null);
         said.set(e.target, text);
       }
       return events;
@@ -119,6 +121,7 @@ const start: Command = {
             const failed = events.filter((e) => e.kind === "result" && e.status === "failed");
             return { status: failed.length ? 502 : 200, body: { ok: !failed.length, detail: failed.map((e) => ("detail" in e ? e.detail : "")).join("; ") || `now ${name}` } };
           } catch (err) {
+            log("core", "error", "start switch", err as Error);
             return { status: 409, body: { ok: false, detail: (err as Error).message } };
           }
         },
@@ -137,7 +140,16 @@ const start: Command = {
     });
     // Where the sidebar finds it, taken away when it stops.
     recordServer({ port: server.port, token: server.token });
-    process.on("exit", forgetServer);
+    // It runs on its own, its output thrown away: what it does and how it ends go to core.log
+    log("core", "info", "start", `on 127.0.0.1:${server.port}, pid ${process.pid}, dotagents ${version}, node ${process.version} (${process.execPath})`);
+    process.on("exit", (code) => {
+      forgetServer();
+      log("core", "info", "start", `stopped, pid ${process.pid}, exit ${code}`);
+    });
+    process.on("uncaughtException", (err) => {
+      log("core", "error", "start", err);
+      process.exit(1);
+    });
     for (const signal of ["SIGINT", "SIGTERM", "SIGHUP"] as const) process.on(signal, () => process.exit(0));
     console.log(`${brand()}  ${bold("start")}\n\nThe API is on 127.0.0.1:${server.port}; the dotagents sidebar reads it.\n${muted("Only this machine reaches it, and only with the token in start.json. Ctrl+C stops it.")}`);
     await tick();
@@ -212,6 +224,8 @@ function pick(words: string[]) {
 
 // One line for an error, never a stack trace; 2 when the command line itself is wrong.
 function fail(err: Error) {
+  // A mistake in the command line is the user's to fix; anything else is written down with its stack
+  if (!(err instanceof UsageError)) log("core", "error", `dotagents ${process.argv.slice(2).join(" ")}`, err);
   console.error(fancy ? `${high("✗")} ${bold("dotagents:")} ${err.message}` : `dotagents: ${err.message}`);
   process.exitCode = err instanceof UsageError ? 2 : 1;
 }
