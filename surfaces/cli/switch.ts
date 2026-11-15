@@ -1,6 +1,6 @@
 // `switch`: which account the side's slot (~/.claude) holds, and changing it (ADR 0009).
 
-import { loadProfiles } from "../../core/machine-state.ts";
+import { claudeProfiles } from "../../core/machine-state.ts";
 import { brand, fancy, finish, header, line, paint, tone } from "../../core/output.ts";
 import { slotProfile, switchProfile, vaultDir } from "../../core/switch.ts";
 import type { Command } from "./shared.ts";
@@ -17,7 +17,7 @@ export const switchCommand: Command = {
     const name = positional[0];
     if (!name && !args.save) {
       const current = slotProfile();
-      const profiles = loadProfiles();
+      const profiles = claudeProfiles();
       if (!fancy) {
         for (const p of profiles) console.log(`${p.name}${p.name === current?.name ? "  (in the slot)" : ""}${fs.existsSync(vaultDir(p.name)) ? "" : "  (no saved login)"}`);
         return;

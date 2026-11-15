@@ -61,15 +61,20 @@ function writeStateFile(file: string, version: number, body: Record<string, unkn
   fs.renameSync(tmp, file);
 }
 
-export type Profile = { name: string; configDir: string; color: string; default?: boolean };
+// provider: whose account the profile holds, Claude when absent (ADR 0017). Only a Codex profile
+// writes it, and it raises the file to version 2, so a dotagents that knows only Claude stops
+// instead of treating it as a Claude one; a file of Claude profiles stays at version 1.
+export type Provider = "claude" | "codex";
+export type Profile = { name: string; configDir: string; color: string; default?: boolean; provider?: Provider };
 
-const PROFILES = { name: "profiles.json", version: 1 };
+const PROFILES = { name: "profiles.json", version: 2 };
+export const providerOf = (p: Profile): Provider => p.provider ?? "claude";
 
 export const profilesFile = () => path.join(stateDir(), PROFILES.name);
 
 const isProfile = (v: unknown): v is Profile => {
   const a = v as Profile;
-  return typeof v === "object" && v !== null && typeof a.name === "string" && typeof a.configDir === "string" && typeof a.color === "string" && (a.default === undefined || typeof a.default === "boolean");
+  return typeof v === "object" && v !== null && typeof a.name === "string" && typeof a.configDir === "string" && typeof a.color === "string" && (a.default === undefined || typeof a.default === "boolean") && (a.provider === undefined || a.provider === "claude" || a.provider === "codex");
 };
 
 // Earlier versions called the profiles "accounts", in accounts.json.
@@ -85,9 +90,12 @@ export function loadProfiles(): Profile[] {
   return list;
 }
 
+// The Claude profiles: what every part that reads Claude Code's files and logins works on.
+export const claudeProfiles = () => loadProfiles().filter((p) => providerOf(p) === "claude");
+
 // Writes the profiles, and drops the accounts.json they may have come from.
 function writeProfiles(profiles: Profile[]) {
-  writeStateFile(profilesFile(), PROFILES.version, { profiles });
+  writeStateFile(profilesFile(), profiles.some((p) => providerOf(p) !== "claude") ? 2 : 1, { profiles });
   if (!state.dryRun) fs.rmSync(legacyProfilesFile(), { force: true });
 }
 
@@ -105,6 +113,7 @@ export function saveProfile(profile: Profile) {
   const i = all.findIndex((a) => a.name === profile.name);
   const entry = { ...profile };
   if (!entry.default) delete entry.default;
+  if (entry.provider === "claude") delete entry.provider;
   if (i >= 0) all[i] = entry;
   else all.push(entry);
   writeProfiles(all);

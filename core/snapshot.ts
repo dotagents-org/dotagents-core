@@ -56,7 +56,8 @@ function peerUsage(peer: Peer, now: Date): ProfileUsage[] {
   let profiles: Profile[] = [{ name: "claude", color: PALETTE[0], default: true, configDir: path.join(peer.nativeHome, ".claude") }];
   try {
     const data = JSON.parse(fs.readFileSync(path.join(peer.home, ".config", "dotagents", "profiles.json"), "utf8"));
-    if (Array.isArray(data?.profiles) && data.profiles.length) profiles = data.profiles;
+    const claude = Array.isArray(data?.profiles) ? data.profiles.filter((p: Profile) => (p?.provider ?? "claude") === "claude") : [];
+    if (claude.length) profiles = claude;
   } catch {
     // No dotagents there yet, or nothing to read: only its default folder.
   }

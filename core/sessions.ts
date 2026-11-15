@@ -17,7 +17,7 @@ import path from "node:path";
 import { type AccountLabels, archiveFile, parseTranscript, promptText, readRevisions, renderArchive, revise } from "../skills/session-archive/scripts/archive-session.ts";
 import { type ProcessProbe, defaultConfigDir, runningProcess, signedIn } from "./claude-code.ts";
 import { isWindows } from "./common.ts";
-import { type Peer, loadMachine, loadProfiles } from "./machine-state.ts";
+import { type Peer, claudeProfiles, loadMachine } from "./machine-state.ts";
 import { report } from "./output.ts";
 import { state } from "./state.ts";
 import { profileAccount } from "./switch.ts";
@@ -298,7 +298,7 @@ export function listSessions({ dirs = configDirs(), under, now = Date.now(), run
 // email of the login in this side's slot. Only ids and emails, never a credential.
 export function accountLabels(): AccountLabels {
   const labels: AccountLabels = new Map();
-  for (const profile of loadProfiles()) {
+  for (const profile of claudeProfiles()) {
     const account = profileAccount(profile);
     if (account && !labels.has(account.accountUuid)) labels.set(account.accountUuid, account.email ? `${profile.name} (${account.email})` : profile.name);
   }
@@ -310,7 +310,7 @@ export function accountLabels(): AccountLabels {
 // Each account's profile color, for the lists to paint its name the way every other view does.
 export function accountColors(): Map<string, string> {
   const colors = new Map<string, string>();
-  for (const profile of loadProfiles()) {
+  for (const profile of claudeProfiles()) {
     const account = profileAccount(profile);
     if (account && !colors.has(account.accountUuid)) colors.set(account.accountUuid, profile.color);
   }

@@ -1,7 +1,7 @@
 // `settings pull`: a settings change made in a profile goes back to the repository.
 
 import { pullSettings } from "../../core/global.ts";
-import { loadProfiles } from "../../core/machine-state.ts";
+import { claudeProfiles } from "../../core/machine-state.ts";
 import { finish, header } from "../../core/output.ts";
 import { configDirs } from "../../core/profiles.ts";
 import { state } from "../../core/state.ts";
@@ -17,7 +17,7 @@ export const settingsPull: Command = {
     header("settings pull", args.from ?? "");
     let from: string | undefined;
     if (args.from) {
-      const profile = loadProfiles().find((p) => p.name === args.from);
+      const profile = claudeProfiles().find((p) => p.name === args.from);
       if (!profile) throw new Error(`There is no profile named ${args.from}`);
       from = profile.configDir;
     }

@@ -5,7 +5,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { test, type TestContext } from "node:test";
-import { forgetServer, liveServer, loadProfiles, loadWorkspaces, migrateLegacyProfiles, profilesFile, readServer, recordServer, registerWorkspace, removeProfile, saveProfile, serverFile, untrackWorkspace, workspacesFile } from "../core/machine-state.ts";
+import { claudeProfiles, forgetServer, liveServer, loadProfiles, providerOf, loadWorkspaces, migrateLegacyProfiles, profilesFile, readServer, recordServer, registerWorkspace, removeProfile, saveProfile, serverFile, untrackWorkspace, workspacesFile } from "../core/machine-state.ts";
 import { state } from "../core/state.ts";
 import { startServer } from "../surfaces/web/server.ts";
 import { quiet } from "./helpers.ts";
@@ -121,14 +121,32 @@ test("the profiles file is written and read in the documented format", (t) => {
   // Another tool's file: fields it adds are ignored, and a newer format is refused.
   fs.writeFileSync(path.join(dir, "profiles.json"), JSON.stringify({ version: 1, profiles: [{ name: "work", configDir: "/home/me/.claude", color: "#D77655", avatar: "hexagon" }] }));
   assert.deepEqual(loadProfiles().map((p) => [p.name, p.configDir, p.color, Boolean(p.default)]), [["work", "/home/me/.claude", "#D77655", false]]);
-  fs.writeFileSync(path.join(dir, "profiles.json"), JSON.stringify({ version: 2, profiles: [] }));
+  fs.writeFileSync(path.join(dir, "profiles.json"), JSON.stringify({ version: 3, profiles: [] }));
   assert.throws(() => loadProfiles(), /newer dotagents/);
+});
+
+test("a Codex profile raises the profiles file to version 2, and the Claude parts don't see it", (t) => {
+  tempStateDir(t);
+  quiet();
+  saveProfile({ name: "work", configDir: "/home/me/.claude", color: "#D77655", provider: "claude" });
+  assert.equal(JSON.parse(fs.readFileSync(profilesFile(), "utf8")).version, 1);
+  assert.equal("provider" in loadProfiles()[0], false);
+  saveProfile({ name: "codex-work", configDir: "/home/me/.codex", color: "#7B61A8", provider: "codex" });
+  const file = JSON.parse(fs.readFileSync(profilesFile(), "utf8"));
+  assert.equal(file.version, 2);
+  assert.deepEqual(file.profiles[1], { name: "codex-work", configDir: "/home/me/.codex", color: "#7B61A8", provider: "codex" });
+  assert.deepEqual(claudeProfiles().map((p) => p.name), ["work"]);
+  assert.deepEqual(loadProfiles().map(providerOf), ["claude", "codex"]);
+  removeProfile("codex-work");
+  assert.equal(JSON.parse(fs.readFileSync(profilesFile(), "utf8")).version, 1);
 });
 
 test("a profiles file with a bad entry stops the command", (t) => {
   const dir = tempStateDir(t);
   quiet();
   fs.writeFileSync(path.join(dir, "profiles.json"), JSON.stringify({ version: 1, profiles: [{ name: "x" }] }));
+  assert.throws(() => loadProfiles(), /fix it or delete it/);
+  fs.writeFileSync(path.join(dir, "profiles.json"), JSON.stringify({ version: 2, profiles: [{ name: "x", configDir: "/x", color: "#000000", provider: "gemini" }] }));
   assert.throws(() => loadProfiles(), /fix it or delete it/);
 });
 

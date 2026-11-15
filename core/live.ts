@@ -14,7 +14,7 @@
 import { recordHistory } from "./spend.ts";
 import fs from "node:fs";
 import path from "node:path";
-import { type Profile, loadProfiles, stateDir } from "./machine-state.ts";
+import { type Profile, claudeProfiles, stateDir } from "./machine-state.ts";
 import { report, section } from "./output.ts";
 import { PALETTE } from "./profiles.ts";
 import { defaultConfigDir } from "./claude-code.ts";
@@ -182,7 +182,7 @@ export async function fetchLive(p: Profile, { fetcher = httpFetcher, now = Date.
 
 // The profiles of this side; without any, the one in ~/.claude.
 export function sideProfiles(): Profile[] {
-  const profiles = loadProfiles();
+  const profiles = claudeProfiles();
   return profiles.length ? profiles : [{ name: "claude", color: PALETTE[0], default: true, configDir: defaultConfigDir() }];
 }
 

@@ -13,7 +13,7 @@ import { CREDENTIAL_VARIABLES, defaultConfigDir } from "./claude-code.ts";
 import { isWindows, lstat, removeGenerated, samePath } from "./common.ts";
 import { type Shortcuts, applyDesktop, powershellShortcuts, removeDesktop, removeTray, verifyDesktop } from "./desktop.ts";
 import { installGlobal } from "./global.ts";
-import { type Profile, loadProfiles, migrateLegacyProfiles, profilesFile, removeProfile, saveProfile } from "./machine-state.ts";
+import { type Profile, claudeProfiles, loadProfiles, migrateLegacyProfiles, profilesFile, removeProfile, saveProfile } from "./machine-state.ts";
 import { checkItem, checkWarn, displayPath, report, section } from "./output.ts";
 import { state } from "./state.ts";
 import { profileAccount } from "./switch.ts";
@@ -100,7 +100,7 @@ export function installProfiles(repo: string, { desktop = desktopDefault() }: De
     report(state.dryRun ? "would update" : "updated", profilesFile(), "moved from accounts.json, its earlier name");
   }
   installGlobal(repo);
-  for (const prior of loadProfiles()) {
+  for (const prior of claudeProfiles()) {
     const profile = { ...prior, configDir: defaultConfigDir() };
     applyProfile(repo, profile, desktop);
     if (!samePath(prior.configDir, profile.configDir)) record(profile, prior);
@@ -114,7 +114,7 @@ export function installProfiles(repo: string, { desktop = desktopDefault() }: De
 export function verifyProfiles({ desktop = desktopDefault() }: DesktopOption = {}) {
   section("Profiles");
   const seen = new Map<string, string>();
-  for (const profile of loadProfiles()) {
+  for (const profile of claudeProfiles()) {
     if (desktop) verifyDesktop(profile.name, profile.default);
     checkItem(samePath(profile.configDir, defaultConfigDir()), `${profile.name} uses ${displayPath(defaultConfigDir())}`, "move it there with: dotagents install");
     const account = profileAccount(profile);

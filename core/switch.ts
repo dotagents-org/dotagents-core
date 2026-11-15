@@ -12,7 +12,7 @@ import { createHash } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { defaultConfigDir, stateFile } from "./claude-code.ts";
-import { type Peer, type Profile, loadMachine, loadProfiles, stateDir } from "./machine-state.ts";
+import { type Peer, type Profile, claudeProfiles, loadMachine, stateDir } from "./machine-state.ts";
 import { checkItem, checkWarn, report, section } from "./output.ts";
 import { state } from "./state.ts";
 
@@ -70,7 +70,7 @@ export function profileAccount(p: Profile): { accountUuid: string; email: string
 }
 
 // The profile an account belongs to, by the account's id.
-const ownerOf = (uuid: string) => loadProfiles().find((p) => knownLogin(p)?.accountUuid === uuid) ?? null;
+const ownerOf = (uuid: string) => claudeProfiles().find((p) => knownLogin(p)?.accountUuid === uuid) ?? null;
 
 // The profile whose account is in this side's slot, or null.
 export function slotProfile(): Profile | null {
@@ -185,7 +185,7 @@ export async function switchProfile({ name, save, here = false, peer = peerSwitc
 
 // The switch on this side, under the lock: the profile switched to, or null after a --save.
 function switchHere(name: string | undefined, save: string | undefined, afterSave?: () => void): string | null {
-  const profiles = loadProfiles();
+  const profiles = claudeProfiles();
   const find = (n: string) => {
     const p = profiles.find((x) => x.name === n);
     if (!p) throw new Error(`There is no profile named ${n}`);
@@ -325,7 +325,7 @@ export function verifyLogins(now = new Date()) {
   }
   const slot = slotLogin();
   const uuids = new Map<string, string>();
-  for (const p of loadProfiles()) {
+  for (const p of claudeProfiles()) {
     const known = knownLogin(p);
     if (known) uuids.set(p.name, known.accountUuid);
     checkExpiry(p.name, sideName(), slot && known && slot.accountUuid === known.accountUuid ? slot : known, now);
@@ -334,7 +334,7 @@ export function verifyLogins(now = new Date()) {
   const peer = loadMachine().peer;
   if (!peer) return;
   const other = peerLogins(peer, uuids);
-  for (const p of loadProfiles()) checkExpiry(p.name, peer.name, other(p.name), now, path.join(peer.home, ".config", "dotagents"));
+  for (const p of claudeProfiles()) checkExpiry(p.name, peer.name, other(p.name), now, path.join(peer.home, ".config", "dotagents"));
   checkSlot(peer.home, peer.name, uuids);
 }
 
@@ -356,7 +356,7 @@ export const claudeLogin: ClaudeLogin = () => {
 // running out within WARN_DAYS.
 function dueLogins(now: Date) {
   const slot = slotLogin();
-  return loadProfiles().filter((p) => {
+  return claudeProfiles().filter((p) => {
     const known = knownLogin(p);
     const login = slot && known && slot.accountUuid === known.accountUuid ? slot : known;
     if (!login || refusedLogin(p.name, login)) return true;
@@ -368,7 +368,7 @@ function dueLogins(now: Date) {
 export type LoginOptions = { name?: string; all?: boolean; now?: Date; run?: ClaudeLogin };
 
 export async function loginProfile({ name, all = false, now = new Date(), run = claudeLogin }: LoginOptions) {
-  const profiles = loadProfiles();
+  const profiles = claudeProfiles();
   if (!all && !name) throw new Error("Usage: dotagents login <profile>, or dotagents login --all");
   if (name && !profiles.some((p) => p.name === name)) throw new Error(`There is no profile named ${name}`);
   const due = all ? dueLogins(now) : profiles.filter((p) => p.name === name);

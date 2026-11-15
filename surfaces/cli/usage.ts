@@ -6,7 +6,7 @@ import { captureAsync, fancy, ink } from "../../core/output.ts";
 import { refreshUsage } from "../../core/live.ts";
 import { type Line, type ProfileUsage, shortLines, usageLines } from "../../core/usage.ts";
 import { badge, colorLevel } from "../../core/theme.ts";
-import { loadProfiles } from "../../core/machine-state.ts";
+import { claudeProfiles } from "../../core/machine-state.ts";
 import { readLog } from "../../core/revision.ts";
 import { type Ratio, type WindowSpend, spendReport } from "../../core/spend.ts";
 import { profileAccount } from "../../core/switch.ts";
@@ -19,7 +19,7 @@ const hhmm = (iso: string) => new Date(iso).toLocaleString("en-GB", { weekday: "
 
 // usage --spend: what 1% of each window cost, and where the current window's spend went
 function spendView(json: boolean) {
-  const profiles = loadProfiles().map((p) => ({ name: p.name, accountUuid: profileAccount(p)?.accountUuid ?? null }));
+  const profiles = claudeProfiles().map((p) => ({ name: p.name, accountUuid: profileAccount(p)?.accountUuid ?? null }));
   const { profiles: report, unattributedUsd } = spendReport(profiles, { folder: (cwd) => displayPath(cwd) });
   const since = Math.min(...report.flatMap((p) => (p.week ? [Date.parse(p.week.from)] : [])), Date.now());
   const revisionUsd = readLog().filter((e) => Date.parse(e.at) >= since).reduce((sum, e) => sum + (e.costUsd ?? 0), 0);
