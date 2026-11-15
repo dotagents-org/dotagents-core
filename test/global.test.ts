@@ -123,6 +123,60 @@ test("a settings copy follows the repository, but a change made in the profile i
   assert.equal(state.counts.skipped, undefined);
 });
 
+test("the settings are a copy on every system, and a link left by an older install becomes one", { skip: process.platform === "win32" }, (t) => {
+  const home = tempHome(t);
+  const repo = tempRepo(t);
+  const dir = path.join(home, ".claude");
+  const source = path.join(repo, "config", "claude", "settings.json");
+  fs.mkdirSync(dir, { recursive: true });
+  fs.symlinkSync(source, path.join(dir, "settings.json"));
+  quiet();
+  installGlobal(repo, dir);
+  assert.ok(!fs.lstatSync(path.join(dir, "settings.json")).isSymbolicLink());
+  assert.equal(fs.readFileSync(path.join(dir, "settings.json"), "utf8"), fs.readFileSync(source, "utf8"));
+  quiet();
+  installGlobal(repo, dir);
+  assert.equal(state.counts.updated, undefined);
+});
+
+test("what /model, /effort and /auto-mode-setup write stays in the copy and never reaches the repository", (t) => {
+  const home = tempHome(t);
+  const repo = tempRepo(t);
+  const [a, b] = [path.join(home, ".claude"), path.join(home, ".claude-b")];
+  const source = path.join(repo, "config", "claude", "settings.json");
+  const before = fs.readFileSync(source, "utf8");
+  quiet();
+  for (const dir of [a, b]) installGlobal(repo, dir);
+  const copy = path.join(a, "settings.json");
+  setKey(copy, "model", "opus");
+  setKey(copy, "modelSettings", { opus: { effortLevel: "high" } });
+  setKey(copy, "effortLevel", "high");
+  setKey(copy, "autoMode", { environment: ["one project's hosts"] });
+
+  // Not a change: install leaves the copy alone, and the checklist says nothing
+  const events = quiet();
+  installGlobal(repo, a);
+  assert.ok(events.some((e) => e.kind === "result" && e.status === "ok" && e.target === copy));
+  assert.equal(settingsOf(a).model, "opus");
+  const checks = quiet();
+  verifyGlobal(repo, [a, b]);
+  assert.ok(!checks.some((e) => e.kind === "warning" && /changed in this profile/.test(e.text)));
+
+  // The repository changes: the copy follows, keeping the machine's keys
+  setKey(source, "verbose", true);
+  quiet();
+  installGlobal(repo, a);
+  assert.deepEqual([settingsOf(a).verbose, settingsOf(a).model, settingsOf(a).modelSettings, settingsOf(a).autoMode], [true, "opus", { opus: { effortLevel: "high" } }, { environment: ["one project's hosts"] }]);
+
+  // A real change made in the profile goes to the repository through settings pull, without the machine's keys
+  setKey(copy, "showTurnDuration", false);
+  quiet();
+  pullSettings(repo, [a, b]);
+  const repoSettings = JSON.parse(fs.readFileSync(source, "utf8"));
+  assert.equal(repoSettings.showTurnDuration, false);
+  for (const key of ["model", "modelSettings", "effortLevel", "autoMode"]) assert.deepEqual(repoSettings[key], JSON.parse(before)[key], key);
+});
+
 test("settings pull refuses two profiles changed in different ways, unless told which one", (t) => {
   const home = tempHome(t);
   const repo = tempRepo(t);

@@ -109,11 +109,13 @@ Settings and MCP are in Claude Code's own format, so they go straight into its f
   effort different from the global one.
 
 Claude Code saves `/model`, `/effort`, `/plugin` and the auto mode setup in the global file,
-which in dotagents is the repository's file: check its `git diff` before a commit, and move a
-key that belongs to one project into that project's files. The exception is `autoMode`, read
-only from the global (or managed) file
-([settings reference](https://code.claude.com/docs/en/settings-reference.md)): keep it there,
-written for every project, never for one. An MCP server that only exists on one
+which in dotagents is a copy of the repository's. `model`, `modelSettings`, `effortLevel` and
+`autoMode` stay in the copy, as the machine's: `dotagents settings pull` never takes them to the
+repository. `autoMode` is read only from the global (or managed) file
+([settings reference](https://code.claude.com/docs/en/settings-reference.md)), so a project can't
+have its own. Anything else `/plugin` or `/config` writes there is a change of the configuration:
+take it with `settings pull`, or move a key that belongs to one project into that project's
+files. An MCP server that only exists on one
 machine goes in the tool's local scope, not in the project file.
 
 ---

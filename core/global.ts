@@ -5,7 +5,7 @@ import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { defaultConfigDir, stateFile, userFiles } from "./claude-code.ts";
-import { backup, configRoot, ensureDirLink, ensureFile, isWindows, lstat, mkdirFor, removeLink, writeGenerated } from "./common.ts";
+import { backup, configRoot, ensureDirLink, ensureFile, lstat, mkdirFor, removeLink, writeGenerated } from "./common.ts";
 import { loadCopies, recordCopy } from "./machine-state.ts";
 import { checkItem, checkWarn, displayPath, report, section, toSlash } from "./output.ts";
 import { state } from "./state.ts";
@@ -23,8 +23,9 @@ export function renderInstructions(repo: string) {
 }
 
 // Applies the configuration to one Claude Code config folder: ~/.claude by default. The settings
-// are a link to this repository, or a copy on Windows (copy), where links need admin rights.
-export function installGlobal(repo: string, configDir = defaultConfigDir(), { copy = isWindows }: { copy?: boolean } = {}) {
+// are a copy of this repository's on every system (copy: false links them, for the tests), so
+// what Claude Code writes there by itself (/model, /effort) never lands in the repository.
+export function installGlobal(repo: string, configDir = defaultConfigDir(), { copy = true }: { copy?: boolean } = {}) {
   const files = userFiles(configDir);
 
   section("Global instructions");
@@ -52,7 +53,42 @@ const readText = (file: string) => {
 };
 // An editor or an app on Windows may save with CRLF, which isn't a change.
 const normalized = (text: string) => text.replace(/\r\n/g, "\n");
-const digest = (text: string) => crypto.createHash("sha256").update(normalized(text)).digest("hex");
+
+// The keys Claude Code writes into the settings by itself that belong to the machine, not to the
+// configuration (docs/global-configuration.md): the model and effort chosen with /model and /effort,
+// and the auto mode's environment, which /auto-mode-setup drafts from whichever project is open. A
+// copy keeps its own: install doesn't overwrite them, settings pull doesn't take them, and a change
+// in them is not a change.
+export const MACHINE_KEYS = ["model", "modelSettings", "effortLevel", "autoMode"];
+
+type Settings = Record<string, unknown>;
+const parse = (text: string | null): Settings | null => {
+  try {
+    const data = JSON.parse(text ?? "");
+    return data && typeof data === "object" && !Array.isArray(data) ? data : null;
+  } catch {
+    return null;
+  }
+};
+const machineOf = (data: Settings) => Object.fromEntries(MACHINE_KEYS.filter((k) => k in data).map((k) => [k, data[k]]));
+const withoutMachine = (data: Settings) => Object.fromEntries(Object.entries(data).filter(([k]) => !MACHINE_KEYS.includes(k)));
+// The settings as compared: without the machine's keys (the text itself when it isn't JSON).
+const shared = (text: string) => {
+  const data = parse(text);
+  return data ? JSON.stringify(withoutMachine(data)) : normalized(text);
+};
+const digest = (text: string) => crypto.createHash("sha256").update(shared(text)).digest("hex");
+const asText = (data: Settings) => `${JSON.stringify(data, null, 2)}\n`;
+
+// The repository's settings, with the machine's keys a copy already has (the repository's where it
+// has none, so a new machine starts from them); the repository's text as it is when nothing differs.
+function forCopy(source: string, copy: string | null) {
+  const data = parse(source);
+  const mine = parse(copy);
+  if (!data || !mine) return source;
+  const keep = machineOf(mine);
+  return Object.entries(keep).every(([k, v]) => JSON.stringify(data[k]) === JSON.stringify(v)) ? source : asText({ ...data, ...keep });
+}
 
 // A settings copy against the repository and against what install last copied there: the same,
 // missing, behind the repository (only the repository changed), changed in the profile (/config
@@ -62,7 +98,7 @@ type CopyState = "same" | "missing" | "behind" | "changed" | "unknown";
 function copyState(source: string, dest: string): CopyState {
   const copy = readText(dest);
   if (copy === null) return "missing";
-  if (normalized(copy) === normalized(readText(source) ?? "")) return "same";
+  if (shared(copy) === shared(readText(source) ?? "")) return "same";
   const last = loadCopies()[path.resolve(dest)];
   if (!last) return "unknown";
   return digest(copy) === last ? "behind" : "changed";
@@ -79,10 +115,12 @@ function syncSettingsCopy(source: string, dest: string) {
   if (current === "changed") return report("skipped", dest, "changed in this profile (/config); keep it with: dotagents settings pull, or delete the file to take the repository's");
   if (state.dryRun) return report(st ? "would update" : "would create", dest);
   let detail = "";
+  // A link (how Linux and macOS had it) points at the repository's file, whose machine keys it keeps
+  const before = readText(dest);
   if (st?.isSymbolicLink()) removeLink(dest);
   else if (current === "unknown") detail = `backup: ${backup(dest)}`;
   mkdirFor(dest);
-  fs.copyFileSync(source, dest);
+  fs.writeFileSync(dest, forCopy(text, before));
   recordCopy(dest, digest(text));
   report(st ? "updated" : "created", dest, detail);
 }
@@ -162,9 +200,12 @@ export function pullSettings(repo: string, configDirs: string[], { from }: { fro
   if (from && !picked.length) throw new Error(`The settings in ${displayPath(from)} didn't change; nothing to take from it`);
   section("Settings");
   if (!picked.length) return report("ok", source, "no profile changed its settings");
-  const texts = new Set(picked.map((dir) => normalized(readText(userFiles(dir).settings) ?? "")));
+  const texts = new Set(picked.map((dir) => shared(readText(userFiles(dir).settings) ?? "")));
   if (texts.size > 1) throw new Error(`The settings changed differently in ${picked.map(displayPath).join(" and ")}; pick one with --from <profile>`);
-  const [text] = texts;
+  // The copy's settings, with the repository's machine keys: those stay the machine's
+  const copy = readText(userFiles(picked[0]).settings) ?? "";
+  const mine = parse(copy);
+  const text = mine ? asText({ ...withoutMachine(mine), ...machineOf(parse(readText(source)) ?? {}) }) : copy;
   if (state.dryRun) return report("would update", source, `from ${displayPath(userFiles(picked[0]).settings)}`);
   fs.writeFileSync(source, text);
   for (const dir of picked) recordCopy(userFiles(dir).settings, digest(text));
