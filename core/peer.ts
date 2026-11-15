@@ -18,7 +18,7 @@ const run = (command: string, args: string[], cwd?: string) => {
   return res.status === 0 ? res.stdout.replace(/\r/g, "").trim() : "";
 };
 
-const inWsl = () => {
+export const inWsl = () => {
   try {
     return process.platform === "linux" && /microsoft/i.test(fs.readFileSync("/proc/version", "utf8"));
   } catch {

@@ -1,5 +1,6 @@
 // `dotagents install`: applies the global configuration to this machine.
 
+import { inWsl } from "./peer.ts";
 import { spawnSync } from "node:child_process";
 import crypto from "node:crypto";
 import fs from "node:fs";
@@ -39,6 +40,7 @@ export function installGlobal(repo: string, configDir = defaultConfigDir(), { co
   else ensureFile(settingsSource(repo), files.settings);
 
   applyGlobalConfig(repo, stateFile(configDir));
+  applyMcpServers(repo, stateFile(configDir));
 }
 
 const settingsSource = (repo: string) => path.join(configRoot(repo), "claude", "settings.json");
@@ -240,4 +242,53 @@ export function verifyGlobal(repo: string, configDirs: string[]) {
   const status = spawnSync("git", ["-C", configRoot(repo), "status", "--porcelain", "--", "claude/settings.json", "claude/global-config.json"], { encoding: "utf8" });
   if (status.status === 0 && status.stdout.trim())
     checkWarn("config/claude/settings.json or global-config.json changed and not committed", `commit them so your other clones get them: git -C ${displayPath(configRoot(repo))} commit`);
+}
+
+// The MCP servers of claude/mcp-servers.json, with user scope, in each profile's .claude.json: what
+// `claude mcp add --scope user` would write, for the system this runs on. The file names, for each
+// server, how to run it on each system ("wsl", "win32", "linux", "darwin"): from WSL a server that
+// drives Windows runs through cmd.exe, on Windows through cmd. Servers it doesn't name are left alone.
+const mcpSource = (repo: string) => path.join(configRoot(repo), "claude", "mcp-servers.json");
+export const mcpSystem = () => (process.platform === "linux" && inWsl() ? "wsl" : process.platform);
+
+type McpServer = { type?: string; command?: string; args?: string[]; env?: Record<string, string>; url?: string };
+const isServer = (v: unknown): v is McpServer => {
+  const s = v as McpServer;
+  return typeof v === "object" && v !== null && (typeof s.command === "string" || typeof s.url === "string") && (s.args === undefined || (Array.isArray(s.args) && s.args.every((a) => typeof a === "string")));
+};
+
+// This system's servers, as Claude Code writes them (a command is a stdio server with args and env).
+export function mcpServersFor(repo: string, system = mcpSystem()): Record<string, McpServer> | null {
+  const text = readText(mcpSource(repo));
+  if (text === null) return null;
+  const data = parse(text);
+  if (!data) throw new Error(`${mcpSource(repo)} is not valid JSON`);
+  const out: Record<string, McpServer> = {};
+  for (const [name, systems] of Object.entries(data)) {
+    const entry = (systems as Record<string, unknown> | null)?.[system];
+    if (entry === undefined) continue;
+    if (!isServer(entry)) throw new Error(`${mcpSource(repo)}: ${name} on ${system} needs a command or a url`);
+    out[name] = entry.command ? { type: "stdio", command: entry.command, args: entry.args ?? [], env: entry.env ?? {} } : entry;
+  }
+  return out;
+}
+
+function applyMcpServers(repo: string, file: string) {
+  const wanted = mcpServersFor(repo);
+  if (!wanted || !Object.keys(wanted).length) return;
+  section("MCP servers");
+  const text = readText(file);
+  if (text === null) return report("skipped", file, "Claude Code hasn't run in this profile yet; run install again after it does");
+  const data = parse(text);
+  if (!data) return report("skipped", file, "not valid JSON");
+  const current = (data.mcpServers ?? {}) as Record<string, unknown>;
+  const changes = Object.entries(wanted).filter(([name, server]) => JSON.stringify(current[name]) !== JSON.stringify(server));
+  const names = (list: string[]) => list.join(", ");
+  if (!changes.length) return report("ok", file, names(Object.keys(wanted)));
+  if (state.dryRun) return report("would update", file, names(changes.map(([n]) => n)));
+  // Claude Code rewrites this file often: write it whole and in one step, never half.
+  const tmp = `${file}.dotagents-${process.pid}`;
+  fs.writeFileSync(tmp, `${JSON.stringify({ ...data, mcpServers: { ...current, ...Object.fromEntries(changes) } }, null, 2)}\n`);
+  fs.renameSync(tmp, file);
+  report("updated", file, names(changes.map(([n]) => n)));
 }
