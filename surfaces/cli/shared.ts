@@ -25,6 +25,7 @@ export type CliArgs = {
   refresh?: boolean;
   running?: boolean;
   short?: boolean;
+  spend?: boolean;
   watch?: boolean;
   skills?: string[];
 };

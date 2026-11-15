@@ -7,6 +7,7 @@
 // reads it. The hook never blocks and never changes the prompt: any failure lets it through as is.
 // ADR 0015 in the workspace's .artifacts/decisions/.
 
+import { costOf } from "./prices.ts";
 import { spawn } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
@@ -47,10 +48,6 @@ export const logFile = () => path.join(dir(), "log.jsonl");
 // the account, at API prices; computed from the price list through the API).
 export type Revision = { text: string; model: string; costUsd: number | null; tokens: { input: number; cacheRead: number; cacheWrite: number; output: number } };
 
-// Dollars per million tokens, for the API's answers, which carry tokens but no cost.
-const PRICES: Record<string, { input: number; cacheRead: number; cacheWrite: number; output: number }> = {
-  "claude-sonnet-5-5": { input: 2, cacheRead: 0.1, cacheWrite: 2.5, output: 10 },
-};
 
 const tokensOf = (u: Record<string, unknown> | undefined) => ({
   input: Number(u?.input_tokens) || 0,
@@ -236,8 +233,8 @@ export async function revise(client: Client, text: string, model: string) {
   const answer = res.content.map((b) => (b.type === "text" ? b.text : "")).join("").trim();
   if (!answer) return null;
   const tokens = tokensOf(res.usage as unknown as Record<string, unknown>);
-  const price = PRICES[model];
-  const costUsd = price ? (tokens.input * price.input + tokens.cacheRead * price.cacheRead + tokens.cacheWrite * price.cacheWrite + tokens.output * price.output) / 1e6 : null;
+  // The API's answers carry tokens but no cost
+  const costUsd = costOf(model, tokens);
   return { text: answer, model, costUsd, tokens } satisfies Revision;
 }
 

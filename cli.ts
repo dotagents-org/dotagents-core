@@ -193,6 +193,7 @@ ${title("Options")}
   ${bold("--json")}       (usage, sessions) the data, for scripts
   ${bold("--all")}        (sessions) every project's sessions, not only this folder's; (login) every login running out
   ${bold("--refresh")}    (usage) ask Anthropic for fresh numbers first
+  ${bold("--spend")}      (usage) what 1% of each window costs, and where the spend went
   ${bold("--no-pull")}    (update) skip git pull, only reapply
   ${bold("--no-archive")} (sessions rm) delete without archiving
   ${bold("--from")}       (settings pull) the profile to take the settings from
@@ -235,7 +236,7 @@ function fail(err: Error) {
 let args: CliArgs | null = null;
 try {
   args = parseArgs<CliArgs>(process.argv.slice(2), {
-    booleans: ["all", "api", "default", "dry-run", "help", "here", "json", "no-archive", "no-pull", "refresh", "running", "short", "version", "watch", "wrap", "yes"],
+    booleans: ["all", "api", "default", "dry-run", "help", "here", "json", "no-archive", "no-pull", "refresh", "running", "short", "spend", "version", "watch", "wrap", "yes"],
     lists: ["skills"],
     values: ["color", "from", "port", "save", "side"],
   });

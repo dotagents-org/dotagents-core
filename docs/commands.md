@@ -163,6 +163,7 @@ dotagents usage            # every profile: the 5-hour window, the week, per-mod
 dotagents usage --refresh  # ask Anthropic for fresh numbers first
 dotagents usage --short    # one line per profile, for a status line
 dotagents usage --json     # the data, for scripts
+dotagents usage --spend    # what 1% of each window costs, and where the spend went
 ```
 
 Shows, for each profile, the newer of two sources: the usage Claude Code keeps in the profile's state file (`cachedUsageUtilization` in `~/.claude.json`, or `<folder>/.claude.json`), and the usage dotagents last asked of Anthropic itself (`--refresh`, or `start` every minute), kept in `<state>/usage/<profile>.json`. Without `--refresh` it makes no network call. Without profiles, it shows the one in `~/.claude`.
@@ -207,6 +208,12 @@ For a status line, which isn't a terminal, keep the colors with `FORCE_COLOR=3 d
 Claude Code writes its cache when it asks for the usage, which happens during sessions and on `/usage`. `--refresh` asks now, the way Claude Code does (ADR 0008): for each profile it reads the login where it lives (the slot `~/.claude` when the profile's account is there, else its vault, else its own folder) and calls Anthropic's OAuth usage endpoint with it. When the access token is about to expire, dotagents renews it first and writes the new one back to that same file, at once, under a lock shared with `switch`: a renewal spends the old refresh token, so a copy left behind would sign the profile out. A login Claude Code also uses (the slot, a profile's folder) is renewed only once it has expired, since Claude Code renews it earlier while a session runs; the vault's, a few minutes before. Each profile is asked at most once a minute, by any number of dotagents runs; an error or a 429 backs off, up to 15 minutes, and the profile keeps its last numbers with the error next to them. Tokens are never printed, logged or written anywhere else. The endpoint is undocumented: when it changes, the numbers fall back to Claude Code's cache.
 
 On a Windows machine with WSL, `install` finds the other side (Windows from WSL, WSL from Windows) and records it in `machine.json`. `usage` then also reads that side's caches, read only: when the same account has newer numbers there, they win, and the profile says so (`4m ago on Windows`). Data older than 6 hours is marked stale and drawn muted. A profile that isn't signed in, has no data yet, or holds the cache of an earlier sign-in says so instead of showing a number.
+
+### What 1% costs
+
+`usage --spend` puts a cost on each window's %, per profile. Every live reading that changes a window's % (`start`, every minute, or `--refresh`) adds a line to `<state>/usage/<profile>.history.jsonl`, so it asks Anthropic nothing more. The spend is the tokens of every assistant message in Claude Code's transcripts on both sides of the machine (`~/.claude/projects/`, subagents included), each one under the account its session ran as, at the API's prices. Between two readings of the same window where the % rose, the spend over the % gives `1% ≈ US$ X ≈ N tokens`; a rise with no spend here (claude.ai, the Desktop outside Code, another machine) is counted as unexplained, and the line says how much of the rise that was. Under it, the current 5-hour and weekly windows' spend, by model and by folder, and the prompt revisions' cost. `--json` gives the same data.
+
+The dollar is the API's price, a unit to compare with: a subscription isn't charged per token. The % comes in whole numbers, so the relation is rough until days of readings pile up.
 
 ## dotagents start
 
@@ -407,6 +414,7 @@ Removes a skill from the catalog. Workspaces that already installed it keep it; 
 | `--color #RRGGBB` | `profile add` | The profile's color in the listings. |
 | `--short` | `usage` | One line, for a prompt or a status line. |
 | `--json` | `usage`, `sessions` | The data, for scripts. |
+| `--spend` | `usage` | What 1% of each window costs, and where the spend went. |
 | `--running` | `sessions` | Only the ids of the sessions this side's Claude Code runs. |
 | `--yes` | `init`, `new`, `skills add`, `sessions rm` | Never ask. |
 | `--no-pull` | `update` | Skip `git pull`. |

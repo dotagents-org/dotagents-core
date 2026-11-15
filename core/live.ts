@@ -11,6 +11,7 @@
 //
 // The network goes through a Fetcher; the tests pass a fake one.
 
+import { recordHistory } from "./spend.ts";
 import fs from "node:fs";
 import path from "node:path";
 import { type Profile, loadProfiles, stateDir } from "./machine-state.ts";
@@ -172,8 +173,11 @@ export async function fetchLive(p: Profile, { fetcher = httpFetcher, now = Date.
     utilization = null;
   }
   const at = now();
-  if (!normalize({ fetchedAtMs: at, utilization }, new Date(at))) return failed("Anthropic's answer is not a usage this dotagents reads");
+  const usage = normalize({ fetchedAtMs: at, utilization }, new Date(at));
+  if (!usage) return failed("Anthropic's answer is not a usage this dotagents reads");
   writeRecord(p.name, { fetchedAtMs: at, accountUuid: login.accountUuid, utilization, askedAtMs: at });
+  // The history of the % that usage --spend reads, from this reading: no request of its own
+  recordHistory(p.name, usage.windows, new Date(at));
   return { status: "updated", detail: "asked Anthropic for the usage" };
 }
 
