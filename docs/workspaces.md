@@ -5,7 +5,8 @@ A workspace is a project folder that follows the `.agents/` and `.artifacts/` st
 ## Recommended layout: the workspace wraps the repositories
 
 ```
-app-workspace/            not a git repository
+app-workspace/            the workspace's own git repository
+├── .gitignore            lets only the agent files in
 ├── AGENTS.md             project instructions, read by Claude Code
 ├── .agents/              skills (and rules, subagents, hooks when there are any)
 ├── .claude/              links to .agents/, plus settings.json
@@ -16,6 +17,8 @@ app-workspace/            not a git repository
 ├── app/                  git clone: only the project's own files
 └── api/                  another repository of the same project, if any
 ```
+
+The root is a git repository of its own, so the agent files have a history. Its `.gitignore` is a whitelist: only `AGENTS.md`, `CLAUDE.md`, `skills-lock.json`, `.agents/`, `.artifacts/` and `.claude/` get in (not `.claude/settings.local.json`, which is the machine's), so the projects' repositories stay out without being named. `init` makes the repository and the `.gitignore` and never commits; commit it yourself, or ask the agent. It has no remote unless you add one, and then a private one: the session transcripts and the memory are close to the sessions' own text.
 
 The project's repositories never see the agent files, so there is nothing to ignore. Cloning again, switching branches or running `git clean -fdx` inside them doesn't touch `.artifacts/` or the transcripts. `AGENTS.md` lists the repositories, so the agents know where the code is and run git inside each one (`git -C app …`).
 

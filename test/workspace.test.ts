@@ -120,6 +120,49 @@ test("a skill in the lock but missing from the folder fails the checklist", asyn
   assert.equal(state.problems, 1);
 });
 
+test("the root becomes the workspace's own repository, where only the agent files show, and init commits nothing", async (t) => {
+  const ws = tempWorkspace(t);
+  const app = path.join(ws, "app");
+  fs.mkdirSync(app);
+  git(app, "init", "-q");
+  fs.writeFileSync(path.join(app, "main.py"), "print('hi')\n");
+  quiet();
+  await applyWorkspace(REPO, ws, resolveSkills(REPO, ["move-sessions"]));
+  assert.ok(fs.existsSync(path.join(ws, ".git")));
+  assert.match(read(ws, ".gitignore"), /^# dotagents workspace/);
+  const status = git(ws, "status", "--porcelain", "--untracked-files=all").stdout;
+  assert.match(status, /AGENTS\.md/);
+  assert.match(status, /\.artifacts\//);
+  assert.doesNotMatch(status, /app\//);
+  assert.doesNotMatch(status, /settings\.local\.json/);
+  assert.equal(git(ws, "rev-list", "--all").stdout, ""); // nothing committed
+
+  quiet();
+  verifyWorkspace(REPO, ws);
+  assert.equal(state.problems, 0);
+  assert.equal(state.counts.warnings, undefined);
+});
+
+test("the checklist fails a root that isn't a repository yet, and one that tracks a project", async (t) => {
+  const ws = tempWorkspace(t);
+  const app = path.join(ws, "app");
+  fs.mkdirSync(app);
+  git(app, "init", "-q");
+  fs.writeFileSync(path.join(app, "main.py"), "print('hi')\n");
+  git(app, "add", "main.py");
+  git(app, "-c", "user.name=t", "-c", "user.email=t@t", "-c", "commit.gpgsign=false", "commit", "-q", "-m", "init");
+  quiet();
+  await applyWorkspace(REPO, ws, []);
+  git(ws, "add", "-f", "app"); // the project, as a gitlink
+  quiet();
+  verifyWorkspace(REPO, ws);
+  assert.equal(state.problems, 1);
+  fs.rmSync(path.join(ws, ".git"), { recursive: true, force: true });
+  const events = quiet();
+  verifyWorkspace(REPO, ws);
+  assert.ok(events.some((e) => e.kind === "check" && !e.passed && /a git repository of its own/.test(e.text)));
+});
+
 test("when the workspace is a git repository, the agent files stay out of it", async (t) => {
   const ws = tempWorkspace(t);
   git(ws, "init", "-q");

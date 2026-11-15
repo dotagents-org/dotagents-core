@@ -105,6 +105,56 @@ function reposList(ws: string) {
 
 const read = (p: string) => (fs.existsSync(p) ? fs.readFileSync(p, "utf8") : null);
 
+// The workspace's own history (standards/artifacts.md, "Versioning"): in the recommended layout,
+// where no repository holds the root, the root becomes a git repository whose .gitignore lets only
+// the agent files in, so the projects' repositories inside stay out without being named. The first
+// line tells it apart from a project repository at the root (the fallback layout).
+const WORKSPACE_IGNORE = [
+  "# dotagents workspace: only the agent files are versioned here; the projects' repositories stay out",
+  "/*",
+  "!/.gitignore",
+  "!/AGENTS.md",
+  "!/CLAUDE.md",
+  "!/skills-lock.json",
+  "!/.agents/",
+  "!/.artifacts/",
+  "!/.claude/",
+  // the machine's: autoMemoryDirectory holds an absolute path
+  "/.claude/settings.local.json",
+  "",
+].join("\n");
+
+function isWorkspaceRepo(ws: string) {
+  const inside = gitRepoOf(ws);
+  return Boolean(inside && isRepoRoot(ws, inside.top) && (read(path.join(ws, ".gitignore")) ?? "").startsWith(WORKSPACE_IGNORE.split("\n")[0]));
+}
+
+// Makes the root a repository with the .gitignore above. Never commits: that is yours.
+function versionWorkspace(ws: string) {
+  const dotGit = path.join(ws, ".git");
+  if (gitRepoOf(ws)) report("ok", dotGit);
+  else if (state.dryRun) report("would create", dotGit);
+  else {
+    spawnSync("git", ["init", "-q", ws], { encoding: "utf8" });
+    report("created", dotGit, "the workspace's own history; commit it yourself");
+  }
+  const ignore = path.join(ws, ".gitignore");
+  const current = read(ignore);
+  if (current === null) {
+    if (!state.dryRun) fs.writeFileSync(ignore, WORKSPACE_IGNORE);
+    report(state.dryRun ? "would create" : "created", ignore);
+  } else if (current.startsWith(WORKSPACE_IGNORE.split("\n")[0])) report("ok", ignore);
+  else report("skipped", ignore, "a .gitignore that isn't the workspace's: start it with the lines dotagents writes (standards/artifacts.md, Versioning)");
+}
+
+// Files of the projects' repositories that the workspace's repository tracks.
+function trackedFromProjects(ws: string) {
+  const res = spawnSync("git", ["-C", ws, "ls-files"], { encoding: "utf8" });
+  const names = childRepos(ws).map((r) => r.name);
+  // a project's files, or the project itself as a gitlink
+  return (res.stdout ?? "").split(/\r?\n/).filter((f) => names.some((n) => f === n || f.startsWith(`${n}/`)));
+}
+
 // ── The standard ─────────────────────────────────────────────────────────────────────────────
 // Order matters for apply: git exclusion first (so nothing created later shows up in the
 // project's git status), skills before .claude/ (the skills link comes with the skills).
@@ -120,11 +170,20 @@ type StandardItem = {
 const STANDARD: StandardItem[] = [
   {
     title: "Git",
-    apply: ({ ws }) => ensureExcluded(ws),
+    apply({ ws }) {
+      // Recommended layout: the root is the workspace's own repository. Otherwise (a project at the
+      // root, or a workspace inside some repository) the agent files are kept out of it.
+      if (!gitRepoOf(ws) || isWorkspaceRepo(ws)) versionWorkspace(ws);
+      else ensureExcluded(ws);
+    },
     verify({ ws }) {
-      // Recommended layout: agent files at a root that is not a repository.
       const inside = gitRepoOf(ws);
-      if (!inside) return;
+      if (!inside || isWorkspaceRepo(ws)) {
+        checkItem(Boolean(inside), "the workspace root is a git repository of its own", `make it one with: dotagents init "${ws}"`);
+        const tracked = inside ? trackedFromProjects(ws) : [];
+        checkItem(!tracked.length, "the workspace's repository tracks no file of the projects' repositories", `tracked: ${tracked.slice(0, 5).join(", ")}; untrack with: git -C "${ws}" rm -r --cached <path>`);
+        return;
+      }
       checkWarn(
         isRepoRoot(ws, inside.top) ? "the workspace root is itself a git repository" : "the workspace is inside a git repository",
         "recommended: agent files at a root outside git and the repository in a subfolder (dotagents new <git-url>). Meanwhile they are kept out through .git/info/exclude"

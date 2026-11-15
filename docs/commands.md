@@ -269,7 +269,7 @@ Applies the standards to a folder (the current one when no path is given) and pu
 
 - **In a terminal, without `--skills`,** it asks:
   1. which folder, when none was given;
-  2. when the folder is itself a git repository, whether to move it into `<name>-workspace/` (see [Wrapping a repository](#wrapping-a-repository));
+  2. when the folder is itself a git repository, whether to move it into `<name>-workspace/` (see [Wrapping a repository](#wrapping-a-repository)); in the recommended layout, the root becomes the workspace's own git repository, with a `.gitignore` that lets only the agent files in (nothing is committed; see [Workspaces](workspaces.md));
   3. which skills, from a list of yours and the registered third-party ones, with the ones already in the workspace selected;
   4. for confirmation before changing anything.
 

@@ -16,10 +16,11 @@ The agent configuration is personal: it never goes into a project's repository. 
 workspace root.
 
 **Recommended layout: the workspace wraps the repositories.** The agent files sit at a root
-that is not a git repository, and each project repository is a folder inside it:
+that is a git repository of its own, the workspace's, and each project repository is a folder
+inside it:
 
 ```
-app-workspace/            not a repository: AGENTS.md, .agents/, .artifacts/…
+app-workspace/            the workspace's own repository: AGENTS.md, .agents/, .artifacts/…
 ├── app/                  git clone: only the project's own files
 └── api/                  another repository of the same project, if any
 ```
@@ -30,6 +31,12 @@ app-workspace/            not a repository: AGENTS.md, .agents/, .artifacts/…
   it and runs `init`. For a repository already on disk, `dotagents init` on it offers to move
   it into `<name>-workspace/` (`--wrap` does it without asking). With an existing workspace as the folder, it adds one more repository
   and lists it under "Repositories" in `AGENTS.md`.
+- The workspace's repository keeps the history of the agent files. Its `.gitignore` lets only
+  them in (`/*`, then `!/AGENTS.md`, `!/.agents/`, `!/.artifacts/`, `!/.claude/`…), so the
+  projects' repositories stay out without being named; `.claude/settings.local.json` stays out
+  too, as the machine's. `init` creates both and never commits: committing is yours. It has no
+  remote unless you add one, and then a private one (see the `.artifacts/` standard,
+  "Versioning").
 - The repositories never see the agent files, so there is nothing to ignore. Re-cloning,
   switching branches or `git clean -fdx` doesn't touch `.artifacts/` or the transcripts.
 - `AGENTS.md` lists the repositories, so the agents know where the code is and run git inside

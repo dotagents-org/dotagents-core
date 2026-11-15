@@ -125,12 +125,22 @@ These keep the documents useful to the agents. They are advice, not checks.
 - **Name things after what they hold**, in kebab-case.
 - A rule, skill, subagent or hook is not a document: it goes to `.agents/`.
 
+## Versioning
+
+In the recommended layout the workspace root is a git repository of its own (see the `.agents/`
+standard), so `.artifacts/` has a history: commit it like any repository, by hand or by asking the
+agent, with the global commit rule. dotagents never commits it, never adds a remote and never
+pushes. `session-archives/` and `memory/` are close to the sessions' own text: if you add a
+remote, make it private.
+
 ---
 
 ## Checklist
 
 `dotagents check <workspace>` runs the automatable items.
 
+- [ ] In the recommended layout, the workspace root is a git repository of its own, and it tracks
+      no file of the projects' repositories.
 - [ ] `.artifacts/INDEX.md`, `.artifacts/session-archives/` and `.artifacts/plans/` exist,
       and there is no `INDEX.md` at the root.
 - [ ] `.claude/settings.json` sets `plansDirectory` to `.artifacts/plans`.
