@@ -4,7 +4,7 @@ import * as p from "@clack/prompts";
 import { runWithSpinner } from "../../core/common.ts";
 import { brand, displayPath, finish, header, interactive, report, section, tone } from "../../core/output.ts";
 import { state } from "../../core/state.ts";
-import { assertWorkspace, listRepoInAgentsMd } from "../../core/workspace.ts";
+import { assertWorkspace, isWorkspaceRepo, listRepoInAgentsMd } from "../../core/workspace.ts";
 import { initWorkspace } from "./init.ts";
 import { type Command, expandHome } from "./shared.ts";
 
@@ -52,7 +52,8 @@ export const newWorkspace: Command = {
     const clone = path.join(ws, name);
     assertWorkspace(repo, path.dirname(ws));
     if (fs.existsSync(clone)) throw new Error(`${displayPath(clone)} already exists`);
-    if (fs.existsSync(ws) && fs.existsSync(path.join(ws, ".git"))) {
+    // A project's repository can't hold the workspace; the workspace's own repository is where it goes
+    if (fs.existsSync(ws) && fs.existsSync(path.join(ws, ".git")) && !isWorkspaceRepo(ws)) {
       throw new Error(`${displayPath(ws)} is itself a git repository; pick another folder for the workspace`);
     }
 

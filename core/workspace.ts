@@ -124,7 +124,7 @@ const WORKSPACE_IGNORE = [
   "",
 ].join("\n");
 
-function isWorkspaceRepo(ws: string) {
+export function isWorkspaceRepo(ws: string) {
   const inside = gitRepoOf(ws);
   return Boolean(inside && isRepoRoot(ws, inside.top) && (read(path.join(ws, ".gitignore")) ?? "").startsWith(WORKSPACE_IGNORE.split("\n")[0]));
 }
