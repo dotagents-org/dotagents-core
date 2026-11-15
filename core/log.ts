@@ -64,3 +64,7 @@ export function logChange(name: LogName, level: Level, source: string, message: 
   said.set(key, message);
   if (message !== null) log(name, level, source, message);
 }
+
+// The other side's logs, through its home as this side reaches it (/mnt/c/Users/me, or
+// \\wsl.localhost\<distro>\home\me): the default state folder there.
+export const peerLogsDir = (peerHome: string) => path.join(peerHome, ".config", "dotagents", "logs");

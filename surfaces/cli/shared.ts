@@ -9,6 +9,7 @@ export type CliArgs = {
   api?: boolean;
   from?: string;
   port?: string;
+  side?: string;
   here?: boolean;
   save?: string;
   "dry-run"?: boolean;

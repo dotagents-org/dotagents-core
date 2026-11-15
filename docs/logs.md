@@ -19,7 +19,7 @@ One file per process:
 | `sidebar.log` | the dotagents-sidebar extension |
 | `host.log` | the sidebar's host process, which keeps the sessions running across window reloads |
 
-`dotagents logs` shows where they are on both sides and the last lines of each.
+[`dotagents logs`](commands.md#dotagents-logs) shows where they are on both sides and the last 50 lines of each.
 
 ## Format
 

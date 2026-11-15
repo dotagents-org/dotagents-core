@@ -78,6 +78,15 @@ Prompt revision is off until you turn it on. With it on, each message you send t
 
 `revision fix` proofreads, after the fact, the messages of sessions that ran without the revision on, or from before it existed, and rewrites those sessions' archives with them. It takes the sessions started in the current folder, the ids given (the start of an id is enough), or with `--all` every project's, on both sides. For each it counts the messages still to revise and says how many in how many sessions, and what it will cost: about US$ 0.001 each through the API key, or the account's plan; then it asks, and `--yes` skips the question. It revises the way `revision on` set up, with the same rules and the same check that nothing in code, paths, links or numbers was lost, and keeps the revisions next to each archive (`<date>-<session-id>.revisions.json`), so `sessions rm` shows them too. Slash commands, pasted text and the interruption notice are left alone, and so are sessions outside a workspace with `.artifacts/session-archives/`, which has nowhere to keep them. A message the model left as it was is not asked for again; one that failed, or lost something it must keep, is left for the next run. A session never archived gets its archive written. `--dry-run` only counts.
 
+## dotagents logs
+
+```bash
+dotagents logs                # both sides of the machine
+dotagents logs --side windows # only one side: wsl or windows
+```
+
+Shows where the logs are on each side (`<state>/logs/`, the other side's through its home) and the last 50 lines of `core.log`, `sidebar.log` and `host.log`, or that there is none of one yet. It only reads. The files, their format and how credentials are kept out of them are in [Logs](logs.md).
+
 ## dotagents profile add
 
 ```bash
@@ -405,6 +414,7 @@ Removes a skill from the catalog. Workspaces that already installed it keep it; 
 | `--from <profile>` | `settings pull` | The profile to take the settings from. |
 | `--port <n>` | `start` | The port; `0` picks a free one. |
 | `--here` | `switch` | Only this side of the machine. |
+| `--side <side>` | `logs` | Only that side: `wsl` or `windows`. |
 | `--api` | `revision on` | Revise through your Anthropic API key instead of the Claude account. |
 | `--save <profile>` | `switch` | Keep the login in `~/.claude` as that profile's. |
 | `--help`, `--version` | | |
