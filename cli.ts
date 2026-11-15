@@ -25,6 +25,7 @@ import { skills, skillsAdd, skillsRemove } from "./surfaces/cli/skills.ts";
 import { update } from "./surfaces/cli/update.ts";
 import { usage } from "./surfaces/cli/usage.ts";
 import { logs } from "./surfaces/cli/logs.ts";
+import { doctor } from "./surfaces/cli/doctor.ts";
 import { startServer } from "./surfaces/web/server.ts";
 import { readSlots, readUsage, currentFor, usageJson, watchPeer } from "./core/snapshot.ts";
 import { openDesktop } from "./core/desktop.ts";
@@ -159,7 +160,7 @@ const start: Command = {
 };
 
 // In the order the help lists them.
-const COMMANDS: Command[] = [install, update, settingsPull, revision, revisionOn, revisionOff, revisionFix, revisionHook, logs, profileAdd, profileList, profileRemove, switchCommand, login, usage, start, newWorkspace, init, check, workspaces, untrack, sessions, sessionsRm, skills, skillsAdd, skillsRemove];
+const COMMANDS: Command[] = [install, update, settingsPull, revision, revisionOn, revisionOff, revisionFix, revisionHook, logs, doctor, profileAdd, profileList, profileRemove, switchCommand, login, usage, start, newWorkspace, init, check, workspaces, untrack, sessions, sessionsRm, skills, skillsAdd, skillsRemove];
 
 const repo = path.dirname(fileURLToPath(import.meta.url));
 const version = JSON.parse(fs.readFileSync(path.join(repo, "package.json"), "utf8")).version;

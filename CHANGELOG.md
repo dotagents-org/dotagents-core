@@ -21,6 +21,7 @@ What changed for someone who updates a clone. The format follows [Keep a Changel
 
 ### Added
 
+- **`dotagents doctor`:** whether dotagents can work here and what to do when it can't, in plain words: this side's Node, whether this side sees the other one and dotagents runs there with a Node new enough, and every profile's login on both sides.
 - **A security page,** [docs/security.md](docs/security.md): where the logins are and who can read them, what goes over the network (only to Anthropic, plus GitHub and npm for `update` and `skills add`), the local API's guards, the masked logs, and what dotagents never does.
 - **MCP servers in the configuration:** `claude/mcp-servers.json` names, for each server, how to run it on each system (`wsl`, `win32`, `linux`, `darwin`), and `install` writes this system's ones into `mcpServers` in `~/.claude.json`, as `claude mcp add --scope user` would, leaving the servers it doesn't name alone.
 - **`dotagents usage --spend`:** what 1% of each account's 5-hour and weekly windows costs, in dollars at the API's prices and in tokens, from a history of the % that the live usage now keeps (`<state>/usage/<profile>.history.jsonl`, no extra request) and the tokens in Claude Code's transcripts on both sides, each under the account its session ran as. It says how much of the rise had no spend here, and breaks the current windows' spend down by model and folder, with the prompt revisions' cost. The API prices now live in one place, `core/prices.ts`.

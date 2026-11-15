@@ -78,6 +78,14 @@ Prompt revision is off until you turn it on. With it on, each message you send t
 
 `revision fix` proofreads, after the fact, the messages of sessions that ran without the revision on, or from before it existed, and rewrites those sessions' archives with them. It takes the sessions started in the current folder, the ids given (the start of an id is enough), or with `--all` every project's, on both sides. For each it counts the messages still to revise and says how many in how many sessions, and what it will cost: about US$ 0.001 each through the API key, or the account's plan; then it asks, and `--yes` skips the question. It revises the way `revision on` set up, with the same rules and the same check that nothing in code, paths, links or numbers was lost, and keeps the revisions next to each archive (`<date>-<session-id>.revisions.json`), so `sessions rm` shows them too. Slash commands, pasted text and the interruption notice are left alone, and so are sessions outside a workspace with `.artifacts/session-archives/`, which has nowhere to keep them. A message the model left as it was is not asked for again; one that failed, or lost something it must keep, is left for the next run. A session never archived gets its archive written. `--dry-run` only counts.
 
+## dotagents doctor
+
+```bash
+dotagents doctor
+```
+
+Checks that dotagents can work on this machine and says what to do, in plain words, when it can't: whether this side's Node is new enough (22.18 or newer); in WSL and on Windows, whether this side sees the other one and whether dotagents runs there, with a Node new enough (the system Node of a WSL distro often isn't); and every profile's login on both sides, with how long it lasts and how to sign in again. It only reads. Exit code 1 when a check fails.
+
 ## dotagents logs
 
 ```bash

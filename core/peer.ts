@@ -72,3 +72,28 @@ export function applyPeer(find: PeerFinder = findPeer) {
   report(state.dryRun ? "would update" : "updated", machineFile(), shown);
   saveMachine(found ? { peer: found } : {});
 }
+
+// Whether a Node version runs dotagents: 22.18 or newer, which runs TypeScript directly.
+export function nodeOk(version: string) {
+  const [major, minor] = version.replace(/^v/, "").split(".").map(Number);
+  return major > 22 || (major === 22 && minor >= 18);
+}
+
+// Runs a command in a shell on the other side: from Windows, an interactive login bash in WSL (where
+// nvm puts its Node); from WSL, PowerShell in C:. What doctor and the like need, not the switch.
+export function runOnPeer(line: string) {
+  return process.platform === "win32"
+    ? spawnSync("wsl.exe", ["-e", "bash", "-lic", line], { encoding: "utf8", timeout: 60_000, windowsHide: true })
+    : spawnSync("powershell.exe", ["-NoProfile", "-Command", line], { encoding: "utf8", timeout: 60_000, cwd: "/mnt/c" });
+}
+
+// What the other side's `node --version; dotagents --version` says, as a check: passed, and what to do.
+export function peerToolCheck(peer: string, res: { status: number | null; stdout?: string | null; stderr?: string | null; error?: Error }) {
+  const out = `${res.stdout ?? ""}`.replace(/\r/g, "").split("\n").map((l) => l.trim()).filter(Boolean);
+  const node = out.find((l) => /^v\d+\.\d+/.test(l));
+  const setup = peer === "WSL" ? "in WSL: nvm install 24, then npm link in the dotagents clone there" : "on Windows: install Node 24 (nvm-windows), then npm link in the dotagents clone there";
+  if (res.error || !node) return { passed: false, detail: `no Node answers on ${peer}; ${setup}` };
+  if (!nodeOk(node)) return { passed: false, detail: `${peer} runs Node ${node}, and dotagents needs 22.18 or newer; ${setup}` };
+  if (res.status !== 0 || out.length < 2) return { passed: false, detail: `dotagents doesn't run on ${peer}; ${setup}` };
+  return { passed: true, detail: `Node ${node}, dotagents ${out[out.indexOf(node) + 1]}` };
+}
