@@ -13,7 +13,8 @@ import { CREDENTIAL_VARIABLES, defaultConfigDir } from "./claude-code.ts";
 import { isWindows, lstat, removeGenerated, samePath } from "./common.ts";
 import { type Shortcuts, applyDesktop, powershellShortcuts, removeDesktop, removeTray, verifyDesktop } from "./desktop.ts";
 import { installGlobal } from "./global.ts";
-import { type Profile, claudeProfiles, loadProfiles, migrateLegacyProfiles, profilesFile, removeProfile, saveProfile } from "./machine-state.ts";
+import { codexAccount, codexHome, codexProfiles } from "./codex.ts";
+import { type Profile, type Provider, claudeProfiles, loadProfiles, migrateLegacyProfiles, profilesFile, removeProfile, saveProfile } from "./machine-state.ts";
 import { checkItem, checkWarn, displayPath, report, section } from "./output.ts";
 import { state } from "./state.ts";
 import { profileAccount } from "./switch.ts";
@@ -52,14 +53,23 @@ function record(profile: Profile, prior: Profile | undefined) {
 
 // Adds a profile, or brings one up to date: its record, the configuration and, on Windows, its
 // Desktop app. Its login comes into the vault with: claude auth login, then dotagents switch --save.
+// A Codex profile is only its record for now: its login comes in with codex login, then switch
+// --save (ADR 0017), and the configuration for Codex comes later.
 export function setUpProfile(
   repo: string,
-  { name, isDefault = false, color, desktop = desktopDefault() }: { name: string; isDefault?: boolean; color?: string } & DesktopOption
+  { name, isDefault = false, color, provider = "claude", desktop = desktopDefault() }: { name: string; isDefault?: boolean; color?: string; provider?: string } & DesktopOption
 ) {
   if (!SAFE_PROFILE.test(name)) throw new Error(`'${name}' is not a valid profile name: use lowercase letters, digits and dashes`);
   if (color !== undefined && !HEX.test(color)) throw new Error(`'${color}' is not a color: use #RRGGBB`);
+  if (provider !== "claude" && provider !== "codex") throw new Error(`'${provider}' is not a provider: use claude or codex`);
   const all = loadProfiles();
   const prior = all.find((a) => a.name === name);
+  if (prior && (prior.provider ?? "claude") !== provider) throw new Error(`${name} is already a ${prior.provider ?? "claude"} profile`);
+  if (provider === "codex") {
+    if (isDefault) throw new Error("--default names the profile the Claude Desktop app opens; a Codex profile has none");
+    record({ name, configDir: codexHome(), color: color ?? prior?.color ?? PALETTE[all.filter((a) => a.name !== name).length % PALETTE.length], provider: provider as Provider }, prior);
+    return;
+  }
   const otherDefault = all.find((a) => a.default && a.name !== name);
   // The default profile is the one the normal Desktop app opens: only one.
   if (isDefault && otherDefault) throw new Error(`${otherDefault.name} is already the default profile`);
@@ -125,6 +135,17 @@ export function verifyProfiles({ desktop = desktopDefault() }: DesktopOption = {
     const twin = seen.get(account.accountUuid);
     checkItem(!twin, `${profile.name} is a different claude.ai account`, `${profile.name} and ${twin} hold the same account; sign one of them in again and save it with dotagents switch --save`);
     seen.set(account.accountUuid, profile.name);
+  }
+  const users = new Map<string, string>();
+  for (const profile of codexProfiles()) {
+    const account = codexAccount(profile);
+    if (!account) {
+      checkWarn(`${profile.name} has no saved login`, `sign in with codex login, then: dotagents switch --save ${profile.name}`);
+      continue;
+    }
+    const twin = users.get(account.user);
+    checkItem(!twin, `${profile.name} is a different ChatGPT account`, `${profile.name} and ${twin} hold the same account; sign one of them in again and save it with dotagents switch --save`);
+    users.set(account.user, profile.name);
   }
   const exported = CREDENTIAL_VARIABLES.filter((v) => process.env[v]);
   if (exported.length) checkWarn(`${exported.join(", ")} set in this shell`, "they sign Claude Code in over the slot's login; unset them");

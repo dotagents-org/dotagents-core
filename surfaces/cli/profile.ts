@@ -3,7 +3,8 @@
 import { verifyGlobal } from "../../core/global.ts";
 import { profileAccount, slotProfile, verifyLogins } from "../../core/switch.ts";
 import { configDirs, dropProfile, setUpProfile, verifyProfiles } from "../../core/profiles.ts";
-import { loadProfiles } from "../../core/machine-state.ts";
+import { codexAccount, codexSlotProfile } from "../../core/codex.ts";
+import { loadProfiles, providerOf } from "../../core/machine-state.ts";
 import { fancy, finish, header, line, paint, tone } from "../../core/output.ts";
 import type { Command } from "./shared.ts";
 
@@ -11,16 +12,17 @@ const { bold, muted } = tone;
 
 export const profileAdd: Command = {
   name: "profile add",
-  usage: "<name> [--default]",
-  summary: "add a Claude profile, one claude.ai account",
-  more: ["--default: the one the normal Desktop app opens;", "--color #RRGGBB: its color in the listings"],
+  usage: "<name> [--default] [--provider codex]",
+  summary: "add a profile, one claude.ai account or one ChatGPT account for Codex",
+  more: ["--default: the one the normal Desktop app opens;", "--color #RRGGBB: its color in the listings;", "--provider codex: a ChatGPT account for Codex"],
   group: "Profiles",
   run({ repo, args, positional }) {
     const name = positional[0];
-    if (!name) throw new Error("Usage: dotagents profile add <name> [--default] [--color #RRGGBB]");
+    if (!name) throw new Error("Usage: dotagents profile add <name> [--default] [--color #RRGGBB] [--provider codex]");
     header("profile add", name);
-    setUpProfile(repo, { name, isDefault: args.default, color: args.color });
+    setUpProfile(repo, { name, isDefault: args.default, color: args.color, provider: args.provider });
     const profile = loadProfiles().find((a) => a.name === name);
+    if (profile && providerOf(profile) === "codex") return finish(codexAccount(profile) ? "" : `Save its login: sign in with codex login, then run dotagents switch --save ${name}`);
     finish(profile && !profileAccount(profile) ? `Save its login: sign in with claude auth login, then run dotagents switch --save ${name}` : "");
   },
 };
@@ -38,11 +40,12 @@ export const profileList: Command = {
     }
     header("profile list", `${profiles.length} profile${profiles.length === 1 ? "" : "s"}`);
     const width = Math.max(...profiles.map((a) => a.name.length)) + 2;
-    const inSlot = slotProfile()?.name;
+    const inSlot = [slotProfile()?.name, codexSlotProfile()?.name];
     for (const a of profiles) {
-      const who = profileAccount(a);
-      const email = who ? who.email || who.accountUuid : "no saved login";
-      const slot = a.name === inSlot ? "in the slot" : "";
+      const codex = providerOf(a) === "codex";
+      const who = codex ? codexAccount(a) : profileAccount(a);
+      const email = who ? who.email || ("accountUuid" in who ? who.accountUuid : "saved") : "no saved login";
+      const slot = inSlot.includes(a.name) ? "in the slot" : "";
       if (!fancy) {
         console.log(`${a.name.padEnd(width)}${a.default ? "default  " : "         "}${email}${slot ? `  ${slot}` : ""}`);
         continue;

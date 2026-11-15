@@ -12,7 +12,8 @@ import { createHash } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { defaultConfigDir, stateFile } from "./claude-code.ts";
-import { type Peer, type Profile, claudeProfiles, loadMachine, stateDir } from "./machine-state.ts";
+import { type CommitUnderLock, type RestartDaemon, switchCodexHere } from "./codex.ts";
+import { type Peer, type Profile, claudeProfiles, loadMachine, loadProfiles, providerOf, stateDir } from "./machine-state.ts";
 import { checkItem, checkWarn, report, section } from "./output.ts";
 import { state } from "./state.ts";
 
@@ -171,11 +172,15 @@ export function peerFailure(output: string) {
 }
 
 // afterSave: the moment between saving the slot's login and replacing it, where a running Claude
-// Code may renew its token; the tests renew it there.
-export type SwitchOptions = { name?: string; save?: string; here?: boolean; peer?: PeerSwitch; afterSave?: () => void };
+// Code may renew its token; the tests renew it there. codex: the Codex lock and daemon, faked in
+// the tests.
+export type SwitchOptions = { name?: string; save?: string; here?: boolean; peer?: PeerSwitch; afterSave?: () => void; codex?: { commit?: CommitUnderLock; daemon?: RestartDaemon } };
 
-export async function switchProfile({ name, save, here = false, peer = peerSwitch, afterSave }: SwitchOptions) {
-  const switched = await withLoginLock(() => switchHere(name, save, afterSave));
+// The profile's provider picks the slot: a Codex profile's switch touches only Codex's.
+export async function switchProfile({ name, save, here = false, peer = peerSwitch, afterSave, codex }: SwitchOptions) {
+  const profile = loadProfiles().find((p) => p.name === (name ?? save));
+  const switchSide = profile && providerOf(profile) === "codex" ? () => switchCodexHere(name, save, codex) : () => switchHere(name, save, afterSave);
+  const switched = await withLoginLock(switchSide);
   if (!switched || here || state.dryRun) return;
   const other = peer(switched);
   if (!other) return;

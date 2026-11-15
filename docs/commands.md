@@ -112,6 +112,7 @@ A profile is one claude.ai account the person holds (ADR 0009 and ADR 0011 in th
 Then save the profile's login, once on each side: sign in with `claude auth login`, which puts the account in `~/.claude`, and run `dotagents switch --save personal`. In the second Desktop app, sign in with **e-mail and code**: Google sign-in returns to the normal app. Links `claude://` also open the normal app, and an app update reopens only the normal one. Running it again changes nothing.
 
 - Only one profile is the default: the one the normal Desktop app opens.
+- `--provider codex` makes it a ChatGPT account for Codex (ADR 0017). For now that profile is only its record in `profiles.json` (version 2, see [The profiles file](profiles-file.md)), on `~/.codex` (or `CODEX_HOME`): no Claude configuration, no Desktop app, no `--default`. Save its login once on each side: sign in with `codex login`, then `dotagents switch --save <name>`.
 - `--color #RRGGBB` sets the profile's color in the listings and its avatar. Without it, profiles get `#D77655`, `#376B80`, `#7A5C9E`, `#B5607F`, `#6B7F4A` and `#5B6478`, in the order they are added. The avatar's shape comes from the profile's name, always the same.
 
 ## dotagents profile list
@@ -146,6 +147,16 @@ Every account's login is kept in a vault, one per profile and side, in `~/.confi
 The switch and the renewals of `usage --refresh` take the same lock (`logins.lock` in the state folder), so neither copies a token the other is spending.
 
 Then it runs the same switch on the other side of the machine (`--here` skips that), whose vault holds that side's own login: a refresh token copied to two slots would sign one of them out. An account in the slot that no profile knows is never overwritten: `--save <profile>` says whose it is. The switch is always manual.
+
+### Codex profiles
+
+The same command switches a [Codex profile](#dotagents-profile-add) (ADR 0017): the slot is `~/.codex/auth.json` (or `$CODEX_HOME/auth.json`), which the Codex command line, its VS Code extension and its desktop app read, and the vault keeps `vault/<profile>/auth.json`. A Codex switch never touches `~/.claude`, and a Claude one never touches `~/.codex`. The account is told by the ChatGPT user in the login, not the workspace: two seats of one Business workspace share its id. A switch:
+
+1. saves the slot's login back to its profile's vault only when it is provably the newer copy, the same sign-in renewed at least as late; another sign-in of that account, or an account no profile knows, stops it, and `--save <profile>` says whose it is;
+2. copies the chosen login into `auth.json` byte for byte, mode `600`, holding Codex's own commit lock (`auth.json.lock`: `flock` on Linux and WSL, `LockFileEx` on Windows; gives up after 5 s if Codex holds it), and refuses a link there;
+3. checks the slot holds that account, then restarts Codex's app-server daemon when it runs (`codex app-server daemon restart`), since a running one keeps the old login.
+
+Codex sessions already open (the terminal, the extension, the desktop app) stay on the old account until restarted. `login`, the expiry checks and the live usage are for Claude profiles only, for now.
 
 ## dotagents login
 

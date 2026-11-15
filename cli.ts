@@ -190,6 +190,7 @@ ${title("Options")}
   ${bold("--wrap")}       (init) move a repository into <name>-workspace/ first
   ${bold("--default")}    (profile add) the profile in ~/.claude
   ${bold("--color")}      (profile add) the profile's color, #RRGGBB
+  ${bold("--provider")}   (profile add) claude (the default) or codex
   ${bold("--short")}      (usage) one line, for a prompt or a status line
   ${bold("--json")}       (usage, sessions) the data, for scripts
   ${bold("--all")}        (sessions) every project's sessions, not only this folder's; (login) every login running out
@@ -201,7 +202,7 @@ ${title("Options")}
   ${bold("--port")}       (start) the server's port; 0 picks a free one
   ${bold("--here")}       (switch) only this side of the machine
   ${bold("--side")}       (logs) only that side: wsl or windows
-  ${bold("--save")}       (switch) keep the login in ~/.claude as this profile's
+  ${bold("--save")}       (switch) keep the login in the slot as this profile's
   ${bold("--help")}       show this help
   ${bold("--version")}    show the version
 
@@ -239,7 +240,7 @@ try {
   args = parseArgs<CliArgs>(process.argv.slice(2), {
     booleans: ["all", "api", "default", "dry-run", "help", "here", "json", "no-archive", "no-pull", "refresh", "running", "short", "spend", "version", "watch", "wrap", "yes"],
     lists: ["skills"],
-    values: ["color", "from", "port", "save", "side"],
+    values: ["color", "from", "port", "provider", "save", "side"],
   });
 } catch (err) {
   fail(err as Error);
