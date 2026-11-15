@@ -76,7 +76,7 @@ export type ArchivedSession = {
   revised: number;
 };
 
-// How an account is shown: "turing (me@example.com)". Unknown ids show their first 8 characters.
+// How an account is shown: "work (me@example.com)". Unknown ids show their first 8 characters.
 export type AccountLabels = Map<string, string>;
 
 const isObject = (v: unknown): v is Json => typeof v === "object" && v !== null && !Array.isArray(v);
@@ -267,7 +267,7 @@ const keep = (p: string) => {
 
 export const accountLabel = (uuid: string, labels: AccountLabels = new Map()) => labels.get(uuid) ?? `\`${uuid.slice(0, 8)}\``;
 
-// "turing (a@x)", or "turing (a@x); also used by lovelace (b@x)" for a session shared by accounts.
+// "work (a@x)", or "work (a@x); also used by personal (b@x)" for a session shared by accounts.
 export function accountsText(accounts: string[], labels: AccountLabels = new Map()) {
   if (!accounts.length) return "unknown (not in the transcript)";
   const [owner, ...others] = accounts.map((a) => accountLabel(a, labels));

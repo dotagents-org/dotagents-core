@@ -13,8 +13,8 @@ fs.mkdirSync(OUT, { recursive: true });
 
 // The identity's roles, light and dark.
 const THEMES = {
-  light: { text: "#171717", muted: "#666666", card: "#ffffff", line: "#e3e3e3", group: "#fafafa", arrow: "#a1a1a1", pill: "#171717", pillText: "#ffffff", shadow: "#000000", shadowOpacity: 0.06, turing: "#D77655", lovelace: "#376B80" },
-  dark: { text: "#ededed", muted: "#a0a0a0", card: "#111111", line: "#2b2b2b", group: "#0a0a0a", arrow: "#6b6b6b", pill: "#ededed", pillText: "#0a0a0a", shadow: "#000000", shadowOpacity: 0.5, turing: "#e39478", lovelace: "#6fa3b8" },
+  light: { text: "#171717", muted: "#666666", card: "#ffffff", line: "#e3e3e3", group: "#fafafa", arrow: "#a1a1a1", pill: "#171717", pillText: "#ffffff", shadow: "#000000", shadowOpacity: 0.06, work: "#D77655", personal: "#376B80" },
+  dark: { text: "#ededed", muted: "#a0a0a0", card: "#111111", line: "#2b2b2b", group: "#0a0a0a", arrow: "#6b6b6b", pill: "#ededed", pillText: "#0a0a0a", shadow: "#000000", shadowOpacity: 0.5, work: "#e39478", personal: "#6fa3b8" },
 };
 const FONT = `ui-monospace, 'Geist Mono', SFMono-Regular, Menlo, Consolas, monospace`;
 const CHAR = 0.6; // a monospace character's width, in em
@@ -95,8 +95,8 @@ function write(name, make) {
 // --- How it works ------------------------------------------------------------------------------
 write("how-it-works", (t) => {
   let b = group(t, { x: 0, y: 0, w: 330, h: 300, label: "your dotagents clone" });
-  b += card(t, { x: 20, y: 40, w: 290, h: 110, title: "config/", lines: ["your configuration:", "instructions, rules, settings,", "skills, the Desktop icons"], accent: t.turing });
-  b += card(t, { x: 20, y: 170, w: 290, h: 110, title: "standards/ + templates/", lines: ["how a workspace looks:", "AGENTS.md, .agents/,", ".artifacts/"], accent: t.lovelace });
+  b += card(t, { x: 20, y: 40, w: 290, h: 110, title: "config/", lines: ["your configuration:", "instructions, rules, settings,", "skills, the Desktop icons"], accent: t.work });
+  b += card(t, { x: 20, y: 170, w: 290, h: 110, title: "standards/ + templates/", lines: ["how a workspace looks:", "AGENTS.md, .agents/,", ".artifacts/"], accent: t.personal });
   b += card(t, { x: 560, y: 40, w: 300, h: 110, title: "~/.claude", lines: ["every profile on the machine:", "CLAUDE.md, rules/,", "settings.json"] });
   b += card(t, { x: 560, y: 170, w: 300, h: 110, title: "app-workspace/", lines: ["AGENTS.md, .agents/skills/,", ".artifacts/, and app/:", "the project's clone, untouched"] });
   b += arrow(t, 310, 95, 556, 95) + pill(t, 433, 95, "dotagents install");
@@ -109,8 +109,8 @@ write("workspace-skills", (t) => {
   let b = card(t, { x: 0, y: 95, w: 150, h: 70, title: "Claude Code", lines: ["reads"] });
   b += card(t, { x: 210, y: 95, w: 170, h: 70, title: ".claude/skills", lines: ["a link"] });
   b += card(t, { x: 440, y: 95, w: 170, h: 70, title: ".agents/skills/", lines: ["one per skill"] });
-  b += card(t, { x: 690, y: 10, w: 290, h: 100, title: "session-archive/", lines: ["a link to config/skills/", "in your clone: an edit is", "live everywhere at once"], accent: t.turing });
-  b += card(t, { x: 690, y: 150, w: 290, h: 100, title: "humanizer/", lines: ["a third-party skill:", "an installed copy, pinned", "in skills-lock.json"], accent: t.lovelace });
+  b += card(t, { x: 690, y: 10, w: 290, h: 100, title: "session-archive/", lines: ["a link to config/skills/", "in your clone: an edit is", "live everywhere at once"], accent: t.work });
+  b += card(t, { x: 690, y: 150, w: 290, h: 100, title: "humanizer/", lines: ["a third-party skill:", "an installed copy, pinned", "in skills-lock.json"], accent: t.personal });
   b += arrow(t, 150, 130, 206, 130) + arrow(t, 380, 130, 436, 130);
   b += arrow(t, 610, 120, 686, 60) + note(t, 682, 40, "your own", "end");
   b += arrow(t, 610, 140, 686, 200) + note(t, 682, 228, "npx skills", "end");
@@ -126,8 +126,8 @@ write("git-clean", (t) => {
   b += arrow(t, 346, 88, 130, 146, { bend: "corner" }) + note(t, 238, 80, "no");
   b += question(t, { cx: 600, cy: 190, text: "move it into a workspace?" });
   b += arrow(t, 514, 88, 600, 164, { bend: "corner" }) + note(t, 548, 80, "yes", "start");
-  b += card(t, { x: 300, y: 280, w: 330, h: 100, title: "<folder>-workspace/", lines: ["the agent files at the top,", "<folder>/ inside: the repository,", "with nothing of the agents"], accent: t.turing });
-  b += card(t, { x: 660, y: 280, w: 300, h: 100, title: "kept where it is", lines: ["e.g. an Obsidian vault: the", "agent files stay inside, hidden", "by .git/info/exclude"], accent: t.lovelace });
+  b += card(t, { x: 300, y: 280, w: 330, h: 100, title: "<folder>-workspace/", lines: ["the agent files at the top,", "<folder>/ inside: the repository,", "with nothing of the agents"], accent: t.work });
+  b += card(t, { x: 660, y: 280, w: 300, h: 100, title: "kept where it is", lines: ["e.g. an Obsidian vault: the", "agent files stay inside, hidden", "by .git/info/exclude"], accent: t.personal });
   b += arrow(t, 560, 214, 465, 276, { bend: "v" }) + note(t, 495, 248, "yes, recommended", "end");
   b += arrow(t, 640, 214, 810, 276, { bend: "v" }) + note(t, 745, 248, "no", "start");
   return frame(960, 390, t, b, "Keeping the project's git clean: init applies the standards to a plain folder, and offers to wrap a repository in a workspace");
@@ -137,10 +137,10 @@ write("git-clean", (t) => {
 write("accounts", (t) => {
   // Each account as a plain square in its color; its avatar lives in the dotagents sidebar.
   const tile = (color) => `<rect x="12" y="12" width="76" height="76" rx="18" fill="${color}"/>`;
-  const tu = tile(t.turing), lo = tile(t.lovelace);
+  const tu = tile(t.work), lo = tile(t.personal);
   let b = group(t, { x: 0, y: 0, w: 300, h: 300, label: "profiles" });
-  b += card(t, { x: 20, y: 40, w: 260, h: 110, title: "turing", lines: ["a claude.ai account,", "its login in a vault", "per side"], icon: tu, accent: t.turing });
-  b += card(t, { x: 20, y: 170, w: 260, h: 110, title: "lovelace", lines: ["another account,", "its own vault and", "its own Desktop app"], icon: lo, accent: t.lovelace });
+  b += card(t, { x: 20, y: 40, w: 260, h: 110, title: "work", lines: ["a claude.ai account,", "its login in a vault", "per side"], icon: tu, accent: t.work });
+  b += card(t, { x: 20, y: 170, w: 260, h: 110, title: "personal", lines: ["another account,", "its own vault and", "its own Desktop app"], icon: lo, accent: t.personal });
   b += group(t, { x: 400, y: 0, w: 230, h: 300, label: "the slot" });
   b += card(t, { x: 420, y: 40, w: 190, h: 110, title: "WSL", lines: ["~/.claude", "one login at a", "time, shared history"] });
   b += card(t, { x: 420, y: 170, w: 190, h: 110, title: "Windows", lines: ["~/.claude", "the same, on", "the other side"] });
@@ -157,9 +157,9 @@ write("accounts", (t) => {
 
 // --- Two machines, one setup -------------------------------------------------------------------
 write("two-machines", (t) => {
-  let b = card(t, { x: 0, y: 10, w: 260, h: 100, title: "Machine A", lines: ["edit a skill or a rule:", "live at once in every", "workspace on A"], accent: t.turing });
+  let b = card(t, { x: 0, y: 10, w: 260, h: 100, title: "Machine A", lines: ["edit a skill or a rule:", "live at once in every", "workspace on A"], accent: t.work });
   b += card(t, { x: 400, y: 25, w: 180, h: 70, title: "GitHub", lines: ["your dotagents"] });
-  b += card(t, { x: 800, y: 10, w: 260, h: 100, title: "Machine B", lines: ["pulled, reinstalled,", "every workspace", "refreshed"], accent: t.lovelace });
+  b += card(t, { x: 800, y: 10, w: 260, h: 100, title: "Machine B", lines: ["pulled, reinstalled,", "every workspace", "refreshed"], accent: t.personal });
   b += arrow(t, 260, 60, 396, 60) + pill(t, 330, 60, "git push");
   b += arrow(t, 580, 60, 796, 60) + pill(t, 688, 60, "dotagents update --all");
   return frame(1060, 124, t, b, "Two machines, one setup: push from one, dotagents update --all on the other");

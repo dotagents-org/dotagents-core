@@ -126,11 +126,11 @@ test("a session is archived into its project, then deleted with everything Claud
   const file = session(s.here, "one", [...lines(path.join(s.ws, "repo"), "one"), { type: "session-owner", accountUuid: A }]);
   const [one] = listSessions({ dirs: [s.here] });
 
-  const archived = archiveSession(one, new Map([[A, "turing (a@example.com)"]]));
+  const archived = archiveSession(one, new Map([[A, "work (a@example.com)"]]));
   assert.ok(archived.ok);
   assert.equal(archived.file, path.join(s.ws, ".artifacts", "session-archives", "2026-01-02-one.md"));
   const md = fs.readFileSync(archived.file, "utf8");
-  assert.match(md, /\| \*\*Account\*\* \| turing \(a@example\.com\) \|/);
+  assert.match(md, /\| \*\*Account\*\* \| work \(a@example\.com\) \|/);
   assert.match(md, /Plan the release/);
 
   assert.ok(deleteSession(one));

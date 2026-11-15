@@ -186,20 +186,20 @@ const owner = (account: string) => JSON.stringify({ type: "session-owner", accou
 test("the archive names the account that ran the session, and the others when it was shared", (t) => {
   const s = setup(t);
   fs.appendFileSync(s.transcript, `${owner(A)}\n${owner(A)}\n`);
-  const labels = new Map([[A, "turing (a@example.com)"], [B, "lovelace (b@example.com)"]]);
-  assert.match(renderArchive(parseTranscript(s.transcript), labels), /^\| \*\*Account\*\* \| turing \(a@example\.com\) \|$/m);
+  const labels = new Map([[A, "work (a@example.com)"], [B, "personal (b@example.com)"]]);
+  assert.match(renderArchive(parseTranscript(s.transcript), labels), /^\| \*\*Account\*\* \| work \(a@example\.com\) \|$/m);
 
   fs.appendFileSync(s.transcript, `${owner(B)}\n${owner(A)}\n`);
   const session = parseTranscript(s.transcript);
   assert.deepEqual(session.accounts, [A, B]);
-  assert.equal(accountsText(session.accounts, labels), "turing (a@example.com); also used by lovelace (b@example.com)");
+  assert.equal(accountsText(session.accounts, labels), "work (a@example.com); also used by personal (b@example.com)");
   assert.equal(accountsText(session.accounts), "`aaaaaaaa`; also used by `bbbbbbbb`", "an unknown account shows its id's start");
 });
 
 test("run as a command, the script names accounts from dotagents' vault and Claude Code's login", (t) => {
   const s = setup(t);
   fs.appendFileSync(s.transcript, `${owner(A)}\n${owner(B)}\n`);
-  const vault = path.join(s.root, "state", "vault", "turing");
+  const vault = path.join(s.root, "state", "vault", "work");
   fs.mkdirSync(vault, { recursive: true });
   fs.writeFileSync(path.join(vault, "account.json"), JSON.stringify({ accountUuid: A, emailAddress: "a@example.com" }));
   fs.writeFileSync(path.join(vault, "credentials.json"), "{\"secret\":\"never-read\"}");
@@ -207,6 +207,6 @@ test("run as a command, the script names accounts from dotagents' vault and Clau
   const root = path.join(s.root, "proj");
   assert.equal(s.run(SCRIPT, "--transcript", s.transcript, "--project-root", root).status, 0);
   const md = fs.readFileSync(path.join(root, ".artifacts", "session-archives", `2026-01-02-${ID}.md`), "utf8");
-  assert.match(md, /\| \*\*Account\*\* \| turing \(a@example\.com\); also used by b@example\.com \|/);
+  assert.match(md, /\| \*\*Account\*\* \| work \(a@example\.com\); also used by b@example\.com \|/);
   assert.ok(!md.includes("never-read"));
 });

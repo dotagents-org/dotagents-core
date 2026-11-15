@@ -23,7 +23,7 @@ function when(s: Session) {
 
 const size = (bytes: number) => (bytes >= 1e6 ? `${(bytes / 1e6).toFixed(1)} MB` : `${Math.max(1, Math.round(bytes / 1e3))} KB`);
 
-// The profile's name alone in a list ("turing", not "turing (me@example.com)").
+// The profile's name alone in a list ("work", not "work (me@example.com)").
 const shortLabel = (uuid: string, labels: AccountLabels) => (labels.get(uuid) ?? uuid.slice(0, 8)).replace(/ \(.*\)$/, "");
 
 function accountsShort(s: Session, labels: AccountLabels) {

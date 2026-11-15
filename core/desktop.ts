@@ -41,7 +41,7 @@ export const desktopExe = () => path.join(localAppData(), "Microsoft", "WindowsA
 const desktopInstalled = () => Boolean(lstat(desktopExe()));
 // Right under %APPDATA%: Cowork only works with the data folder there.
 export const desktopDataDir = (name: string) => path.join(appData(), `Claude-${name}`);
-// "lovelace" → "Claude Lovelace", "my-work" → "Claude My Work".
+// "personal" → "Claude Personal", "my-work" → "Claude My Work".
 export const appTitle = (name: string) => `Claude ${name.split("-").map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ")}`;
 export const shortcutFile = (name: string) => path.join(appData(), "Microsoft", "Windows", "Start Menu", "Programs", `${appTitle(name)}.lnk`);
 export const desktopLauncherFile = (launcherDir: string, name: string) => path.join(launcherDir, `claude-desktop-${name}.vbs`);

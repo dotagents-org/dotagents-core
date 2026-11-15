@@ -7,8 +7,8 @@ import { costOf } from "../core/prices.ts";
 import { type Point, readHistory, readSpend, ratios, recordHistory, spendReport } from "../core/spend.ts";
 import "./helpers.ts";
 
-const A = "acct-turing";
-const B = "acct-lovelace";
+const A = "acct-work";
+const B = "acct-personal";
 
 function tmp(t: TestContext) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "dotagents-spend-"));
@@ -38,10 +38,10 @@ test("the history gets a line only when a window's % or reset changes", (t) => {
     { kind: "session" as const, pct: session, resetsAt: r, reset: false },
     { kind: "week" as const, pct: week, resetsAt: new Date("2026-11-20T00:00:00Z"), reset: false },
   ];
-  recordHistory("turing", windows(10, 30), new Date("2026-11-15T10:00:00Z"), dir);
-  recordHistory("turing", windows(10, 30, new Date("2026-11-15T15:00:40Z")), new Date("2026-11-15T10:01:00Z"), dir); // the reset moved by seconds
-  recordHistory("turing", windows(12, 30), new Date("2026-11-15T10:02:00Z"), dir);
-  const history = readHistory("turing", dir);
+  recordHistory("work", windows(10, 30), new Date("2026-11-15T10:00:00Z"), dir);
+  recordHistory("work", windows(10, 30, new Date("2026-11-15T15:00:40Z")), new Date("2026-11-15T10:01:00Z"), dir); // the reset moved by seconds
+  recordHistory("work", windows(12, 30), new Date("2026-11-15T10:02:00Z"), dir);
+  const history = readHistory("work", dir);
   assert.deepEqual(history.map((p) => p.session), [10, 12]);
   assert.equal(history[0].sessionResetsAt, "2026-11-15T15:00:00.000Z");
 });
@@ -86,13 +86,13 @@ test("the report puts the current window's spend by model and folder, and counts
   const saved = process.env.DOTAGENTS_STATE_DIR;
   process.env.DOTAGENTS_STATE_DIR = dir;
   t.after(() => (process.env.DOTAGENTS_STATE_DIR = saved));
-  recordHistory("turing", [{ kind: "session", pct: 5, resetsAt: new Date("2026-11-15T12:00:00Z"), reset: false }], new Date("2026-11-15T09:00:00Z"));
+  recordHistory("work", [{ kind: "session", pct: 5, resetsAt: new Date("2026-11-15T12:00:00Z"), reset: false }], new Date("2026-11-15T09:00:00Z"));
   const usage = { input_tokens: 0, output_tokens: 1000 };
   const dirs = configDir(t, {
     "-work-app/s1.jsonl": [owner(A), message("m1", "2026-11-15T08:00:00Z", usage), message("m2", "2026-11-15T09:30:00Z", usage, "claude-sonnet-5-5", "/work/api")],
     "-work-x/s2.jsonl": [owner("someone-else"), message("m3", "2026-11-15T09:40:00Z", usage)],
   });
-  const { profiles, unattributedUsd } = spendReport([{ name: "turing", accountUuid: A }], { now: Date.parse("2026-11-15T10:00:00Z"), dirs });
+  const { profiles, unattributedUsd } = spendReport([{ name: "work", accountUuid: A }], { now: Date.parse("2026-11-15T10:00:00Z"), dirs });
   const w = profiles[0].session;
   assert.equal(w?.from, "2026-11-15T07:00:00.000Z");
   assert.deepEqual(w?.models.map(([m]) => m), ["claude-opus-5-5", "claude-sonnet-5-5"]);

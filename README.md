@@ -23,9 +23,6 @@
   <img alt="MIT license" src="https://img.shields.io/badge/license-MIT-171717">
 </p>
 
-> [!NOTE]
-> **This is my personal configuration project.** Many things here are shaped to the way I work: the global instructions, the rules, the skills, the two accounts (`turing` and `lovelace`), Windows with WSL. Everything that is mine lives in a private repository of its own, `dotagents-config`; this one is the tool, with a generic starting point in [`templates/config/`](templates/config/). If it is useful to you, feel free to use it, fork it, give feedback, contribute, and set it up your own way.
-
 Claude Code reads its configuration from `~/.claude/` on each machine and from `.claude/`, `CLAUDE.md` or `AGENTS.md` in each project. Use it across a few projects and two machines, and the copies drift apart: the same skill copied into several projects, an instruction fixed on one machine and forgotten on the other, project files leaking into the repository's git. Hold more than one Claude seat and it gets worse: one login per machine at a time, and no single place that says how much of each plan is left.
 
 dotagents keeps all of it in one git repository, yours, and a single command writes or links what Claude Code expects. You never edit `~/.claude/` or a workspace's `.claude/` by hand again. And for several accounts, it switches the login in place, shows each account's usage live, and opens one Claude Desktop per account, in the terminal and, with the [dotagents sidebar](https://github.com/dotagents-org/dotagents-sidebar), in VS Code.
@@ -98,7 +95,7 @@ A profile is one claude.ai account. Every profile uses `~/.claude`, so the histo
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="assets/readme/accounts-dark.svg">
-    <img alt="Profiles turing and lovelace, each with a vault; switch puts one in the WSL or Windows slot; the live usage shows in dotagents usage and, through dotagents start, in the dotagents sidebar" src="assets/readme/accounts-light.svg" width="840">
+    <img alt="Profiles work and personal, each with a vault; switch puts one in the WSL or Windows slot; the live usage shows in dotagents usage and, through dotagents start, in the dotagents sidebar" src="assets/readme/accounts-light.svg" width="840">
   </picture>
 </p>
 
