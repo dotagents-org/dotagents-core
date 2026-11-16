@@ -4,7 +4,8 @@
 import { loadMachine } from "../../core/machine-state.ts";
 import { checkItem, finish, header, section } from "../../core/output.ts";
 import { inWsl, nodeOk, peerToolCheck, runOnPeer } from "../../core/peer.ts";
-import { sideName, verifyLogins } from "../../core/switch.ts";
+import { sideName } from "../../core/machine-state.ts";
+import { verifyLogins } from "../../core/switch.ts";
 import type { Command } from "./shared.ts";
 
 export const doctor: Command = {

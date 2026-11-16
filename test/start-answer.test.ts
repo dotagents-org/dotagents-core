@@ -6,9 +6,8 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { test, type TestContext } from "node:test";
-import { saveMachine, saveProfile } from "../core/machine-state.ts";
+import { saveMachine, saveProfile, sideName } from "../core/machine-state.ts";
 import { startAnswer } from "../core/snapshot.ts";
-import { sideName } from "../core/switch.ts";
 import { quiet } from "./helpers.ts";
 
 const NOW = new Date("2026-11-16T12:00:00Z");

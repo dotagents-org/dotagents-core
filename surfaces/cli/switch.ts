@@ -4,7 +4,8 @@
 import { codexSlotProfile } from "../../core/codex.ts";
 import { loadProfiles, providerOf } from "../../core/machine-state.ts";
 import { brand, fancy, finish, header, line, paint, tone } from "../../core/output.ts";
-import { slotProfile, switchProfile, vaultDir } from "../../core/switch.ts";
+import { slotProfile, switchProfile } from "../../core/switch.ts";
+import { vaultDir } from "../../core/vault.ts";
 import type { Command } from "./shared.ts";
 import fs from "node:fs";
 import { state } from "../../core/state.ts";

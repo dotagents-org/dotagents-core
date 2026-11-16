@@ -25,12 +25,13 @@ import os from "node:os";
 import path from "node:path";
 import readline from "node:readline";
 import { codexLoginMark, codexProfiles, codexSlotProfile, readLogin, slotFile, vaultFile, vaultLogin } from "./codex.ts";
-import { BACKOFF_MS, type LiveResult, MAX_BACKOFF_MS, readRecord, refreshUsage, writeRecord } from "./live.ts";
+import { type LiveResult, refreshUsage } from "./live.ts";
 import type { Profile } from "./machine-state.ts";
 import { report } from "./output.ts";
 import { state } from "./state.ts";
-import { withLoginLock, writePrivate } from "./switch.ts";
+import { BACKOFF_MS, MAX_BACKOFF_MS, readRecord, writeRecord } from "./usage-record.ts";
 import { type UsageWindow, usageWindow } from "./usage.ts";
+import { withLoginLock, writePrivate } from "./vault.ts";
 
 export type SpawnAppServer = (home: string) => ChildProcessWithoutNullStreams;
 

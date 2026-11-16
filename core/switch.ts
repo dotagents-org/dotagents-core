@@ -13,9 +13,10 @@ import fs from "node:fs";
 import path from "node:path";
 import { defaultConfigDir, stateFile } from "./claude-code.ts";
 import { type CodexLoginOptions, type CommitUnderLock, type RestartDaemon, loginCodex, switchCodexHere } from "./codex.ts";
-import { type Peer, type Profile, claudeProfiles, loadMachine, loadProfiles, providerOf, stateDir } from "./machine-state.ts";
+import { type Peer, type Profile, claudeProfiles, loadMachine, loadProfiles, providerOf, sideName, stateDir } from "./machine-state.ts";
 import { checkItem, checkWarn, report, section } from "./output.ts";
 import { state } from "./state.ts";
+import { vaultDir, withLoginLock, writePrivate } from "./vault.ts";
 
 // A login: the .credentials.json as Claude Code wrote it, the file it came from, and the account
 // it belongs to.
@@ -23,7 +24,6 @@ type Login = { credentials: string; file: string; account: Record<string, unknow
 
 const slotDir = () => defaultConfigDir();
 const credentialsIn = (dir: string) => path.join(dir, ".credentials.json");
-export const vaultDir = (name: string) => path.join(stateDir(), "vault", name);
 
 const readJson = (file: string): Record<string, unknown> | null => {
   try {
@@ -109,43 +109,6 @@ export function liveLogin(p: Profile): LiveLogin | null {
   if (!known) return null;
   if (vaultLogin(p.name)) return { file: path.join(vaultDir(p.name), "credentials.json"), accountUuid: known.accountUuid, shared: false, configDir: null };
   return { file: credentialsIn(p.configDir), accountUuid: known.accountUuid, shared: true, configDir: p.configDir };
-}
-
-// One lock across dotagents' processes around every change to a login (a switch, a renewal), so a
-// switch never copies a token that a renewal is spending. A lock older than LOCK_STALE_MS was left
-// by a process that died, and is taken over.
-const lockFile = () => path.join(stateDir(), "logins.lock");
-const LOCK_STALE_MS = 60_000;
-
-export async function withLoginLock<T>(fn: () => T | Promise<T>, waitMs = 30_000): Promise<T> {
-  if (state.dryRun) return fn();
-  fs.mkdirSync(stateDir(), { recursive: true });
-  const until = Date.now() + waitMs;
-  for (;;) {
-    try {
-      fs.writeFileSync(lockFile(), `${process.pid}\n`, { flag: "wx" });
-      break;
-    } catch (err) {
-      if ((err as NodeJS.ErrnoException).code !== "EEXIST") throw err;
-      const since = fs.statSync(lockFile(), { throwIfNoEntry: false })?.mtimeMs;
-      if (since !== undefined && Date.now() - since > LOCK_STALE_MS) fs.rmSync(lockFile(), { force: true });
-      else if (Date.now() > until) throw new Error(`Another dotagents is changing a login (${lockFile()}); try again`);
-      else await new Promise((resolve) => setTimeout(resolve, 100));
-    }
-  }
-  try {
-    return await fn();
-  } finally {
-    fs.rmSync(lockFile(), { force: true });
-  }
-}
-
-// Writes a file whole and in one step (a temporary file renamed over it), readable only by the user.
-export function writePrivate(file: string, text: string) {
-  fs.mkdirSync(path.dirname(file), { recursive: true, mode: 0o700 });
-  const tmp = `${file}.dotagents-${process.pid}`;
-  fs.writeFileSync(tmp, text, { mode: 0o600 });
-  fs.renameSync(tmp, file);
 }
 
 function saveToVault(name: string, login: Login) {
@@ -275,8 +238,6 @@ const expiryOf = (login: Login | null) => {
     return null;
   }
 };
-
-export const sideName = () => (process.platform === "win32" ? "Windows" : loadMachine().peer?.name === "Windows" ? "WSL" : "this machine");
 
 // The freshest login of each profile on the other side: its slot's when the account is there, else
 // its vault's. Read only.

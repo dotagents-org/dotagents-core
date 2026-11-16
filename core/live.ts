@@ -14,12 +14,14 @@
 import { recordHistory } from "./spend.ts";
 import fs from "node:fs";
 import path from "node:path";
-import { type Profile, claudeProfiles, stateDir } from "./machine-state.ts";
+import { type Profile, claudeProfiles } from "./machine-state.ts";
+import { BACKOFF_MS, MAX_BACKOFF_MS, readRecord, writeRecord } from "./usage-record.ts";
 import { report, section } from "./output.ts";
 import { PALETTE } from "./profiles.ts";
 import { defaultConfigDir } from "./claude-code.ts";
 import { state } from "./state.ts";
-import { liveLogin, loginMark, withLoginLock, writePrivate } from "./switch.ts";
+import { liveLogin, loginMark } from "./switch.ts";
+import { withLoginLock, writePrivate } from "./vault.ts";
 import { normalize } from "./usage.ts";
 
 export type Fetcher = (url: string, init: { method: "GET" | "POST"; headers: Record<string, string>; body?: string }) => Promise<{ status: number; headers: { get(name: string): string | null }; text: string }>;
@@ -41,28 +43,6 @@ const USER_AGENT = `dotagents/${JSON.parse(fs.readFileSync(new URL("../package.j
 export const LIVE_EVERY_MS = 55_000;
 // Early renewal of the vault's copy, which nobody else renews.
 const RENEW_EARLY_MS = 5 * 60_000;
-export const BACKOFF_MS = 60_000;
-export const MAX_BACKOFF_MS = 15 * 60_000;
-
-// What dotagents keeps per profile: the last usage, as Claude Code's cache keeps it (fetchedAtMs,
-// accountUuid, utilization), and the last attempt, with its error and when to try again.
-// refused: the mark of the login Anthropic last refused (a 401, a renewal turned down; loginMark in
-// core/switch.ts), which the checklist and the switch read; a good answer clears it.
-type LiveRecord = { fetchedAtMs?: number; accountUuid?: string; utilization?: unknown; askedAtMs?: number; failures?: number; retryAtMs?: number; error?: string; refused?: string };
-
-const recordFile = (name: string, dir = stateDir()) => path.join(dir, "usage", `${name}.json`);
-
-export function readRecord(name: string, dir?: string): LiveRecord {
-  try {
-    const data = JSON.parse(fs.readFileSync(recordFile(name, dir), "utf8"));
-    return typeof data === "object" && data !== null && !Array.isArray(data) ? data : {};
-  } catch {
-    return {};
-  }
-}
-
-// In one step, so a surface reading it never sees half a file.
-export const writeRecord = (name: string, record: Record<string, unknown>) => writePrivate(recordFile(name), `${JSON.stringify({ version: 1, ...record }, null, 2)}\n`);
 
 // The live usage of a profile, as the snapshot reads it: the cache-shaped part and the last error.
 export function liveUsage(name: string, dir?: string) {

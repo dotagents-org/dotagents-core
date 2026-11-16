@@ -196,6 +196,9 @@ export function saveMachine(machine: Machine) {
   writeStateFile(machineFile(), MACHINE.version, { ...machine });
 }
 
+// The side this dotagents runs on, for the messages: "Windows", "WSL" (when the other side is Windows) or "this machine".
+export const sideName = () => (process.platform === "win32" ? "Windows" : loadMachine().peer?.name === "Windows" ? "WSL" : "this machine");
+
 // The running `dotagents start`: its port, token and pid, for the dotagents sidebar to find it. Only the
 // user reads it (the token opens the API), and the server takes it away when it stops, unless
 // another server has written its own since.

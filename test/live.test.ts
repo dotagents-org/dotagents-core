@@ -7,11 +7,13 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { test, type TestContext } from "node:test";
-import { type Fetcher, LIVE_EVERY_MS, fetchLive, readRecord, refreshUsage } from "../core/live.ts";
+import { type Fetcher, LIVE_EVERY_MS, fetchLive, refreshUsage } from "../core/live.ts";
+import { readRecord } from "../core/usage-record.ts";
 import { loadProfiles, saveProfile } from "../core/machine-state.ts";
 import { readUsage } from "../core/snapshot.ts";
 import { state } from "../core/state.ts";
-import { loginMark, withLoginLock } from "../core/switch.ts";
+import { loginMark } from "../core/switch.ts";
+import { withLoginLock } from "../core/vault.ts";
 import { quiet } from "./helpers.ts";
 
 const NOW = Date.parse("2026-10-30T12:00:00Z");

@@ -9,10 +9,10 @@ import { createHash } from "node:crypto";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { type Profile, loadProfiles, providerOf, stateDir } from "./machine-state.ts";
+import { type Profile, loadProfiles, providerOf, sideName, stateDir } from "./machine-state.ts";
 import { checkItem, checkWarn, report, section } from "./output.ts";
 import { state } from "./state.ts";
-import { sideName, vaultDir, writePrivate } from "./switch.ts";
+import { vaultDir, writePrivate } from "./vault.ts";
 
 export const codexHome = () => process.env.CODEX_HOME || path.join(os.homedir(), ".codex");
 export const slotFile = () => path.join(codexHome(), "auth.json");

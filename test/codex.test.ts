@@ -10,10 +10,10 @@ import path from "node:path";
 import { test, type TestContext } from "node:test";
 import { codexLoginMark, codexSlotProfile } from "../core/codex.ts";
 import { codexUsage, readCodexSlots } from "../core/snapshot.ts";
-import { loadProfiles, saveProfile } from "../core/machine-state.ts";
+import { loadProfiles, saveProfile, sideName } from "../core/machine-state.ts";
 import { setUpProfile, verifyProfiles } from "../core/profiles.ts";
 import { state } from "../core/state.ts";
-import { type PeerSwitch, loginProfile, sideName, switchProfile } from "../core/switch.ts";
+import { type PeerSwitch, loginProfile, switchProfile } from "../core/switch.ts";
 import { REPO, quiet } from "./helpers.ts";
 
 function machine(t: TestContext) {
