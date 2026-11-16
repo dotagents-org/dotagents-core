@@ -132,7 +132,9 @@ export const restartDaemon: RestartDaemon = () => {
     // An older Codex without the daemon, or its output changed: nothing to restart.
   }
   if (!running) return null;
-  const restart = codex(["app-server", "daemon", "restart"]);
+  // No pipes: the restarted daemon would inherit them and keep them open, so whoever runs this
+  // (the other side's switch, through PowerShell) would wait on it until its timeout.
+  const restart = runCodex(["app-server", "daemon", "restart"], { stdio: "ignore", timeout: 30_000, windowsHide: true });
   return restart.status === 0 ? "restarted" : `couldn't restart it (exit ${restart.status}); run: codex app-server daemon restart`;
 };
 
