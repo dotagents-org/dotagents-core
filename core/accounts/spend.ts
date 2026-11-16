@@ -72,6 +72,8 @@ const lines = (file: string) => {
   }
 };
 
+const sumUsd = (list: Spend[]) => list.reduce((sum, item) => sum + (item.costUsd ?? 0), 0);
+
 function ownerIn(line: string, current: string | null): string | null {
   if (!line.includes('"type":"session-owner"')) return current;
   try {
@@ -186,7 +188,7 @@ export function ratios(points: Point[], spend: Spend[]): Ratio[] {
       const [from, to] = [a[window], b[window]];
       if (from === null || to === null || a[resets] !== b[resets] || to <= from) continue;
       const between = spend.filter((s) => s.at > Date.parse(a.at) && s.at <= Date.parse(b.at));
-      const cost = between.reduce((sum, s) => sum + (s.costUsd ?? 0), 0);
+      const cost = sumUsd(between);
       if (!between.length) {
         unexplainedPct += to - from;
         continue;
@@ -228,12 +230,12 @@ export function spendReport(profiles: { name: string; accountUuid: string | null
       if (!resets) return null;
       const from = Date.parse(resets) - SPAN[kind];
       const inside = mine.filter((s) => s.at >= from && s.at <= now);
-      return { from: new Date(from).toISOString(), totalUsd: inside.reduce((sum, s) => sum + (s.costUsd ?? 0), 0), models: totals(inside, (s) => s.model), workspaces: totals(inside, (s) => folder(s.cwd)) };
+      return { from: new Date(from).toISOString(), totalUsd: sumUsd(inside), models: totals(inside, (s) => s.model), workspaces: totals(inside, (s) => folder(s.cwd)) };
     };
     return { name: p.name, ratios: ratios(points, mine), session: windowOf("session"), week: windowOf("week") };
   });
   // Messages under an account no profile is
   const known = new Set(profiles.map((p) => p.accountUuid));
-  const unattributedUsd = spend.filter((s) => !known.has(s.account)).reduce((sum, s) => sum + (s.costUsd ?? 0), 0);
+  const unattributedUsd = sumUsd(spend.filter((s) => !known.has(s.account)));
   return { profiles: report, unattributedUsd };
 }
