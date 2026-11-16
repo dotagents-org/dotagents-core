@@ -14,7 +14,7 @@ import { type Peer, type Profile, loadMachine } from "./machine-state.ts";
 import { peerUp } from "./peer.ts";
 import { PALETTE } from "./profiles.ts";
 import { peerRunningLater } from "./sessions.ts";
-import { liveLogin, sideName, slotProfile } from "./switch.ts";
+import { liveLogin, profilePlan, sideName, slotProfile } from "./switch.ts";
 import { AVATAR_STATES, type AvatarState, type ProfileUsage, STALE_MS, avatarState, avatarWorking, elapsedPct, normalize, pace, profileUsage } from "./usage.ts";
 
 // The live record joined to what the cache gave: it wins when it is about the profile's account
@@ -38,6 +38,8 @@ function localUsage(p: Profile, now: Date): ProfileUsage {
     mine = { ...mine, accountUuid: login.accountUuid, state: "other-account", fetchedAt: null, windows: [] };
   mine = withLive(mine, liveUsage(p.name), login?.accountUuid ?? mine.accountUuid, now);
   if (mine.state === "not-signed-in" && login && !hasNumbers(mine)) mine = { ...mine, accountUuid: login.accountUuid, state: "no-data" };
+  const plan = profilePlan(p);
+  if (plan) mine = { ...mine, plan };
   return login?.configDir ? { ...mine, activity: sessionActivity(login.configDir) } : mine;
 }
 
@@ -224,6 +226,7 @@ export function usageJson(list: ProfileUsage[], now: Date) {
     generatedAt: now.toISOString(),
     profiles: list.map(({ accountUuid, ...p }) => ({
       ...p,
+      plan: p.plan ?? null,
       fetchedAt: p.fetchedAt?.toISOString() ?? null,
       avatar: avatarState(p, now),
       working: avatarWorking(p),
@@ -237,8 +240,9 @@ export function usageJson(list: ProfileUsage[], now: Date) {
 // a saved login with nothing read yet; windows are never made up.
 export function codexUsage(now = new Date()): ProfileUsage[] {
   return codexProfiles().map((p) => {
-    const base = { name: p.name, color: p.color, provider: "codex" as const, fetchedAt: null, windows: [] };
     const account = codexAccount(p);
+    // The plan the live usage recorded, else the one the saved login says.
+    const base = { name: p.name, color: p.color, provider: "codex" as const, fetchedAt: null, windows: [], ...(account?.plan ? { plan: account.plan } : {}) };
     if (!account) return { ...base, state: "not-signed-in" };
     const live = codexLiveUsage(p.name, account.user, now);
     const error = live.error ? { error: live.error } : {};
@@ -266,4 +270,23 @@ export function readCodexSlots(view?: PeerView): Record<string, string> {
   const there = user ? codexProfiles().find((p) => codexAccount(p)?.user === user)?.name : undefined;
   if (there) slots[peer.name] = there;
   return slots;
+}
+
+// What the start API answers (docs/start-api.md, apiVersion 2), all in one place so a test reads it
+// whole: the usage JSON of every profile, Claude's first and Codex's after, the profile in each
+// side's slot per provider, and the current one per provider ("codex" only with a Codex profile).
+export function startAnswer(now: Date, view?: PeerView) {
+  const claude = readUsage(now, view).map((p) => ({ ...p, provider: "claude" as const }));
+  const codex = codexUsage(now);
+  const slots = { claude: readSlots(claude, view), codex: readCodexSlots(view) };
+  const current = { claude: currentFor(claude, slots.claude, now), ...(codex.length ? { codex: currentFor(codex, slots.codex, now) } : {}) };
+  const json = { ...usageJson([...claude, ...codex], now), slots, current };
+  let peer: Peer | undefined;
+  try {
+    peer = loadMachine().peer;
+  } catch {
+    peer = undefined;
+  }
+  // The sides, in the accounts tab's order: this one, then the other.
+  return { ...json, sides: peer ? [sideName(), peer.name] : [sideName()], ...(peer ? { peer: { name: peer.name, up: view ? view.up(peer) : true } } : {}) } as typeof json & { sides: string[]; peer?: { name: string; up: boolean } };
 }

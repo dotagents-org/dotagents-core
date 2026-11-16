@@ -20,8 +20,9 @@ export const vaultFile = (name: string) => path.join(vaultDir(name), "auth.json"
 
 // A login: the file as Codex wrote it, and who it is. user: the person (chatgpt_user_id); the
 // workspace's account_id is the same for every seat in it, so it can't tell two seats apart.
-// grant: one completed sign-in (login_owner_id), which renewals keep. Read from the id_token.
-export type CodexLogin = { text: string; user: string; grant: string | null; refreshed: number | null; email: string };
+// grant: one completed sign-in (login_owner_id), which renewals keep. plan: the ChatGPT plan type
+// ("team"). Read from the id_token, nothing else of it.
+export type CodexLogin = { text: string; user: string; grant: string | null; refreshed: number | null; email: string; plan: string | null };
 
 export function readLogin(file: string): CodexLogin | null {
   let text: string;
@@ -33,7 +34,8 @@ export function readLogin(file: string): CodexLogin | null {
   try {
     const tokens = JSON.parse(text)?.tokens;
     const payload = JSON.parse(Buffer.from(String(tokens?.id_token).split(".")[1] ?? "", "base64url").toString("utf8"));
-    const user = payload?.["https://api.openai.com/auth"]?.chatgpt_user_id;
+    const auth = payload?.["https://api.openai.com/auth"];
+    const user = auth?.chatgpt_user_id;
     if (typeof user !== "string" || !user) return null;
     const refreshed = Date.parse(JSON.parse(text)?.last_refresh);
     return {
@@ -42,6 +44,7 @@ export function readLogin(file: string): CodexLogin | null {
       grant: typeof tokens.login_owner_id === "string" ? tokens.login_owner_id : null,
       refreshed: Number.isNaN(refreshed) ? null : refreshed,
       email: typeof payload.email === "string" ? payload.email : "",
+      plan: typeof auth.chatgpt_plan_type === "string" && auth.chatgpt_plan_type ? auth.chatgpt_plan_type : null,
     };
   } catch {
     return null;
@@ -73,7 +76,7 @@ export function codexSlotProfile(): Profile | null {
 // The account of a profile's saved login, or null.
 export function codexAccount(p: Profile) {
   const saved = vaultLogin(p.name);
-  return saved ? { user: saved.user, email: saved.email } : null;
+  return saved ? { user: saved.user, email: saved.email, plan: saved.plan } : null;
 }
 
 function saveToVault(name: string, login: CodexLogin) {
