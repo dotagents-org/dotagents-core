@@ -21,6 +21,7 @@ What changed for someone who updates a clone. The format follows [Keep a Changel
 
 ### Added
 
+- **Several accounts and the providers' terms,** in [docs/security.md](docs/security.md#several-accounts-and-the-providers-terms), the README and Getting started: one account is enough and a second one is optional, several are for one person's own seats, and the links to Anthropic's and OpenAI's terms.
 - **`dotagents doctor`:** whether dotagents can work here and what to do when it can't, in plain words: this side's Node, whether this side sees the other one and dotagents runs there with a Node new enough, and every profile's login on both sides.
 - **A security page,** [docs/security.md](docs/security.md): where the logins are and who can read them, what goes over the network (only to Anthropic, plus GitHub and npm for `update` and `skills add`), the local API's guards, the masked logs, and what dotagents never does.
 - **MCP servers in the configuration:** `claude/mcp-servers.json` names, for each server, how to run it on each system (`wsl`, `win32`, `linux`, `darwin`), and `install` writes this system's ones into `mcpServers` in `~/.claude.json`, as `claude mcp add --scope user` would, leaving the servers it doesn't name alone.

@@ -35,6 +35,17 @@ Nothing else: no analytics, no crash reports, no update check of the tool itself
 
 The logs (`<state>/logs/`) mask every token before writing: `sk-ant-…` keys, `accessToken` and `refreshToken` values, the API's token header and `Bearer` tokens. A test writes each of them and fails if one reaches a file. See [Logs](logs.md).
 
+## Several accounts and the providers' terms
+
+dotagents works with a single account. The configuration, the workspaces, the usage and the sidebar are the same with one profile, and adding a second one is your choice. It is meant for one person who pays for several seats in their own name, such as two seats on a team plan. It never shares a login between people, and the switch is always manual: dotagents never changes account by itself, and never because a usage window filled up.
+
+Each seat stays under its provider's terms, and you are the one bound by them. Read them before adding a second account:
+
+- **Anthropic:** the [Usage Policy](https://www.anthropic.com/legal/aup), the [Commercial Terms](https://www.anthropic.com/legal/commercial-terms) for Team and Enterprise seats, and the [Consumer Terms](https://www.anthropic.com/legal/consumer-terms) for Pro and Max.
+- **OpenAI**, for Codex, planned for 0.2.0: the [Services Agreement](https://openai.com/policies/services-agreement/) for ChatGPT Business and Enterprise seats, the [Usage Policies](https://openai.com/policies/usage-policies/), and the [Terms of Use](https://openai.com/policies/terms-of-use/) for individual plans.
+
+Both forbid sharing a login between people. OpenAI's Services Agreement also forbids circumventing usage limits or configuring the service to avoid them. If your provider says one person may not hold several seats for the same work, keep one account.
+
 ## What dotagents never does
 
 - Switch accounts by itself: the switch is always yours.
