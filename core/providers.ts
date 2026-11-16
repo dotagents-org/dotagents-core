@@ -12,7 +12,9 @@
 
 import { type Profile, type ProviderId, loadProfiles } from "./machine-state.ts";
 import type { Labels } from "./provider-labels.ts";
+import type { Fetcher } from "./providers/claude-usage.ts";
 import claude from "./providers/claude.ts";
+import type { SpawnAppServer } from "./providers/codex-usage.ts";
 import codex from "./providers/codex.ts";
 
 // A login as a provider keeps it: text is the file as the agent wrote it, never printed. id is the
@@ -47,6 +49,13 @@ export type SwitchContext = { save: (name: string, login: Login) => void; option
 // the vault save and the slot write (under the lock the caller already holds), and the switch on
 // this side.
 export type SignInContext = { accept: (profile: Profile, fresh: Login, who: string, onMismatch?: (owner: Profile | null) => void) => void; save: (name: string, login: Login) => void; put: (name: string, login: Login) => void; switchHere: (name: string) => string | null };
+
+// What the usage refresh may be given: Claude's network, Codex's app-server, the clock, a forced ask.
+export type UsageOptions = { fetcher?: Fetcher; spawnIt?: SpawnAppServer; now?: () => number; force?: boolean; timeoutMs?: number };
+
+// One ask of a provider's usage: the record to keep, or why it failed (refusedMark: the mark of the
+// login the company turned down; retryAfter: ms the company asked to wait).
+export type Asked = { ok: true; record: Record<string, unknown> } | { ok: false; error: string; refusedMark?: string | null; retryAfter?: number };
 
 export type Provider = {
   id: ProviderId;
@@ -105,6 +114,23 @@ export type Provider = {
   dueLogins?: (now: Date) => Profile[];
   // Signs the profiles in, one after the other.
   signIn: (profiles: Profile[], options: SignInOptions, ctx: SignInContext) => Promise<void>;
+
+  // ── Usage ──
+  // How a provider's usage is asked of its company, and kept in <state>/usage/<profile>.json; the
+  // pacing, the backoff and the writing are common (core/usage-refresh.ts).
+  usage: {
+    // The profiles to refresh.
+    profiles: () => Profile[];
+    // The least time between two asks of a profile, and whether a forced refresh skips it.
+    every: (p: Profile) => number;
+    forceable: boolean;
+    // Whether the profiles are asked together, or one at a time (each takes the login lock).
+    together: boolean;
+    hasLogin: (p: Profile) => boolean;
+    dryRun: string;
+    done: string;
+    ask: (p: Profile, options: UsageOptions) => Promise<Asked>;
+  };
 
   // ── Checks ──
   // The provider's part of the profiles checklist, after every account has been compared.

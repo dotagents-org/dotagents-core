@@ -7,7 +7,8 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { test, type TestContext } from "node:test";
-import { type Fetcher, LIVE_EVERY_MS, fetchLive, refreshUsage } from "../core/live.ts";
+import { type Fetcher, LIVE_EVERY_MS } from "../core/providers/claude-usage.ts";
+import { fetchUsage, refreshUsage } from "../core/usage-refresh.ts";
 import { readRecord } from "../core/usage-record.ts";
 import { loadProfiles, saveProfile } from "../core/machine-state.ts";
 import { readUsage } from "../core/snapshot.ts";
@@ -93,18 +94,18 @@ test("each profile is asked with the login it lives in: the slot's, or its vault
 test("a profile is asked at most once a minute, by any number of runs", async (t) => {
   machine(t);
   const { calls, fetcher } = anthropic();
-  await fetchLive(profile("personal"), { fetcher, now: clock(NOW) });
-  const again = await fetchLive(profile("personal"), { fetcher, now: clock(NOW + 30_000) });
+  await fetchUsage(profile("personal"), { fetcher, now: clock(NOW) });
+  const again = await fetchUsage(profile("personal"), { fetcher, now: clock(NOW + 30_000) });
   assert.equal(again.status, "ok");
   assert.equal(calls.length, 1);
-  await fetchLive(profile("personal"), { fetcher, now: clock(NOW + LIVE_EVERY_MS) });
+  await fetchUsage(profile("personal"), { fetcher, now: clock(NOW + LIVE_EVERY_MS) });
   assert.equal(calls.length, 2);
 });
 
 test("the vault's copy is renewed a few minutes early, and the rotated token replaces it in place", async (t) => {
   const home = machine(t, { personal: 2 * 60_000 });
   const { calls, fetcher } = anthropic();
-  const res = await fetchLive(profile("personal"), { fetcher, now: clock(NOW) });
+  const res = await fetchUsage(profile("personal"), { fetcher, now: clock(NOW) });
   assert.equal(res.status, "updated");
   const renewal = calls.find((c) => c.url.includes("/oauth/token"))!;
   assert.deepEqual(JSON.parse(renewal.body!), { grant_type: "refresh_token", client_id: "9d1c250a-e61b-44d9-88ed-5944d1962f5e", refresh_token: "rt-personal1" });
@@ -126,9 +127,9 @@ test("the slot's copy, which Claude Code renews itself, is renewed only once it 
   fs.copyFileSync(path.join(home, ".claude", ".credentials.json"), path.join(home, "state", "vault", "work", "credentials.json"));
   fs.writeFileSync(path.join(home, "state", "vault", "work", "account.json"), JSON.stringify(account("uuid-work")));
   const { calls, fetcher } = anthropic();
-  await fetchLive(profile("work"), { fetcher, now: clock(NOW) });
+  await fetchUsage(profile("work"), { fetcher, now: clock(NOW) });
   assert.ok(!calls.some((c) => c.url.includes("/oauth/token")), "two minutes left: Claude Code's turn");
-  await fetchLive(profile("work"), { fetcher, now: clock(NOW + 3 * 60_000) });
+  await fetchUsage(profile("work"), { fetcher, now: clock(NOW + 3 * 60_000) });
   assert.ok(calls.some((c) => c.url.includes("/oauth/token")), "expired: renewed");
   assert.equal(slotCreds(home).refreshToken, "rt-work1-new");
   assert.equal(JSON.parse(fs.readFileSync(path.join(home, "state", "vault", "work", "credentials.json"), "utf8")).claudeAiOauth.refreshToken, "rt-work1", "the vault isn't the live copy");
@@ -136,12 +137,12 @@ test("the slot's copy, which Claude Code renews itself, is renewed only once it 
 
 test("a 429 backs off, as long as it asks, and keeps the numbers already there with the error next to them", async (t) => {
   machine(t);
-  await fetchLive(profile("personal"), { fetcher: anthropic().fetcher, now: clock(NOW) });
+  await fetchUsage(profile("personal"), { fetcher: anthropic().fetcher, now: clock(NOW) });
   const limited = anthropic({ usage: 429, retryAfter: "300" });
-  const res = await fetchLive(profile("personal"), { fetcher: limited.fetcher, now: clock(NOW + LIVE_EVERY_MS) });
+  const res = await fetchUsage(profile("personal"), { fetcher: limited.fetcher, now: clock(NOW + LIVE_EVERY_MS) });
   assert.equal(res.status, "failed");
   assert.match(res.detail, /429/);
-  await fetchLive(profile("personal"), { fetcher: limited.fetcher, now: clock(NOW + LIVE_EVERY_MS + 120_000) });
+  await fetchUsage(profile("personal"), { fetcher: limited.fetcher, now: clock(NOW + LIVE_EVERY_MS + 120_000) });
   assert.equal(limited.calls.length, 1, "not again before the five minutes it asked for");
   const personal = readUsage(new Date(NOW + LIVE_EVERY_MS + 1000)).find((p) => p.name === "personal")!;
   assert.equal(personal.windows[0].pct, 65);
@@ -152,7 +153,7 @@ test("a renewal Anthropic refuses changes no credentials and says to sign in aga
   const home = machine(t, { personal: -HOUR });
   const before = fs.readFileSync(path.join(home, "state", "vault", "personal", "credentials.json"), "utf8");
   const { calls, fetcher } = anthropic({ token: 400 });
-  const res = await fetchLive(profile("personal"), { fetcher, now: clock(NOW) });
+  const res = await fetchUsage(profile("personal"), { fetcher, now: clock(NOW) });
   assert.equal(res.status, "failed");
   assert.match(res.detail, /Refresh token expired/);
   assert.ok(!calls.some((c) => c.url.includes("/api/oauth/usage")));
@@ -194,15 +195,15 @@ test("a login Anthropic refuses is marked refused, and a good answer clears the 
   const offline: Fetcher = async () => {
     throw new Error("getaddrinfo ENOTFOUND");
   };
-  await fetchLive(profile("personal"), { fetcher: anthropic({ token: 400 }).fetcher, now: clock(NOW) });
+  await fetchUsage(profile("personal"), { fetcher: anthropic({ token: 400 }).fetcher, now: clock(NOW) });
   assert.equal(readRecord("personal").refused, loginMark(creds("personal1", NOW - HOUR)), "a refused renewal");
-  await fetchLive(profile("work"), { fetcher: offline, now: clock(NOW) });
+  await fetchUsage(profile("work"), { fetcher: offline, now: clock(NOW) });
   assert.equal(readRecord("work").refused, undefined, "a network error marks nothing");
-  await fetchLive(profile("work"), { fetcher: anthropic({ usage: 401 }).fetcher, now: clock(NOW + 10 * 60_000) });
+  await fetchUsage(profile("work"), { fetcher: anthropic({ usage: 401 }).fetcher, now: clock(NOW + 10 * 60_000) });
   assert.equal(readRecord("work").refused, loginMark(creds("work1", NOW)), "a refused usage request");
   assert.ok(!JSON.stringify(readRecord("work")).includes("rt-"), "the mark isn't the token");
-  await fetchLive(profile("work"), { fetcher: offline, now: clock(NOW + 30 * 60_000) });
+  await fetchUsage(profile("work"), { fetcher: offline, now: clock(NOW + 30 * 60_000) });
   assert.ok(readRecord("work").refused, "a network error keeps the mark");
-  await fetchLive(profile("work"), { fetcher: anthropic().fetcher, now: clock(NOW + 2 * HOUR) });
+  await fetchUsage(profile("work"), { fetcher: anthropic().fetcher, now: clock(NOW + 2 * HOUR) });
   assert.equal(readRecord("work").refused, undefined, "a good answer clears it");
 });

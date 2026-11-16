@@ -1,6 +1,6 @@
 // How much of each profile's plan is used: the 5-hour session and the weekly limits. Read from
 // the cache Claude Code keeps in each config folder's state file (cachedUsageUtilization), which
-// it refreshes whenever it asks for the usage, /usage for one; core/live.ts keeps a record in the
+// it refreshes whenever it asks for the usage, /usage for one; core/providers/claude-usage.ts keeps a record in the
 // same shape, asked of Anthropic, and core/snapshot.ts shows the newer of the two.
 //
 // Everything here takes "now" as an argument, so the tests can fix it.
@@ -35,7 +35,7 @@ export type ProfileUsage = {
   accountUuid?: string;
   // Where the numbers came from, when not from this side: "Windows", "WSL".
   from?: string;
-  // What gave the numbers: Claude Code's cache, or Anthropic's usage endpoint (core/live.ts).
+  // What gave the numbers: Claude Code's cache, or Anthropic's usage endpoint (core/providers/claude-usage.ts).
   source?: "cache" | "live";
   // The profile's running sessions, for a profile whose login Claude Code is using.
   activity?: Activity;
@@ -146,7 +146,7 @@ export const AVATAR_STATES = ["error", "limit", "waiting", "warn", "ok", "asleep
 export type AvatarState = (typeof AVATAR_STATES)[number];
 
 export function avatarState(p: ProfileUsage, now: Date): AvatarState {
-  // No login, or one Anthropic refused (core/live.ts says to sign in again): it needs you.
+  // No login, or one Anthropic refused (core/providers/claude-usage.ts says to sign in again): it needs you.
   if (p.state === "not-signed-in" || /sign in again|couldn't renew the login/.test(p.error ?? "")) return "error";
   const open = p.state === "ok" ? p.windows.filter((w) => !w.reset) : [];
   if (open.some((w) => w.pct >= 100)) return "limit";

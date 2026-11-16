@@ -3,7 +3,7 @@
 
 import { codexUsage, readUsage, usageJson } from "../../core/snapshot.ts";
 import { captureAsync, fancy, ink } from "../../core/output.ts";
-import { refreshAllUsage } from "../../core/codex-usage.ts";
+import { refreshUsage } from "../../core/usage-refresh.ts";
 import { type Line, type ProfileUsage, shortLines, usageLines } from "../../core/usage.ts";
 import { badge, colorLevel } from "../../core/theme.ts";
 import { claudeProfiles } from "../../core/machine-state.ts";
@@ -92,7 +92,7 @@ export const usage: Command = {
     if (args.watch) throw new Error("usage --watch was removed with the full-screen view; run usage --refresh, or usage again");
     if (args.refresh) {
       // Its lines would mix into the JSON or the short line: kept, and only failures shown.
-      const events = await captureAsync(() => refreshAllUsage({ force: true }));
+      const events = await captureAsync(() => refreshUsage({ force: true }));
       for (const e of events) if (e.kind === "result" && e.status === "failed") console.error(`${e.target}: couldn't refresh: ${e.detail}`);
     }
     if (args.spend) return spendView(Boolean(args.json));

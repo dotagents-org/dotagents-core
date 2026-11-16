@@ -33,8 +33,8 @@ import { forgetServer, liveServer, loadMachine, loadProfiles, recordServer, side
 import { launcherDir } from "./core/profiles.ts";
 import { peerSwitch, switchProfile } from "./core/account-switch.ts";
 import { providerFor } from "./core/providers.ts";
-import { refreshAllUsage } from "./core/codex-usage.ts";
-import { LIVE_EVERY_MS } from "./core/live.ts";
+import { LIVE_EVERY_MS } from "./core/providers/claude-usage.ts";
+import { refreshUsage } from "./core/usage-refresh.ts";
 import { untrack, workspaces } from "./surfaces/cli/workspaces.ts";
 import { UsageError, parseArgs } from "./core/common.ts";
 import { brand, captureAsync, displayPath, fancy, tone } from "./core/output.ts";
@@ -71,7 +71,7 @@ const start: Command = {
     // The live usage, every minute; a failure is printed when it changes, not on every tick.
     const said = new Map<string, string>();
     const tick = async () => {
-      const events = await oneAtATime(() => captureAsync(() => refreshAllUsage()));
+      const events = await oneAtATime(() => captureAsync(() => refreshUsage()));
       for (const e of events) {
         if (e.kind !== "result" || e.status === "ok") continue;
         const text = e.status === "failed" ? e.detail : "";

@@ -10,11 +10,11 @@
 // ChatGPT user, the new copy goes back to the vault, even when the call failed, so the renewal
 // is never lost.
 //
-// What comes back is kept in <state>/usage/<profile>.json, next to Claude's (core/live.ts), in this
+// What comes back is kept in <state>/usage/<profile>.json, next to Claude's (core/providers/claude-usage.ts), in this
 // shape: version 1; provider "codex"; fetchedAtMs, user (the ChatGPT user the numbers are about),
 // plan (Codex's planType, "team"), windows [{ kind: "session" | "week", pct, resetsAt (ms or
 // null) }]; and the last attempt: askedAtMs, failures, retryAtMs, error, and refused, the mark
-// (codexLoginMark in core/codex.ts) of the login OpenAI last refused: the slot's auth.json for
+// (codexLoginMark in core/providers/codex.ts) of the login OpenAI last refused: the slot's auth.json for
 // the slot's profile, the vault's for the others. A good answer clears error and refused.
 //
 // The app-server is started through a SpawnAppServer; the tests pass a fake one.
@@ -24,19 +24,17 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import readline from "node:readline";
-import { codexLoginMark, codexProfiles, codexSlotProfile, readLogin, slotFile, vaultFile, vaultLogin } from "./providers/codex.ts";
-import { type LiveResult, refreshUsage } from "./live.ts";
-import type { Profile } from "./machine-state.ts";
-import { report } from "./output.ts";
-import { state } from "./state.ts";
-import { BACKOFF_MS, MAX_BACKOFF_MS, readRecord, writeRecord } from "./usage-record.ts";
-import { type UsageWindow, usageWindow } from "./usage.ts";
-import { withLoginLock, writePrivate } from "./vault.ts";
+import { codexLoginMark, codexProfiles, codexSlotProfile, readLogin, slotFile, vaultFile, vaultLogin } from "./codex-store.ts";
+import type { Profile } from "../machine-state.ts";
+import type { Asked } from "../providers.ts";
+import { readRecord } from "../usage-record.ts";
+import { type UsageWindow, usageWindow } from "../usage.ts";
+import { withLoginLock, writePrivate } from "../vault.ts";
 
 export type SpawnAppServer = (home: string) => ChildProcessWithoutNullStreams;
 
 // On Windows codex may be a .cmd shim, which only a shell runs: one command line, as runCodex in
-// core/codex.ts. An API key in the environment would change how Codex signs in: not for this call.
+// core/providers/codex.ts. An API key in the environment would change how Codex signs in: not for this call.
 export const spawnAppServer: SpawnAppServer = (home) => {
   const env: NodeJS.ProcessEnv = { ...process.env, CODEX_HOME: home };
   delete env.OPENAI_API_KEY;
@@ -45,7 +43,7 @@ export const spawnAppServer: SpawnAppServer = (home) => {
   return process.platform === "win32" ? spawn("codex app-server", { ...options, shell: true }) : spawn("codex", ["app-server"], options);
 };
 
-const VERSION = JSON.parse(fs.readFileSync(new URL("../package.json", import.meta.url), "utf8")).version;
+const VERSION = JSON.parse(fs.readFileSync(new URL("../../package.json", import.meta.url), "utf8")).version;
 
 // The profile in the slot is asked about every 5 minutes, the others far less often.
 export const CODEX_SLOT_EVERY_MS = 5 * 60_000;
@@ -157,22 +155,16 @@ function describe(err: unknown, name: string): { error: string; refused: boolean
   return { error: `couldn't read the usage from codex app-server (${message})`, refused: false };
 }
 
-// Asks for one Codex profile's usage, unless it was asked a moment ago or is backing off. force
-// skips the wait between asks, not the backoff after an error.
-export async function fetchCodexLive(
+// Asks codex app-server for one profile's usage: the answer as a record to keep, or why it
+// failed. The pacing, the backoff and the writing are the common refresh's (core/usage-refresh.ts).
+export async function askCodex(
   p: Profile,
-  { spawnIt = spawnAppServer, now = Date.now, force = false, timeoutMs = ASK_TIMEOUT_MS }: { spawnIt?: SpawnAppServer; now?: () => number; force?: boolean; timeoutMs?: number } = {}
-): Promise<LiveResult> {
-  const record = readRecord(p.name);
+  { spawnIt = spawnAppServer, now = Date.now, timeoutMs = ASK_TIMEOUT_MS }: { spawnIt?: SpawnAppServer; now?: () => number; timeoutMs?: number } = {}
+): Promise<Asked> {
   const inSlot = codexSlotProfile()?.name === p.name;
-  const every = inSlot ? CODEX_SLOT_EVERY_MS : CODEX_OTHER_EVERY_MS;
-  const wait = Math.max(force ? 0 : (Number(record.askedAtMs) || 0) + every, Number(record.retryAtMs) || 0) - now();
-  if (wait > 0) return { status: "ok", detail: record.error ? `${record.error}; again in ${Math.ceil(wait / 1000)}s` : `asked ${Math.round((now() - (Number(record.askedAtMs) || 0)) / 1000)}s ago` };
   const login = inSlot ? readLogin(slotFile()) : vaultLogin(p.name);
-  if (!login) return { status: "failed", detail: "no login saved for it" };
-  if (state.dryRun) return { status: "ok", detail: "would ask Codex for the usage" };
+  if (!login) return { ok: false, error: "no login saved for it" };
 
-  writeRecord(p.name, { ...record, askedAtMs: now() });
   let result: unknown;
   let mark: string | null = null;
   let failure: unknown = null;
@@ -210,25 +202,18 @@ export async function fetchCodexLive(
     failure = err;
   }
 
-  const failed = (text: string, refused: boolean): LiveResult => {
-    const failures = (Number(record.failures) || 0) + 1;
-    const backoff = Math.min(BACKOFF_MS * 2 ** (failures - 1), MAX_BACKOFF_MS);
-    writeRecord(p.name, { ...record, askedAtMs: now(), failures, retryAtMs: now() + backoff, error: text, ...(refused && mark ? { refused: mark } : {}) });
-    return { status: "failed", detail: text };
-  };
   if (failure) {
     const { error, refused } = describe(failure, p.name);
-    return failed(error, refused);
+    return { ok: false, error, refusedMark: refused ? mark : null };
   }
   let usage;
   try {
     usage = normalizeRateLimits(result);
   } catch (err) {
-    return failed(`Codex's answer is not a usage this dotagents reads (${(err as Error).message})`, false);
+    return { ok: false, error: `Codex's answer is not a usage this dotagents reads (${(err as Error).message})`, refusedMark: null };
   }
   const at = now();
-  writeRecord(p.name, { provider: "codex", fetchedAtMs: at, user: login.id, plan: usage.plan, windows: usage.windows, askedAtMs: at });
-  return { status: "updated", detail: "asked Codex for the usage" };
+  return { ok: true, record: { provider: "codex", fetchedAtMs: at, user: login.id, plan: usage.plan, windows: usage.windows, askedAtMs: at } };
 }
 
 // The usage kept for a Codex profile, as the snapshot reads it: its windows as of now, when they
@@ -245,18 +230,4 @@ export function codexLiveUsage(name: string, user: string, now: Date) {
     return win ? [win] : [];
   });
   return { fetchedAt: new Date(r.fetchedAtMs), windows, plan: typeof r.plan === "string" ? r.plan : null, error };
-}
-
-// Every Codex profile, one at a time (each takes dotagents' login lock), reported like Claude's.
-export async function refreshCodexUsage(options: Parameters<typeof fetchCodexLive>[1] = {}) {
-  for (const p of codexProfiles()) {
-    const res = await fetchCodexLive(p, options);
-    report(res.status === "ok" && state.dryRun ? "would update" : res.status, p.name, res.detail);
-  }
-}
-
-// usage --refresh and each tick of start: both providers at once. force (usage --refresh) asks
-// every Codex profile now; start leaves the slot's to its 5 minutes and the others' to theirs.
-export async function refreshAllUsage(options: Parameters<typeof refreshUsage>[0] & { force?: boolean; spawnIt?: SpawnAppServer } = {}) {
-  await Promise.all([refreshUsage(options), refreshCodexUsage({ force: options.force, spawnIt: options.spawnIt, now: options.now })]);
 }

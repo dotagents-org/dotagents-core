@@ -1,4 +1,4 @@
-// Claude, the accounts of Claude Code, switched in place (ADR 0004): each side's slot is ~/.claude
+// Claude, the accounts of Claude Code, switched in place (ADR 0009): each side's slot is ~/.claude
 // and ~/.claude.json (core/providers/claude-store.ts), every account's login waits in a vault, and
 // a switch saves the slot's login back (Claude Code may have renewed the token since), writes the
 // chosen one in and checks it. Always manual. Credentials are copied whole and never printed. The
@@ -13,10 +13,11 @@ import { LABELS } from "../provider-labels.ts";
 import { type Peer, claudeProfiles, loadMachine, sideName } from "../machine-state.ts";
 import { checkItem, checkWarn, displayPath, report, section } from "../output.ts";
 import type { Provider } from "../providers.ts";
+import { LIVE_EVERY_MS, askClaude, sideProfiles } from "./claude-usage.ts";
 import { state } from "../state.ts";
 import { readRecord } from "../usage-record.ts";
 import { vaultDir, withLoginLock, writePrivate } from "../vault.ts";
-import { type StoredLogin, credentialsIn, knownLogin, loginMark, loginOf, ownerOf, profileAccount, readJson, realOrSame, slotDir, slotLogin, slotProfile, vaultLogin } from "./claude-store.ts";
+import { type StoredLogin, credentialsIn, knownLogin, liveLogin, loginMark, loginOf, ownerOf, profileAccount, readJson, realOrSame, slotDir, slotLogin, slotProfile, vaultLogin } from "./claude-store.ts";
 
 // ── When the saved logins expire ─────────────────────────────────────────────────────────────
 // A login lasts a few weeks; Claude Code renews the access token but not past the refresh token's
@@ -194,6 +195,17 @@ const claude: Provider = {
   signInHint: (name) => `sign in with claude auth login, then: dotagents switch --save ${name}`,
   addHint: (name) => `Save its login: sign in with claude auth login, then run dotagents switch --save ${name}`,
   unknownSlotHint: "The slot holds an account no profile knows: dotagents switch --save <profile>",
+
+  usage: {
+    profiles: sideProfiles,
+    every: () => LIVE_EVERY_MS,
+    forceable: false,
+    together: true,
+    hasLogin: (p) => liveLogin(p) !== null,
+    dryRun: "would ask Anthropic for the usage",
+    done: "asked Anthropic for the usage",
+    ask: askClaude,
+  },
 
   dueLogins,
   async signIn(due, { run = claudeLogin }, ctx) {

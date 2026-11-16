@@ -6,22 +6,20 @@
 // Code renews before that while a session runs; the vault's copy is renewed a few minutes early.
 //
 // What comes back is kept in <state>/usage/<profile>.json, in the shape of Claude Code's own cache,
-// so every surface reads it next to that cache (core/snapshot.ts) and none asks again. Errors and
+// so every surface reads it next to that cache (core/providers/claude-snapshot.ts) and none asks again. Errors and
 // 429s back off. Tokens are never printed, logged or written anywhere but the copy they came from.
 //
 // The network goes through a Fetcher; the tests pass a fake one.
 
-import { recordHistory } from "./spend.ts";
+import { recordHistory } from "../spend.ts";
 import fs from "node:fs";
-import path from "node:path";
-import { PALETTE, type Profile, claudeProfiles } from "./machine-state.ts";
-import { BACKOFF_MS, MAX_BACKOFF_MS, readRecord, writeRecord } from "./usage-record.ts";
-import { report, section } from "./output.ts";
-import { defaultConfigDir } from "./claude-code.ts";
-import { state } from "./state.ts";
-import { liveLogin, loginMark } from "./providers/claude-store.ts";
-import { withLoginLock, writePrivate } from "./vault.ts";
-import { normalize } from "./usage.ts";
+import { PALETTE, type Profile, claudeProfiles } from "../machine-state.ts";
+import { readRecord } from "../usage-record.ts";
+import { defaultConfigDir } from "../claude-code.ts";
+import { liveLogin, loginMark } from "./claude-store.ts";
+import { withLoginLock, writePrivate } from "../vault.ts";
+import type { Asked } from "../providers.ts";
+import { normalize } from "../usage.ts";
 
 export type Fetcher = (url: string, init: { method: "GET" | "POST"; headers: Record<string, string>; body?: string }) => Promise<{ status: number; headers: { get(name: string): string | null }; text: string }>;
 
@@ -36,7 +34,7 @@ const TOKEN_URL = "https://platform.claude.com/v1/oauth/token";
 const CLIENT_ID = "9d1c250a-e61b-44d9-88ed-5944d1962f5e";
 const BETA = "oauth-2025-04-20";
 // dotagents says who it is: the Usage Policy forbids misrepresenting the client being used.
-const USER_AGENT = `dotagents/${JSON.parse(fs.readFileSync(new URL("../package.json", import.meta.url), "utf8")).version}`;
+const USER_AGENT = `dotagents/${JSON.parse(fs.readFileSync(new URL("../../package.json", import.meta.url), "utf8")).version}`;
 
 // At most one request per profile in this time, from any number of dotagents processes.
 export const LIVE_EVERY_MS = 55_000;
@@ -109,41 +107,33 @@ async function accessToken(file: string, shared: boolean, fetcher: Fetcher, now:
   });
 }
 
-export type LiveResult = { status: "updated" | "ok" | "failed"; detail: string };
-
-// Asks for one profile's usage, unless it was asked a moment ago or is backing off.
-export async function fetchLive(p: Profile, { fetcher = httpFetcher, now = Date.now }: { fetcher?: Fetcher; now?: () => number } = {}): Promise<LiveResult> {
-  const record = readRecord(p.name);
-  const wait = Math.max((record.askedAtMs ?? 0) + LIVE_EVERY_MS, record.retryAtMs ?? 0) - now();
-  if (wait > 0) return { status: "ok", detail: record.error ? `${record.error}; again in ${Math.ceil(wait / 1000)}s` : `asked ${Math.round((now() - (record.askedAtMs ?? 0)) / 1000)}s ago` };
+// Asks Anthropic for one profile's usage: the answer as a record to keep, or why it failed. The
+// pacing, the backoff and the writing are the common refresh's (core/usage-refresh.ts).
+export async function askClaude(p: Profile, { fetcher = httpFetcher, now = Date.now }: { fetcher?: Fetcher; now?: () => number } = {}): Promise<Asked> {
   const login = liveLogin(p);
-  if (!login) return { status: "failed", detail: "no login saved for it" };
-  if (state.dryRun) return { status: "ok", detail: "would ask Anthropic for the usage" };
-
-  const failed = (error: string, { retryAfter, refused = false }: { retryAfter?: number; refused?: boolean } = {}): LiveResult => {
-    const failures = (record.failures ?? 0) + 1;
-    const backoff = Math.max(retryAfter ?? 0, Math.min(BACKOFF_MS * 2 ** (failures - 1), MAX_BACKOFF_MS));
+  if (!login) return { ok: false, error: "no login saved for it" };
+  const fail = (error: string, { retryAfter, refused = false }: { retryAfter?: number; refused?: boolean } = {}): Asked => ({
+    ok: false,
+    error,
+    retryAfter,
     // The login as it is now in its file: the one just refused.
-    const mark = refused ? loginMark(fs.readFileSync(login.file, "utf8")) : null;
-    writeRecord(p.name, { ...record, askedAtMs: now(), failures, retryAtMs: now() + backoff, error, ...(mark ? { refused: mark } : {}) });
-    return { status: "failed", detail: error };
-  };
-  writeRecord(p.name, { ...record, askedAtMs: now() });
+    refusedMark: refused ? loginMark(fs.readFileSync(login.file, "utf8")) : null,
+  });
 
   let res: Awaited<ReturnType<Fetcher>>;
   try {
     const token = await accessToken(login.file, login.shared, fetcher, now);
-    if ("error" in token) return failed(token.error, { refused: token.refused });
+    if ("error" in token) return fail(token.error, { refused: token.refused });
     res = await fetcher(USAGE_URL, { method: "GET", headers: { authorization: `Bearer ${token.token}`, "anthropic-beta": BETA, "user-agent": USER_AGENT, "content-type": "application/json" } });
   } catch (err) {
-    return failed(`couldn't reach Anthropic (${(err as Error).name === "TimeoutError" ? "timed out" : (err as Error).message})`);
+    return fail(`couldn't reach Anthropic (${(err as Error).name === "TimeoutError" ? "timed out" : (err as Error).message})`);
   }
   if (res.status === 429) {
     const seconds = Number(res.headers.get("retry-after"));
-    return failed("Anthropic asks to wait (429)", { retryAfter: Number.isFinite(seconds) && seconds > 0 ? seconds * 1000 : undefined });
+    return fail("Anthropic asks to wait (429)", { retryAfter: Number.isFinite(seconds) && seconds > 0 ? seconds * 1000 : undefined });
   }
-  if (res.status === 401) return failed("Anthropic refused the login (401); sign in again", { refused: true });
-  if (res.status !== 200) return failed(`Anthropic answered ${errorText(res.status, res.text)}`);
+  if (res.status === 401) return fail("Anthropic refused the login (401); sign in again", { refused: true });
+  if (res.status !== 200) return fail(`Anthropic answered ${errorText(res.status, res.text)}`);
   let utilization: unknown;
   try {
     utilization = JSON.parse(res.text);
@@ -152,23 +142,14 @@ export async function fetchLive(p: Profile, { fetcher = httpFetcher, now = Date.
   }
   const at = now();
   const usage = normalize({ fetchedAtMs: at, utilization }, new Date(at));
-  if (!usage) return failed("Anthropic's answer is not a usage this dotagents reads");
-  writeRecord(p.name, { fetchedAtMs: at, accountUuid: login.accountUuid, utilization, askedAtMs: at });
+  if (!usage) return fail("Anthropic's answer is not a usage this dotagents reads");
   // The history of the % that usage --spend reads, from this reading: no request of its own
   recordHistory(p.name, usage.windows, new Date(at));
-  return { status: "updated", detail: "asked Anthropic for the usage" };
+  return { ok: true, record: { fetchedAtMs: at, accountUuid: login.accountUuid, utilization, askedAtMs: at } };
 }
 
 // The profiles of this side; without any, the one in ~/.claude.
 export function sideProfiles(): Profile[] {
   const profiles = claudeProfiles();
   return profiles.length ? profiles : [{ name: "claude", color: PALETTE[0], default: true, configDir: defaultConfigDir() }];
-}
-
-// usage --refresh, and each tick of the dashboard's server: every profile of this side.
-export async function refreshUsage(options: { fetcher?: Fetcher; now?: () => number } = {}) {
-  section("Refresh");
-  const profiles = sideProfiles();
-  const results = await Promise.all(profiles.map(async (p) => ({ p, res: await fetchLive(p, options) })));
-  for (const { p, res } of results) report(res.status === "ok" && state.dryRun ? "would update" : res.status, p.name, res.detail);
 }

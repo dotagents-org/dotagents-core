@@ -7,8 +7,9 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { test, type TestContext } from "node:test";
-import { codexLoginMark } from "../core/providers/codex.ts";
-import { CODEX_OTHER_EVERY_MS, CODEX_SLOT_EVERY_MS, type SpawnAppServer, fetchCodexLive, refreshAllUsage } from "../core/codex-usage.ts";
+import { codexLoginMark } from "../core/providers/codex-store.ts";
+import { CODEX_OTHER_EVERY_MS, CODEX_SLOT_EVERY_MS, type SpawnAppServer } from "../core/providers/codex-usage.ts";
+import { fetchUsage, refreshUsage } from "../core/usage-refresh.ts";
 import { loadProfiles, saveProfile } from "../core/machine-state.ts";
 import { codexUsage } from "../core/snapshot.ts";
 import { state } from "../core/state.ts";
@@ -67,7 +68,7 @@ test("a good answer from a profile outside the slot: asked in a temporary folder
   const m = await machine(t);
   const before = fs.readFileSync(m.vault("dijkstra"), "utf8");
   const slotBefore = fs.readFileSync(m.slot, "utf8");
-  const res = await fetchCodexLive(profile("dijkstra"), { spawnIt: fake(m.log, "good"), now: () => NOW });
+  const res = await fetchUsage(profile("dijkstra"), { spawnIt: fake(m.log, "good"), now: () => NOW });
   assert.equal(res.status, "updated");
   const log = entries(m.log);
   const start = log.find((e) => e.start)!;
@@ -86,7 +87,7 @@ test("a good answer from a profile outside the slot: asked in a temporary folder
 
 test("the profile in the slot is asked in the real CODEX_HOME", async (t) => {
   const m = await machine(t);
-  const res = await fetchCodexLive(profile("hopper"), { spawnIt: fake(m.log, "good"), now: () => NOW });
+  const res = await fetchUsage(profile("hopper"), { spawnIt: fake(m.log, "good"), now: () => NOW });
   assert.equal(res.status, "updated");
   assert.equal(entries(m.log).find((e) => e.start)!.home, path.join(m.home, ".codex"));
   assert.equal(read("hopper").windows.length, 2);
@@ -94,15 +95,15 @@ test("the profile in the slot is asked in the real CODEX_HOME", async (t) => {
 
 test("the older rateLimits field and windows in any order are read the same", async (t) => {
   const m = await machine(t);
-  await fetchCodexLive(profile("dijkstra"), { spawnIt: fake(m.log, "swapped"), now: () => NOW });
+  await fetchUsage(profile("dijkstra"), { spawnIt: fake(m.log, "swapped"), now: () => NOW });
   assert.deepEqual(read("dijkstra").windows.map((w) => [w.kind, w.pct]), [["session", 42], ["week", 17]]);
-  await fetchCodexLive(profile("hopper"), { spawnIt: fake(m.log, "legacy"), now: () => NOW });
+  await fetchUsage(profile("hopper"), { spawnIt: fake(m.log, "legacy"), now: () => NOW });
   assert.deepEqual(read("hopper").windows.map((w) => [w.kind, w.pct]), [["session", 42], ["week", 17]]);
 });
 
 test("a window that passed its reset reads as 0%, and old numbers are stale", async (t) => {
   const m = await machine(t);
-  await fetchCodexLive(profile("dijkstra"), { spawnIt: fake(m.log, "good"), now: () => NOW });
+  await fetchUsage(profile("dijkstra"), { spawnIt: fake(m.log, "good"), now: () => NOW });
   const later = NOW + 2 * 3_600_000;
   assert.deepEqual(read("dijkstra", later).windows.map((w) => [w.kind, w.pct, w.reset]), [["session", 0, true], ["week", 17, false]]);
   assert.equal(read("dijkstra", NOW + 7 * 3_600_000).state, "stale");
@@ -111,12 +112,12 @@ test("a window that passed its reset reads as 0%, and old numbers are stale", as
 test("an unknown shape is refused with a reason, and no number is made up", async (t) => {
   const m = await machine(t);
   for (const mode of ["unknown", "empty"]) {
-    const res = await fetchCodexLive(profile("dijkstra"), { spawnIt: fake(m.log, mode), now: () => NOW, force: true });
+    const res = await fetchUsage(profile("dijkstra"), { spawnIt: fake(m.log, mode), now: () => NOW, force: true });
     assert.equal(res.status, "failed");
     assert.match(res.detail, /not a usage this dotagents reads/);
     fs.rmSync(path.join(m.home, "state", "usage"), { recursive: true });
   }
-  await fetchCodexLive(profile("dijkstra"), { spawnIt: fake(m.log, "unknown"), now: () => NOW });
+  await fetchUsage(profile("dijkstra"), { spawnIt: fake(m.log, "unknown"), now: () => NOW });
   const p = read("dijkstra");
   assert.deepEqual([p.state, p.windows.length], ["no-data", 0]);
   assert.match(p.error ?? "", /60 minutes long/);
@@ -124,7 +125,7 @@ test("an unknown shape is refused with a reason, and no number is made up", asyn
 
 test("a Codex without account/rateLimits/read says to update it", async (t) => {
   const m = await machine(t);
-  const res = await fetchCodexLive(profile("dijkstra"), { spawnIt: fake(m.log, "missing"), now: () => NOW });
+  const res = await fetchUsage(profile("dijkstra"), { spawnIt: fake(m.log, "missing"), now: () => NOW });
   assert.equal(res.status, "failed");
   assert.match(res.detail, /update Codex/);
   assert.equal("refused" in record(m.home, "dijkstra"), false);
@@ -133,7 +134,7 @@ test("a Codex without account/rateLimits/read says to update it", async (t) => {
 test("a failure after Codex renewed the copy still writes the renewed login to the vault", async (t) => {
   const m = await machine(t);
   const old = fs.readFileSync(m.vault("dijkstra"), "utf8");
-  const res = await fetchCodexLive(profile("dijkstra"), { spawnIt: fake(m.log, "renewed"), now: () => NOW });
+  const res = await fetchUsage(profile("dijkstra"), { spawnIt: fake(m.log, "renewed"), now: () => NOW });
   assert.equal(res.status, "failed");
   const kept = fs.readFileSync(m.vault("dijkstra"), "utf8");
   assert.notEqual(kept, old);
@@ -145,23 +146,23 @@ test("a failure after Codex renewed the copy still writes the renewed login to t
 test("a copy that turned into another person's login is not written back", async (t) => {
   const m = await machine(t);
   const old = fs.readFileSync(m.vault("dijkstra"), "utf8");
-  await fetchCodexLive(profile("dijkstra"), { spawnIt: fake(m.log, "swapuser"), now: () => NOW });
+  await fetchUsage(profile("dijkstra"), { spawnIt: fake(m.log, "swapuser"), now: () => NOW });
   assert.equal(fs.readFileSync(m.vault("dijkstra"), "utf8"), old);
 });
 
 test("a login OpenAI refuses is recorded with its mark, and the profile says to sign in again", async (t) => {
   const m = await machine(t);
   const vault = fs.readFileSync(m.vault("dijkstra"), "utf8");
-  const res = await fetchCodexLive(profile("dijkstra"), { spawnIt: fake(m.log, "refused"), now: () => NOW });
+  const res = await fetchUsage(profile("dijkstra"), { spawnIt: fake(m.log, "refused"), now: () => NOW });
   assert.equal(res.status, "failed");
   assert.match(res.detail, /OpenAI refused the login/);
   assert.equal(record(m.home, "dijkstra").refused, codexLoginMark(vault));
-  const slot = await fetchCodexLive(profile("hopper"), { spawnIt: fake(m.log, "refused"), now: () => NOW });
+  const slot = await fetchUsage(profile("hopper"), { spawnIt: fake(m.log, "refused"), now: () => NOW });
   assert.equal(slot.status, "failed");
   assert.equal(record(m.home, "hopper").refused, codexLoginMark(fs.readFileSync(m.slot, "utf8")), "for the slot's profile, the slot's login");
   assert.match(read("dijkstra").error ?? "", /sign in again with: dotagents login dijkstra/);
   // A good answer clears it.
-  await fetchCodexLive(profile("dijkstra"), { spawnIt: fake(m.log, "good"), now: () => NOW + 3_600_000, force: true });
+  await fetchUsage(profile("dijkstra"), { spawnIt: fake(m.log, "good"), now: () => NOW + 3_600_000, force: true });
   const r = record(m.home, "dijkstra");
   assert.deepEqual([r.refused, r.error, r.failures], [undefined, undefined, undefined]);
 });
@@ -169,7 +170,7 @@ test("a login OpenAI refuses is recorded with its mark, and the profile says to 
 test("no token reaches the output, the record or the logs", async (t) => {
   const m = await machine(t);
   const secrets = ["hopper", "dijkstra"].flatMap((n) => [token(n)]);
-  await refreshAllUsage({ spawnIt: fake(m.log, "leak"), now: () => NOW, fetcher: async () => ({ status: 500, headers: { get: () => null }, text: "" }) });
+  await refreshUsage({ spawnIt: fake(m.log, "leak"), now: () => NOW, fetcher: async () => ({ status: 500, headers: { get: () => null }, text: "" }) });
   const everything = [JSON.stringify(m.events), ...["hopper", "dijkstra"].map((n) => fs.readFileSync(path.join(m.home, "state", "usage", `${n}.json`), "utf8")), JSON.stringify(codexUsage(new Date(NOW)))];
   for (const text of everything) for (const secret of secrets) assert.ok(!text.includes(secret), "a token leaked");
   assert.match(everything[1], /\[redacted\]/);
@@ -180,7 +181,7 @@ test("no token reaches the output, the record or the logs", async (t) => {
 test("the slot's profile is asked every 5 minutes, the others every 30, usage --refresh at once, and an error backs off", async (t) => {
   const m = await machine(t);
   let now = NOW;
-  const ask = (name: string, mode: string, force = false) => fetchCodexLive(profile(name), { spawnIt: fake(m.log, mode), now: () => now, force });
+  const ask = (name: string, mode: string, force = false) => fetchUsage(profile(name), { spawnIt: fake(m.log, mode), now: () => now, force });
   const asked = () => entries(m.log).filter((e) => e.start).length;
   await ask("hopper", "good");
   await ask("dijkstra", "good");
@@ -204,7 +205,7 @@ test("the slot's profile is asked every 5 minutes, the others every 30, usage --
 
 test("a call that hangs is killed after the timeout", async (t) => {
   const m = await machine(t);
-  const res = await fetchCodexLive(profile("dijkstra"), { spawnIt: fake(m.log, "hang"), now: () => NOW, timeoutMs: 300 });
+  const res = await fetchUsage(profile("dijkstra"), { spawnIt: fake(m.log, "hang"), now: () => NOW, timeoutMs: 300 });
   assert.equal(res.status, "failed");
   assert.match(res.detail, /timed out/);
   const { pid } = entries(m.log).find((e) => e.start)!;
@@ -213,7 +214,7 @@ test("a call that hangs is killed after the timeout", async (t) => {
 
 test("a missing codex command is a clear failure", async (t) => {
   const m = await machine(t);
-  const res = await fetchCodexLive(profile("dijkstra"), { spawnIt: () => spawn("dotagents-no-such-codex", ["app-server"], { stdio: ["pipe", "pipe", "pipe"] }), now: () => NOW });
+  const res = await fetchUsage(profile("dijkstra"), { spawnIt: () => spawn("dotagents-no-such-codex", ["app-server"], { stdio: ["pipe", "pipe", "pipe"] }), now: () => NOW });
   assert.equal(res.status, "failed");
   assert.match(res.detail, /couldn't run codex/);
 });
@@ -221,9 +222,9 @@ test("a missing codex command is a clear failure", async (t) => {
 test("a profile with no saved login is not asked, and a dry run asks nothing", async (t) => {
   const m = await machine(t);
   saveProfile({ name: "knuth", configDir: path.join(m.home, ".codex"), color: "#2E7D6B", provider: "codex" });
-  assert.deepEqual(await fetchCodexLive(profile("knuth"), { spawnIt: fake(m.log, "good"), now: () => NOW }), { status: "failed", detail: "no login saved for it" });
+  assert.deepEqual(await fetchUsage(profile("knuth"), { spawnIt: fake(m.log, "good"), now: () => NOW }), { status: "failed", detail: "no login saved for it" });
   state.dryRun = true;
-  assert.equal((await fetchCodexLive(profile("dijkstra"), { spawnIt: fake(m.log, "good"), now: () => NOW })).status, "ok");
+  assert.equal((await fetchUsage(profile("dijkstra"), { spawnIt: fake(m.log, "good"), now: () => NOW })).status, "ok");
   assert.equal(entries(m.log).length, 0);
 });
 

@@ -1,4 +1,4 @@
-// Codex, the ChatGPT accounts (ADR 0007), switched in place like Claude's (ADR 0004). Each side has
+// Codex, the ChatGPT accounts (ADR 0007), switched in place like Claude's (ADR 0009). Each side has
 // one slot, <CODEX_HOME>/auth.json (~/.codex by default), which the Codex command line, its VS Code
 // extension and its desktop app all read. Every account's login waits in the vault, <state>/vault/
 // <profile>/auth.json, one per account and side. The file is copied byte for byte and read only to
@@ -6,81 +6,18 @@
 // steps here are the ones the common coordination (core/account-switch.ts, account-login.ts) calls.
 
 import { spawnSync } from "node:child_process";
-import { createHash } from "node:crypto";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { type Profile, loadProfiles, providerOf, sideName, stateDir } from "../machine-state.ts";
+import { type Profile, sideName, stateDir } from "../machine-state.ts";
 import { checkItem, checkWarn, report, section } from "../output.ts";
 import { LABELS } from "../provider-labels.ts";
 import type { Login, Provider, SwitchOptions } from "../providers.ts";
 import { state } from "../state.ts";
 import { vaultDir, withLoginLock, writePrivate } from "../vault.ts";
+import { CODEX_OTHER_EVERY_MS, CODEX_SLOT_EVERY_MS, askCodex } from "./codex-usage.ts";
 import { codexHome, installCodex, verifyCodexConfig } from "./codex-config.ts";
-
-export { codexHome };
-export const slotFile = () => path.join(codexHome(), "auth.json");
-export const vaultFile = (name: string) => path.join(vaultDir(name), "auth.json");
-
-// A login: the file as Codex wrote it, and who it is. id: the person (chatgpt_user_id); the
-// workspace's account_id is the same for every seat in it, so it can't tell two seats apart.
-// grant: one completed sign-in (login_owner_id), which renewals keep. plan: the ChatGPT plan type
-// ("team"). Read from the id_token, nothing else of it.
-export function readLogin(file: string): Login | null {
-  let text: string;
-  try {
-    text = fs.readFileSync(file, "utf8");
-  } catch {
-    return null;
-  }
-  try {
-    const tokens = JSON.parse(text)?.tokens;
-    const payload = JSON.parse(Buffer.from(String(tokens?.id_token).split(".")[1] ?? "", "base64url").toString("utf8"));
-    const auth = payload?.["https://api.openai.com/auth"];
-    const user = auth?.chatgpt_user_id;
-    if (typeof user !== "string" || !user) return null;
-    const refreshed = Date.parse(JSON.parse(text)?.last_refresh);
-    return {
-      text,
-      file,
-      id: user,
-      grant: typeof tokens.login_owner_id === "string" ? tokens.login_owner_id : null,
-      refreshed: Number.isNaN(refreshed) ? null : refreshed,
-      email: typeof payload.email === "string" ? payload.email : "",
-      plan: typeof auth.chatgpt_plan_type === "string" && auth.chatgpt_plan_type ? auth.chatgpt_plan_type : null,
-    };
-  } catch {
-    return null;
-  }
-}
-
-// The mark of a login's refresh token, as loginMark in core/providers/claude-store.ts does for Claude's: tells a
-// login apart without keeping any of it.
-export function codexLoginMark(text: string): string | null {
-  try {
-    const token = JSON.parse(text)?.tokens?.refresh_token;
-    return typeof token === "string" && token ? createHash("sha256").update(token).digest("hex").slice(0, 16) : null;
-  } catch {
-    return null;
-  }
-}
-
-export const codexProfiles = () => loadProfiles().filter((p) => providerOf(p) === "codex");
-export const slotLogin = () => readLogin(slotFile());
-export const vaultLogin = (name: string) => readLogin(vaultFile(name));
-const ownerOf = (user: string) => codexProfiles().find((p) => vaultLogin(p.name)?.id === user) ?? null;
-
-// The Codex profile whose account is in this side's slot, or null.
-export function codexSlotProfile(): Profile | null {
-  const slot = slotLogin();
-  return slot ? ownerOf(slot.id) : null;
-}
-
-// The account of a profile's saved login, or null.
-export function codexAccount(p: Profile) {
-  const saved = vaultLogin(p.name);
-  return saved ? { user: saved.id, email: saved.email, plan: saved.plan } : null;
-}
+import { codexAccount, codexLoginMark, codexProfiles, codexSlotProfile, ownerOf, readLogin, slotFile, slotLogin, vaultFile, vaultLogin } from "./codex-store.ts";
 
 // Puts a file in place under Codex's own commit lock, auth.json.lock, an exclusive flock it waits
 // 5 s for (LockFileEx on Windows), so Codex never saves over a half-done switch. Never auth.lock,
@@ -228,6 +165,17 @@ const codex: Provider = {
   signInHint: (name) => `sign it in with: dotagents login ${name}`,
   addHint: (name) => `Sign it in with: dotagents login ${name}`,
 
+  usage: {
+    profiles: codexProfiles,
+    every: (p) => (codexSlotProfile()?.name === p.name ? CODEX_SLOT_EVERY_MS : CODEX_OTHER_EVERY_MS),
+    forceable: true,
+    together: false,
+    hasLogin: (p) => (codexSlotProfile()?.name === p.name ? readLogin(slotFile()) : vaultLogin(p.name)) !== null,
+    dryRun: "would ask Codex for the usage",
+    done: "asked Codex for the usage",
+    ask: askCodex,
+  },
+
   async signIn(profiles, { codex = {} }, ctx) {
     const { run = codexSignIn, lock = withLoginLock } = codex;
     for (const p of profiles) {
@@ -269,7 +217,7 @@ export default codex;
 // The checklist of `profile list` for the Codex logins of this side, and the switch's warning.
 
 // Whether OpenAI refused this profile's login: the live usage marks the profile's record with the
-// login it was refused (refused in <state>/usage/<profile>.json, core/codex-usage.ts), the slot's
+// login it was refused (refused in <state>/usage/<profile>.json, core/providers/codex-usage.ts), the slot's
 // when the profile's account is there, else the vault's. A new sign-in or renewal changes the mark.
 function refusedCodex(name: string) {
   const saved = vaultLogin(name);

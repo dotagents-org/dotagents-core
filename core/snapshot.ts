@@ -1,15 +1,15 @@
 // The usage of every profile in one list, for every surface (the usage command, its JSON, the
 // status line, later the visual app): this side's profiles, read from Claude Code's caches and from
-// what core/live.ts asked of Anthropic, the newer of the two, and, when install found the other side
+// what core/providers/claude-usage.ts asked of Anthropic, the newer of the two, and, when install found the other side
 // of the machine (Windows from WSL, WSL from Windows), that side's too, read only. The same account
 // on both sides shows the newer of the two.
 
 import fs from "node:fs";
 import path from "node:path";
 import { type Activity, sessionActivity } from "./claude-code.ts";
-import { liveUsage, sideProfiles } from "./live.ts";
-import { codexLiveUsage } from "./codex-usage.ts";
-import { codexAccount, codexProfiles, codexSlotProfile, readLogin } from "./providers/codex.ts";
+import { liveUsage, sideProfiles } from "./providers/claude-usage.ts";
+import { codexLiveUsage } from "./providers/codex-usage.ts";
+import { codexAccount, codexProfiles, codexSlotProfile, readLogin } from "./providers/codex-store.ts";
 import { PALETTE, type Peer, type Profile, loadMachine, sideName } from "./machine-state.ts";
 import { peerUp } from "./peer.ts";
 import { peerRunningLater } from "./sessions.ts";
@@ -235,7 +235,7 @@ export function usageJson(list: ProfileUsage[], now: Date) {
 }
 
 // The Codex profiles, for the start API (ADR 0007): who they are, and what dotagents last asked of
-// codex app-server for their usage (core/codex-usage.ts), with the plan Codex reports. `no-data` is
+// codex app-server for their usage (core/providers/codex-usage.ts), with the plan Codex reports. `no-data` is
 // a saved login with nothing read yet; windows are never made up.
 export function codexUsage(now = new Date()): ProfileUsage[] {
   return codexProfiles().map((p) => {

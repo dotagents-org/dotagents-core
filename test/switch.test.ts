@@ -171,7 +171,7 @@ test("the checklist says when each profile's saved login expires, warning a week
   assert.match(text("check"), /personal.*expired/);
 });
 
-// The live usage marks the login Anthropic refused (core/live.ts); the mark holds for that login,
+// The live usage marks the login Anthropic refused (core/providers/claude-usage.ts); the mark holds for that login,
 // wherever it is copied, until a new sign-in or a renewal brings another.
 const refuse = (home: string, name: string, token: string) => {
   fs.mkdirSync(path.join(home, "state", "usage"), { recursive: true });

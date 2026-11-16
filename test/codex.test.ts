@@ -8,7 +8,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { test, type TestContext } from "node:test";
-import { codexLoginMark, codexSlotProfile } from "../core/providers/codex.ts";
+import { codexLoginMark, codexSlotProfile } from "../core/providers/codex-store.ts";
 import { codexUsage, readCodexSlots } from "../core/snapshot.ts";
 import { loadProfiles, saveProfile, sideName } from "../core/machine-state.ts";
 import { setUpProfile, verifyProfiles } from "../core/profiles.ts";
