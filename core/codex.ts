@@ -143,7 +143,7 @@ export function switchCodexHere(name: string | undefined, save: string | undefin
   const profiles = codexProfiles();
   const find = (n: string) => {
     const p = profiles.find((x) => x.name === n);
-    if (!p) throw new Error(`There is no Codex profile named ${n}`);
+    if (!p) throw new Error(`There is no ChatGPT profile named ${n}`);
     return p;
   };
 
@@ -227,7 +227,7 @@ export const codexSignIn: CodexSignIn = (home) => {
 export type CodexLoginOptions = { run?: CodexSignIn; commit?: CommitUnderLock; daemon?: RestartDaemon; lock?: <T>(fn: () => T) => Promise<T> };
 
 export async function loginCodex(name: string, { run = codexSignIn, commit = commitUnderLock, daemon = restartDaemon, lock = async (fn) => fn() }: CodexLoginOptions = {}) {
-  if (!codexProfiles().some((p) => p.name === name)) throw new Error(`There is no Codex profile named ${name}`);
+  if (!codexProfiles().some((p) => p.name === name)) throw new Error(`There is no ChatGPT profile named ${name}`);
   section(name);
   if (state.dryRun) return report("would update", vaultDir(name), `sign ${name} in with codex login, in a folder of its own`);
   const home = fs.mkdtempSync(path.join(os.tmpdir(), "dotagents-codex-login-"));

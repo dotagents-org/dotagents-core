@@ -232,7 +232,7 @@ test("the usage view groups the profiles by provider", () => {
   const base = { color: "#000000", state: "ok" as const, fetchedAt: new Date(NOW), windows: [w], source: "live" as const };
   const list: ProfileUsage[] = [{ ...base, name: "work", provider: "claude" }, { ...base, name: "hopper", provider: "codex" }];
   const text = usageLines(list, new Date(NOW)).map((l) => l.map((s) => s.text).join(""));
-  assert.deepEqual(text.filter((l) => l === "Claude" || l === "Codex"), ["Claude", "Codex"]);
+  assert.deepEqual(text.filter((l) => l === "Claude" || l === "ChatGPT"), ["Claude", "ChatGPT"]);
   assert.equal(usageLines([list[0]], new Date(NOW)).some((l) => l.map((s) => s.text).join("") === "Claude"), false, "one provider: no header");
 });
 

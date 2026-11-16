@@ -26,12 +26,12 @@
 | `configDir` | string | Its Claude Code config folder, an absolute path. Today every profile uses `~/.claude`. |
 | `color` | string | Its color, `#RRGGBB`. |
 | `default` | boolean, optional | `true` on the profile the normal Claude Desktop app opens; at most one. Absent otherwise. |
-| `provider` | string, optional | `claude` or `codex`: whose account it holds. Absent means `claude`, and a writer leaves it out for a Claude profile. |
+| `provider` | string, optional | Whose account it holds and which agent's login slot it switches: `claude` (a claude.ai account, for Claude Code) or `codex` (a ChatGPT account, for Codex). Absent means `claude`, and a writer leaves it out for a Claude profile. |
 
 ## Rules
 
 - A reader takes only the fields above and ignores any other.
 - A file whose `version` is higher than the reader knows is not read: the reader stops and says to update. A file that isn't valid JSON, or has an entry without `name`, `configDir` or `color` as strings, stops it too. Neither is ever read as empty and overwritten.
 - A writer writes the whole file, `version` first, with two-space indentation and a final newline.
-- A change a version 1 reader would misread raises `version`. A Codex profile is one: a version 1 reader would take it for a Claude one. So a writer writes `2` only when the file holds a Codex profile, and `1` otherwise, which every reader still reads.
+- A change a version 1 reader would misread raises `version`. A ChatGPT profile is one: a version 1 reader would take it for a Claude one. So a writer writes `2` only when the file holds a ChatGPT profile, and `1` otherwise, which every reader still reads.
 - A reader that works only on Claude Code's files (the configuration, the memory, the Claude logins and usage) skips the profiles whose `provider` isn't `claude`.

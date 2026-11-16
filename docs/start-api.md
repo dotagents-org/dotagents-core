@@ -74,7 +74,7 @@ A profile:
 
 Nothing in the answer carries a token, an account id or the ChatGPT user id.
 
-`current` is `{ "claude": { "profile", "state" } }` and, only when there is at least one Codex profile, `"codex"` with the same shape. Each is computed over that provider's profiles and slots: the profile in a slot in the worst avatar state (the same one on both sides after a switch, else the worse of the two). With no profile of the provider in a slot, `profile` is the brand `"dotagents"`, in the worst state among all of that provider's profiles (`asleep` with none).
+`current` is `{ "claude": { "profile", "state" } }` and, only when there is at least one ChatGPT profile, `"codex"` with the same shape. Each is computed over that provider's profiles and slots: the profile in a slot in the worst avatar state (the same one on both sides after a switch, else the worse of the two). With no profile of the provider in a slot, `profile` is the brand `"dotagents"`, in the worst state among all of that provider's profiles (`asleep` with none).
 
 ## Actions
 
@@ -83,11 +83,11 @@ Nothing in the answer carries a token, an account id or the ChatGPT user id.
 | Action | Body | Does | Answers |
 |---|---|---|---|
 | `switch` | `{ "profile": "<name>", "side"?: "<side>" }` | [`switch`](commands.md#dotagents-switch) to the profile, Claude or Codex alike (its provider picks the slot). Without `side`, on both sides; with this side's name, `--here`; with the other side's name, only there, by running `dotagents switch <name> --here` on it. | 200 `now <name>`; 404 `no such profile` or `no such side`; 502 with what failed (on the other side, why that side couldn't); 409 when the switch itself refuses (the slot holds an account no profile knows, say). |
-| `desktop` | `{ "profile": "<name>" }` | Opens the profile's Claude Desktop app (Windows). | 200; 404 `no such profile`; 409 for a Codex profile (it has no Claude Desktop) or when it can't open. |
+| `desktop` | `{ "profile": "<name>" }` | Opens the profile's Claude Desktop app (Windows). | 200; 404 `no such profile`; 409 for a ChatGPT profile (it has no Claude Desktop) or when it can't open. |
 | `refresh` | `{}` | The minute's update, now: asks Anthropic for every profile's usage, and Codex for the profiles whose time has come. | 200; 502 with each failure as `<target>: <why>`. |
 
-The other side's switch needs a dotagents there that knows the profile: a Codex profile switched on a side whose dotagents is older, or without that profile, answers 502 with that side's own message.
+The other side's switch needs a dotagents there that knows the profile: a ChatGPT profile switched on a side whose dotagents is older, or without that profile, answers 502 with that side's own message.
 
 ## The version rule
 
-`apiVersion` is the format of what the server says, apart from `version` of the usage data inside it. A client that doesn't know the version it gets refuses it instead of misreading it. The number goes up only with a change an older client would misread; adding a field doesn't. Version 2 (0.2.0) added the Codex profiles, `plan`, and `slots` and `current` per provider: a client of version 1 would take a Codex profile for a Claude one.
+`apiVersion` is the format of what the server says, apart from `version` of the usage data inside it. A client that doesn't know the version it gets refuses it instead of misreading it. The number goes up only with a change an older client would misread; adding a field doesn't. Version 2 (0.2.0) added the ChatGPT profiles, `plan`, and `slots` and `current` per provider: a client of version 1 would take a ChatGPT profile for a Claude one.

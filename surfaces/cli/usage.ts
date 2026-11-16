@@ -63,7 +63,7 @@ function paintLine(line: Line) {
 function terminalView(list: ProfileUsage[], now: Date) {
   console.log(`${badge(colorLevel())}  ${ink.bold("usage")}\n`);
   for (const line of usageLines(list, now)) console.log(paintLine(line));
-  console.log(`\n${ink.role("muted")(`${list.length} profile${list.length === 1 ? "" : "s"}; --refresh asks ${list.some((p) => p.provider === "codex") ? "Anthropic and Codex" : "Anthropic"} for fresh numbers`)}`);
+  console.log(`\n${ink.role("muted")(`${list.length} profile${list.length === 1 ? "" : "s"}; --refresh asks ${list.some((p) => p.provider === "codex") ? "Anthropic and OpenAI" : "Anthropic"} for fresh numbers`)}`);
 }
 
 // One line per window, easy to grep: "<profile> <window> <pct> <resets at> fetched <at>", then

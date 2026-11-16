@@ -66,7 +66,7 @@ export function setUpProfile(
   const prior = all.find((a) => a.name === name);
   if (prior && (prior.provider ?? "claude") !== provider) throw new Error(`${name} is already a ${prior.provider ?? "claude"} profile`);
   if (provider === "codex") {
-    if (isDefault) throw new Error("--default names the profile the Claude Desktop app opens; a Codex profile has none");
+    if (isDefault) throw new Error("--default names the profile the Claude Desktop app opens; a ChatGPT profile has none");
     record({ name, configDir: codexHome(), color: color ?? prior?.color ?? PALETTE[all.filter((a) => a.name !== name).length % PALETTE.length], provider: provider as Provider }, prior);
     return;
   }

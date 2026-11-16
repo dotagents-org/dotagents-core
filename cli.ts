@@ -46,7 +46,7 @@ const start: Command = {
   name: "start",
   usage: "[--port <n>]",
   summary: "start the accounts' local API on 127.0.0.1, live, for the dotagents sidebar",
-  more: ["asks Anthropic for each profile's usage every minute, and Codex for the slot's every 5;", "reads the other side only while it runs, never waking WSL;", "leaves its address and token in start.json, for the sidebar;", "one per side: a second start leaves the running one alone;", "Ctrl+C stops it"],
+  more: ["asks Anthropic for the Claude profiles' usage every minute, and OpenAI, through codex app-server, for the ChatGPT ones';", "reads the other side only while it runs, never waking WSL;", "leaves its address and token in start.json, for the sidebar;", "one per side: a second start leaves the running one alone;", "Ctrl+C stops it"],
   group: "Profiles",
   async run({ args }) {
     const port = args.port === undefined ? undefined : Number(args.port);
@@ -122,7 +122,7 @@ const start: Command = {
         desktop: (body) => {
           const name = known(body);
           if (!name) return { status: 404, body: { ok: false, detail: "no such profile" } };
-          if (loadProfiles().some((p) => p.name === name && providerOf(p) === "codex")) return { status: 409, body: { ok: false, detail: `${name} is a Codex profile; it has no Claude Desktop` } };
+          if (loadProfiles().some((p) => p.name === name && providerOf(p) === "codex")) return { status: 409, body: { ok: false, detail: `${name} is a ChatGPT profile; it has no Claude Desktop` } };
           const opened = openDesktop(name, launcherDir());
           return { status: opened.ok ? 200 : 409, body: opened };
         },

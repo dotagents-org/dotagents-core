@@ -21,7 +21,7 @@ export const switchCommand: Command = {
       const inSlot = [slotProfile()?.name, codexSlotProfile()?.name];
       const profiles = loadProfiles();
       const codexToo = profiles.some((p) => providerOf(p) === "codex");
-      const kind = (p: (typeof profiles)[number]) => (codexToo ? `  ${providerOf(p)}` : "");
+      const kind = (p: (typeof profiles)[number]) => (codexToo ? `  ${providerOf(p) === "codex" ? "ChatGPT" : "Claude"}` : "");
       if (!fancy) {
         for (const p of profiles) console.log(`${p.name}${kind(p)}${inSlot.includes(p.name) ? "  (in the slot)" : ""}${fs.existsSync(vaultDir(p.name)) ? "" : "  (no saved login)"}`);
         return;

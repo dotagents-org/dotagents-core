@@ -273,7 +273,7 @@ export function usageLines(list: ProfileUsage[], now: Date): Line[] {
     if (lines.length) lines.push([]);
     if (grouped && group !== (a.provider ?? "claude")) {
       group = a.provider ?? "claude";
-      lines.push([{ text: group === "codex" ? "Codex" : "Claude", role: "muted" }], []);
+      lines.push([{ text: group === "codex" ? "ChatGPT" : "Claude", role: "muted" }], []);
     }
     const stale = a.state === "stale";
     const head: Line = [nameSegment(a)];
