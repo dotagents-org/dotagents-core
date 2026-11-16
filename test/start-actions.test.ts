@@ -17,7 +17,9 @@ test("start actions reject missing profiles and sides and preserve provider desk
     { name: "chatgpt", provider: "codex", configDir: path.join(root, "codex-profile"), color: "#376B80" },
   ] }));
   fs.writeFileSync(path.join(state, "machine.json"), JSON.stringify({ version: 1, peer: { name: "Windows", home: path.join(root, "peer"), nativeHome: "C:\\Users\\test" } }));
-  const child = spawn(process.execPath, [cli, "start", "--port", "0"], { env: { ...process.env, HOME: root, USERPROFILE: root, DOTAGENTS_STATE_DIR: state }, stdio: "ignore" });
+  const bin = path.join(root, "bin");
+  fs.mkdirSync(bin);
+  const child = spawn(process.execPath, [cli, "start", "--port", "0"], { env: { ...process.env, HOME: root, USERPROFILE: root, DOTAGENTS_STATE_DIR: state, PATH: `${bin}${path.delimiter}${process.env.PATH ?? ""}` }, stdio: "ignore" });
   t.after(() => { child.kill(); fs.rmSync(root, { recursive: true, force: true }); });
   let address: { port: number; token: string } | undefined;
   for (let i = 0; i < 100; i++) {
@@ -34,6 +36,11 @@ test("start actions reject missing profiles and sides and preserve provider desk
   assert.deepEqual(await ask("switch", { profile: "claude", side: "nowhere" }), { status: 404, body: { apiVersion: 2, ok: false, detail: "no such side" } });
   assert.equal((await ask("switch", { profile: "claude" })).status, 409);
   assert.equal((await ask("switch", { profile: "claude", side: "Windows" })).status, 502);
+  const powershell = path.join(bin, "powershell.exe");
+  fs.writeFileSync(powershell, "#!/bin/sh\nexit 0\n", { mode: 0o755 });
+  assert.deepEqual(await ask("switch", { profile: "claude", side: "Windows" }), { status: 200, body: { apiVersion: 2, ok: true, detail: "Windows: claude" } });
   assert.deepEqual(await ask("desktop", { profile: "missing" }), { status: 404, body: { apiVersion: 2, ok: false, detail: "no such profile" } });
   assert.equal((await ask("desktop", { profile: "chatgpt" })).status, 409);
+  const claudeDesktop = await ask("desktop", { profile: "claude" });
+  assert.doesNotMatch(claudeDesktop.body.detail, /has no Claude Desktop/);
 });
