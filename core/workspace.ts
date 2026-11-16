@@ -79,6 +79,8 @@ export function wrapRepository(dir: string, ws = `${dir}-workspace`) {
   return ws;
 }
 
+const repoEntry = (name: string, remote: string) => `- \`${name}/\`${remote ? `: ${remote}` : ""}`;
+
 // Adds a repository to the "## Repositories" section of an existing AGENTS.md. Only that section
 // is touched, and only when it exists; a new AGENTS.md gets the list from the template.
 export function listRepoInAgentsMd(ws: string, name: string, url: string) {
@@ -87,7 +89,7 @@ export function listRepoInAgentsMd(ws: string, name: string, url: string) {
   const text = fs.readFileSync(file, "utf8");
   const match = text.match(/^## Repositories[^\n]*\n([\s\S]*?)(?=^## |(?![\s\S]))/m);
   if (!match || match[1].includes(`\`${name}/\``)) return;
-  const entry = `- \`${name}/\`${url ? `: ${url}` : ""}`;
+  const entry = repoEntry(name, url);
   let body = match[1].replace(/^<No repository yet[^\n]*>\n?/m, "").replace(/\s*$/, "");
   body = `${body}\n${/^- `/m.test(body) ? "" : "\n"}${entry}\n\n`;
   const start = match.index! + match[0].length - match[1].length;
@@ -101,7 +103,7 @@ export const workspaceName = (ws: string) => path.basename(ws).replace(/-workspa
 function reposList(ws: string) {
   const repos = childRepos(ws);
   if (!repos.length) return "<No repository yet. Clone one into this workspace with: dotagents new <git-url> .>";
-  return repos.map((r) => `- \`${r.name}/\`${r.remote ? `: ${r.remote}` : ""}`).join("\n");
+  return repos.map((r) => repoEntry(r.name, r.remote)).join("\n");
 }
 
 const read = (p: string) => (fs.existsSync(p) ? fs.readFileSync(p, "utf8") : null);
@@ -110,8 +112,9 @@ const read = (p: string) => (fs.existsSync(p) ? fs.readFileSync(p, "utf8") : nul
 // where no repository holds the root, the root becomes a git repository whose .gitignore lets only
 // the agent files in, so the projects' repositories inside stay out without being named. The first
 // line tells it apart from a project repository at the root (the fallback layout).
+const WORKSPACE_IGNORE_MARKER = "# dotagents workspace: only the agent files are versioned here; the projects' repositories stay out";
 const WORKSPACE_IGNORE = [
-  "# dotagents workspace: only the agent files are versioned here; the projects' repositories stay out",
+  WORKSPACE_IGNORE_MARKER,
   "/*",
   "!/.gitignore",
   "!/AGENTS.md",
@@ -127,7 +130,7 @@ const WORKSPACE_IGNORE = [
 
 export function isWorkspaceRepo(ws: string) {
   const inside = gitRepoOf(ws);
-  return Boolean(inside && isRepoRoot(ws, inside.top) && (read(path.join(ws, ".gitignore")) ?? "").startsWith(WORKSPACE_IGNORE.split("\n")[0]));
+  return Boolean(inside && isRepoRoot(ws, inside.top) && (read(path.join(ws, ".gitignore")) ?? "").startsWith(WORKSPACE_IGNORE_MARKER));
 }
 
 // Makes the root a repository with the .gitignore above. Never commits: that is yours.
@@ -144,7 +147,7 @@ function versionWorkspace(ws: string) {
   if (current === null) {
     if (!state.dryRun) fs.writeFileSync(ignore, WORKSPACE_IGNORE);
     report(state.dryRun ? "would create" : "created", ignore);
-  } else if (current.startsWith(WORKSPACE_IGNORE.split("\n")[0])) report("ok", ignore);
+  } else if (current.startsWith(WORKSPACE_IGNORE_MARKER)) report("ok", ignore);
   else report("skipped", ignore, "a .gitignore that isn't the workspace's: start it with the lines dotagents writes (standards/artifacts.md, Versioning)");
 }
 
