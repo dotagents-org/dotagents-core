@@ -8,7 +8,11 @@ import os from "node:os";
 import path from "node:path";
 import { test, type TestContext } from "node:test";
 import type { Peer } from "../core/machine-state.ts";
-import { type ConfigDir, archiveRoot, archiveSession, deleteSession, fromPeer, listSessions, projectSlug, sessionFiles } from "../core/sessions.ts";
+import { type ConfigDir, archiveRoot, archiveSession, deleteSession, fromPeer, listSessions, parseRunningIds, projectSlug, sessionFiles } from "../core/sessions.ts";
+
+test("peer running ids ignore non-id lines and CRLF", () => {
+  assert.deepEqual([...parseRunningIds("noise\r\nAAAAAAAA-0000-0000-0000-000000000001\r\n bbbbbbbb-0000-0000-0000-000000000002 \r\n")], ["AAAAAAAA-0000-0000-0000-000000000001", "bbbbbbbb-0000-0000-0000-000000000002"]);
+});
 import { state } from "../core/state.ts";
 import { REPO, quiet } from "./helpers.ts";
 

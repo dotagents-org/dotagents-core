@@ -186,26 +186,29 @@ function summary(file: string) {
 // command there, so it goes through this adapter; the tests pass a fake one.
 export type PeerRunning = (peer: Peer) => Set<string> | null;
 
+export const parseRunningIds = (stdout: string) => new Set(stdout.split(/\r?\n/).map((line) => line.trim()).filter((line) => /^[0-9a-f-]{36}$/i.test(line)));
+
+const peerCommand = (): [string, string[], string | undefined] => isWindows
+  ? ["wsl.exe", ["-e", "bash", "-lic", "dotagents sessions --running"], undefined]
+  : ["powershell.exe", ["-NoProfile", "-Command", "dotagents sessions --running"], "/mnt/c"];
+
 // From Windows, bash -lic as in core/accounts/switch.ts: an interactive shell reads ~/.bashrc, where nvm sets Node
 export const peerRunning: PeerRunning = () => {
-  const run = isWindows
-    ? spawnSync("wsl.exe", ["-e", "bash", "-lic", "dotagents sessions --running"], { encoding: "utf8", timeout: 30_000, windowsHide: true })
-    : spawnSync("powershell.exe", ["-NoProfile", "-Command", "dotagents sessions --running"], { encoding: "utf8", timeout: 30_000, cwd: "/mnt/c" });
+  const [command, args, cwd] = peerCommand();
+  const run = spawnSync(command, args, { encoding: "utf8", timeout: 30_000, windowsHide: true, cwd });
   logChange("core", "error", "peer sessions", run.status === 0 ? null : `dotagents sessions --running on the other side: exit ${run.status}${run.error ? `, ${run.error.message}` : ""}\n${run.stderr ?? ""}`);
   if (run.status !== 0) return null;
-  return new Set((run.stdout ?? "").split(/\r?\n/).map((l) => l.trim()).filter((l) => /^[0-9a-f-]{36}$/i.test(l)));
+  return parseRunningIds(run.stdout ?? "");
 };
 
 // The same question without blocking: a server that answers every 2 s can't wait the second or two
 // powershell.exe or wsl.exe takes to start.
 export const peerRunningLater = (): Promise<Set<string> | null> =>
   new Promise((resolve) => {
-    const [command, args, cwd] = isWindows
-      ? ["wsl.exe", ["-e", "bash", "-lic", "dotagents sessions --running"], undefined]
-      : ["powershell.exe", ["-NoProfile", "-Command", "dotagents sessions --running"], "/mnt/c"];
+    const [command, args, cwd] = peerCommand();
     execFile(command, args, { encoding: "utf8", timeout: 30_000, windowsHide: true, cwd }, (err, stdout, stderr) => {
       logChange("core", "error", "peer sessions", err ? `dotagents sessions --running on the other side: ${err.message}\n${stderr}` : null);
-      resolve(err ? null : new Set(stdout.split(/\r?\n/).map((l) => l.trim()).filter((l) => /^[0-9a-f-]{36}$/i.test(l))));
+      resolve(err ? null : parseRunningIds(stdout));
     });
   });
 
