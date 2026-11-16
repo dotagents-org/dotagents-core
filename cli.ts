@@ -27,7 +27,7 @@ import { usage } from "./surfaces/cli/usage.ts";
 import { logs } from "./surfaces/cli/logs.ts";
 import { doctor } from "./surfaces/cli/doctor.ts";
 import { startServer } from "./surfaces/web/server.ts";
-import { codexUsage, readCodexSlots, readSlots, readUsage, currentFor, usageJson, watchPeer } from "./core/snapshot.ts";
+import { startAnswer, watchPeer } from "./core/snapshot.ts";
 import { openDesktop } from "./core/desktop.ts";
 import { forgetServer, liveServer, loadMachine, loadProfiles, providerOf, recordServer } from "./core/machine-state.ts";
 import { launcherDir } from "./core/profiles.ts";
@@ -85,23 +85,7 @@ const start: Command = {
       return typeof name === "string" && loadProfiles().some((p) => p.name === name) ? name : null;
     };
     const server = await startServer({
-      read: () => {
-        const now = new Date();
-        const list = readUsage(now, view);
-        // Which account is in each side's slot, per provider, and the current Claude one (the
-        // worse of the two). The Codex profiles come after the Claude ones.
-        const slots = readSlots(list, view);
-        const profiles = [...list.map((p) => ({ ...p, provider: "claude" as const })), ...codexUsage()];
-        const json = { ...usageJson(profiles, now), slots: { claude: slots, codex: readCodexSlots(view) }, current: currentFor(list, slots, now) };
-        let peer;
-        try {
-          peer = loadMachine().peer;
-        } catch {
-          peer = undefined;
-        }
-        // The sides, in the accounts tab's order: this one, then the other.
-        return peer ? { ...json, sides: [sideName(), peer.name], peer: { name: peer.name, up: view.up(peer) } } : { ...json, sides: [sideName()] };
-      },
+      read: () => startAnswer(new Date(), view),
       port,
       // The accounts tab's buttons, in the dotagents sidebar.
       actions: {

@@ -79,6 +79,20 @@ export function slotProfile(): Profile | null {
   return slot ? ownerOf(slot.accountUuid) : null;
 }
 
+// The plan of a profile's login ("max", "pro", "team"), from the subscriptionType Claude Code keeps
+// next to the tokens; only that field is read. Null when it isn't there (the macOS keychain, an
+// older Claude Code).
+export function profilePlan(p: Profile): string | null {
+  const login = liveLogin(p);
+  if (!login) return null;
+  try {
+    const plan = JSON.parse(fs.readFileSync(login.file, "utf8"))?.claudeAiOauth?.subscriptionType;
+    return typeof plan === "string" && plan ? plan : null;
+  } catch {
+    return null;
+  }
+}
+
 // Where a profile's login lives now: the copy to read, and to renew when it is about to expire.
 // The slot's when its account is there (the vault may hold the same token, which a renewal of the
 // slot spends), else its vault's, else its own folder's. shared: Claude Code reads and renews that

@@ -4,6 +4,7 @@
 |---|---|
 | [Getting started](getting-started.md) | Requirements, installation on each system (WSL included), the first workspace, several Claude accounts, VS Code. |
 | [Commands](commands.md) | Every command and option, the output, exit codes and environment variables. |
+| [The start API](start-api.md) | The local API the sidebar reads: endpoints, token, events, the data field by field, the actions, the version rule. |
 | [Workspaces](workspaces.md) | The workspace layout, wrapping a repository, what `init` creates and what `check` verifies, the standards behind them. |
 | [Skills](skills.md) | Own and third-party skills, skills that call other skills, writing one, taking over a third-party one. |
 | [Global configuration](global-configuration.md) | What `install` writes on the machine, and from where. |
