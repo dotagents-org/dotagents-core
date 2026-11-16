@@ -61,7 +61,7 @@ function writeStateFile(file: string, version: number, body: Record<string, unkn
   fs.renameSync(tmp, file);
 }
 
-// provider: whose account the profile holds, Claude when absent (ADR 0017). Only a Codex profile
+// provider: whose account the profile holds, Claude when absent (ADR 0007). Only a Codex profile
 // writes it, and it raises the file to version 2, so a dotagents that knows only Claude stops
 // instead of treating it as a Claude one; a file of Claude profiles stays at version 1.
 export type Provider = "claude" | "codex";

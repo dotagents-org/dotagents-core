@@ -1,5 +1,5 @@
 // `switch`: which account each slot holds (~/.claude for Claude, ~/.codex/auth.json for Codex), and
-// changing it (ADR 0009, ADR 0017).
+// changing it (ADR 0009, ADR 0007).
 
 import { codexSlotProfile } from "../../core/codex.ts";
 import { loadProfiles, providerOf } from "../../core/machine-state.ts";

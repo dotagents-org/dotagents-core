@@ -1,4 +1,4 @@
-// The live usage of the Codex profiles (ADR 0017, phase 4): asked of `codex app-server` over
+// The live usage of the Codex profiles (ADR 0007, phase 4): asked of `codex app-server` over
 // JSON-RPC, never of chatgpt.com. The app-server is a fake script (test/fixtures), the logins fake.
 
 import assert from "node:assert/strict";

@@ -53,7 +53,7 @@ function record(profile: Profile, prior: Profile | undefined) {
 
 // Adds a profile, or brings one up to date: its record, the configuration and, on Windows, its
 // Desktop app. Its login comes into the vault with: claude auth login, then dotagents switch --save.
-// A Codex profile is only its record for now: its login comes in with dotagents login (ADR 0017),
+// A Codex profile is only its record for now: its login comes in with dotagents login (ADR 0007),
 // and the configuration for Codex comes later.
 export function setUpProfile(
   repo: string,

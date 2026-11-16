@@ -1,4 +1,4 @@
-// Live usage of the Codex profiles (ADR 0017, plan phase 4). The source is the official
+// Live usage of the Codex profiles (ADR 0007, plan phase 4). The source is the official
 // `codex app-server`, over stdio JSON-RPC: `initialize`, the `initialized` notification, then
 // `account/rateLimits/read`. dotagents never calls chatgpt.com, and no token, client id or
 // User-Agent of ours goes on the wire: Codex does the call, with its own login.

@@ -1,4 +1,4 @@
-// The Codex accounts (ADR 0017), switched in place like Claude's (ADR 0009). Each side has one slot,
+// The Codex accounts (ADR 0007), switched in place like Claude's (ADR 0009). Each side has one slot,
 // <CODEX_HOME>/auth.json (~/.codex by default), which the Codex command line, its VS Code extension
 // and its desktop app all read. Every account's login waits in the vault, <state>/vault/<profile>/
 // auth.json, one per account and side. The file is copied byte for byte and read only to tell

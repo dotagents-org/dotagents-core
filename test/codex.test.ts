@@ -1,4 +1,4 @@
-// The Codex accounts (ADR 0017): one slot per side, <CODEX_HOME>/auth.json, and a vault per
+// The Codex accounts (ADR 0007): one slot per side, <CODEX_HOME>/auth.json, and a vault per
 // account; a switch puts a saved login in the slot under Codex's lock and restarts its daemon.
 // Fake logins only.
 

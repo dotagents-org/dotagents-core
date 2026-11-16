@@ -235,7 +235,7 @@ export function usageJson(list: ProfileUsage[], now: Date) {
   };
 }
 
-// The Codex profiles, for the start API (ADR 0017): who they are, and what dotagents last asked of
+// The Codex profiles, for the start API (ADR 0007): who they are, and what dotagents last asked of
 // codex app-server for their usage (core/codex-usage.ts), with the plan Codex reports. `no-data` is
 // a saved login with nothing read yet; windows are never made up.
 export function codexUsage(now = new Date()): ProfileUsage[] {
