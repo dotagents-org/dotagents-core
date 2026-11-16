@@ -123,6 +123,18 @@ function ownerOf(file: string) {
   return account;
 }
 
+function readdirOr(dir: string): string[];
+function readdirOr(dir: string, withFileTypes: true): fs.Dirent[];
+function readdirOr(dir: string, withFileTypes?: true): string[] | fs.Dirent[] {
+  try {
+    return withFileTypes ? fs.readdirSync(dir, { withFileTypes: true }) : fs.readdirSync(dir);
+  } catch {
+    return [];
+  }
+}
+
+const subagentFiles = (folder: string, name: string) => readdirOr(path.join(folder, name, "subagents")).filter((file) => file.endsWith(".jsonl"));
+
 // Every assistant message since `since` in the transcripts of these config folders (both sides by
 // default): <dir>/projects/<project>/<session>.jsonl and its subagents' <session>/subagents/*.jsonl.
 export function readSpend(since: number, dirs: ConfigDir[] = configDirs()): Spend[] {
@@ -137,30 +149,15 @@ export function readSpend(since: number, dirs: ConfigDir[] = configDirs()): Spen
   };
   for (const { dir } of dirs) {
     const projects = path.join(dir, "projects");
-    let slugs: string[] = [];
-    try {
-      slugs = fs.readdirSync(projects);
-    } catch {
-      continue;
-    }
+    const slugs = readdirOr(projects);
     for (const slug of slugs) {
       const folder = path.join(projects, slug);
-      let entries: fs.Dirent[] = [];
-      try {
-        entries = fs.readdirSync(folder, { withFileTypes: true });
-      } catch {
-        continue;
-      }
+      const entries = readdirOr(folder, true);
       for (const e of entries) {
         if (e.isFile() && e.name.endsWith(".jsonl") && fresh(path.join(folder, e.name))) out.push(...readTranscript(path.join(folder, e.name), since, seen, null));
         if (!e.isDirectory()) continue;
         const subagents = path.join(folder, e.name, "subagents");
-        let files: string[] = [];
-        try {
-          files = fs.readdirSync(subagents).filter((f) => f.endsWith(".jsonl"));
-        } catch {
-          continue;
-        }
+        const files = subagentFiles(folder, e.name);
         const owner = ownerOf(path.join(folder, `${e.name}.jsonl`));
         for (const f of files) if (fresh(path.join(subagents, f))) out.push(...readTranscript(path.join(subagents, f), since, seen, owner));
       }
