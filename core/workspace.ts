@@ -90,7 +90,8 @@ export function listRepoInAgentsMd(ws: string, name: string, url: string) {
   const entry = `- \`${name}/\`${url ? `: ${url}` : ""}`;
   let body = match[1].replace(/^<No repository yet[^\n]*>\n?/m, "").replace(/\s*$/, "");
   body = `${body}\n${/^- `/m.test(body) ? "" : "\n"}${entry}\n\n`;
-  fs.writeFileSync(file, text.replace(match[1], body));
+  const start = match.index! + match[0].length - match[1].length;
+  fs.writeFileSync(file, text.slice(0, start) + body + text.slice(start + match[1].length));
   report("updated", file, `listed ${name}/ under Repositories`);
 }
 
