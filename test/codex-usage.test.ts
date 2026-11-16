@@ -15,6 +15,9 @@ import { readCodexUsage as codexUsage } from "../core/providers/codex-usage.ts";
 import { state } from "../core/state.ts";
 import { type PeerSwitch, switchProfile } from "../core/account-switch.ts";
 import { type ProfileUsage, usageLines } from "../core/usage.ts";
+import { pathToFileURL } from "node:url";
+import { withLoginLock } from "../core/vault.ts";
+import { stopAppServer } from "../core/providers/codex-usage.ts";
 import { REPO, quiet } from "./helpers.ts";
 
 const FAKE = path.join(REPO, "test", "fixtures", "fake-app-server.mjs");
@@ -254,4 +257,191 @@ test("usage --refresh --json in a temporary home carries the Codex windows from 
     assert.deepEqual(p.windows.map((w: { kind: string; pct: number }) => [w.kind, w.pct]), [["session", 42], ["week", 17]]);
   }
   assert.ok(!run.stdout.includes(token("hopper")) && !run.stderr.includes(token("dijkstra")));
+});
+
+test("a usage query waiting for the lock uses the renewed vault login", async (t) => {
+  const m = await machine(t);
+  const fresh = auth("user-dijkstra", "dijkstra-renewed");
+  let seen = "";
+  let pending: ReturnType<typeof fetchUsage>;
+  await withLoginLock(async () => {
+    pending = fetchUsage(profile("dijkstra"), {
+      now: () => NOW,
+      spawnIt: (home) => {
+        seen = fs.readFileSync(path.join(home, "auth.json"), "utf8");
+        return fake(m.log, "good")(home);
+      },
+    });
+    await new Promise((resolve) => setTimeout(resolve, 25));
+    fs.writeFileSync(m.vault("dijkstra"), fresh);
+  });
+  assert.equal((await pending!).status, "updated");
+  assert.equal(seen, fresh, "a refresh token read before waiting may already be spent");
+});
+
+test("a usage query rechecks the slot after a switch while waiting for the lock", async (t) => {
+  const m = await machine(t);
+  let pending: ReturnType<typeof fetchUsage>;
+  await withLoginLock(async () => {
+    pending = fetchUsage(profile("hopper"), { spawnIt: fake(m.log, "good"), now: () => NOW });
+    await new Promise((resolve) => setTimeout(resolve, 25));
+    fs.writeFileSync(m.slot, fs.readFileSync(m.vault("dijkstra")));
+  });
+  assert.equal((await pending!).status, "updated");
+  assert.notEqual(entries(m.log).find((e) => e.start)!.home, path.dirname(m.slot));
+  assert.equal(record(m.home, "hopper").user, "user-hopper");
+});
+
+test("concurrent usage queries recheck the interval under the lock", async (t) => {
+  const m = await machine(t);
+  const options = { spawnIt: fake(m.log, "good"), now: () => NOW };
+  const results = await Promise.all([fetchUsage(profile("dijkstra"), options), fetchUsage(profile("dijkstra"), options)]);
+  assert.deepEqual(results.map((r) => r.status), ["updated", "ok"]);
+  assert.equal(entries(m.log).filter((e) => e.start).length, 1);
+});
+
+test("a login lock timeout is a failed refresh without changing the holder's record or rejecting the refresh tick", async (t) => {
+  const m = await machine(t);
+  const recordFile = path.join(m.home, "state", "usage", "dijkstra.json");
+  fs.mkdirSync(path.dirname(recordFile), { recursive: true });
+  const kept = JSON.stringify({ version: 1, user: "user-dijkstra", fetchedAtMs: NOW, askedAtMs: NOW });
+  fs.writeFileSync(recordFile, kept);
+  const lock = path.join(m.home, "state", "logins.lock");
+  fs.writeFileSync(lock, "another-process\n");
+  const lockTime = fs.statSync(lock).mtimeMs;
+  let clockReads = 0;
+  // Each lock attempt reads its deadline, lock age, then deadline again: advance past its
+  // 30-second wait while keeping the holder younger than the 60-second stale threshold.
+  t.mock.method(Date, "now", () => lockTime + (clockReads++ % 3 === 0 ? 0 : 31_000));
+  const options = { spawnIt: fake(m.log, "good"), now: () => NOW, force: true };
+  const result = await fetchUsage(profile("dijkstra"), options);
+  assert.equal(result.status, "failed");
+  assert.match(result.detail, /Another dotagents is changing a login/);
+  assert.equal(fs.readFileSync(recordFile, "utf8"), kept);
+  const events = quiet();
+  // start's tick awaits this refresh: a busy login must produce failed results, not a rejection.
+  await assert.doesNotReject(refreshUsage(options));
+  const failures = events.filter((e) => e.kind === "result" && e.status === "failed" && /Another dotagents/.test(e.detail));
+  assert.equal(failures.length, 2, "both ChatGPT profiles report the busy lock");
+  assert.equal(fs.readFileSync(recordFile, "utf8"), kept);
+  assert.equal(fs.readFileSync(lock, "utf8"), "another-process\n");
+  assert.equal(entries(m.log).length, 0, "no app-server starts without the lock");
+});
+
+test("a server that ignores SIGTERM is gone before its renewed login is kept and home removed", async (t) => {
+  if (process.platform === "win32") return t.skip("SIGTERM handlers are a POSIX process behavior");
+  const m = await machine(t);
+  let child: ReturnType<SpawnAppServer>;
+  const spawnIt: SpawnAppServer = (home) => {
+    const script = `
+      const fs = await import("node:fs");
+      process.on("SIGTERM", () => {
+        const file = process.env.CODEX_HOME + "/auth.json";
+        const login = JSON.parse(fs.readFileSync(file, "utf8"));
+        login.tokens.refresh_token += "-renewed";
+        fs.writeFileSync(file, JSON.stringify(login));
+      });
+      await import(${JSON.stringify(pathToFileURL(FAKE).href)});
+    `;
+    child = spawn(process.execPath, ["--input-type=module", "-e", script], { env: { ...process.env, CODEX_HOME: home, FAKE_MODE: "good", FAKE_LOG: m.log, FAKE_NOW_S: String(NOW / 1000) }, stdio: ["pipe", "pipe", "pipe"] });
+    t.after(() => child.kill("SIGKILL"));
+    return child;
+  };
+  const old = JSON.parse(fs.readFileSync(m.vault("dijkstra"), "utf8"));
+  assert.equal((await fetchUsage(profile("dijkstra"), { spawnIt, now: () => NOW })).status, "updated");
+  assert.throws(() => process.kill(child!.pid!, 0), "the process must exit before cleanup");
+  assert.equal(JSON.parse(fs.readFileSync(m.vault("dijkstra"), "utf8")).tokens.refresh_token, old.tokens.refresh_token + "-renewed");
+  assert.equal(fs.existsSync(entries(m.log).find((e) => e.start)!.home), false);
+});
+
+test("a server can fill stderr without blocking its JSON-RPC answer", async (t) => {
+  const m = await machine(t);
+  const spawnIt: SpawnAppServer = (home) => {
+    const script = `process.stderr.write("x".repeat(1024 * 1024), async () => { await import(${JSON.stringify(pathToFileURL(FAKE).href)}); });`;
+    return spawn(process.execPath, ["--input-type=module", "-e", script], { env: { ...process.env, CODEX_HOME: home, FAKE_MODE: "good", FAKE_LOG: m.log, FAKE_NOW_S: String(NOW / 1000) }, stdio: ["pipe", "pipe", "pipe"] });
+  };
+  const result = await fetchUsage(profile("dijkstra"), { spawnIt, now: () => NOW, timeoutMs: 2000 });
+  assert.equal(result.status, "updated", result.detail);
+});
+
+test("external errors and malformed windows cannot put an email address or a token in the public usage record", async (t) => {
+  const m = await machine(t);
+  const email = "private.person@example.com";
+  const secret = token("private");
+  const responses = [
+    { error: { code: -32600, message: `401 Unauthorized for ${email} token ${secret}` } },
+    { result: { rateLimits: { primary: { usedPercent: 10, windowDurationMins: `${email} ${secret}` } } } },
+  ];
+  for (const response of responses) {
+    const spawnIt: SpawnAppServer = (home) => {
+      const script = `
+        const readline = await import("node:readline");
+        readline.createInterface({ input: process.stdin }).on("line", (line) => {
+          const m = JSON.parse(line);
+          if (m.id) process.stdout.write(JSON.stringify({ id: m.id, ...(m.id === 1 ? { result: {} } : ${JSON.stringify(response)}) }) + "\\n");
+        });
+      `;
+      return spawn(process.execPath, ["--input-type=module", "-e", script], { env: { ...process.env, CODEX_HOME: home }, stdio: ["pipe", "pipe", "pipe"] });
+    };
+    const result = await fetchUsage(profile("dijkstra"), { spawnIt, now: () => NOW });
+    assert.equal(result.status, "failed");
+    assert.match(result.detail, "error" in response ? /OpenAI refused/ : /not a usage/);
+    const publicText = JSON.stringify([result, read("dijkstra"), record(m.home, "dijkstra")]);
+    assert.ok(!publicText.includes(email));
+    assert.ok(!publicText.includes(secret));
+    assert.match(publicText, /\[redacted\]/);
+    fs.rmSync(path.join(m.home, "state", "usage"), { recursive: true });
+  }
+});
+
+
+test("Windows usage termination stops the shell and its child tree with a validated PID", () => {
+  const calls: unknown[][] = [];
+  const child = { pid: 12345, kill: () => { assert.fail("killing only the Windows shell would leave the app-server alive"); } };
+  const run = ((...args: unknown[]) => { calls.push(args); return { status: 0 }; }) as typeof spawnSync;
+  assert.equal(stopAppServer(child, "SIGTERM", "win32", run), true);
+  assert.deepEqual(calls, [["taskkill", ["/PID", "12345", "/T", "/F"], { shell: false, stdio: "ignore", windowsHide: true, timeout: 5_000 }]]);
+  for (const pid of [undefined, 0, -1, NaN, 12.5]) assert.equal(stopAppServer({ ...child, pid }, "SIGKILL", "win32", run), false);
+  assert.equal(calls.length, 1, "invalid PIDs never reach taskkill");
+});
+
+test("a slot changed externally during usage cannot assign another account's numbers or refusal to the old profile", async (t) => {
+  const m = await machine(t);
+  const previous = { version: 1, provider: "codex", user: "user-hopper", fetchedAtMs: NOW - CODEX_SLOT_EVERY_MS, askedAtMs: NOW - CODEX_SLOT_EVERY_MS, windows: [{ kind: "session", pct: 9, resetsAt: NOW + 3_600_000 }] };
+  const file = path.join(m.home, "state", "usage", "hopper.json");
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  for (const mode of ["good", "refused"]) {
+    fs.writeFileSync(file, JSON.stringify(previous));
+    fs.writeFileSync(m.slot, fs.readFileSync(m.vault("hopper")));
+    const spawnIt: SpawnAppServer = (home) => {
+      fs.writeFileSync(m.slot, fs.readFileSync(m.vault("dijkstra")));
+      return fake(m.log, mode)(home);
+    };
+    const result = await fetchUsage(profile("hopper"), { spawnIt, now: () => NOW });
+    assert.equal(result.status, "failed");
+    assert.match(result.detail, /slot changed accounts/);
+    const kept = record(m.home, "hopper");
+    assert.equal(kept.user, "user-hopper");
+    assert.equal(kept.fetchedAtMs, previous.fetchedAtMs);
+    assert.deepEqual(kept.windows, previous.windows);
+    assert.equal(kept.refused, undefined, "the other account's refresh-token mark does not belong here");
+    assert.equal(kept.error, undefined, "the other account's error does not belong here");
+  }
+});
+
+test("Windows closes an app-server tree before removing its temporary login", async (t) => {
+  if (process.platform !== "win32") return t.skip("requires Windows taskkill and inherited pipe behavior");
+  const m = await machine(t);
+  let wrapper: ReturnType<SpawnAppServer>;
+  const spawnIt: SpawnAppServer = (home) => {
+    const script = `const { spawn } = await import("node:child_process"); spawn(process.execPath, [${JSON.stringify(FAKE)}], { stdio: "inherit" });`;
+    wrapper = spawn(process.execPath, ["--input-type=module", "-e", script], { env: { ...process.env, CODEX_HOME: home, FAKE_MODE: "good", FAKE_LOG: m.log, FAKE_NOW_S: String(NOW / 1000) }, stdio: ["pipe", "pipe", "pipe"] });
+    t.after(() => stopAppServer(wrapper));
+    return wrapper;
+  };
+  assert.equal((await fetchUsage(profile("dijkstra"), { spawnIt, now: () => NOW })).status, "updated");
+  const start = entries(m.log).find((e) => e.start)!;
+  assert.throws(() => process.kill(wrapper!.pid!, 0), "the shell's equivalent process is gone");
+  assert.throws(() => process.kill(start.pid, 0), "the nested app-server is gone too");
+  assert.equal(fs.existsSync(start.home), false);
 });

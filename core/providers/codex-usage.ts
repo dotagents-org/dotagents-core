@@ -19,7 +19,7 @@
 //
 // The app-server is started through a SpawnAppServer; the tests pass a fake one.
 
-import { type ChildProcessWithoutNullStreams, spawn } from "node:child_process";
+import { type ChildProcessWithoutNullStreams, spawn, spawnSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -30,7 +30,7 @@ import { codexAccount, codexLoginMark, codexProfiles, codexSlotProfile, readLogi
 import type { Asked } from "../providers.ts";
 import { readRecord } from "../usage-record.ts";
 import { type ProfileUsage, STALE_MS, type UsageWindow, usageWindow } from "../usage.ts";
-import { withLoginLock, writePrivate } from "../vault.ts";
+import { writePrivate } from "../vault.ts";
 
 export type SpawnAppServer = (home: string) => ChildProcessWithoutNullStreams;
 
@@ -56,6 +56,21 @@ export class RpcError extends Error {
   code?: number;
 }
 
+// Windows starts a .cmd shim through a shell. Killing only that shell leaves Codex running
+// with its inherited pipes and temporary login. taskkill terminates the whole tree. The PID
+// is an OS process id, passed as an argument, never interpolated into a shell command.
+export function stopAppServer(
+  child: Pick<ChildProcessWithoutNullStreams, "pid" | "kill">,
+  signal: NodeJS.Signals = "SIGTERM",
+  platform = process.platform,
+  run = spawnSync
+) {
+  if (platform !== "win32") return child.kill(signal);
+  if (!Number.isSafeInteger(child.pid) || child.pid! <= 0) return false;
+  const stopped = run("taskkill", ["/PID", String(child.pid), "/T", "/F"], { shell: false, stdio: "ignore", windowsHide: true, timeout: 5_000 });
+  return stopped.status === 0;
+}
+
 // The result of account/rateLimits/read; rejects with an RpcError for an error answer, or an Error
 // for a timeout, a command that can't run or one that ends without answering. The process is gone
 // when it settles, so a login it renewed is on disk.
@@ -64,18 +79,22 @@ export function askRateLimits(spawnIt: SpawnAppServer, home: string, timeoutMs =
     const child = spawnIt(home);
     let outcome: { ok: true; value: unknown } | { ok: false; error: Error } | null = null;
     let settled = false;
+    let killTimer: ReturnType<typeof setTimeout> | undefined;
     const settle = () => {
       if (settled) return;
       settled = true;
       clearTimeout(timer);
+      clearTimeout(killTimer);
       outcome && (outcome.ok ? resolve(outcome.value) : reject(outcome.error));
     };
     const finish = (o: NonNullable<typeof outcome>) => {
       if (outcome) return;
       outcome = o;
-      child.kill();
-      // The close event settles it; this is for a process that won't die.
-      setTimeout(settle, 2_000).unref();
+      stopAppServer(child);
+      // A login may still be renewed until the process exits. Escalate a process that ignores
+      // SIGTERM, and wait for close before its temporary home is copied back or removed.
+      killTimer = setTimeout(() => stopAppServer(child, "SIGKILL"), 2_000);
+      killTimer.unref();
     };
     const timer = setTimeout(() => finish({ ok: false, error: new Error(`timed out after ${Math.round(timeoutMs / 1000)}s`) }), timeoutMs);
     const answer = (m: { result?: unknown; error?: { code?: unknown; message?: unknown } }) => {
@@ -86,6 +105,7 @@ export function askRateLimits(spawnIt: SpawnAppServer, home: string, timeoutMs =
     };
     const send = (m: object) => child.stdin.write(`${JSON.stringify(m)}\n`);
     child.stdin.on("error", () => {});
+    child.stderr.resume();
     child.on("error", (err) => {
       outcome ??= { ok: false, error: new Error(`couldn't run codex (${err.message})`) };
       settle();
@@ -140,7 +160,7 @@ export function normalizeRateLimits(result: unknown): { plan: string | null; win
 }
 
 // Text safe to keep: nothing that looks like a token survives, nor more than a line.
-const safe = (text: string) => text.replace(/[A-Za-z0-9_\-.+/=]{32,}/g, "[redacted]").slice(0, 160);
+const safe = (text: string) => text.replace(/[A-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, "[redacted]").replace(/[A-Za-z0-9_\-.+/=]{32,}/g, "[redacted]").replace(/[\r\n]+/g, " ").slice(0, 160);
 
 // What the app-server says when OpenAI turns the login down (a 401, a spent or revoked refresh
 // token), or when there is none to use.
@@ -176,9 +196,10 @@ export async function askCodex(
       } catch (err) {
         failure = err;
       }
-      mark = codexLoginMark(readLogin(slotFile())?.text ?? "");
+      const after = readLogin(slotFile());
+      if (after?.id !== login.id) return { ok: false, error: "the Codex slot changed accounts while reading usage; try again", discard: true };
+      mark = codexLoginMark(after.text);
     } else {
-      await withLoginLock(async () => {
         const home = fs.mkdtempSync(path.join(os.tmpdir(), "dotagents-codex-usage-"));
         try {
           fs.chmodSync(home, 0o700);
@@ -196,7 +217,6 @@ export async function askCodex(
         } finally {
           fs.rmSync(home, { recursive: true, force: true });
         }
-      });
       mark = codexLoginMark(vaultLogin(p.name)?.text ?? "");
     }
   } catch (err) {
@@ -211,7 +231,7 @@ export async function askCodex(
   try {
     usage = normalizeRateLimits(result);
   } catch (err) {
-    return { ok: false, error: `Codex's answer is not a usage this dotagents reads (${(err as Error).message})`, refusedMark: null };
+    return { ok: false, error: `Codex's answer is not a usage this dotagents reads (${safe((err as Error).message)})`, refusedMark: null };
   }
   const at = now();
   return { ok: true, record: { provider: "codex", fetchedAtMs: at, user: login.id, plan: usage.plan, windows: usage.windows, askedAtMs: at } };

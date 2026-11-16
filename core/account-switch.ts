@@ -79,6 +79,7 @@ export async function switchProfile({ name, save, here = false, peer = peerSwitc
 
 // The switch on this side, under the lock: the profile switched to, or null after a --save.
 export function switchHere(provider: Provider, name: string | undefined, save: string | undefined, options: SwitchOptions = {}): string | null {
+  options = provider.switchOptions?.(options) ?? options;
   const find = (n: string): Profile => {
     const p = provider.profiles().find((x) => x.name === n);
     if (!p) throw new Error(`There is no ${provider.labels.profile} named ${n}`);

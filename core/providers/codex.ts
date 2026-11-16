@@ -6,6 +6,7 @@
 // steps here are the ones the common coordination (core/account-switch.ts, account-login.ts) calls.
 
 import { spawnSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -19,28 +20,64 @@ import { CODEX_OTHER_EVERY_MS, CODEX_SLOT_EVERY_MS, askCodex, readCodexSlots, re
 import { codexHome, installCodex, verifyCodexConfig } from "./codex-config.ts";
 import { codexAccount, codexLoginMark, codexProfiles, codexSlotProfile, ownerOf, readLogin, slotFile, slotLogin, vaultFile, vaultLogin } from "./codex-store.ts";
 
-// Puts a file in place under Codex's own commit lock, auth.json.lock, an exclusive flock it waits
-// 5 s for (LockFileEx on Windows), so Codex never saves over a half-done switch. Never auth.lock,
-// its long sign-in lock. Where neither tool is there (macOS has no flock command), a plain rename:
-// the check after writing still catches a Codex that saved over it.
-export type CommitUnderLock = (tmp: string, dest: string) => void;
+// The digest identifies the exact slot copy reconciled with its vault. Only the fingerprint,
+// never any credential text, goes to the helper process that waits for Codex's own lock.
+const loginDigest = (text: string | Buffer) => createHash("sha256").update(text).digest("hex");
+const fileDigest = (file: string) => {
+  try {
+    return loginDigest(fs.readFileSync(file));
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code === "ENOENT") return null;
+    throw err;
+  }
+};
+const SLOT_CHANGED = "The Codex slot changed while waiting for its login lock; no login was overwritten. Run the switch again to save the renewed login first";
 
-export const commitUnderLock: CommitUnderLock = (tmp, dest) => {
+// Puts a file in place under Codex's own commit lock, auth.json.lock, an exclusive flock it waits
+// 5 s for (LockFileEx on Windows). The outgoing slot must still be the copy already saved to its
+// vault: a renewal while waiting aborts the switch so its single-use refresh token is not lost.
+// Without flock (macOS), the same check immediately precedes the rename as a best effort.
+export type CommitUnderLock = (tmp: string, dest: string, expectedDigest?: string | null) => void;
+
+export const commitUnderLock: CommitUnderLock = (tmp, dest, expectedDigest) => {
+  const expected = expectedDigest === undefined ? fileDigest(dest) : expectedDigest;
   const lock = path.join(path.dirname(dest), "auth.json.lock");
   if (process.platform === "win32") {
     const quote = (s: string) => `'${s.replace(/'/g, "''")}'`;
     const script = [
+      "$ErrorActionPreference = 'Stop'",
       `$f = [IO.File]::Open(${quote(lock)}, 'OpenOrCreate', 'ReadWrite', 'ReadWrite')`,
       "$until = (Get-Date).AddSeconds(5)",
       "while ($true) { try { $f.Lock(0, [long]::MaxValue); break } catch { if ((Get-Date) -gt $until) { throw 'Codex holds its login lock' }; Start-Sleep -Milliseconds 100 } }",
-      `try { Move-Item -LiteralPath ${quote(tmp)} -Destination ${quote(dest)} -Force } finally { $f.Unlock(0, [long]::MaxValue); $f.Close() }`,
+      "try {",
+      `  $actual = if (Test-Path -LiteralPath ${quote(dest)}) { (Get-FileHash -LiteralPath ${quote(dest)} -Algorithm SHA256).Hash.ToLowerInvariant() } else { $null }`,
+      `  if ($actual -ne ${expected === null ? "$null" : quote(expected)}) { throw ${quote(SLOT_CHANGED)} }`,
+      `  Move-Item -LiteralPath ${quote(tmp)} -Destination ${quote(dest)} -Force`,
+      "} finally { $f.Unlock(0, [long]::MaxValue); $f.Close() }",
     ].join("\n");
     const run = spawnSync("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", script], { encoding: "utf8", timeout: 30_000, windowsHide: true });
     if (run.status !== 0) throw new Error(`Couldn't write ${dest}: ${(run.stderr || run.error?.message || `exit ${run.status}`).trim()}`);
     return;
   }
-  const run = spawnSync("flock", ["-x", "-w", "5", lock, "mv", "-f", tmp, dest], { encoding: "utf8" });
-  if (run.error && (run.error as NodeJS.ErrnoException).code === "ENOENT") return fs.renameSync(tmp, dest);
+  // Both the comparison and the rename execute while flock holds the agent lock.
+  const script = `
+    const fs = require("node:fs");
+    const { createHash } = require("node:crypto");
+    const [tmp, dest, expected] = process.argv.slice(1);
+    let actual = null;
+    try { actual = createHash("sha256").update(fs.readFileSync(dest)).digest("hex"); }
+    catch (err) { if (err.code !== "ENOENT") throw err; }
+    if (actual !== (expected === "-" ? null : expected)) {
+      process.stderr.write(${JSON.stringify(SLOT_CHANGED)});
+      process.exit(2);
+    }
+    fs.renameSync(tmp, dest);
+  `;
+  const run = spawnSync("flock", ["-x", "-w", "5", lock, process.execPath, "-e", script, tmp, dest, expected ?? "-"], { encoding: "utf8" });
+  if (run.error && (run.error as NodeJS.ErrnoException).code === "ENOENT") {
+    if (fileDigest(dest) !== expected) throw new Error(SLOT_CHANGED);
+    return fs.renameSync(tmp, dest);
+  }
   if (run.status !== 0) throw new Error(`Couldn't write ${dest}: ${run.status === 1 && !run.stderr ? "Codex holds its login lock; try again" : (run.stderr || `exit ${run.status}`).trim()}`);
 };
 
@@ -83,7 +120,7 @@ function writeSlot(name: string, login: Login, { codex = {} }: SwitchOptions) {
   const tmp = `${slotFile()}.dotagents-${process.pid}`;
   fs.writeFileSync(tmp, login.text, { mode: 0o600 });
   try {
-    commit(tmp, slotFile());
+    commit(tmp, slotFile(), codex.expectedDigest);
   } finally {
     fs.rmSync(tmp, { force: true });
   }
@@ -135,6 +172,7 @@ const codex: Provider = {
   ownerOf,
   writeVault: (name, login) => writePrivate(vaultFile(name), login.text),
 
+  switchOptions: (options) => ({ ...options, codex: { ...options.codex, expectedDigest: fileDigest(slotFile()) } }),
   noSlotLogin: () => `There is no Codex login in ${slotFile()} to save; sign in with: codex login`,
   noSavedLogin: (name) => `There is no login saved for ${name}: sign it in with dotagents login ${name}`,
   checkSave(slot, save) {
@@ -170,6 +208,7 @@ const codex: Provider = {
     every: (p) => (codexSlotProfile()?.name === p.name ? CODEX_SLOT_EVERY_MS : CODEX_OTHER_EVERY_MS),
     forceable: true,
     together: false,
+    locked: true,
     hasLogin: (p) => (codexSlotProfile()?.name === p.name ? readLogin(slotFile()) : vaultLogin(p.name)) !== null,
     dryRun: "would ask Codex for the usage",
     done: "asked Codex for the usage",

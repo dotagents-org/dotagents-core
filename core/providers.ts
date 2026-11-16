@@ -40,8 +40,8 @@ export type Account = { id: string; email: string; plan: string | null; shown: s
 
 // What the tests reach into the switch and the sign-in with: Claude's moment between saving the
 // slot and replacing it, and Codex's lock, daemon and sign-in command.
-export type SwitchOptions = { afterSave?: () => void; codex?: { commit?: (tmp: string, dest: string) => void; daemon?: () => string | null } };
-export type SignInOptions = { now?: Date; run?: () => { ok: boolean; detail: string }; codex?: { run?: (home: string) => { ok: boolean; detail: string }; commit?: (tmp: string, dest: string) => void; daemon?: () => string | null; lock?: <T>(fn: () => T) => Promise<T> } };
+export type SwitchOptions = { afterSave?: () => void; codex?: { commit?: (tmp: string, dest: string, expectedDigest?: string | null) => void; expectedDigest?: string | null; daemon?: () => string | null } };
+export type SignInOptions = { now?: Date; run?: () => { ok: boolean; detail: string }; codex?: { run?: (home: string) => { ok: boolean; detail: string }; commit?: (tmp: string, dest: string, expectedDigest?: string | null) => void; expectedDigest?: string | null; daemon?: () => string | null; lock?: <T>(fn: () => T) => Promise<T> } };
 
 // What the common coordination hands a provider's switch steps: the vault save with its reports,
 // and the options.
@@ -57,7 +57,7 @@ export type UsageOptions = { fetcher?: Fetcher; spawnIt?: SpawnAppServer; now?: 
 
 // One ask of a provider's usage: the record to keep (afterWrite: what to do once it is written), or why it failed (refusedMark: the mark of the
 // login the company turned down; retryAfter: ms the company asked to wait).
-export type Asked = { ok: true; record: Record<string, unknown>; afterWrite?: () => void } | { ok: false; error: string; refusedMark?: string | null; retryAfter?: number };
+export type Asked = { ok: true; record: Record<string, unknown>; afterWrite?: () => void } | { ok: false; error: string; refusedMark?: string | null; retryAfter?: number; discard?: boolean };
 
 export type Provider = {
   id: ProviderId;
@@ -85,6 +85,7 @@ export type Provider = {
   writeVault: (name: string, login: Login) => void;
 
   // ── The switch, step by step; the common coordination orders them ──
+  switchOptions?: (options: SwitchOptions) => SwitchOptions;
   noSlotLogin: () => string;
   noSavedLogin: (name: string) => string;
   // --save: whether this login may be kept as that profile's.
@@ -128,6 +129,7 @@ export type Provider = {
     forceable: boolean;
     // Whether the profiles are asked together, or one at a time (each takes the login lock).
     together: boolean;
+    locked?: boolean;
     hasLogin: (p: Profile) => boolean;
     dryRun: string;
     done: string;

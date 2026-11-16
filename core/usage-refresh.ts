@@ -5,6 +5,7 @@
 
 import { report, section } from "./output.ts";
 import { type UsageOptions, providerFor, providers } from "./providers.ts";
+import { withLoginLock } from "./vault.ts";
 import { state } from "./state.ts";
 import { BACKOFF_MS, MAX_BACKOFF_MS, readRecord, writeRecord } from "./usage-record.ts";
 import type { Profile } from "./machine-state.ts";
@@ -14,6 +15,16 @@ export type LiveResult = { status: "updated" | "ok" | "failed"; detail: string }
 // Asks for one profile's usage, unless it was asked a moment ago or is backing off. force skips the
 // wait between asks (for a provider that allows it), never the backoff after an error.
 export async function fetchUsage(p: Profile, options: UsageOptions = {}): Promise<LiveResult> {
+  const { usage } = providerFor(p);
+  if (!usage.locked || state.dryRun) return fetchUnlocked(p, options);
+  try {
+    return await withLoginLock(() => fetchUnlocked(p, options));
+  } catch (err) {
+    return { status: "failed", detail: (err as Error).message };
+  }
+}
+
+async function fetchUnlocked(p: Profile, options: UsageOptions): Promise<LiveResult> {
   const { usage } = providerFor(p);
   const now = options.now ?? Date.now;
   const record = readRecord(p.name);
@@ -29,6 +40,10 @@ export async function fetchUsage(p: Profile, options: UsageOptions = {}): Promis
     writeRecord(p.name, asked.record);
     asked.afterWrite?.();
     return { status: "updated", detail: usage.done };
+  }
+  if (asked.discard) {
+    writeRecord(p.name, record);
+    return { status: "failed", detail: asked.error };
   }
   const failures = (Number(record.failures) || 0) + 1;
   const backoff = Math.max(asked.retryAfter ?? 0, Math.min(BACKOFF_MS * 2 ** (failures - 1), MAX_BACKOFF_MS));
