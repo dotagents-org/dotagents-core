@@ -1,7 +1,7 @@
 // `usage`: how much of each profile's plan is used, from Claude Code's cache and from what dotagents
 // last asked of Anthropic; --refresh asks now.
 
-import { codexUsage, readUsage, usageJson } from "../../core/snapshot.ts";
+import { readAll, usageJson } from "../../core/snapshot.ts";
 import { captureAsync, fancy, ink } from "../../core/output.ts";
 import { refreshUsage } from "../../core/usage-refresh.ts";
 import { type Line, type ProfileUsage, shortLines, usageLines } from "../../core/usage.ts";
@@ -97,10 +97,8 @@ export const usage: Command = {
     }
     if (args.spend) return spendView(Boolean(args.json));
     const now = new Date();
-    // The Codex profiles after the Claude ones, as the start API lists them.
-    const claude = readUsage(now);
-    const codex = codexUsage(now);
-    const list = codex.length ? [...claude.map((p) => ({ ...p, provider: "claude" as const })), ...codex] : claude;
+    // Every provider's profiles, as the start API lists them.
+    const list = readAll(now);
     if (args.json) return console.log(JSON.stringify(usageJson(list, now), null, 2));
     if (args.short) return console.log(shortLines(list, now).map(paintLine).join("\n"));
     if (!fancy) return plainView(list);

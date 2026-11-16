@@ -11,7 +11,7 @@ import { codexLoginMark } from "../core/providers/codex-store.ts";
 import { CODEX_OTHER_EVERY_MS, CODEX_SLOT_EVERY_MS, type SpawnAppServer } from "../core/providers/codex-usage.ts";
 import { fetchUsage, refreshUsage } from "../core/usage-refresh.ts";
 import { loadProfiles, saveProfile } from "../core/machine-state.ts";
-import { codexUsage } from "../core/snapshot.ts";
+import { readCodexUsage as codexUsage } from "../core/providers/codex-usage.ts";
 import { state } from "../core/state.ts";
 import { type PeerSwitch, switchProfile } from "../core/account-switch.ts";
 import { type ProfileUsage, usageLines } from "../core/usage.ts";

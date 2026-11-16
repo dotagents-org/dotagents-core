@@ -13,6 +13,7 @@ import { LABELS } from "../provider-labels.ts";
 import { type Peer, claudeProfiles, loadMachine, sideName } from "../machine-state.ts";
 import { checkItem, checkWarn, displayPath, report, section } from "../output.ts";
 import type { Provider } from "../providers.ts";
+import { readClaudeSlots, readClaudeUsage } from "./claude-snapshot.ts";
 import { LIVE_EVERY_MS, askClaude, sideProfiles } from "./claude-usage.ts";
 import { state } from "../state.ts";
 import { readRecord } from "../usage-record.ts";
@@ -258,6 +259,8 @@ const claude: Provider = {
     }
   },
 
+  readUsage: readClaudeUsage,
+  readSlots: readClaudeSlots,
   verifyProfile(profile) {
     checkItem(samePath(profile.configDir, defaultConfigDir()), `${profile.name} uses ${displayPath(defaultConfigDir())}`, "move it there with: dotagents install");
   },

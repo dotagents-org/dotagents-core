@@ -16,6 +16,8 @@ import type { Fetcher } from "./providers/claude-usage.ts";
 import claude from "./providers/claude.ts";
 import type { SpawnAppServer } from "./providers/codex-usage.ts";
 import codex from "./providers/codex.ts";
+import type { PeerView } from "./snapshot.ts";
+import type { ProfileUsage } from "./usage.ts";
 
 // A login as a provider keeps it: text is the file as the agent wrote it, never printed. id is the
 // account's own (Claude's accountUuid, the ChatGPT user); the other fields are what only one
@@ -131,6 +133,10 @@ export type Provider = {
     done: string;
     ask: (p: Profile, options: UsageOptions) => Promise<Asked>;
   };
+  // What was read of the usage of its profiles, for the lists (the one in this side's slot first),
+  // and the profile in each side's slot; the other side only while view says it is up.
+  readUsage: (now: Date, view?: PeerView) => ProfileUsage[];
+  readSlots: (list: ProfileUsage[], view?: PeerView) => Record<string, string>;
 
   // ── Checks ──
   // The provider's part of the profiles checklist, after every account has been compared.

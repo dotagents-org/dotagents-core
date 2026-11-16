@@ -196,6 +196,15 @@ export function loadMachine(): Machine {
   return data.peer ? { peer: data.peer } : {};
 }
 
+// The other side, or none when it isn't known or machine.json can't be read (a reader that must not stop).
+export function sidePeer(): Peer | undefined {
+  try {
+    return loadMachine().peer;
+  } catch {
+    return undefined;
+  }
+}
+
 export function saveMachine(machine: Machine) {
   writeStateFile(machineFile(), MACHINE.version, { ...machine });
 }

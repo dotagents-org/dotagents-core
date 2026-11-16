@@ -24,11 +24,12 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import readline from "node:readline";
-import { codexLoginMark, codexProfiles, codexSlotProfile, readLogin, slotFile, vaultFile, vaultLogin } from "./codex-store.ts";
-import type { Profile } from "../machine-state.ts";
+import { type Profile, sideName, sidePeer } from "../machine-state.ts";
+import type { PeerView } from "../snapshot.ts";
+import { codexAccount, codexLoginMark, codexProfiles, codexSlotProfile, readLogin, slotFile, vaultFile, vaultLogin } from "./codex-store.ts";
 import type { Asked } from "../providers.ts";
 import { readRecord } from "../usage-record.ts";
-import { type UsageWindow, usageWindow } from "../usage.ts";
+import { type ProfileUsage, STALE_MS, type UsageWindow, usageWindow } from "../usage.ts";
 import { withLoginLock, writePrivate } from "../vault.ts";
 
 export type SpawnAppServer = (home: string) => ChildProcessWithoutNullStreams;
@@ -230,4 +231,36 @@ export function codexLiveUsage(name: string, user: string, now: Date) {
     return win ? [win] : [];
   });
   return { fetchedAt: new Date(r.fetchedAtMs), windows, plan: typeof r.plan === "string" ? r.plan : null, error };
+}
+
+// The Codex profiles, for the start API (ADR 0007): who they are, and what dotagents last asked of
+// codex app-server for their usage (core/providers/codex-usage.ts), with the plan Codex reports. `no-data` is
+// a saved login with nothing read yet; windows are never made up.
+export function readCodexUsage(now = new Date()): ProfileUsage[] {
+  return codexProfiles().map((p) => {
+    const account = codexAccount(p);
+    // The plan the live usage recorded, else the one the saved login says.
+    const base = { name: p.name, color: p.color, provider: "codex" as const, fetchedAt: null, windows: [], ...(account?.plan ? { plan: account.plan } : {}) };
+    if (!account) return { ...base, state: "not-signed-in" };
+    const live = codexLiveUsage(p.name, account.user, now);
+    const error = live.error ? { error: live.error } : {};
+    if (!live.fetchedAt) return { ...base, ...error, state: "no-data" };
+    const stale = now.getTime() - live.fetchedAt.getTime() > STALE_MS;
+    return { ...base, ...error, state: stale ? "stale" : "ok", fetchedAt: live.fetchedAt, windows: live.windows, source: "live" as const, ...(live.plan ? { plan: live.plan } : {}) };
+  });
+}
+
+// Which Codex profile is in each side's slot. The other side's slot is told apart by the ChatGPT
+// user in its auth.json, matched against this side's vault (the same account on both sides); only
+// while that side is up.
+export function readCodexSlots(view?: PeerView): Record<string, string> {
+  const slots: Record<string, string> = {};
+  const here = codexSlotProfile()?.name;
+  if (here) slots[sideName()] = here;
+  const peer = sidePeer();
+  if (!peer || (view && !view.up(peer))) return slots;
+  const user = readLogin(path.join(peer.home, ".codex", "auth.json"))?.id;
+  const there = user ? codexProfiles().find((p) => codexAccount(p)?.user === user)?.name : undefined;
+  if (there) slots[peer.name] = there;
+  return slots;
 }

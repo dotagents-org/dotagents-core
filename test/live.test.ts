@@ -11,7 +11,7 @@ import { type Fetcher, LIVE_EVERY_MS } from "../core/providers/claude-usage.ts";
 import { fetchUsage, refreshUsage } from "../core/usage-refresh.ts";
 import { readRecord } from "../core/usage-record.ts";
 import { loadProfiles, saveProfile } from "../core/machine-state.ts";
-import { readUsage } from "../core/snapshot.ts";
+import { readClaudeUsage as readUsage } from "../core/providers/claude-snapshot.ts";
 import { state } from "../core/state.ts";
 import { loginMark } from "../core/providers/claude-store.ts";
 import { withLoginLock } from "../core/vault.ts";
