@@ -67,6 +67,7 @@ test("every profile gets a Start menu shortcut, \"Claude <Name>\"; only the seco
   assert.doesNotMatch(defaultVbs, /-DataDir/);
   assert.ok(fs.existsSync(desktopDataDir("personal")));
   const vbs = fs.readFileSync(desktopLauncherFile(launcherDir(), "personal"), "utf8");
+  assert.doesNotMatch(vbs, /-Icon ""[^\n]*\.exe,0""/);
   // Every app's Code tab uses ~/.claude; the data folder keeps the app's own sign-in apart.
   assert.ok(vbs.includes('.Remove "CLAUDE_CONFIG_DIR"'));
   assert.ok(vbs.includes(`--user-data-dir=""${desktopDataDir("personal")}""`));
@@ -85,6 +86,11 @@ test("every profile gets a Start menu shortcut, \"Claude <Name>\"; only the seco
   fs.writeFileSync(ico, "");
   t.after(() => fs.rmSync(path.dirname(ico), { recursive: true, force: true }));
   assert.equal(profileIcon(REPO, "spare"), `${ico},0`);
+  quiet();
+  setUpProfile(REPO, { name: "spare", desktop });
+  const spareVbs = fs.readFileSync(desktopLauncherFile(launcherDir(), "spare"), "utf8");
+  assert.match(spareVbs, /-Icon ""[^\n]*\.ico""/);
+  assert.doesNotMatch(spareVbs, /-Icon ""[^\n]*\.ico,0""/);
 
   // A second run changes nothing.
   quiet();

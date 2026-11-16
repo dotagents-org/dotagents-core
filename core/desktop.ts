@@ -79,13 +79,14 @@ const wscript = () => path.join(process.env.SystemRoot ?? "C:\\Windows", "System
 
 // The profile's own icon, config/assets/claude-<name>.ico, when there is one; else
 // the app's. Shortcuts only take .ico (or an .exe), so the .svg next to it is the source.
-export function profileIcon(repo: string, name: string) {
+function iconFile(repo: string, name: string) {
   const ico = path.join(configRoot(repo), "assets", `claude-${name}.ico`);
-  return fs.existsSync(ico) ? `${ico},0` : `${desktopExe()},0`;
+  return fs.existsSync(ico) ? ico : desktopExe();
 }
+export const profileIcon = (repo: string, name: string) => `${iconFile(repo, name)},0`;
 
 // The same icon for a window's taskbar button, which takes an .ico file as a plain path.
-const windowIcon = (repo: string, name: string) => profileIcon(repo, name).replace(/\.ico,0$/i, ".ico");
+const windowIcon = (repo: string, name: string) => iconFile(repo, name);
 
 function shortcutFor(repo: string, name: string, launcherDir: string): Shortcut {
   return { target: wscript(), args: `"${desktopLauncherFile(launcherDir, name)}"`, description: MARK(name), icon: profileIcon(repo, name), appId: appIdFor(name) };
