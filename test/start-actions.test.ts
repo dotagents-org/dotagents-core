@@ -39,12 +39,18 @@ test("start actions reject missing profiles and sides and preserve provider desk
   fs.mkdirSync(vault, { recursive: true });
   fs.writeFileSync(path.join(vault, "credentials.json"), JSON.stringify({ claudeAiOauth: { accessToken: "fake-access", refreshToken: "fake-refresh", expiresAt: Date.now() + 60_000 } }));
   fs.writeFileSync(path.join(vault, "account.json"), JSON.stringify({ accountUuid: "fake-account", emailAddress: "fake@example.invalid" }));
-  assert.equal((await ask("switch", { profile: "claude", side: "WSL" })).status, 200);
-  assert.equal((await ask("switch", { profile: "claude" })).status, 502, "a local switch reports a failed peer result");
-  assert.equal((await ask("switch", { profile: "claude", side: "Windows" })).status, 502);
-  const powershell = path.join(bin, "powershell.exe");
-  fs.writeFileSync(powershell, "#!/bin/sh\nexit 0\n", { mode: 0o755 });
-  assert.deepEqual(await ask("switch", { profile: "claude", side: "Windows" }), { status: 200, body: { apiVersion: 2, ok: true, detail: "Windows: claude" } });
+  // The sides are WSL here and Windows there, as machine.json says: not so on Windows itself.
+  if (process.platform !== "win32") {
+    assert.equal((await ask("switch", { profile: "claude", side: "WSL" })).status, 200);
+    assert.equal((await ask("switch", { profile: "claude" })).status, 502, "a local switch reports a failed peer result");
+    assert.equal((await ask("switch", { profile: "claude", side: "Windows" })).status, 502);
+    // The Windows side's switch runs powershell.exe from /mnt/c, which only WSL has.
+    if (fs.existsSync("/mnt/c")) {
+      const powershell = path.join(bin, "powershell.exe");
+      fs.writeFileSync(powershell, "#!/bin/sh\nexit 0\n", { mode: 0o755 });
+      assert.deepEqual(await ask("switch", { profile: "claude", side: "Windows" }), { status: 200, body: { apiVersion: 2, ok: true, detail: "Windows: claude" } });
+    }
+  }
   assert.deepEqual(await ask("desktop", { profile: "missing" }), { status: 404, body: { apiVersion: 2, ok: false, detail: "no such profile" } });
   assert.equal((await ask("desktop", { profile: "chatgpt" })).status, 409);
   const claudeDesktop = await ask("desktop", { profile: "claude" });
