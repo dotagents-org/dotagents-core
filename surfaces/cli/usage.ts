@@ -1,15 +1,16 @@
 // `usage`: how much of each profile's plan is used, from Claude Code's cache and from what dotagents
 // last asked of Anthropic; --refresh asks now.
 
-import { codexUsage, readUsage, usageJson } from "../../core/snapshot.ts";
+import { LABELS } from "../../core/provider-labels.ts";
+import { readAll, usageJson } from "../../core/snapshot.ts";
 import { captureAsync, fancy, ink } from "../../core/output.ts";
-import { refreshAllUsage } from "../../core/codex-usage.ts";
+import { refreshUsage } from "../../core/usage-refresh.ts";
 import { type Line, type ProfileUsage, shortLines, usageLines } from "../../core/usage.ts";
 import { badge, colorLevel } from "../../core/theme.ts";
 import { claudeProfiles } from "../../core/machine-state.ts";
 import { readLog } from "../../core/revision.ts";
 import { type Ratio, type WindowSpend, spendReport } from "../../core/spend.ts";
-import { profileAccount } from "../../core/switch.ts";
+import { profileAccount } from "../../core/providers/claude-store.ts";
 import { displayPath } from "../../core/output.ts";
 import type { Command } from "./shared.ts";
 
@@ -63,7 +64,7 @@ function paintLine(line: Line) {
 function terminalView(list: ProfileUsage[], now: Date) {
   console.log(`${badge(colorLevel())}  ${ink.bold("usage")}\n`);
   for (const line of usageLines(list, now)) console.log(paintLine(line));
-  console.log(`\n${ink.role("muted")(`${list.length} profile${list.length === 1 ? "" : "s"}; --refresh asks ${list.some((p) => p.provider === "codex") ? "Anthropic and OpenAI" : "Anthropic"} for fresh numbers`)}`);
+  console.log(`\n${ink.role("muted")(`${list.length} profile${list.length === 1 ? "" : "s"}; --refresh asks ${[...new Set(list.map((p) => LABELS[p.provider ?? "claude"].company))].join(" and ")} for fresh numbers`)}`);
 }
 
 // One line per window, easy to grep: "<profile> <window> <pct> <resets at> fetched <at>", then
@@ -92,15 +93,13 @@ export const usage: Command = {
     if (args.watch) throw new Error("usage --watch was removed with the full-screen view; run usage --refresh, or usage again");
     if (args.refresh) {
       // Its lines would mix into the JSON or the short line: kept, and only failures shown.
-      const events = await captureAsync(() => refreshAllUsage({ force: true }));
+      const events = await captureAsync(() => refreshUsage({ force: true }));
       for (const e of events) if (e.kind === "result" && e.status === "failed") console.error(`${e.target}: couldn't refresh: ${e.detail}`);
     }
     if (args.spend) return spendView(Boolean(args.json));
     const now = new Date();
-    // The Codex profiles after the Claude ones, as the start API lists them.
-    const claude = readUsage(now);
-    const codex = codexUsage(now);
-    const list = codex.length ? [...claude.map((p) => ({ ...p, provider: "claude" as const })), ...codex] : claude;
+    // Every provider's profiles, as the start API lists them.
+    const list = readAll(now);
     if (args.json) return console.log(JSON.stringify(usageJson(list, now), null, 2));
     if (args.short) return console.log(shortLines(list, now).map(paintLine).join("\n"));
     if (!fancy) return plainView(list);

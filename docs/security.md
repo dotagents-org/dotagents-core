@@ -1,6 +1,6 @@
 # Security
 
-dotagents touches your Claude logins, so this page says where they are, who can read them and what leaves the machine. In short: nothing is sent anywhere except to Anthropic, there is no telemetry, and the logins stay in files only you can read.
+dotagents handles Claude and ChatGPT logins. Credentials go only to their provider (Anthropic or OpenAI); the local files are private and there is no telemetry.
 
 ## Where the logins are
 
@@ -23,6 +23,7 @@ On Linux, WSL and macOS, the vault, `start.json`, the usage records and the logs
 | `api.anthropic.com/api/oauth/usage` | `dotagents start` (once a minute per profile, at most), `usage --refresh` | each profile's access token, to read its plan's usage |
 | `platform.claude.com/v1/oauth/token` | when a profile's token is about to expire | its refresh token, to renew the login |
 | Anthropic, through the `claude` command or your API key | `dotagents revision on` only (off by default) | the message you sent, to proofread it |
+| OpenAI, through the official `codex app-server` | `start` (every 5 minutes for the slot, 30 for other accounts), `usage --refresh` | Codex uses the account login to read ChatGPT usage and renew it when needed |
 | GitHub and npm | `update` (`git pull`), `skills add` (`npx skills`) | nothing of yours: they download code |
 
 The two requests to Anthropic's OAuth endpoints say who makes them: `User-Agent: dotagents/<version>`, never another client's name.
@@ -51,5 +52,5 @@ Both forbid sharing a login between people. OpenAI's Services Agreement also for
 ## What dotagents never does
 
 - Switch accounts by itself: the switch is always yours.
-- Share a login with another person or machine: each profile is a claude.ai account you hold.
+- Share a login with another person or machine: each profile is a Claude or ChatGPT account you hold.
 - Commit, push or add a remote to your workspace's history, or put agent files in your projects' repositories.

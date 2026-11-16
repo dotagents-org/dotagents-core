@@ -20,7 +20,7 @@ import { isWindows } from "./common.ts";
 import { type Peer, claudeProfiles, loadMachine } from "./machine-state.ts";
 import { report } from "./output.ts";
 import { state } from "./state.ts";
-import { profileAccount } from "./switch.ts";
+import { profileAccount } from "./providers/claude-store.ts";
 
 export const RECENT_MS = 10 * 60_000;
 
@@ -186,7 +186,7 @@ function summary(file: string) {
 // command there, so it goes through this adapter; the tests pass a fake one.
 export type PeerRunning = (peer: Peer) => Set<string> | null;
 
-// From Windows, bash -lic as in switch.ts: an interactive shell reads ~/.bashrc, where nvm sets Node
+// From Windows, bash -lic as in core/account-switch.ts: an interactive shell reads ~/.bashrc, where nvm sets Node
 export const peerRunning: PeerRunning = () => {
   const run = isWindows
     ? spawnSync("wsl.exe", ["-e", "bash", "-lic", "dotagents sessions --running"], { encoding: "utf8", timeout: 30_000, windowsHide: true })

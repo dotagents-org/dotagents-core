@@ -7,10 +7,13 @@
 
 import fs from "node:fs";
 import path from "node:path";
-import { configRoot, writeGenerated } from "./common.ts";
-import { renderInstructions } from "./global.ts";
-import { codexHome } from "./codex.ts";
-import { checkItem, checkWarn, displayPath, section } from "./output.ts";
+import os from "node:os";
+import { configRoot, writeGenerated } from "../common.ts";
+import { renderInstructions } from "../global.ts";
+import { checkItem, checkWarn, displayPath, section } from "../output.ts";
+
+// Codex's own folder: CODEX_HOME, or ~/.codex.
+export const codexHome = () => process.env.CODEX_HOME || path.join(os.homedir(), ".codex");
 
 // The files dotagents writes in a Codex home folder. Codex reads AGENTS.override.md instead of
 // AGENTS.md when the first has text, so dotagents never writes it, only warns about it.

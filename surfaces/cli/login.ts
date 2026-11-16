@@ -2,7 +2,7 @@
 
 import { finish, header } from "../../core/output.ts";
 import { state } from "../../core/state.ts";
-import { loginProfile } from "../../core/switch.ts";
+import { loginProfile } from "../../core/account-login.ts";
 import type { Command } from "./shared.ts";
 
 export const login: Command = {

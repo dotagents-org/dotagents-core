@@ -6,7 +6,7 @@ import { UsageError } from "../../core/common.ts";
 import { type LogName, logsDir, peerLogsDir } from "../../core/log.ts";
 import { loadMachine } from "../../core/machine-state.ts";
 import { brand, displayPath, tone } from "../../core/output.ts";
-import { sideName } from "../../core/switch.ts";
+import { sideName } from "../../core/machine-state.ts";
 import type { Command } from "./shared.ts";
 
 const { bold, muted } = tone;

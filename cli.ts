@@ -29,11 +29,12 @@ import { doctor } from "./surfaces/cli/doctor.ts";
 import { startServer } from "./surfaces/web/server.ts";
 import { startAnswer, watchPeer } from "./core/snapshot.ts";
 import { openDesktop } from "./core/desktop.ts";
-import { forgetServer, liveServer, loadMachine, loadProfiles, providerOf, recordServer } from "./core/machine-state.ts";
+import { forgetServer, liveServer, loadMachine, loadProfiles, recordServer, sideName } from "./core/machine-state.ts";
 import { launcherDir } from "./core/profiles.ts";
-import { peerSwitch, sideName, switchProfile } from "./core/switch.ts";
-import { refreshAllUsage } from "./core/codex-usage.ts";
-import { LIVE_EVERY_MS } from "./core/live.ts";
+import { peerSwitch, switchProfile } from "./core/account-switch.ts";
+import { providerFor } from "./core/providers.ts";
+import { LIVE_EVERY_MS } from "./core/providers/claude-usage.ts";
+import { refreshUsage } from "./core/usage-refresh.ts";
 import { untrack, workspaces } from "./surfaces/cli/workspaces.ts";
 import { UsageError, parseArgs } from "./core/common.ts";
 import { brand, captureAsync, displayPath, fancy, tone } from "./core/output.ts";
@@ -70,7 +71,7 @@ const start: Command = {
     // The live usage, every minute; a failure is printed when it changes, not on every tick.
     const said = new Map<string, string>();
     const tick = async () => {
-      const events = await oneAtATime(() => captureAsync(() => refreshAllUsage()));
+      const events = await oneAtATime(() => captureAsync(() => refreshUsage()));
       for (const e of events) {
         if (e.kind !== "result" || e.status === "ok") continue;
         const text = e.status === "failed" ? e.detail : "";
@@ -122,7 +123,12 @@ const start: Command = {
         desktop: (body) => {
           const name = known(body);
           if (!name) return { status: 404, body: { ok: false, detail: "no such profile" } };
-          if (loadProfiles().some((p) => p.name === name && providerOf(p) === "codex")) return { status: 409, body: { ok: false, detail: `${name} is a ChatGPT profile; it has no Claude Desktop` } };
+          const profile = loadProfiles().find((p) => p.name === name);
+          try {
+            if (profile && !providerFor(profile).desktop) return { status: 409, body: { ok: false, detail: `${name} is a ${providerFor(profile).labels.account} profile; it has no Claude Desktop` } };
+          } catch (err) {
+            return { status: 409, body: { ok: false, detail: (err as Error).message } };
+          }
           const opened = openDesktop(name, launcherDir());
           return { status: opened.ok ? 200 : 409, body: opened };
         },

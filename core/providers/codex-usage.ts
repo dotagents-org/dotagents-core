@@ -10,32 +10,32 @@
 // ChatGPT user, the new copy goes back to the vault, even when the call failed, so the renewal
 // is never lost.
 //
-// What comes back is kept in <state>/usage/<profile>.json, next to Claude's (core/live.ts), in this
+// What comes back is kept in <state>/usage/<profile>.json, next to Claude's (core/providers/claude-usage.ts), in this
 // shape: version 1; provider "codex"; fetchedAtMs, user (the ChatGPT user the numbers are about),
 // plan (Codex's planType, "team"), windows [{ kind: "session" | "week", pct, resetsAt (ms or
 // null) }]; and the last attempt: askedAtMs, failures, retryAtMs, error, and refused, the mark
-// (codexLoginMark in core/codex.ts) of the login OpenAI last refused: the slot's auth.json for
+// (codexLoginMark in core/providers/codex.ts) of the login OpenAI last refused: the slot's auth.json for
 // the slot's profile, the vault's for the others. A good answer clears error and refused.
 //
 // The app-server is started through a SpawnAppServer; the tests pass a fake one.
 
-import { type ChildProcessWithoutNullStreams, spawn } from "node:child_process";
+import { type ChildProcessWithoutNullStreams, spawn, spawnSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import readline from "node:readline";
-import { codexLoginMark, codexProfiles, codexSlotProfile, readLogin, slotFile, vaultFile, vaultLogin } from "./codex.ts";
-import { BACKOFF_MS, type LiveResult, MAX_BACKOFF_MS, readRecord, refreshUsage, writeRecord } from "./live.ts";
-import type { Profile } from "./machine-state.ts";
-import { report } from "./output.ts";
-import { state } from "./state.ts";
-import { withLoginLock, writePrivate } from "./switch.ts";
-import { type UsageWindow, usageWindow } from "./usage.ts";
+import { type Profile, sideName, sidePeer } from "../machine-state.ts";
+import type { PeerView } from "../snapshot.ts";
+import { codexAccount, codexLoginMark, codexProfiles, codexSlotProfile, readLogin, slotFile, vaultFile, vaultLogin } from "./codex-store.ts";
+import type { Asked } from "../providers.ts";
+import { readRecord } from "../usage-record.ts";
+import { type ProfileUsage, STALE_MS, type UsageWindow, usageWindow } from "../usage.ts";
+import { writePrivate } from "../vault.ts";
 
 export type SpawnAppServer = (home: string) => ChildProcessWithoutNullStreams;
 
 // On Windows codex may be a .cmd shim, which only a shell runs: one command line, as runCodex in
-// core/codex.ts. An API key in the environment would change how Codex signs in: not for this call.
+// core/providers/codex.ts. An API key in the environment would change how Codex signs in: not for this call.
 export const spawnAppServer: SpawnAppServer = (home) => {
   const env: NodeJS.ProcessEnv = { ...process.env, CODEX_HOME: home };
   delete env.OPENAI_API_KEY;
@@ -44,7 +44,7 @@ export const spawnAppServer: SpawnAppServer = (home) => {
   return process.platform === "win32" ? spawn("codex app-server", { ...options, shell: true }) : spawn("codex", ["app-server"], options);
 };
 
-const VERSION = JSON.parse(fs.readFileSync(new URL("../package.json", import.meta.url), "utf8")).version;
+const VERSION = JSON.parse(fs.readFileSync(new URL("../../package.json", import.meta.url), "utf8")).version;
 
 // The profile in the slot is asked about every 5 minutes, the others far less often.
 export const CODEX_SLOT_EVERY_MS = 5 * 60_000;
@@ -56,6 +56,21 @@ export class RpcError extends Error {
   code?: number;
 }
 
+// Windows starts a .cmd shim through a shell. Killing only that shell leaves Codex running
+// with its inherited pipes and temporary login. taskkill terminates the whole tree. The PID
+// is an OS process id, passed as an argument, never interpolated into a shell command.
+export function stopAppServer(
+  child: Pick<ChildProcessWithoutNullStreams, "pid" | "kill">,
+  signal: NodeJS.Signals = "SIGTERM",
+  platform = process.platform,
+  run = spawnSync
+) {
+  if (platform !== "win32") return child.kill(signal);
+  if (!Number.isSafeInteger(child.pid) || child.pid! <= 0) return false;
+  const stopped = run("taskkill", ["/PID", String(child.pid), "/T", "/F"], { shell: false, stdio: "ignore", windowsHide: true, timeout: 5_000 });
+  return stopped.status === 0;
+}
+
 // The result of account/rateLimits/read; rejects with an RpcError for an error answer, or an Error
 // for a timeout, a command that can't run or one that ends without answering. The process is gone
 // when it settles, so a login it renewed is on disk.
@@ -64,18 +79,22 @@ export function askRateLimits(spawnIt: SpawnAppServer, home: string, timeoutMs =
     const child = spawnIt(home);
     let outcome: { ok: true; value: unknown } | { ok: false; error: Error } | null = null;
     let settled = false;
+    let killTimer: ReturnType<typeof setTimeout> | undefined;
     const settle = () => {
       if (settled) return;
       settled = true;
       clearTimeout(timer);
+      clearTimeout(killTimer);
       outcome && (outcome.ok ? resolve(outcome.value) : reject(outcome.error));
     };
     const finish = (o: NonNullable<typeof outcome>) => {
       if (outcome) return;
       outcome = o;
-      child.kill();
-      // The close event settles it; this is for a process that won't die.
-      setTimeout(settle, 2_000).unref();
+      stopAppServer(child);
+      // A login may still be renewed until the process exits. Escalate a process that ignores
+      // SIGTERM, and wait for close before its temporary home is copied back or removed.
+      killTimer = setTimeout(() => stopAppServer(child, "SIGKILL"), 2_000);
+      killTimer.unref();
     };
     const timer = setTimeout(() => finish({ ok: false, error: new Error(`timed out after ${Math.round(timeoutMs / 1000)}s`) }), timeoutMs);
     const answer = (m: { result?: unknown; error?: { code?: unknown; message?: unknown } }) => {
@@ -86,6 +105,7 @@ export function askRateLimits(spawnIt: SpawnAppServer, home: string, timeoutMs =
     };
     const send = (m: object) => child.stdin.write(`${JSON.stringify(m)}\n`);
     child.stdin.on("error", () => {});
+    child.stderr.resume();
     child.on("error", (err) => {
       outcome ??= { ok: false, error: new Error(`couldn't run codex (${err.message})`) };
       settle();
@@ -140,7 +160,7 @@ export function normalizeRateLimits(result: unknown): { plan: string | null; win
 }
 
 // Text safe to keep: nothing that looks like a token survives, nor more than a line.
-const safe = (text: string) => text.replace(/[A-Za-z0-9_\-.+/=]{32,}/g, "[redacted]").slice(0, 160);
+const safe = (text: string) => text.replace(/[A-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, "[redacted]").replace(/[A-Za-z0-9_\-.+/=]{32,}/g, "[redacted]").replace(/[\r\n]+/g, " ").slice(0, 160);
 
 // What the app-server says when OpenAI turns the login down (a 401, a spent or revoked refresh
 // token), or when there is none to use.
@@ -156,22 +176,16 @@ function describe(err: unknown, name: string): { error: string; refused: boolean
   return { error: `couldn't read the usage from codex app-server (${message})`, refused: false };
 }
 
-// Asks for one Codex profile's usage, unless it was asked a moment ago or is backing off. force
-// skips the wait between asks, not the backoff after an error.
-export async function fetchCodexLive(
+// Asks codex app-server for one profile's usage: the answer as a record to keep, or why it
+// failed. The pacing, the backoff and the writing are the common refresh's (core/usage-refresh.ts).
+export async function askCodex(
   p: Profile,
-  { spawnIt = spawnAppServer, now = Date.now, force = false, timeoutMs = ASK_TIMEOUT_MS }: { spawnIt?: SpawnAppServer; now?: () => number; force?: boolean; timeoutMs?: number } = {}
-): Promise<LiveResult> {
-  const record = readRecord(p.name);
+  { spawnIt = spawnAppServer, now = Date.now, timeoutMs = ASK_TIMEOUT_MS }: { spawnIt?: SpawnAppServer; now?: () => number; timeoutMs?: number } = {}
+): Promise<Asked> {
   const inSlot = codexSlotProfile()?.name === p.name;
-  const every = inSlot ? CODEX_SLOT_EVERY_MS : CODEX_OTHER_EVERY_MS;
-  const wait = Math.max(force ? 0 : (Number(record.askedAtMs) || 0) + every, Number(record.retryAtMs) || 0) - now();
-  if (wait > 0) return { status: "ok", detail: record.error ? `${record.error}; again in ${Math.ceil(wait / 1000)}s` : `asked ${Math.round((now() - (Number(record.askedAtMs) || 0)) / 1000)}s ago` };
   const login = inSlot ? readLogin(slotFile()) : vaultLogin(p.name);
-  if (!login) return { status: "failed", detail: "no login saved for it" };
-  if (state.dryRun) return { status: "ok", detail: "would ask Codex for the usage" };
+  if (!login) return { ok: false, error: "no login saved for it" };
 
-  writeRecord(p.name, { ...record, askedAtMs: now() });
   let result: unknown;
   let mark: string | null = null;
   let failure: unknown = null;
@@ -182,9 +196,10 @@ export async function fetchCodexLive(
       } catch (err) {
         failure = err;
       }
-      mark = codexLoginMark(readLogin(slotFile())?.text ?? "");
+      const after = readLogin(slotFile());
+      if (after?.id !== login.id) return { ok: false, error: "the Codex slot changed accounts while reading usage; try again", discard: true };
+      mark = codexLoginMark(after.text);
     } else {
-      await withLoginLock(async () => {
         const home = fs.mkdtempSync(path.join(os.tmpdir(), "dotagents-codex-usage-"));
         try {
           fs.chmodSync(home, 0o700);
@@ -198,36 +213,28 @@ export async function fetchCodexLive(
           }
           // Codex renews with a single-use refresh token: the vault keeps the renewed copy.
           const after = readLogin(path.join(home, "auth.json"));
-          if (after && after.text !== login.text && after.user === login.user) writePrivate(vaultFile(p.name), after.text);
+          if (after && after.text !== login.text && after.id === login.id) writePrivate(vaultFile(p.name), after.text);
         } finally {
           fs.rmSync(home, { recursive: true, force: true });
         }
-      });
       mark = codexLoginMark(vaultLogin(p.name)?.text ?? "");
     }
   } catch (err) {
     failure = err;
   }
 
-  const failed = (text: string, refused: boolean): LiveResult => {
-    const failures = (Number(record.failures) || 0) + 1;
-    const backoff = Math.min(BACKOFF_MS * 2 ** (failures - 1), MAX_BACKOFF_MS);
-    writeRecord(p.name, { ...record, askedAtMs: now(), failures, retryAtMs: now() + backoff, error: text, ...(refused && mark ? { refused: mark } : {}) });
-    return { status: "failed", detail: text };
-  };
   if (failure) {
     const { error, refused } = describe(failure, p.name);
-    return failed(error, refused);
+    return { ok: false, error, refusedMark: refused ? mark : null };
   }
   let usage;
   try {
     usage = normalizeRateLimits(result);
   } catch (err) {
-    return failed(`Codex's answer is not a usage this dotagents reads (${(err as Error).message})`, false);
+    return { ok: false, error: `Codex's answer is not a usage this dotagents reads (${safe((err as Error).message)})`, refusedMark: null };
   }
   const at = now();
-  writeRecord(p.name, { provider: "codex", fetchedAtMs: at, user: login.user, plan: usage.plan, windows: usage.windows, askedAtMs: at });
-  return { status: "updated", detail: "asked Codex for the usage" };
+  return { ok: true, record: { provider: "codex", fetchedAtMs: at, user: login.id, plan: usage.plan, windows: usage.windows, askedAtMs: at } };
 }
 
 // The usage kept for a Codex profile, as the snapshot reads it: its windows as of now, when they
@@ -246,16 +253,34 @@ export function codexLiveUsage(name: string, user: string, now: Date) {
   return { fetchedAt: new Date(r.fetchedAtMs), windows, plan: typeof r.plan === "string" ? r.plan : null, error };
 }
 
-// Every Codex profile, one at a time (each takes dotagents' login lock), reported like Claude's.
-export async function refreshCodexUsage(options: Parameters<typeof fetchCodexLive>[1] = {}) {
-  for (const p of codexProfiles()) {
-    const res = await fetchCodexLive(p, options);
-    report(res.status === "ok" && state.dryRun ? "would update" : res.status, p.name, res.detail);
-  }
+// The Codex profiles, for the start API (ADR 0007): who they are, and what dotagents last asked of
+// codex app-server for their usage (core/providers/codex-usage.ts), with the plan Codex reports. `no-data` is
+// a saved login with nothing read yet; windows are never made up.
+export function readCodexUsage(now = new Date()): ProfileUsage[] {
+  return codexProfiles().map((p) => {
+    const account = codexAccount(p);
+    // The plan the live usage recorded, else the one the saved login says.
+    const base = { name: p.name, color: p.color, provider: "codex" as const, fetchedAt: null, windows: [], ...(account?.plan ? { plan: account.plan } : {}) };
+    if (!account) return { ...base, state: "not-signed-in" };
+    const live = codexLiveUsage(p.name, account.user, now);
+    const error = live.error ? { error: live.error } : {};
+    if (!live.fetchedAt) return { ...base, ...error, state: "no-data" };
+    const stale = now.getTime() - live.fetchedAt.getTime() > STALE_MS;
+    return { ...base, ...error, state: stale ? "stale" : "ok", fetchedAt: live.fetchedAt, windows: live.windows, source: "live" as const, ...(live.plan ? { plan: live.plan } : {}) };
+  });
 }
 
-// usage --refresh and each tick of start: both providers at once. force (usage --refresh) asks
-// every Codex profile now; start leaves the slot's to its 5 minutes and the others' to theirs.
-export async function refreshAllUsage(options: Parameters<typeof refreshUsage>[0] & { force?: boolean; spawnIt?: SpawnAppServer } = {}) {
-  await Promise.all([refreshUsage(options), refreshCodexUsage({ force: options.force, spawnIt: options.spawnIt, now: options.now })]);
+// Which Codex profile is in each side's slot. The other side's slot is told apart by the ChatGPT
+// user in its auth.json, matched against this side's vault (the same account on both sides); only
+// while that side is up.
+export function readCodexSlots(view?: PeerView): Record<string, string> {
+  const slots: Record<string, string> = {};
+  const here = codexSlotProfile()?.name;
+  if (here) slots[sideName()] = here;
+  const peer = sidePeer();
+  if (!peer || (view && !view.up(peer))) return slots;
+  const user = readLogin(path.join(peer.home, ".codex", "auth.json"))?.id;
+  const there = user ? codexProfiles().find((p) => codexAccount(p)?.user === user)?.name : undefined;
+  if (there) slots[peer.name] = there;
+  return slots;
 }

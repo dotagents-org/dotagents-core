@@ -1,12 +1,14 @@
 // How much of each profile's plan is used: the 5-hour session and the weekly limits. Read from
 // the cache Claude Code keeps in each config folder's state file (cachedUsageUtilization), which
-// it refreshes whenever it asks for the usage, /usage for one; core/live.ts keeps a record in the
+// it refreshes whenever it asks for the usage, /usage for one; core/providers/claude-usage.ts keeps a record in the
 // same shape, asked of Anthropic, and core/snapshot.ts shows the newer of the two.
 //
 // Everything here takes "now" as an argument, so the tests can fix it.
 
 import fs from "node:fs";
 import { type Activity, signedIn, stateFile } from "./claude-code.ts";
+import { LABELS } from "./provider-labels.ts";
+import type { ProviderId } from "./machine-state.ts";
 import type { Role } from "./theme.ts";
 
 export type UsageWindow = {
@@ -22,7 +24,7 @@ export type UsageWindow = {
 export type ProfileUsage = {
   name: string;
   // Whose account: Claude when absent (the start API says it for every profile).
-  provider?: "claude" | "codex";
+  provider?: ProviderId;
   color: string;
   default?: boolean;
   // stale: the data is older than STALE_MS; other-account: the cache belongs to a previous sign-in.
@@ -33,7 +35,7 @@ export type ProfileUsage = {
   accountUuid?: string;
   // Where the numbers came from, when not from this side: "Windows", "WSL".
   from?: string;
-  // What gave the numbers: Claude Code's cache, or Anthropic's usage endpoint (core/live.ts).
+  // What gave the numbers: Claude Code's cache, or Anthropic's usage endpoint (core/providers/claude-usage.ts).
   source?: "cache" | "live";
   // The profile's running sessions, for a profile whose login Claude Code is using.
   activity?: Activity;
@@ -144,7 +146,7 @@ export const AVATAR_STATES = ["error", "limit", "waiting", "warn", "ok", "asleep
 export type AvatarState = (typeof AVATAR_STATES)[number];
 
 export function avatarState(p: ProfileUsage, now: Date): AvatarState {
-  // No login, or one Anthropic refused (core/live.ts says to sign in again): it needs you.
+  // No login, or one Anthropic refused (core/providers/claude-usage.ts says to sign in again): it needs you.
   if (p.state === "not-signed-in" || /sign in again|couldn't renew the login/.test(p.error ?? "")) return "error";
   const open = p.state === "ok" ? p.windows.filter((w) => !w.reset) : [];
   if (open.some((w) => w.pct >= 100)) return "limit";
@@ -249,7 +251,7 @@ const pctSegment = (pct: number, role: Role): Segment => ({ text: `${String(pct)
 
 // What a profile without numbers says.
 function stateNote(a: ProfileUsage) {
-  if (a.state === "not-signed-in") return a.provider === "codex" ? `no saved login: run dotagents login ${a.name}` : `no saved login: sign in with claude auth login, then run dotagents switch --save ${a.name}`;
+  if (a.state === "not-signed-in") return LABELS[a.provider ?? "claude"].noLogin(a.name);
   if (a.state === "no-data") return `no data yet, run: dotagents usage --refresh${a.error ? ` (last try: ${a.error})` : ""}`;
   if (a.state === "other-account") return `the cache is another account's, run: dotagents usage --refresh${a.error ? ` (last try: ${a.error})` : ""}`;
   return null;
@@ -267,13 +269,13 @@ export function usageLines(list: ProfileUsage[], now: Date): Line[] {
   const labelWidth = Math.max(2, ...list.flatMap((a) => a.windows.map((w) => windowLabel(w).length))) + 3;
   const lines: Line[] = [];
   // With both providers in the list, one header line per group.
-  const grouped = list.some((a) => a.provider === "codex") && list.some((a) => a.provider !== "codex");
+  const grouped = new Set(list.map((a) => a.provider ?? "claude")).size > 1;
   let group: string | null = null;
   for (const a of list) {
     if (lines.length) lines.push([]);
     if (grouped && group !== (a.provider ?? "claude")) {
       group = a.provider ?? "claude";
-      lines.push([{ text: group === "codex" ? "ChatGPT" : "Claude", role: "muted" }], []);
+      lines.push([{ text: LABELS[group as ProviderId].account, role: "muted" }], []);
     }
     const stale = a.state === "stale";
     const head: Line = [nameSegment(a)];

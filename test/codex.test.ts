@@ -5,15 +5,18 @@
 import assert from "node:assert/strict";
 import { spawn, spawnSync } from "node:child_process";
 import fs from "node:fs";
+import { createHash } from "node:crypto";
+import { commitUnderLock } from "../core/providers/codex.ts";
 import os from "node:os";
 import path from "node:path";
 import { test, type TestContext } from "node:test";
-import { codexLoginMark, codexSlotProfile } from "../core/codex.ts";
-import { codexUsage, readCodexSlots } from "../core/snapshot.ts";
-import { loadProfiles, saveProfile } from "../core/machine-state.ts";
+import { codexLoginMark, codexSlotProfile } from "../core/providers/codex-store.ts";
+import { readCodexSlots, readCodexUsage as codexUsage } from "../core/providers/codex-usage.ts";
+import { loadProfiles, saveProfile, sideName } from "../core/machine-state.ts";
 import { setUpProfile, verifyProfiles } from "../core/profiles.ts";
 import { state } from "../core/state.ts";
-import { type PeerSwitch, loginProfile, sideName, switchProfile } from "../core/switch.ts";
+import { loginProfile } from "../core/account-login.ts";
+import { type PeerSwitch, switchProfile } from "../core/account-switch.ts";
 import { REPO, quiet } from "./helpers.ts";
 
 function machine(t: TestContext) {
@@ -292,11 +295,159 @@ test("the checklist fails an auth.json that is a link or has more than one name"
   const real = path.join(home, "elsewhere.json");
   fs.copyFileSync(slot(home), real);
   fs.rmSync(slot(home));
-  fs.symlinkSync(real, slot(home));
-  assert.match(checked(), /auth\.json is a link/);
-  fs.rmSync(slot(home));
+  await t.test("symbolic link", (st) => {
+    try {
+      fs.symlinkSync(real, slot(home));
+    } catch (err) {
+      if (process.platform === "win32" && ["EPERM", "EACCES"].includes((err as NodeJS.ErrnoException).code ?? "")) return st.skip("creating a symbolic link requires Windows Developer Mode or elevation");
+      throw err;
+    }
+    assert.match(checked(), /auth\.json is a link/);
+    fs.rmSync(slot(home));
+  });
   fs.copyFileSync(real, slot(home));
   fs.rmSync(real);
   fs.linkSync(slot(home), real);
   assert.match(checked(), /more than one name/);
+});
+
+test("a slot renewal between reconciliation and commit is preserved and saved on the next switch", async (t) => {
+  const home = machine(t);
+  const { codex, restarts } = await twoSaved(home);
+  const outgoing = fs.readFileSync(slot(home), "utf8");
+  const renewed = auth("user-dijkstra", "dijkstra-renewed", { refreshed: "2026-11-15T11:00:00Z" });
+  let fingerprint: string | null | undefined;
+  const racingCommit: typeof commitUnderLock = (tmp, dest, expected) => {
+    fingerprint = expected;
+    fs.writeFileSync(dest, renewed);
+    commitUnderLock(tmp, dest, expected);
+  };
+  await assert.rejects(switchProfile({ name: "hopper", here: true, codex: { ...codex, commit: racingCommit } }), /slot changed while waiting.*no login was overwritten/);
+  assert.equal(fingerprint, createHash("sha256").update(outgoing).digest("hex"));
+  assert.match(fingerprint!, /^[a-f0-9]{64}$/, "only a fingerprint is passed to the helper, never credentials");
+  assert.equal(fs.readFileSync(slot(home), "utf8"), renewed);
+  assert.equal(vaultToken(home, "dijkstra"), "rt-dijkstra1", "the new copy remains in its slot until reconciled");
+  assert.deepEqual(restarts, []);
+  assert.equal(fs.existsSync(`${slot(home)}.dotagents-${process.pid}`), false, "the uncommitted temporary file is removed");
+  await switchProfile({ name: "hopper", here: true, codex });
+  assert.equal(vaultToken(home, "dijkstra"), "rt-dijkstra-renewed");
+  assert.equal(slotToken(home), "rt-hopper1");
+  assert.deepEqual(restarts, ["restart"]);
+});
+
+test("a renewal while waiting for the real agent lock aborts the switch without spending the saved login", { skip: !hasFlock && "no flock command here" }, async (t) => {
+  const home = machine(t);
+  const { codex, restarts } = await twoSaved(home);
+  const next = path.join(home, "renewed.json");
+  fs.writeFileSync(next, auth("user-dijkstra", "dijkstra-after-wait", { refreshed: "2026-11-15T11:00:00Z" }));
+  const script = `
+    const fs = require("node:fs");
+    const [next, slot] = process.argv.slice(1);
+    process.stdout.write("locked\\n");
+    setTimeout(() => fs.copyFileSync(next, slot), 300);
+  `;
+  const holder = spawn("flock", ["-x", path.join(home, ".codex", "auth.json.lock"), process.execPath, "-e", script, next, slot(home)], { stdio: ["ignore", "pipe", "pipe"] });
+  t.after(() => holder.kill());
+  await new Promise<void>((resolve, reject) => {
+    holder.stdout.once("data", () => resolve());
+    holder.once("error", reject);
+    holder.once("exit", (code) => { if (code !== 0) reject(new Error(`lock holder exited ${code}`)); });
+  });
+  await assert.rejects(switchProfile({ name: "hopper", here: true, codex }), /slot changed while waiting.*no login was overwritten/);
+  assert.equal(slotToken(home), "rt-dijkstra-after-wait");
+  assert.equal(vaultToken(home, "dijkstra"), "rt-dijkstra1");
+  assert.deepEqual(restarts, []);
+  await switchProfile({ name: "hopper", here: true, codex });
+  assert.equal(vaultToken(home, "dijkstra"), "rt-dijkstra-after-wait");
+  assert.equal(slotToken(home), "rt-hopper1");
+});
+
+test("a renewal while waiting for Windows LockFileEx aborts the switch without overwriting it", { skip: process.platform !== "win32" && "requires Windows file locking" }, async (t) => {
+  const home = machine(t);
+  const { codex, restarts } = await twoSaved(home);
+  const next = path.join(home, "renewed.json");
+  fs.writeFileSync(next, auth("user-dijkstra", "dijkstra-after-wait", { refreshed: "2026-11-15T11:00:00Z" }));
+  const quote = (value: string) => `'${value.replace(/'/g, "''")}'`;
+  const script = [
+    "$ErrorActionPreference = 'Stop'",
+    `$f = [IO.File]::Open(${quote(path.join(home, ".codex", "auth.json.lock"))}, 'OpenOrCreate', 'ReadWrite', 'ReadWrite')`,
+    "$f.Lock(0, [long]::MaxValue)",
+    "try {",
+    "  [Console]::WriteLine('locked')",
+    "  Start-Sleep -Milliseconds 400",
+    `  Copy-Item -LiteralPath ${quote(next)} -Destination ${quote(slot(home))} -Force`,
+    "} finally { $f.Unlock(0, [long]::MaxValue); $f.Close() }",
+  ].join("\n");
+  const holder = spawn("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", script], { stdio: ["ignore", "pipe", "pipe"], windowsHide: true });
+  t.after(() => holder.kill());
+  await new Promise<void>((resolve, reject) => {
+    holder.stdout.once("data", () => resolve());
+    holder.once("error", reject);
+    holder.once("exit", (code) => { if (code !== 0) reject(new Error(`lock holder exited ${code}`)); });
+  });
+  await assert.rejects(switchProfile({ name: "hopper", here: true, codex }), /slot changed while waiting.*no login was overwritten/);
+  assert.equal(slotToken(home), "rt-dijkstra-after-wait");
+  assert.equal(vaultToken(home, "dijkstra"), "rt-dijkstra1");
+  assert.deepEqual(restarts, []);
+  await switchProfile({ name: "hopper", here: true, codex });
+  assert.equal(vaultToken(home, "dijkstra"), "rt-dijkstra-after-wait");
+  assert.equal(slotToken(home), "rt-hopper1");
+});
+
+
+test("a saved ChatGPT login can replace an initially malformed or API-key slot", async (t) => {
+  const home = machine(t);
+  const { codex, restarts } = await twoSaved(home);
+  for (const initial of ["{malformed", JSON.stringify({ auth_mode: "apikey", OPENAI_API_KEY: "sk-fake-key" })]) {
+    fs.writeFileSync(slot(home), initial);
+    await switchProfile({ name: "hopper", here: true, codex });
+    assert.equal(slotToken(home), "rt-hopper1");
+    assert.equal(vaultToken(home, "hopper"), "rt-hopper1");
+  }
+  assert.deepEqual(restarts, ["restart", "restart"]);
+});
+
+test("an initially malformed or API-key slot is not overwritten if it changes before commit", async (t) => {
+  const home = machine(t);
+  const { codex, restarts } = await twoSaved(home);
+  for (const initial of ["{malformed", JSON.stringify({ auth_mode: "apikey", OPENAI_API_KEY: "sk-fake-key" })]) {
+    fs.writeFileSync(slot(home), initial);
+    const changed = auth("user-dijkstra", "dijkstra-new", { refreshed: "2026-11-15T11:00:00Z" });
+    const commit: typeof commitUnderLock = (tmp, dest, expected) => {
+      assert.equal(expected, createHash("sha256").update(initial).digest("hex"));
+      fs.writeFileSync(dest, changed);
+      commitUnderLock(tmp, dest, expected);
+    };
+    await assert.rejects(switchProfile({ name: "hopper", here: true, codex: { ...codex, commit } }), /slot changed while waiting.*no login was overwritten/);
+    assert.equal(fs.readFileSync(slot(home), "utf8"), changed);
+    assert.equal(vaultToken(home, "hopper"), "rt-hopper1");
+  }
+  assert.deepEqual(restarts, []);
+});
+
+
+test("login releases the login lock for the browser and cleans its temporary home after failure", async (t) => {
+  const home = machine(t);
+  const { codex } = await twoSaved(home);
+  let temporary = "";
+  t.after(() => { if (temporary) fs.rmSync(temporary, { recursive: true, force: true }); });
+  await assert.rejects(loginProfile({ name: "hopper", codex: { ...codex, run(dir) {
+    temporary = dir;
+    assert.equal(fs.existsSync(path.join(home, "state", "logins.lock")), false, "browser sign-in never holds the login lock");
+    return { ok: false, detail: "cancelled in browser" };
+  } } }), /didn't finish/);
+  assert.ok(temporary);
+  assert.equal(fs.existsSync(temporary), false, "failed sign-in removes its temporary home");
+  assert.equal(vaultToken(home, "hopper"), "rt-hopper1");
+});
+
+test("login --all stays Claude-only even when Codex test dependencies are supplied", async (t) => {
+  machine(t);
+  quiet({ dryRun: true });
+  let calls = 0;
+  await loginProfile({ all: true, codex: {
+    run: () => { calls++; throw new Error("ChatGPT browser must not run"); },
+    lock: async (fn) => { calls++; return fn(); },
+  } });
+  assert.equal(calls, 0);
 });

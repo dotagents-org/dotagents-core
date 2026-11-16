@@ -5,7 +5,7 @@
   </picture>
 </p>
 
-<p align="center"><b>One Claude Code configuration, on every machine and in every project.<br>Every Claude account you hold, switched in place and watched live.</b></p>
+<p align="center"><b>One Claude Code configuration, on every machine and in every project.<br>Your Claude and ChatGPT accounts, switched in place and watched live.</b></p>
 
 <p align="center">
   <a href="#features">Features</a>&nbsp;&nbsp;&nbsp;
@@ -28,14 +28,14 @@ Claude Code reads its configuration from `~/.claude/` on each machine and from `
 dotagents keeps all of it in one git repository, yours, and a single command writes or links what Claude Code expects. You never edit `~/.claude/` or a workspace's `.claude/` by hand again. And for several accounts, it switches the login in place, shows each account's usage live, and opens one Claude Desktop per account, in the terminal and, with the [dotagents sidebar](https://github.com/dotagents-org/dotagents-sidebar), in VS Code.
 
 > [!TIP]
-> **Strongly recommended: the [dotagents sidebar](https://github.com/dotagents-org/dotagents-sidebar) in VS Code.** dotagents works on its own, from the terminal, and doesn't need it. But the sidebar is where it pays off every day: Claude Code in VS Code's secondary sidebar, in sessions that survive a reload, with your accounts beside it, their usage and state at a glance, the current one in the status bar and the switch a click away.
+> **Strongly recommended: the [dotagents sidebar](https://github.com/dotagents-org/dotagents-sidebar) in VS Code.** dotagents also works from the terminal. The sidebar brings Claude Code and Codex to VS Code's secondary sidebar, in sessions that survive a reload, with your accounts beside it, their usage and state at a glance, the current one in the status bar and the switch a click away.
 
 ## Features
 
 **Configuration**
 
 - **One source of truth.** Global instructions, rules, settings and skills are written once, in your configuration, and reach every machine and workspace.
-- **Machine setup in one command.** `dotagents install` writes the global configuration where Claude Code looks for it, on Windows, Linux (WSL included) and macOS.
+- **Machine setup in one command.** `dotagents install` writes the global configuration where Claude Code and Codex look for it, on Windows, Linux (WSL included) and macOS.
 - **Your configuration, in a repository of its own.** `dotagents-config` next to the clone, `config/` inside a fork, or any folder through `DOTAGENTS_CONFIG`.
 
 **Workspaces**
@@ -44,12 +44,12 @@ dotagents keeps all of it in one git repository, yours, and a single command wri
 - **Skills, yours and other people's.** Your own skills are linked, so an edit is live everywhere at once; third-party ones come from a catalog and install through [`npx skills`](https://skills.sh).
 - **A checklist you can run.** `dotagents check` verifies a workspace against the standards and exits non-zero when something is off.
 
-**Several Claude accounts**
+**Claude and ChatGPT accounts**
 
-- **Switch in place.** `dotagents switch` puts an account's login in `~/.claude`, on one side of the machine or both, keeping each login in a vault readable only by you. History and configuration stay shared.
-- **Usage, live.** How much of each plan's 5-hour, weekly and per-model windows is used, with a projection to the reset ("at this pace, runs out 16:40"), from Claude Code's cache or asked of Anthropic.
+- **Switch in place.** `dotagents switch` puts an account's login in its agent's slot (`~/.claude` for Claude Code, `~/.codex/auth.json` for Codex), on one side of the machine or both, keeping each login in a private vault. History and configuration stay shared.
+- **Usage, live.** How much of each plan's 5-hour, weekly and per-model windows is used, with a projection to the reset ("at this pace, runs out 16:40"), from Claude Code's cache or Anthropic; ChatGPT usage comes through the official Codex app-server.
 - **In VS Code, with the dotagents sidebar (strongly recommended).** `dotagents start` is a local API on 127.0.0.1; the [dotagents sidebar](https://github.com/dotagents-org/dotagents-sidebar) reads it to show every account, with an avatar that says how it is at a glance, the current one in the status bar, and the switch.
-- **One Desktop app per account** on Windows, each with its own icon and taskbar button, open side by side.
+- **One Claude Desktop app per Claude account** on Windows, each with its own icon and taskbar button, open side by side.
 
 **Everywhere**
 
@@ -57,7 +57,7 @@ dotagents keeps all of it in one git repository, yours, and a single command wri
 
 ## How it works
 
-Your configuration is the source. `install` applies it to every Claude profile on the machine; `new` and `init` apply the standards to a workspace.
+Your configuration is the source. `install` applies it to the agent slots on the machine; `new` and `init` apply the standards to a workspace.
 
 <p align="center">
   <picture>
