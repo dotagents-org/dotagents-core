@@ -27,9 +27,9 @@ import { usage } from "./surfaces/cli/usage.ts";
 import { logs } from "./surfaces/cli/logs.ts";
 import { doctor } from "./surfaces/cli/doctor.ts";
 import { startServer } from "./surfaces/web/server.ts";
-import { readSlots, readUsage, currentFor, usageJson, watchPeer } from "./core/snapshot.ts";
+import { codexUsage, readCodexSlots, readSlots, readUsage, currentFor, usageJson, watchPeer } from "./core/snapshot.ts";
 import { openDesktop } from "./core/desktop.ts";
-import { forgetServer, liveServer, loadMachine, loadProfiles, recordServer } from "./core/machine-state.ts";
+import { forgetServer, liveServer, loadMachine, loadProfiles, providerOf, recordServer } from "./core/machine-state.ts";
 import { launcherDir } from "./core/profiles.ts";
 import { peerSwitch, sideName, switchProfile } from "./core/switch.ts";
 import { LIVE_EVERY_MS, refreshUsage } from "./core/live.ts";
@@ -87,9 +87,11 @@ const start: Command = {
       read: () => {
         const now = new Date();
         const list = readUsage(now, view);
-        // Which account is in each side's slot, and the current one (the worse of the two).
+        // Which account is in each side's slot, per provider, and the current Claude one (the
+        // worse of the two). The Codex profiles come after the Claude ones.
         const slots = readSlots(list, view);
-        const json = { ...usageJson(list, now), slots, current: currentFor(list, slots, now) };
+        const profiles = [...list.map((p) => ({ ...p, provider: "claude" as const })), ...codexUsage()];
+        const json = { ...usageJson(profiles, now), slots: { claude: slots, codex: readCodexSlots(view) }, current: currentFor(list, slots, now) };
         let peer;
         try {
           peer = loadMachine().peer;
@@ -135,6 +137,7 @@ const start: Command = {
         desktop: (body) => {
           const name = known(body);
           if (!name) return { status: 404, body: { ok: false, detail: "no such profile" } };
+          if (loadProfiles().some((p) => p.name === name && providerOf(p) === "codex")) return { status: 409, body: { ok: false, detail: `${name} is a Codex profile; it has no Claude Desktop` } };
           const opened = openDesktop(name, launcherDir());
           return { status: opened.ok ? 200 : 409, body: opened };
         },

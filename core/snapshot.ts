@@ -8,6 +8,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { type Activity, sessionActivity } from "./claude-code.ts";
 import { liveUsage, sideProfiles } from "./live.ts";
+import { codexAccount, codexProfiles, codexSlotProfile, readLogin } from "./codex.ts";
 import { type Peer, type Profile, loadMachine } from "./machine-state.ts";
 import { peerUp } from "./peer.ts";
 import { PALETTE } from "./profiles.ts";
@@ -228,4 +229,30 @@ export function usageJson(list: ProfileUsage[], now: Date) {
       windows: p.windows.map((w) => ({ ...w, resetsAt: w.resetsAt?.toISOString() ?? null, elapsedPct: elapsedPct(w, now), projection: projection(p.state === "ok" ? pace(w, now) : null) })),
     })),
   };
+}
+
+// The Codex profiles, for the start API (ADR 0017): who they are, and whether a login is saved.
+// Their usage comes later, so they carry no numbers yet.
+export function codexUsage(): ProfileUsage[] {
+  return codexProfiles().map((p) => ({ name: p.name, color: p.color, provider: "codex", state: codexAccount(p) ? "no-data" : "not-signed-in", fetchedAt: null, windows: [] }));
+}
+
+// Which Codex profile is in each side's slot. The other side's slot is told apart by the ChatGPT
+// user in its auth.json, matched against this side's vault (the same account on both sides); only
+// while that side is up.
+export function readCodexSlots(view?: PeerView): Record<string, string> {
+  const slots: Record<string, string> = {};
+  const here = codexSlotProfile()?.name;
+  if (here) slots[sideName()] = here;
+  let peer: Peer | undefined;
+  try {
+    peer = loadMachine().peer;
+  } catch {
+    peer = undefined;
+  }
+  if (!peer || (view && !view.up(peer))) return slots;
+  const user = readLogin(path.join(peer.home, ".codex", "auth.json"))?.user;
+  const there = user ? codexProfiles().find((p) => codexAccount(p)?.user === user)?.name : undefined;
+  if (there) slots[peer.name] = there;
+  return slots;
 }

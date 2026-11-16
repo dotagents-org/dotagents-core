@@ -9,10 +9,11 @@ import os from "node:os";
 import path from "node:path";
 import { test, type TestContext } from "node:test";
 import { codexSlotProfile } from "../core/codex.ts";
+import { codexUsage, readCodexSlots } from "../core/snapshot.ts";
 import { loadProfiles, saveProfile } from "../core/machine-state.ts";
 import { setUpProfile, verifyProfiles } from "../core/profiles.ts";
 import { state } from "../core/state.ts";
-import { type PeerSwitch, loginProfile, switchProfile } from "../core/switch.ts";
+import { type PeerSwitch, loginProfile, sideName, switchProfile } from "../core/switch.ts";
 import { REPO, quiet } from "./helpers.ts";
 
 function machine(t: TestContext) {
@@ -200,4 +201,13 @@ test("login of a profile with no saved login yet keeps its first one", async (t)
   await loginProfile({ name: "hopper", codex: { run: fakeSignIn(auth("user-hopper", "hopper1")), daemon: () => null } });
   assert.equal(vaultToken(home, "hopper"), "rt-hopper1");
   assert.equal(fs.existsSync(slot(home)), false, "an empty slot stays empty");
+});
+
+test("the start API lists the Codex profiles, without numbers, and which one is in the slot", async (t) => {
+  const home = machine(t);
+  quiet();
+  assert.deepEqual(codexUsage().map((p) => [p.name, p.provider, p.state]), [["hopper", "codex", "not-signed-in"], ["dijkstra", "codex", "not-signed-in"]]);
+  await twoSaved(home);
+  assert.deepEqual(codexUsage().map((p) => [p.name, p.state, p.windows.length]), [["hopper", "no-data", 0], ["dijkstra", "no-data", 0]]);
+  assert.deepEqual(readCodexSlots(), { [sideName()]: "dijkstra" });
 });

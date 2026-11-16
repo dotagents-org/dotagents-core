@@ -21,6 +21,8 @@ export type UsageWindow = {
 
 export type ProfileUsage = {
   name: string;
+  // Whose account: Claude when absent (the start API says it for every profile).
+  provider?: "claude" | "codex";
   color: string;
   default?: boolean;
   // stale: the data is older than STALE_MS; other-account: the cache belongs to a previous sign-in.

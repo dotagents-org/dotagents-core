@@ -73,10 +73,10 @@ test("every answer carries the API version, and a read that fails answers its er
   t.after(() => server.close());
   const failed = await get(server.port, "/api/usage", { "x-dotagents-token": "secret" });
   assert.equal(failed.status, 200);
-  assert.deepEqual(JSON.parse(failed.body), { apiVersion: 1, error: "profiles.json is not valid JSON" });
+  assert.deepEqual(JSON.parse(failed.body), { apiVersion: 2, error: "profiles.json is not valid JSON" });
   broken = false;
   const ok = await get(server.port, "/api/usage", { "x-dotagents-token": "secret" });
-  assert.deepEqual(JSON.parse(ok.body), { apiVersion: 1, profiles: [] });
+  assert.deepEqual(JSON.parse(ok.body), { apiVersion: 2, profiles: [] });
 });
 
 test("a read that fails is written to core.log once, with its stack and without the token in it", async (t) => {
@@ -102,7 +102,7 @@ test("the event stream sends the usage at once, with the token in the query (Eve
   t.after(() => server.close());
   assert.equal((await get(server.port, "/api/events")).status, 401);
   const event = await firstEvent(server.port, "/api/events?token=secret");
-  assert.match(event, /event: usage\ndata: \{"apiVersion":1,"version":1,"profiles":\[\]\}/);
+  assert.match(event, /event: usage\ndata: \{"apiVersion":2,"version":1,"profiles":\[\]\}/);
 });
 
 // The accounts tab's actions: POST only, with the token in the header (never the URL), JSON in, and
@@ -143,6 +143,6 @@ test("an action runs only by POST, with the token in the header and a JSON body,
   assert.deepEqual(calls, [], "nothing ran yet");
   const ok = await post(port, "/api/switch", body, json);
   assert.equal(ok.status, 200);
-  assert.deepEqual(JSON.parse(ok.body), { apiVersion: 1, ok: true });
+  assert.deepEqual(JSON.parse(ok.body), { apiVersion: 2, ok: true });
   assert.deepEqual(calls, [{ profile: "work" }]);
 });

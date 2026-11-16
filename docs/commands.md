@@ -251,7 +251,7 @@ Started by hand it lives as long as its terminal. To run it on its own, the way 
 
 The other side of the machine is read only while it runs: on Windows, the server asks `wsl.exe` every 5 seconds whether the distro is running and never reads `\\wsl.localhost` when it isn't, so it doesn't start WSL. The data then carries `"peer": { "name": "WSL", "up": false }`. While the other side runs, its running Claude Code sessions count for the account in its slot (`working`, `waiting`); the server asks that side's `dotagents sessions --running` every 15 seconds, in the background, so a read never waits on it.
 
-Its data adds `sides`, the sides of the machine (`["WSL", "Windows"]`, this one first), `slots`, the profile in each side's slot (`{ "WSL": "work", "Windows": "personal" }`), and `current`, the current account and its avatar state: the profile in a slot in the worst state, or the brand when no profile is in a slot.
+Its data adds `sides`, the sides of the machine (`["WSL", "Windows"]`, this one first), `slots`, the profile in each side's slot per provider (`{ "claude": { "WSL": "work", "Windows": "personal" }, "codex": { "WSL": "codex-work" } }`), and `current`, the current Claude account and its avatar state: the Claude profile in a slot in the worst state, or the brand when none is. Each profile says its `provider` (`claude` or `codex`); the Codex profiles come after the Claude ones, with no `windows` yet (their usage comes later), `no-data` when a login is saved and `not-signed-in` when not. The `desktop` action refuses a Codex profile.
 
 Three actions, for the sidebar's accounts tab, are the only writes. Each takes a JSON body (`{ "profile": "<name>" }` for the first two), with the token in the `x-dotagents-token` header (never in the address); a GET there answers 405, an unknown profile 404:
 
@@ -263,7 +263,7 @@ Three actions, for the sidebar's accounts tab, are the only writes. Each takes a
 
 While it runs it leaves its port, token and pid in `<state>/start.json`, readable only by you, and takes it away when it stops. A second `start`, while the server in `start.json` answers, says so and leaves it running: one server per side of the machine. A `start.json` whose server doesn't answer (left behind by a WSL shutdown, say) doesn't count.
 
-Every answer of the API and every event carries `"apiVersion": 1`, the format of what the server says, apart from the `version` of the usage data inside it. A client that doesn't know the version it gets refuses it, instead of misreading it; the number goes up only with a change an older client would misread. When the data can't be read (a state file being written, a bad one), the answer is `{ "apiVersion": 1, "error": "<why>" }` and the server keeps running.
+Every answer of the API and every event carries `"apiVersion": 2`, the format of what the server says, apart from the `version` of the usage data inside it. A client that doesn't know the version it gets refuses it, instead of misreading it; the number goes up only with a change an older client would misread. Version 2 (0.2.0) added the Codex profiles and the slots per provider: a client of version 1 would take a Codex profile for a Claude one. When the data can't be read (a state file being written, a bad one), the answer is `{ "apiVersion": 2, "error": "<why>" }` and the server keeps running.
 
 ### In VS Code
 

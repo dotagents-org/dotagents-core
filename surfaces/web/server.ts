@@ -25,7 +25,7 @@ export type Action = { status: number; body: unknown };
 
 // The API's format (docs/start-api.md): every answer and every event carries it, and a client
 // refuses one it doesn't know. Raised by a change an older client would misread.
-export const API_VERSION = 1;
+export const API_VERSION = 2;
 const versioned = (body: unknown) => ({ apiVersion: API_VERSION, ...(body !== null && typeof body === "object" ? body : { value: body }) });
 
 const MAX_BODY = 4096;
