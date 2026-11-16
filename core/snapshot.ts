@@ -89,10 +89,11 @@ export function usageJson(list: ProfileUsage[], now: Date) {
 const readEach = (now: Date, view?: PeerView) => providers().map((p) => ({ provider: p, list: p.readUsage(now, view).map((u) => ({ ...u, provider: p.id })) }));
 
 // The usage command's list: every provider's profiles, in the providers' order. A profile names its
-// provider only when profiles of more than one are listed.
+// provider once a provider after the first (Claude) has profiles.
 export function readAll(now: Date, view?: PeerView): ProfileUsage[] {
-  const each = readEach(now, view).filter((e) => e.list.length);
-  return each.length > 1 ? each.flatMap((e) => e.list) : each.flatMap((e) => e.list.map(({ provider, ...u }) => u));
+  const each = readEach(now, view);
+  const list = each.flatMap((e) => e.list);
+  return each.slice(1).some((e) => e.list.length) ? list : list.map(({ provider, ...u }) => u);
 }
 
 // What the start API answers (docs/start-api.md, apiVersion 2), all in one place so a test reads it

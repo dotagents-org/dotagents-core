@@ -1,6 +1,7 @@
 // `usage`: how much of each profile's plan is used, from Claude Code's cache and from what dotagents
 // last asked of Anthropic; --refresh asks now.
 
+import { LABELS } from "../../core/provider-labels.ts";
 import { readAll, usageJson } from "../../core/snapshot.ts";
 import { captureAsync, fancy, ink } from "../../core/output.ts";
 import { refreshUsage } from "../../core/usage-refresh.ts";
@@ -63,7 +64,7 @@ function paintLine(line: Line) {
 function terminalView(list: ProfileUsage[], now: Date) {
   console.log(`${badge(colorLevel())}  ${ink.bold("usage")}\n`);
   for (const line of usageLines(list, now)) console.log(paintLine(line));
-  console.log(`\n${ink.role("muted")(`${list.length} profile${list.length === 1 ? "" : "s"}; --refresh asks ${list.some((p) => p.provider === "codex") ? "Anthropic and OpenAI" : "Anthropic"} for fresh numbers`)}`);
+  console.log(`\n${ink.role("muted")(`${list.length} profile${list.length === 1 ? "" : "s"}; --refresh asks ${[...new Set(list.map((p) => LABELS[p.provider ?? "claude"].company))].join(" and ")} for fresh numbers`)}`);
 }
 
 // One line per window, easy to grep: "<profile> <window> <pct> <resets at> fetched <at>", then
