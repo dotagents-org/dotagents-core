@@ -48,6 +48,18 @@ test("a surface never imports another surface", () => {
   assert.deepEqual(wrong, []);
 });
 
+// Outside core/accounts/, a provider is reached through core/accounts/providers.ts, never its own files.
+// core/sessions.ts reads Claude Code's transcripts and sits under the spend, below providers.ts, so it reads
+// Claude's store directly: going through providers.ts would close a cycle.
+test("only core/accounts imports a provider's files", () => {
+  const wrong = [path.join(REPO, "cli.ts"), ...sources(path.join(REPO, "core")), ...sources(path.join(REPO, "surfaces"))].flatMap((f) => {
+    const rel = path.relative(REPO, f).split(path.sep).join("/");
+    if (rel.startsWith("core/accounts/")) return [];
+    return imports(f).filter((i) => i.startsWith("core/accounts/providers/") && !(rel === "core/sessions.ts" && i === "core/accounts/providers/claude-store.ts")).map((i) => `${rel} → ${i}`);
+  });
+  assert.deepEqual(wrong, []);
+});
+
 // Type-only imports disappear before execution and cannot form a runtime cycle.
 test("core has no runtime import cycles", () => {
   const graph = new Map(sources(path.join(REPO, "core")).map((file) => {
