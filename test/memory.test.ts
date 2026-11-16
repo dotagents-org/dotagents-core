@@ -116,3 +116,16 @@ test("the checklist: the key, the folder, the index within Claude Code's limit, 
   assert.match(text, /late\.md|1 note/);
   assert.match(text, /blockReadsOutsideWorkingDirectories/);
 });
+
+test("importing an index with headings and plain text is idempotent", (t) => {
+  const { ws, profiles } = setup(t);
+  oldMemory(profiles[0], ws, { "MEMORY.md": "# Notes\nRead these first.\n- [A](a.md)\n", "a.md": "a" });
+  quiet();
+  applyMemory(ws, profiles);
+  const file = path.join(memoryDir(ws), "MEMORY.md");
+  const before = fs.readFileSync(file, "utf8");
+  const events = quiet();
+  applyMemory(ws, profiles);
+  assert.equal(fs.readFileSync(file, "utf8"), before);
+  assert.ok(events.every((e) => e.kind !== "result" || e.status === "ok"));
+});

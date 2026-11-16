@@ -74,6 +74,8 @@ What changed for someone who updates a clone. The format follows [Keep a Changel
 
 ### Fixed
 
+- Avoid appending headings and plain text again when importing profile memory on another init.
+
 - Keep separate git exclude blocks for a repository root and a nested workspace.
 
 - Preserve the surrounding AGENTS.md text when adding a repository, including empty sections and literal replacement characters.
