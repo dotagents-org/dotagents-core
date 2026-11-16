@@ -1,21 +1,21 @@
 // Claude, the accounts of Claude Code, switched in place (ADR 0009): each side's slot is ~/.claude
-// and ~/.claude.json (core/providers/claude-store.ts), every account's login waits in a vault, and
+// and ~/.claude.json (core/accounts/providers/claude-store.ts), every account's login waits in a vault, and
 // a switch saves the slot's login back (Claude Code may have renewed the token since), writes the
 // chosen one in and checks it. Always manual. Credentials are copied whole and never printed. The
-// steps here are the ones the common coordination (core/account-switch.ts, account-login.ts) calls.
+// steps here are the ones the common coordination (core/accounts/switch.ts, login.ts) calls.
 
 import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
-import { CREDENTIAL_VARIABLES, defaultConfigDir, stateFile } from "../claude-code.ts";
-import { samePath } from "../common.ts";
+import { CREDENTIAL_VARIABLES, defaultConfigDir, stateFile } from "../../claude-code.ts";
+import { samePath } from "../../common.ts";
 import { LABELS } from "../provider-labels.ts";
-import { type Peer, claudeProfiles, loadMachine, sideName } from "../machine-state.ts";
-import { checkItem, checkWarn, displayPath, report, section } from "../output.ts";
+import { type Peer, claudeProfiles, loadMachine, sideName } from "../../machine-state.ts";
+import { checkItem, checkWarn, displayPath, report, section } from "../../output.ts";
 import type { Provider } from "../providers.ts";
 import { readClaudeSlots, readClaudeUsage } from "./claude-snapshot.ts";
 import { LIVE_EVERY_MS, askClaude, sideProfiles } from "./claude-usage.ts";
-import { state } from "../state.ts";
+import { state } from "../../state.ts";
 import { readRecord } from "../usage-record.ts";
 import { vaultDir, withLoginLock, writePrivate } from "../vault.ts";
 import { type StoredLogin, credentialsIn, knownLogin, liveLogin, loginMark, loginOf, ownerOf, profileAccount, readJson, realOrSame, slotDir, slotLogin, slotProfile, vaultLogin } from "./claude-store.ts";
@@ -53,7 +53,7 @@ function peerLogins(peer: Peer, uuids: Map<string, string>) {
 const renewHint = (name: string, side: string) => `renew it, on ${side}: dotagents login ${name}`;
 
 // Whether Anthropic refused this login: the live usage marks the profile with the login it was
-// refused (refused in <state>/usage/<profile>.json, core/providers/claude-usage.ts). A token revoked
+// refused (refused in <state>/usage/<profile>.json, core/accounts/providers/claude-usage.ts). A token revoked
 // on the server still has a good date, so the date alone can't tell.
 function refusedLogin(name: string, login: StoredLogin | null, dir?: string) {
   const mark = login && loginMark(login.text);

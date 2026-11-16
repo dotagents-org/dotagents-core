@@ -8,8 +8,8 @@ import path from "node:path";
 import { test, type TestContext } from "node:test";
 import { loadMachine, saveMachine, saveProfile } from "../core/machine-state.ts";
 import { applyPeer } from "../core/peer.ts";
-import { readClaudeUsage as readUsage } from "../core/providers/claude-snapshot.ts";
-import { currentFor, usageJson, watchPeer } from "../core/snapshot.ts";
+import { readClaudeUsage as readUsage } from "../core/accounts/providers/claude-snapshot.ts";
+import { currentFor, usageJson, watchPeer } from "../core/accounts/snapshot.ts";
 import { quiet } from "./helpers.ts";
 
 const NOW = new Date("2026-10-28T12:00:00Z");

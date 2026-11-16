@@ -1,13 +1,13 @@
-// What the Claude side of the usage snapshot reads (core/snapshot.ts puts the providers together):
-// this side's profiles, read from Claude Code's caches and from what core/providers/claude-usage.ts
+// What the Claude side of the usage snapshot reads (core/accounts/snapshot.ts puts the providers together):
+// this side's profiles, read from Claude Code's caches and from what core/accounts/providers/claude-usage.ts
 // asked of Anthropic, the newer of the two, and, when install found the other side of the machine
 // (Windows from WSL, WSL from Windows), that side's too, read only. The same account on both sides
 // shows the newer of the two.
 
 import fs from "node:fs";
 import path from "node:path";
-import { type Activity, sessionActivity } from "../claude-code.ts";
-import { PALETTE, type Peer, type Profile, sideName, sidePeer } from "../machine-state.ts";
+import { type Activity, sessionActivity } from "../../claude-code.ts";
+import { PALETTE, type Peer, type Profile, sideName, sidePeer } from "../../machine-state.ts";
 import type { PeerView } from "../snapshot.ts";
 import { type ProfileUsage, STALE_MS, normalize, profileUsage } from "../usage.ts";
 import { liveUsage, sideProfiles } from "./claude-usage.ts";

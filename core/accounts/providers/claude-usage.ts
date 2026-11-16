@@ -6,16 +6,16 @@
 // Code renews before that while a session runs; the vault's copy is renewed a few minutes early.
 //
 // What comes back is kept in <state>/usage/<profile>.json, in the shape of Claude Code's own cache,
-// so every surface reads it next to that cache (core/providers/claude-snapshot.ts) and none asks again. Errors and
+// so every surface reads it next to that cache (core/accounts/providers/claude-snapshot.ts) and none asks again. Errors and
 // 429s back off. Tokens are never printed, logged or written anywhere but the copy they came from.
 //
 // The network goes through a Fetcher; the tests pass a fake one.
 
 import { recordHistory } from "../spend.ts";
 import fs from "node:fs";
-import { PALETTE, type Profile, claudeProfiles } from "../machine-state.ts";
+import { PALETTE, type Profile, claudeProfiles } from "../../machine-state.ts";
 import { readRecord } from "../usage-record.ts";
-import { defaultConfigDir } from "../claude-code.ts";
+import { defaultConfigDir } from "../../claude-code.ts";
 import { liveLogin, loginMark } from "./claude-store.ts";
 import { withLoginLock, writePrivate } from "../vault.ts";
 import type { Asked } from "../providers.ts";
@@ -34,7 +34,7 @@ const TOKEN_URL = "https://platform.claude.com/v1/oauth/token";
 const CLIENT_ID = "9d1c250a-e61b-44d9-88ed-5944d1962f5e";
 const BETA = "oauth-2025-04-20";
 // dotagents says who it is: the Usage Policy forbids misrepresenting the client being used.
-const USER_AGENT = `dotagents/${JSON.parse(fs.readFileSync(new URL("../../package.json", import.meta.url), "utf8")).version}`;
+const USER_AGENT = `dotagents/${JSON.parse(fs.readFileSync(new URL("../../../package.json", import.meta.url), "utf8")).version}`;
 
 // At most one request per profile in this time, from any number of dotagents processes.
 export const LIVE_EVERY_MS = 55_000;
@@ -108,7 +108,7 @@ async function accessToken(file: string, shared: boolean, fetcher: Fetcher, now:
 }
 
 // Asks Anthropic for one profile's usage: the answer as a record to keep, or why it failed. The
-// pacing, the backoff and the writing are the common refresh's (core/usage-refresh.ts).
+// pacing, the backoff and the writing are the common refresh's (core/accounts/usage-refresh.ts).
 export async function askClaude(p: Profile, { fetcher = httpFetcher, now = Date.now }: { fetcher?: Fetcher; now?: () => number } = {}): Promise<Asked> {
   const login = liveLogin(p);
   if (!login) return { ok: false, error: "no login saved for it" };

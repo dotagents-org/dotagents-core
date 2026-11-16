@@ -1,14 +1,14 @@
 // Asking each provider for the usage of its profiles, the same way for both: the pacing between
 // asks, the backoff after a failure, the record kept in <state>/usage/<profile>.json (core/usage-
 // record.ts), and the report. What is asked, of whom, how often and in what shape the answer is
-// kept is each provider's (core/providers.ts, its usage member).
+// kept is each provider's (core/accounts/providers.ts, its usage member).
 
-import { report, section } from "./output.ts";
+import { report, section } from "../output.ts";
 import { type UsageOptions, providerFor, providers } from "./providers.ts";
 import { withLoginLock } from "./vault.ts";
-import { state } from "./state.ts";
+import { state } from "../state.ts";
 import { BACKOFF_MS, MAX_BACKOFF_MS, readRecord, writeRecord } from "./usage-record.ts";
-import type { Profile } from "./machine-state.ts";
+import type { Profile } from "../machine-state.ts";
 
 export type LiveResult = { status: "updated" | "ok" | "failed"; detail: string };
 

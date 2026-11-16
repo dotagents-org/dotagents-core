@@ -7,7 +7,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { test, type TestContext } from "node:test";
-import { dropProfile, installProfiles, launcherDir, setUpProfile } from "../core/profiles.ts";
+import { dropProfile, installProfiles, launcherDir, setUpProfile } from "../core/accounts/profiles.ts";
 import { type Shortcut, type Shortcuts, openDesktop, profileIcon, appTitle, desktopDataDir, desktopExe, desktopLauncherFile, powershellShortcuts, shortcutFile, trayStartupFile } from "../core/desktop.ts";
 import { state } from "../core/state.ts";
 import { taskbarWatcher, taskbarWatcherFile } from "../core/taskbar.ts";

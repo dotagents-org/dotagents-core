@@ -72,14 +72,14 @@ test("account behavior is selected through provider adapters", () => {
   const wrong: string[] = [];
   for (const file of [path.join(REPO, "cli.ts"), ...sources(path.join(REPO, "core")), ...sources(path.join(REPO, "surfaces"))]) {
     const rel = path.relative(REPO, file).split(path.sep).join("/");
-    if (rel.startsWith("core/providers/") || rel === "core/providers.ts" || rel === "core/machine-state.ts") continue;
+    if (rel.startsWith("core/accounts/providers/") || rel === "core/accounts/providers.ts" || rel === "core/machine-state.ts") continue;
     const ast = ts.createSourceFile(file, fs.readFileSync(file, "utf8"), ts.ScriptTarget.Latest, true);
     const visit = (node: ts.Node) => {
       if (ts.isBinaryExpression(node) && [ts.SyntaxKind.EqualsEqualsEqualsToken, ts.SyntaxKind.ExclamationEqualsEqualsToken, ts.SyntaxKind.EqualsEqualsToken, ts.SyntaxKind.ExclamationEqualsToken].includes(node.operatorToken.kind)) {
         for (const [value, id] of [[node.left, node.right], [node.right, node.left]]) {
           if (!ts.isStringLiteral(id) || !["claude", "codex"].includes(id.text)) continue;
           // Profile creation validates the public provider argument before dispatching.
-          if (rel === "core/profiles.ts" && ts.isIdentifier(value) && value.text === "provider") continue;
+          if (rel === "core/accounts/profiles.ts" && ts.isIdentifier(value) && value.text === "provider") continue;
           if ((ts.isPropertyAccessExpression(value) && value.name.text === "provider") || (ts.isCallExpression(value) && value.expression.getText(ast) === "providerOf")) {
             wrong.push(`${rel}:${ast.getLineAndCharacterOfPosition(node.getStart()).line + 1}`);
           }

@@ -9,7 +9,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { type Background, ROLES, readableOn } from "../core/theme.ts";
-import { type Line, type ProfileUsage, shortLines, usageLines } from "../core/usage.ts";
+import { type Line, type ProfileUsage, shortLines, usageLines } from "../core/accounts/usage.ts";
 
 const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const out = path.join(repo, "docs", "media");

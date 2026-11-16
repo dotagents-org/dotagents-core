@@ -6,7 +6,7 @@ import { createHash } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import type { Login } from "../providers.ts";
-import { type Profile, loadProfiles, providerOf } from "../machine-state.ts";
+import { type Profile, loadProfiles, providerOf } from "../../machine-state.ts";
 import { vaultDir } from "../vault.ts";
 import { codexHome } from "./codex-config.ts";
 
@@ -45,7 +45,7 @@ export function readLogin(file: string): Login | null {
   }
 }
 
-// The mark of a login's refresh token, as loginMark in core/providers/claude-store.ts does for Claude's: tells a
+// The mark of a login's refresh token, as loginMark in core/accounts/providers/claude-store.ts does for Claude's: tells a
 // login apart without keeping any of it.
 export function codexLoginMark(text: string): string | null {
   try {

@@ -4,7 +4,7 @@
 // - the history of the %: each live reading that changes a window's % adds a line to
 //   <state>/usage/<profile>.history.jsonl;
 // - the spend: the tokens of every assistant message in Claude Code's transcripts, on both sides of
-//   the machine, put on the account the session ran under, at the API's prices (core/prices.ts);
+//   the machine, put on the account the session ran under, at the API's prices (core/accounts/prices.ts);
 // - the relation: between two readings of the same window, the spend over the % it went up.
 //
 // What uses the plan without leaving a transcript here (claude.ai, the Desktop outside Code,
@@ -12,9 +12,9 @@
 
 import fs from "node:fs";
 import path from "node:path";
-import { stateDir } from "./machine-state.ts";
+import { stateDir } from "../machine-state.ts";
 import { costOf, type Tokens } from "./prices.ts";
-import { configDirs, type ConfigDir } from "./sessions.ts";
+import { configDirs, type ConfigDir } from "../sessions.ts";
 import type { UsageWindow } from "./usage.ts";
 
 export type Point = { at: string; session: number | null; week: number | null; sessionResetsAt: string | null; weekResetsAt: string | null };

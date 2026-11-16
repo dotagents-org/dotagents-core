@@ -1,10 +1,10 @@
 // What dotagents keeps per profile of its last usage reading, <state>/usage/<profile>.json: written
-// by core/providers/claude-usage.ts for Claude and core/providers/codex-usage.ts for Codex, each in its own shape, and read by
+// by core/accounts/providers/claude-usage.ts for Claude and core/accounts/providers/codex-usage.ts for Codex, each in its own shape, and read by
 // the snapshot, the checks and the prompt revision.
 
 import fs from "node:fs";
 import path from "node:path";
-import { stateDir } from "./machine-state.ts";
+import { stateDir } from "../machine-state.ts";
 import { writePrivate } from "./vault.ts";
 
 export const BACKOFF_MS = 60_000;
@@ -13,7 +13,7 @@ export const MAX_BACKOFF_MS = 15 * 60_000;
 // What dotagents keeps per profile: the last usage, as Claude Code's cache keeps it (fetchedAtMs,
 // accountUuid, utilization), and the last attempt, with its error and when to try again.
 // refused: the mark of the login Anthropic last refused (a 401, a renewal turned down; loginMark in
-// core/providers/claude-store.ts), which the checklist and the switch read; a good answer clears it.
+// core/accounts/providers/claude-store.ts), which the checklist and the switch read; a good answer clears it.
 export type LiveRecord = { fetchedAtMs?: number; accountUuid?: string; utilization?: unknown; askedAtMs?: number; failures?: number; retryAtMs?: number; error?: string; refused?: string };
 
 const recordFile = (name: string, dir = stateDir()) => path.join(dir, "usage", `${name}.json`);

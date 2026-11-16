@@ -7,7 +7,7 @@
 // reads it. The hook never blocks and never changes the prompt: any failure lets it through as is.
 // ADR 0015 in the workspace's .artifacts/decisions/.
 
-import { costOf } from "./prices.ts";
+import { costOf } from "./accounts/prices.ts";
 import { spawn } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";

@@ -1,10 +1,10 @@
 // `switch`: which account each slot holds (~/.claude for Claude, ~/.codex/auth.json for Codex), and
 // changing it (ADR 0009, ADR 0007).
 
-import { providerFor, providers, activeProfiles } from "../../core/providers.ts";
+import { providerFor, providers, activeProfiles } from "../../core/accounts/providers.ts";
 import { brand, fancy, finish, header, line, paint, tone } from "../../core/output.ts";
-import { switchProfile } from "../../core/account-switch.ts";
-import { vaultDir } from "../../core/vault.ts";
+import { switchProfile } from "../../core/accounts/switch.ts";
+import { vaultDir } from "../../core/accounts/vault.ts";
 import type { Command } from "./shared.ts";
 import fs from "node:fs";
 import { state } from "../../core/state.ts";

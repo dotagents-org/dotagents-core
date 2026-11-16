@@ -3,7 +3,7 @@
 import { pullSettings } from "../../core/global.ts";
 import { claudeProfiles } from "../../core/machine-state.ts";
 import { finish, header } from "../../core/output.ts";
-import { configDirs } from "../../core/profiles.ts";
+import { configDirs } from "../../core/accounts/profiles.ts";
 import { state } from "../../core/state.ts";
 import type { Command } from "./shared.ts";
 

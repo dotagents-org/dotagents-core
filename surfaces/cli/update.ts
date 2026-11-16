@@ -1,9 +1,9 @@
 import fs from "node:fs";
 import path from "node:path";
 import { runWithSpinner } from "../../core/common.ts";
-import { installProviders } from "../../core/providers.ts";
+import { installProviders } from "../../core/accounts/providers.ts";
 import { applyPeer } from "../../core/peer.ts";
-import { installProfiles } from "../../core/profiles.ts";
+import { installProfiles } from "../../core/accounts/profiles.ts";
 import { checkWarn, displayPath, fancy, finish, header, line, report, section, tone } from "../../core/output.ts";
 import { loadWorkspaces } from "../../core/machine-state.ts";
 import { listSkills, resolveSkills } from "../../core/skills.ts";

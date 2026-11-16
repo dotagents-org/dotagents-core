@@ -3,7 +3,7 @@
 // without reaching an adapter. The table of names is the plan's (2026-11-16): the account is
 // Claude or ChatGPT, the tool Claude Code or Codex, the company Anthropic or OpenAI.
 
-import type { ProviderId } from "./machine-state.ts";
+import type { ProviderId } from "../machine-state.ts";
 
 export type Labels = {
   // The account, in group headings and lists.

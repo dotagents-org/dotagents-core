@@ -1,12 +1,12 @@
 // `login`: signing a profile in again, when its login runs out (every few weeks). What every
 // provider shares is here: finding the profile, the check that the account signed in is the
 // profile's, and keeping the new login in its vault. How the sign-in runs differs, so it is the
-// provider's own (core/providers.ts): Claude through this side's slot, putting the previous account
+// provider's own (core/accounts/providers.ts): Claude through this side's slot, putting the previous account
 // back after; Codex in a temporary folder of its own, never ~/.codex. --all is Claude's for now.
 
-import { saveToVault, putInSlot, switchHere } from "./account-switch.ts";
-import { type Profile, loadProfiles, sideName } from "./machine-state.ts";
-import { report, section } from "./output.ts";
+import { saveToVault, putInSlot, switchHere } from "./switch.ts";
+import { type Profile, loadProfiles, sideName } from "../machine-state.ts";
+import { report, section } from "../output.ts";
 import { type Login, type Provider, type SignInContext, type SignInOptions, providerFor, providers } from "./providers.ts";
 
 export type LoginOptions = SignInOptions & { name?: string; all?: boolean };

@@ -3,8 +3,8 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { test, type TestContext } from "node:test";
-import { costOf } from "../core/prices.ts";
-import { type Point, readHistory, readSpend, ratios, recordHistory, spendReport } from "../core/spend.ts";
+import { costOf } from "../core/accounts/prices.ts";
+import { type Point, readHistory, readSpend, ratios, recordHistory, spendReport } from "../core/accounts/spend.ts";
 import "./helpers.ts";
 
 const A = "acct-work";

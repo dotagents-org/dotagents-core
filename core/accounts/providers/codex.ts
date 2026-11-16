@@ -3,18 +3,18 @@
 // extension and its desktop app all read. Every account's login waits in the vault, <state>/vault/
 // <profile>/auth.json, one per account and side. The file is copied byte for byte and read only to
 // tell whose login it is: never printed, never renewed here (the refresh token is single-use). The
-// steps here are the ones the common coordination (core/account-switch.ts, account-login.ts) calls.
+// steps here are the ones the common coordination (core/accounts/switch.ts, login.ts) calls.
 
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { type Profile, sideName, stateDir } from "../machine-state.ts";
-import { checkItem, checkWarn, report, section } from "../output.ts";
+import { type Profile, sideName, stateDir } from "../../machine-state.ts";
+import { checkItem, checkWarn, report, section } from "../../output.ts";
 import { LABELS } from "../provider-labels.ts";
 import type { Login, Provider, SwitchOptions } from "../providers.ts";
-import { state } from "../state.ts";
+import { state } from "../../state.ts";
 import { vaultDir, withLoginLock, writePrivate } from "../vault.ts";
 import { CODEX_OTHER_EVERY_MS, CODEX_SLOT_EVERY_MS, askCodex, readCodexSlots, readCodexUsage } from "./codex-usage.ts";
 import { codexHome, installCodex, verifyCodexConfig } from "./codex-config.ts";
@@ -258,7 +258,7 @@ export default codex;
 // The checklist of `profile list` for the Codex logins of this side, and the switch's warning.
 
 // Whether OpenAI refused this profile's login: the live usage marks the profile's record with the
-// login it was refused (refused in <state>/usage/<profile>.json, core/providers/codex-usage.ts), the slot's
+// login it was refused (refused in <state>/usage/<profile>.json, core/accounts/providers/codex-usage.ts), the slot's
 // when the profile's account is there, else the vault's. A new sign-in or renewal changes the mark.
 function refusedCodex(name: string) {
   const saved = vaultLogin(name);

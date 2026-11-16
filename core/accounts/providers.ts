@@ -1,16 +1,16 @@
 // The providers dotagents holds accounts for: Claude (Claude Code) and ChatGPT (Codex). One shape
 // for what differs between them, so the rest of the core asks providerFor(profile) and calls it,
-// and never branches on which provider a profile has. Each provider is a file in core/providers/.
+// and never branches on which provider a profile has. Each provider is a file in core/accounts/providers/.
 //
 // The list at the bottom is the switch: a provider left out of it is off everywhere (its profiles
 // refused, nothing of it in install, the checks, the usage or the API), with no other file touched.
 //
 // The arrows of the core point one way, and nothing runs in a circle: surfaces, then the common
-// coordination (account-switch, account-login, usage-refresh, snapshot, profiles), then this list,
+// coordination (switch, login, usage-refresh, snapshot, profiles), then this list,
 // then each provider's files, then the storage and utilities they share (vault, usage-record,
 // machine-state, output). This file's types, and provider-labels, import no provider.
 
-import { type Profile, type ProviderId, loadProfiles } from "./machine-state.ts";
+import { type Profile, type ProviderId, loadProfiles } from "../machine-state.ts";
 import type { Labels } from "./provider-labels.ts";
 import type { Fetcher } from "./providers/claude-usage.ts";
 import claude from "./providers/claude.ts";
@@ -18,6 +18,11 @@ import type { SpawnAppServer } from "./providers/codex-usage.ts";
 import codex from "./providers/codex.ts";
 import type { PeerView } from "./snapshot.ts";
 import type { ProfileUsage } from "./usage.ts";
+
+// What the rest of the core reads of Claude alone: the account behind a login (sessions, usage --spend)
+// and the live usage's pace (start).
+export { profileAccount } from "./providers/claude-store.ts";
+export { LIVE_EVERY_MS } from "./providers/claude-usage.ts";
 
 // A login as a provider keeps it: text is the file as the agent wrote it, never printed. id is the
 // account's own (Claude's accountUuid, the ChatGPT user); the other fields are what only one
@@ -120,7 +125,7 @@ export type Provider = {
 
   // ── Usage ──
   // How a provider's usage is asked of its company, and kept in <state>/usage/<profile>.json; the
-  // pacing, the backoff and the writing are common (core/usage-refresh.ts).
+  // pacing, the backoff and the writing are common (core/accounts/usage-refresh.ts).
   usage: {
     // The profiles to refresh.
     profiles: () => Profile[];

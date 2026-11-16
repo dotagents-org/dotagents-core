@@ -12,7 +12,7 @@ import { checkItem, checkWarn, report, section } from "./output.ts";
 import { state } from "./state.ts";
 import { AGENT_FILES, ensureExcluded, gitRepoOf, isRepoRoot, removeExcluded, trackedAgentFiles, untrackedAgentFiles } from "./git.ts";
 import { applyMemory, verifyMemory } from "./memory.ts";
-import { configDirs } from "./profiles.ts";
+import { configDirs } from "./accounts/profiles.ts";
 import { applySkills, verifySkills, type Skill } from "./skills.ts";
 import type { Installer } from "./thirdparty.ts";
 

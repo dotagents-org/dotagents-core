@@ -1,8 +1,8 @@
 // `profile add`, `profile list` and `profile remove`: the Claude profiles of this machine.
 
 import { verifyGlobal } from "../../core/global.ts";
-import { configDirs, dropProfile, setUpProfile, verifyLogins, verifyProfiles } from "../../core/profiles.ts";
-import { activeProfiles, providerFor, providers, verifyProviderConfigs } from "../../core/providers.ts";
+import { configDirs, dropProfile, setUpProfile, verifyLogins, verifyProfiles } from "../../core/accounts/profiles.ts";
+import { activeProfiles, providerFor, providers, verifyProviderConfigs } from "../../core/accounts/providers.ts";
 import { loadProfiles } from "../../core/machine-state.ts";
 import { fancy, finish, header, line, paint, tone } from "../../core/output.ts";
 import type { Command } from "./shared.ts";

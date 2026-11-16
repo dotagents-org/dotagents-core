@@ -5,7 +5,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { test, type TestContext } from "node:test";
-import { installCodex, verifyCodexConfig } from "../core/providers/codex-config.ts";
+import { installCodex, verifyCodexConfig } from "../core/accounts/providers/codex-config.ts";
 import { state } from "../core/state.ts";
 import { REPO, quiet } from "./helpers.ts";
 

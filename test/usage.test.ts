@@ -5,8 +5,8 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { test, type TestContext } from "node:test";
-import { usageJson } from "../core/snapshot.ts";
-import { type ProfileUsage, type UsageWindow, avatarState, avatarWorking, bar, elapsedPct, faceOf, levelOf, normalize, pace, profileUsage, shortLines, span, thresholdAlerts, usageLines } from "../core/usage.ts";
+import { usageJson } from "../core/accounts/snapshot.ts";
+import { type ProfileUsage, type UsageWindow, avatarState, avatarWorking, bar, elapsedPct, faceOf, levelOf, normalize, pace, profileUsage, shortLines, span, thresholdAlerts, usageLines } from "../core/accounts/usage.ts";
 import { sessionActivity } from "../core/claude-code.ts";
 import "./helpers.ts";
 

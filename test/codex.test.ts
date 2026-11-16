@@ -6,17 +6,17 @@ import assert from "node:assert/strict";
 import { spawn, spawnSync } from "node:child_process";
 import fs from "node:fs";
 import { createHash } from "node:crypto";
-import { commitUnderLock } from "../core/providers/codex.ts";
+import { commitUnderLock } from "../core/accounts/providers/codex.ts";
 import os from "node:os";
 import path from "node:path";
 import { test, type TestContext } from "node:test";
-import { codexLoginMark, codexSlotProfile } from "../core/providers/codex-store.ts";
-import { readCodexSlots, readCodexUsage as codexUsage } from "../core/providers/codex-usage.ts";
+import { codexLoginMark, codexSlotProfile } from "../core/accounts/providers/codex-store.ts";
+import { readCodexSlots, readCodexUsage as codexUsage } from "../core/accounts/providers/codex-usage.ts";
 import { loadProfiles, saveProfile, sideName } from "../core/machine-state.ts";
-import { setUpProfile, verifyProfiles } from "../core/profiles.ts";
+import { setUpProfile, verifyProfiles } from "../core/accounts/profiles.ts";
 import { state } from "../core/state.ts";
-import { loginProfile } from "../core/account-login.ts";
-import { type PeerSwitch, switchProfile } from "../core/account-switch.ts";
+import { loginProfile } from "../core/accounts/login.ts";
+import { type PeerSwitch, switchProfile } from "../core/accounts/switch.ts";
 import { REPO, quiet } from "./helpers.ts";
 
 function machine(t: TestContext) {

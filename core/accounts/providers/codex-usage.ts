@@ -10,11 +10,11 @@
 // ChatGPT user, the new copy goes back to the vault, even when the call failed, so the renewal
 // is never lost.
 //
-// What comes back is kept in <state>/usage/<profile>.json, next to Claude's (core/providers/claude-usage.ts), in this
+// What comes back is kept in <state>/usage/<profile>.json, next to Claude's (core/accounts/providers/claude-usage.ts), in this
 // shape: version 1; provider "codex"; fetchedAtMs, user (the ChatGPT user the numbers are about),
 // plan (Codex's planType, "team"), windows [{ kind: "session" | "week", pct, resetsAt (ms or
 // null) }]; and the last attempt: askedAtMs, failures, retryAtMs, error, and refused, the mark
-// (codexLoginMark in core/providers/codex.ts) of the login OpenAI last refused: the slot's auth.json for
+// (codexLoginMark in core/accounts/providers/codex.ts) of the login OpenAI last refused: the slot's auth.json for
 // the slot's profile, the vault's for the others. A good answer clears error and refused.
 //
 // The app-server is started through a SpawnAppServer; the tests pass a fake one.
@@ -24,7 +24,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import readline from "node:readline";
-import { type Profile, sideName, sidePeer } from "../machine-state.ts";
+import { type Profile, sideName, sidePeer } from "../../machine-state.ts";
 import type { PeerView } from "../snapshot.ts";
 import { codexAccount, codexLoginMark, codexProfiles, codexSlotProfile, readLogin, slotFile, vaultFile, vaultLogin } from "./codex-store.ts";
 import type { Asked } from "../providers.ts";
@@ -35,7 +35,7 @@ import { writePrivate } from "../vault.ts";
 export type SpawnAppServer = (home: string) => ChildProcessWithoutNullStreams;
 
 // On Windows codex may be a .cmd shim, which only a shell runs: one command line, as runCodex in
-// core/providers/codex.ts. An API key in the environment would change how Codex signs in: not for this call.
+// core/accounts/providers/codex.ts. An API key in the environment would change how Codex signs in: not for this call.
 export const spawnAppServer: SpawnAppServer = (home) => {
   const env: NodeJS.ProcessEnv = { ...process.env, CODEX_HOME: home };
   delete env.OPENAI_API_KEY;
@@ -44,7 +44,7 @@ export const spawnAppServer: SpawnAppServer = (home) => {
   return process.platform === "win32" ? spawn("codex app-server", { ...options, shell: true }) : spawn("codex", ["app-server"], options);
 };
 
-const VERSION = JSON.parse(fs.readFileSync(new URL("../../package.json", import.meta.url), "utf8")).version;
+const VERSION = JSON.parse(fs.readFileSync(new URL("../../../package.json", import.meta.url), "utf8")).version;
 
 // The profile in the slot is asked about every 5 minutes, the others far less often.
 export const CODEX_SLOT_EVERY_MS = 5 * 60_000;
@@ -177,7 +177,7 @@ function describe(err: unknown, name: string): { error: string; refused: boolean
 }
 
 // Asks codex app-server for one profile's usage: the answer as a record to keep, or why it
-// failed. The pacing, the backoff and the writing are the common refresh's (core/usage-refresh.ts).
+// failed. The pacing, the backoff and the writing are the common refresh's (core/accounts/usage-refresh.ts).
 export async function askCodex(
   p: Profile,
   { spawnIt = spawnAppServer, now = Date.now, timeoutMs = ASK_TIMEOUT_MS }: { spawnIt?: SpawnAppServer; now?: () => number; timeoutMs?: number } = {}
@@ -254,7 +254,7 @@ export function codexLiveUsage(name: string, user: string, now: Date) {
 }
 
 // The Codex profiles, for the start API (ADR 0007): who they are, and what dotagents last asked of
-// codex app-server for their usage (core/providers/codex-usage.ts), with the plan Codex reports. `no-data` is
+// codex app-server for their usage (core/accounts/providers/codex-usage.ts), with the plan Codex reports. `no-data` is
 // a saved login with nothing read yet; windows are never made up.
 export function readCodexUsage(now = new Date()): ProfileUsage[] {
   return codexProfiles().map((p) => {

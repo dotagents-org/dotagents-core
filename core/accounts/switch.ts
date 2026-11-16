@@ -1,16 +1,16 @@
 // The switch in place (ADR 0009), the same for every provider: the common order of the steps,
 // under one lock across dotagents' processes, with what differs between Claude and Codex left to
-// the provider's own steps (core/providers.ts): the side's slot, a vault per profile and side,
+// the provider's own steps (core/accounts/providers.ts): the side's slot, a vault per profile and side,
 // saving the slot's login back before writing the chosen one, the check after, and the same switch
 // on the other side through an adapter. Always manual (ADR 0001). Credentials are copied whole and
 // never printed.
 
 import { spawnSync } from "node:child_process";
-import { log } from "./log.ts";
-import { type Profile, loadMachine, loadProfiles, sideName } from "./machine-state.ts";
-import { checkWarn, report, section } from "./output.ts";
+import { log } from "../log.ts";
+import { type Profile, loadMachine, loadProfiles, sideName } from "../machine-state.ts";
+import { checkWarn, report, section } from "../output.ts";
 import { type Login, type Provider, type SwitchContext, type SwitchOptions, providerFor, providers } from "./providers.ts";
-import { state } from "./state.ts";
+import { state } from "../state.ts";
 import { vaultDir, withLoginLock } from "./vault.ts";
 
 // Runs the switch on the other side of the machine, with --here so it doesn't come back.

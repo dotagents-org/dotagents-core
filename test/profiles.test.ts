@@ -6,7 +6,7 @@ import os from "node:os";
 import path from "node:path";
 import { test, type TestContext } from "node:test";
 import { writeGenerated } from "../core/common.ts";
-import { dropProfile, installProfiles, launcherFile, setUpProfile, verifyProfiles } from "../core/profiles.ts";
+import { dropProfile, installProfiles, launcherFile, setUpProfile, verifyProfiles } from "../core/accounts/profiles.ts";
 import { loadProfiles, saveProfile } from "../core/machine-state.ts";
 import { state } from "../core/state.ts";
 import { REPO, quiet } from "./helpers.ts";

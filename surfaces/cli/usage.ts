@@ -1,16 +1,16 @@
 // `usage`: how much of each profile's plan is used, from Claude Code's cache and from what dotagents
 // last asked of Anthropic; --refresh asks now.
 
-import { LABELS } from "../../core/provider-labels.ts";
-import { readAll, usageJson } from "../../core/snapshot.ts";
+import { LABELS } from "../../core/accounts/provider-labels.ts";
+import { readAll, usageJson } from "../../core/accounts/snapshot.ts";
 import { captureAsync, fancy, ink } from "../../core/output.ts";
-import { refreshUsage } from "../../core/usage-refresh.ts";
-import { type Line, type ProfileUsage, shortLines, usageLines } from "../../core/usage.ts";
+import { refreshUsage } from "../../core/accounts/usage-refresh.ts";
+import { type Line, type ProfileUsage, shortLines, usageLines } from "../../core/accounts/usage.ts";
 import { badge, colorLevel } from "../../core/theme.ts";
 import { claudeProfiles } from "../../core/machine-state.ts";
 import { readLog } from "../../core/revision.ts";
-import { type Ratio, type WindowSpend, spendReport } from "../../core/spend.ts";
-import { profileAccount } from "../../core/providers/claude-store.ts";
+import { type Ratio, type WindowSpend, spendReport } from "../../core/accounts/spend.ts";
+import { profileAccount } from "../../core/accounts/providers.ts";
 import { displayPath } from "../../core/output.ts";
 import type { Command } from "./shared.ts";
 

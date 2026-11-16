@@ -8,11 +8,11 @@ import os from "node:os";
 import path from "node:path";
 import { test, type TestContext } from "node:test";
 import { saveMachine, saveProfile } from "../core/machine-state.ts";
-import { loginProfile } from "../core/account-login.ts";
-import { type PeerSwitch, peerFailure, switchProfile } from "../core/account-switch.ts";
-import { verifyLogins } from "../core/profiles.ts";
-import type { ClaudeLogin } from "../core/providers/claude.ts";
-import { loginMark, slotProfile } from "../core/providers/claude-store.ts";
+import { loginProfile } from "../core/accounts/login.ts";
+import { type PeerSwitch, peerFailure, switchProfile } from "../core/accounts/switch.ts";
+import { verifyLogins } from "../core/accounts/profiles.ts";
+import type { ClaudeLogin } from "../core/accounts/providers/claude.ts";
+import { loginMark, slotProfile } from "../core/accounts/providers/claude-store.ts";
 import { state } from "../core/state.ts";
 import { quiet } from "./helpers.ts";
 
@@ -171,7 +171,7 @@ test("the checklist says when each profile's saved login expires, warning a week
   assert.match(text("check"), /personal.*expired/);
 });
 
-// The live usage marks the login Anthropic refused (core/providers/claude-usage.ts); the mark holds for that login,
+// The live usage marks the login Anthropic refused (core/accounts/providers/claude-usage.ts); the mark holds for that login,
 // wherever it is copied, until a new sign-in or a renewal brings another.
 const refuse = (home: string, name: string, token: string) => {
   fs.mkdirSync(path.join(home, "state", "usage"), { recursive: true });

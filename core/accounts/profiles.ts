@@ -9,13 +9,13 @@
 
 import os from "node:os";
 import path from "node:path";
-import { defaultConfigDir } from "./claude-code.ts";
-import { isWindows, lstat, removeGenerated, samePath } from "./common.ts";
-import { type Shortcuts, applyDesktop, powershellShortcuts, removeDesktop, removeTray, verifyDesktop } from "./desktop.ts";
-import { installGlobal } from "./global.ts";
-import { PALETTE, type Profile, claudeProfiles, loadProfiles, migrateLegacyProfiles, profilesFile, removeProfile, saveProfile } from "./machine-state.ts";
-import { checkItem, checkWarn, displayPath, report, section } from "./output.ts";
-import { state } from "./state.ts";
+import { defaultConfigDir } from "../claude-code.ts";
+import { isWindows, lstat, removeGenerated, samePath } from "../common.ts";
+import { type Shortcuts, applyDesktop, powershellShortcuts, removeDesktop, removeTray, verifyDesktop } from "../desktop.ts";
+import { installGlobal } from "../global.ts";
+import { PALETTE, type Profile, claudeProfiles, loadProfiles, migrateLegacyProfiles, profilesFile, removeProfile, saveProfile } from "../machine-state.ts";
+import { checkItem, checkWarn, displayPath, report, section } from "../output.ts";
+import { state } from "../state.ts";
 import { providerById, providers } from "./providers.ts";
 
 const SAFE_PROFILE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
