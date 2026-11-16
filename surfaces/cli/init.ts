@@ -78,22 +78,22 @@ async function afterWrap(ctx: Context, ws: string) {
   if (open === true) spawn("code", [ws], { detached: true, stdio: "ignore", shell: process.platform === "win32" }).unref();
 }
 
-async function askInit(ctx: Context, defaultWs: string, { opened = false } = {}) {
+export async function askInit(ctx: Context, defaultWs: string, { opened = false } = {}, prompts: typeof p = p) {
   const { repo } = ctx;
   const exit = <T,>(value: T): Exclude<T, symbol> => {
-    if (p.isCancel(value)) {
-      p.cancel(opened ? "The repository was cloned; nothing else was changed. Run dotagents init later." : "Nothing was changed.");
+    if (prompts.isCancel(value)) {
+      prompts.cancel(opened ? "The repository was cloned; nothing else was changed. Run dotagents init later." : "Nothing was changed.");
       process.exit(0);
     }
     return value as Exclude<T, symbol>;
   };
 
-  if (!opened) p.intro(`${brand()}  ${bold("init")}`);
+  if (!opened) prompts.intro(`${brand()}  ${bold("init")}`);
 
   let ws = defaultWs;
   if (ctx.positional[0] === undefined && !opened) {
     const answer = exit(
-      await p.text({
+      await prompts.text({
         message: "Which folder is the workspace?",
         placeholder: displayPath(defaultWs),
         defaultValue: defaultWs,
@@ -112,9 +112,9 @@ async function askInit(ctx: Context, defaultWs: string, { opened = false } = {})
   let wrapFrom = null;
   const inside = opened ? null : gitRepoOf(ws);
   if (inside && isRepoRoot(ws, inside.top)) {
-    p.log.message(dim(`No keeps the agent files inside the repository, hidden from git by .git/info/exclude: for a folder that has to stay as it is, like an Obsidian vault.`));
-    const wrap = exit(
-      await p.confirm({
+    if (!ctx.args.wrap) prompts.log.message(dim(`No keeps the agent files inside the repository, hidden from git by .git/info/exclude: for a folder that has to stay as it is, like an Obsidian vault.`));
+    const wrap = ctx.args.wrap || exit(
+      await prompts.confirm({
         message: `${bold(displayPath(ws))} is a git repository. Move it into ${bold(`${path.basename(ws)}-workspace/`)}, with the agent files outside it?`,
       })
     );
@@ -125,7 +125,7 @@ async function askInit(ctx: Context, defaultWs: string, { opened = false } = {})
   const present = skillsIn(repo, ws);
   if (wrapFrom) ws = `${wrapFrom}-workspace`;
   const skills = exit(
-    await p.multiselect({
+    await prompts.multiselect({
       message: `Which skills should ${bold(displayPath(ws))} use?`,
       options: listSkills(repo).map((s) => {
         const label = s.kind === "own" ? s.name : `${s.name}  ${dim(s.source)}`;
@@ -142,12 +142,12 @@ async function askInit(ctx: Context, defaultWs: string, { opened = false } = {})
 
   if (!state.dryRun) {
     const ok = exit(
-      await p.confirm({
+      await prompts.confirm({
         message: `Apply the standards to ${bold(displayPath(ws))}${skills.length ? ` with ${skills.length} skill${skills.length === 1 ? "" : "s"}` : ""}${extra ? ` and ${extra} they call` : ""}?`,
       })
     );
     if (!ok) {
-      p.cancel(opened ? "The repository was cloned; nothing else was changed. Run dotagents init later." : "Nothing was changed.");
+      prompts.cancel(opened ? "The repository was cloned; nothing else was changed. Run dotagents init later." : "Nothing was changed.");
       process.exit(0);
     }
   }
