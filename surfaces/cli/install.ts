@@ -1,6 +1,6 @@
-import { installCodex } from "../../core/codex-config.ts";
 import { applyPeer } from "../../core/peer.ts";
 import { installProfiles } from "../../core/profiles.ts";
+import { installProviders } from "../../core/providers.ts";
 import { finish, header } from "../../core/output.ts";
 import type { Command } from "./shared.ts";
 
@@ -14,7 +14,7 @@ export const install: Command = {
     header("install");
     installProfiles(repo);
     applyPeer();
-    installCodex(repo);
+    installProviders(repo);
     finish();
   },
 };

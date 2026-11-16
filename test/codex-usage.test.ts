@@ -7,12 +7,12 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { test, type TestContext } from "node:test";
-import { codexLoginMark } from "../core/codex.ts";
+import { codexLoginMark } from "../core/providers/codex.ts";
 import { CODEX_OTHER_EVERY_MS, CODEX_SLOT_EVERY_MS, type SpawnAppServer, fetchCodexLive, refreshAllUsage } from "../core/codex-usage.ts";
 import { loadProfiles, saveProfile } from "../core/machine-state.ts";
 import { codexUsage } from "../core/snapshot.ts";
 import { state } from "../core/state.ts";
-import { type PeerSwitch, switchProfile } from "../core/switch.ts";
+import { type PeerSwitch, switchProfile } from "../core/account-switch.ts";
 import { type ProfileUsage, usageLines } from "../core/usage.ts";
 import { REPO, quiet } from "./helpers.ts";
 

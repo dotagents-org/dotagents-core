@@ -24,7 +24,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import readline from "node:readline";
-import { codexLoginMark, codexProfiles, codexSlotProfile, readLogin, slotFile, vaultFile, vaultLogin } from "./codex.ts";
+import { codexLoginMark, codexProfiles, codexSlotProfile, readLogin, slotFile, vaultFile, vaultLogin } from "./providers/codex.ts";
 import { type LiveResult, refreshUsage } from "./live.ts";
 import type { Profile } from "./machine-state.ts";
 import { report } from "./output.ts";
@@ -199,7 +199,7 @@ export async function fetchCodexLive(
           }
           // Codex renews with a single-use refresh token: the vault keeps the renewed copy.
           const after = readLogin(path.join(home, "auth.json"));
-          if (after && after.text !== login.text && after.user === login.user) writePrivate(vaultFile(p.name), after.text);
+          if (after && after.text !== login.text && after.id === login.id) writePrivate(vaultFile(p.name), after.text);
         } finally {
           fs.rmSync(home, { recursive: true, force: true });
         }
@@ -227,7 +227,7 @@ export async function fetchCodexLive(
     return failed(`Codex's answer is not a usage this dotagents reads (${(err as Error).message})`, false);
   }
   const at = now();
-  writeRecord(p.name, { provider: "codex", fetchedAtMs: at, user: login.user, plan: usage.plan, windows: usage.windows, askedAtMs: at });
+  writeRecord(p.name, { provider: "codex", fetchedAtMs: at, user: login.id, plan: usage.plan, windows: usage.windows, askedAtMs: at });
   return { status: "updated", detail: "asked Codex for the usage" };
 }
 

@@ -19,7 +19,7 @@ import { BACKOFF_MS, MAX_BACKOFF_MS, readRecord, writeRecord } from "./usage-rec
 import { report, section } from "./output.ts";
 import { defaultConfigDir } from "./claude-code.ts";
 import { state } from "./state.ts";
-import { liveLogin, loginMark } from "./switch.ts";
+import { liveLogin, loginMark } from "./providers/claude-store.ts";
 import { withLoginLock, writePrivate } from "./vault.ts";
 import { normalize } from "./usage.ts";
 

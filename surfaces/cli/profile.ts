@@ -1,11 +1,9 @@
 // `profile add`, `profile list` and `profile remove`: the Claude profiles of this machine.
 
-import { verifyCodexConfig } from "../../core/codex-config.ts";
 import { verifyGlobal } from "../../core/global.ts";
-import { profileAccount, slotProfile, verifyLogins } from "../../core/switch.ts";
-import { configDirs, dropProfile, setUpProfile, verifyProfiles } from "../../core/profiles.ts";
-import { codexAccount, codexSlotProfile } from "../../core/codex.ts";
-import { loadProfiles, providerOf } from "../../core/machine-state.ts";
+import { configDirs, dropProfile, setUpProfile, verifyLogins, verifyProfiles } from "../../core/profiles.ts";
+import { activeProfiles, providerFor, providers, verifyProviderConfigs } from "../../core/providers.ts";
+import { loadProfiles } from "../../core/machine-state.ts";
 import { fancy, finish, header, line, paint, tone } from "../../core/output.ts";
 import type { Command } from "./shared.ts";
 
@@ -23,8 +21,8 @@ export const profileAdd: Command = {
     header("profile add", name);
     setUpProfile(repo, { name, isDefault: args.default, color: args.color, provider: args.provider });
     const profile = loadProfiles().find((a) => a.name === name);
-    if (profile && providerOf(profile) === "codex") return finish(codexAccount(profile) ? "" : `Sign it in with: dotagents login ${name}`);
-    finish(profile && !profileAccount(profile) ? `Save its login: sign in with claude auth login, then run dotagents switch --save ${name}` : "");
+    const provider = profile && providerFor(profile);
+    finish(profile && provider && !provider.account(profile) ? provider.addHint(name) : "");
   },
 };
 
@@ -34,18 +32,17 @@ export const profileList: Command = {
   summary: "list the profiles and check them",
   group: "Profiles",
   run({ repo }) {
-    const profiles = loadProfiles();
+    const profiles = activeProfiles();
     if (!profiles.length) {
       const hint = "No profiles yet. Add one per claude.ai account, the first with: dotagents profile add <name> --default";
       return console.log(fancy ? muted(hint) : hint);
     }
     header("profile list", `${profiles.length} profile${profiles.length === 1 ? "" : "s"}`);
     const width = Math.max(...profiles.map((a) => a.name.length)) + 2;
-    const inSlot = [slotProfile()?.name, codexSlotProfile()?.name];
+    const inSlot = providers().map((p) => p.slotProfile()?.name);
     for (const a of profiles) {
-      const codex = providerOf(a) === "codex";
-      const who = codex ? codexAccount(a) : profileAccount(a);
-      const email = who ? who.email || ("accountUuid" in who ? who.accountUuid : "saved") : "no saved login";
+      const who = providerFor(a).account(a);
+      const email = who ? who.shown : "no saved login";
       const slot = inSlot.includes(a.name) ? "in the slot" : "";
       if (!fancy) {
         console.log(`${a.name.padEnd(width)}${a.default ? "default  " : "         "}${email}${slot ? `  ${slot}` : ""}`);
@@ -56,7 +53,7 @@ export const profileList: Command = {
     }
     verifyProfiles();
     verifyGlobal(repo, configDirs());
-    verifyCodexConfig(repo);
+    verifyProviderConfigs(repo);
     verifyLogins();
     finish();
   },

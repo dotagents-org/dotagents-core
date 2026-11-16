@@ -9,7 +9,7 @@ import { badge, colorLevel } from "../../core/theme.ts";
 import { claudeProfiles } from "../../core/machine-state.ts";
 import { readLog } from "../../core/revision.ts";
 import { type Ratio, type WindowSpend, spendReport } from "../../core/spend.ts";
-import { profileAccount } from "../../core/switch.ts";
+import { profileAccount } from "../../core/providers/claude-store.ts";
 import { displayPath } from "../../core/output.ts";
 import type { Command } from "./shared.ts";
 

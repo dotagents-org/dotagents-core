@@ -8,7 +8,11 @@ import os from "node:os";
 import path from "node:path";
 import { test, type TestContext } from "node:test";
 import { saveMachine, saveProfile } from "../core/machine-state.ts";
-import { type ClaudeLogin, loginMark, loginProfile, peerFailure, slotProfile, switchProfile, verifyLogins, type PeerSwitch } from "../core/switch.ts";
+import { loginProfile } from "../core/account-login.ts";
+import { type PeerSwitch, peerFailure, switchProfile } from "../core/account-switch.ts";
+import { verifyLogins } from "../core/profiles.ts";
+import type { ClaudeLogin } from "../core/providers/claude.ts";
+import { loginMark, slotProfile } from "../core/providers/claude-store.ts";
 import { state } from "../core/state.ts";
 import { quiet } from "./helpers.ts";
 

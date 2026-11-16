@@ -29,9 +29,10 @@ import { doctor } from "./surfaces/cli/doctor.ts";
 import { startServer } from "./surfaces/web/server.ts";
 import { startAnswer, watchPeer } from "./core/snapshot.ts";
 import { openDesktop } from "./core/desktop.ts";
-import { forgetServer, liveServer, loadMachine, loadProfiles, providerOf, recordServer, sideName } from "./core/machine-state.ts";
+import { forgetServer, liveServer, loadMachine, loadProfiles, recordServer, sideName } from "./core/machine-state.ts";
 import { launcherDir } from "./core/profiles.ts";
-import { peerSwitch, switchProfile } from "./core/switch.ts";
+import { peerSwitch, switchProfile } from "./core/account-switch.ts";
+import { providerFor } from "./core/providers.ts";
 import { refreshAllUsage } from "./core/codex-usage.ts";
 import { LIVE_EVERY_MS } from "./core/live.ts";
 import { untrack, workspaces } from "./surfaces/cli/workspaces.ts";
@@ -122,7 +123,12 @@ const start: Command = {
         desktop: (body) => {
           const name = known(body);
           if (!name) return { status: 404, body: { ok: false, detail: "no such profile" } };
-          if (loadProfiles().some((p) => p.name === name && providerOf(p) === "codex")) return { status: 409, body: { ok: false, detail: `${name} is a ChatGPT profile; it has no Claude Desktop` } };
+          const profile = loadProfiles().find((p) => p.name === name);
+          try {
+            if (profile && !providerFor(profile).desktop) return { status: 409, body: { ok: false, detail: `${name} is a ${providerFor(profile).labels.account} profile; it has no Claude Desktop` } };
+          } catch (err) {
+            return { status: 409, body: { ok: false, detail: (err as Error).message } };
+          }
           const opened = openDesktop(name, launcherDir());
           return { status: opened.ok ? 200 : 409, body: opened };
         },

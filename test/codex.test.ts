@@ -8,12 +8,13 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { test, type TestContext } from "node:test";
-import { codexLoginMark, codexSlotProfile } from "../core/codex.ts";
+import { codexLoginMark, codexSlotProfile } from "../core/providers/codex.ts";
 import { codexUsage, readCodexSlots } from "../core/snapshot.ts";
 import { loadProfiles, saveProfile, sideName } from "../core/machine-state.ts";
 import { setUpProfile, verifyProfiles } from "../core/profiles.ts";
 import { state } from "../core/state.ts";
-import { type PeerSwitch, loginProfile, switchProfile } from "../core/switch.ts";
+import { loginProfile } from "../core/account-login.ts";
+import { type PeerSwitch, switchProfile } from "../core/account-switch.ts";
 import { REPO, quiet } from "./helpers.ts";
 
 function machine(t: TestContext) {

@@ -20,7 +20,7 @@ import { isWindows } from "./common.ts";
 import { type Peer, claudeProfiles, loadMachine } from "./machine-state.ts";
 import { report } from "./output.ts";
 import { state } from "./state.ts";
-import { profileAccount } from "./switch.ts";
+import { profileAccount } from "./providers/claude-store.ts";
 
 export const RECENT_MS = 10 * 60_000;
 

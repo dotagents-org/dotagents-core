@@ -1,30 +1,32 @@
-// The Codex accounts (ADR 0007), switched in place like Claude's (ADR 0009). Each side has one slot,
-// <CODEX_HOME>/auth.json (~/.codex by default), which the Codex command line, its VS Code extension
-// and its desktop app all read. Every account's login waits in the vault, <state>/vault/<profile>/
-// auth.json, one per account and side. The file is copied byte for byte and read only to tell
-// whose login it is: never printed, never renewed here (the refresh token is single-use).
+// Codex, the ChatGPT accounts (ADR 0007), switched in place like Claude's (ADR 0004). Each side has
+// one slot, <CODEX_HOME>/auth.json (~/.codex by default), which the Codex command line, its VS Code
+// extension and its desktop app all read. Every account's login waits in the vault, <state>/vault/
+// <profile>/auth.json, one per account and side. The file is copied byte for byte and read only to
+// tell whose login it is: never printed, never renewed here (the refresh token is single-use). The
+// steps here are the ones the common coordination (core/account-switch.ts, account-login.ts) calls.
 
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { type Profile, loadProfiles, providerOf, sideName, stateDir } from "./machine-state.ts";
-import { checkItem, checkWarn, report, section } from "./output.ts";
-import { state } from "./state.ts";
-import { vaultDir, writePrivate } from "./vault.ts";
+import { type Profile, loadProfiles, providerOf, sideName, stateDir } from "../machine-state.ts";
+import { checkItem, checkWarn, report, section } from "../output.ts";
+import { LABELS } from "../provider-labels.ts";
+import type { Login, Provider, SwitchOptions } from "../providers.ts";
+import { state } from "../state.ts";
+import { vaultDir, withLoginLock, writePrivate } from "../vault.ts";
+import { codexHome, installCodex, verifyCodexConfig } from "./codex-config.ts";
 
-export const codexHome = () => process.env.CODEX_HOME || path.join(os.homedir(), ".codex");
+export { codexHome };
 export const slotFile = () => path.join(codexHome(), "auth.json");
 export const vaultFile = (name: string) => path.join(vaultDir(name), "auth.json");
 
-// A login: the file as Codex wrote it, and who it is. user: the person (chatgpt_user_id); the
+// A login: the file as Codex wrote it, and who it is. id: the person (chatgpt_user_id); the
 // workspace's account_id is the same for every seat in it, so it can't tell two seats apart.
 // grant: one completed sign-in (login_owner_id), which renewals keep. plan: the ChatGPT plan type
 // ("team"). Read from the id_token, nothing else of it.
-export type CodexLogin = { text: string; user: string; grant: string | null; refreshed: number | null; email: string; plan: string | null };
-
-export function readLogin(file: string): CodexLogin | null {
+export function readLogin(file: string): Login | null {
   let text: string;
   try {
     text = fs.readFileSync(file, "utf8");
@@ -40,7 +42,8 @@ export function readLogin(file: string): CodexLogin | null {
     const refreshed = Date.parse(JSON.parse(text)?.last_refresh);
     return {
       text,
-      user,
+      file,
+      id: user,
       grant: typeof tokens.login_owner_id === "string" ? tokens.login_owner_id : null,
       refreshed: Number.isNaN(refreshed) ? null : refreshed,
       email: typeof payload.email === "string" ? payload.email : "",
@@ -51,7 +54,7 @@ export function readLogin(file: string): CodexLogin | null {
   }
 }
 
-// The mark of a login's refresh token, as loginMark in core/switch.ts does for Claude's: tells a
+// The mark of a login's refresh token, as loginMark in core/providers/claude-store.ts does for Claude's: tells a
 // login apart without keeping any of it.
 export function codexLoginMark(text: string): string | null {
   try {
@@ -65,26 +68,18 @@ export function codexLoginMark(text: string): string | null {
 export const codexProfiles = () => loadProfiles().filter((p) => providerOf(p) === "codex");
 export const slotLogin = () => readLogin(slotFile());
 export const vaultLogin = (name: string) => readLogin(vaultFile(name));
-const ownerOf = (user: string) => codexProfiles().find((p) => vaultLogin(p.name)?.user === user) ?? null;
+const ownerOf = (user: string) => codexProfiles().find((p) => vaultLogin(p.name)?.id === user) ?? null;
 
 // The Codex profile whose account is in this side's slot, or null.
 export function codexSlotProfile(): Profile | null {
   const slot = slotLogin();
-  return slot ? ownerOf(slot.user) : null;
+  return slot ? ownerOf(slot.id) : null;
 }
 
 // The account of a profile's saved login, or null.
 export function codexAccount(p: Profile) {
   const saved = vaultLogin(p.name);
-  return saved ? { user: saved.user, email: saved.email, plan: saved.plan } : null;
-}
-
-function saveToVault(name: string, login: CodexLogin) {
-  const known = vaultLogin(name);
-  if (known?.text === login.text) return report("ok", vaultDir(name), `${name}'s login`);
-  if (state.dryRun) return report("would update", vaultDir(name), `${name}'s login`);
-  writePrivate(vaultFile(name), login.text);
-  report(known ? "updated" : "created", vaultDir(name), `${name}'s login`);
+  return saved ? { user: saved.id, email: saved.email, plan: saved.plan } : null;
 }
 
 // Puts a file in place under Codex's own commit lock, auth.json.lock, an exclusive flock it waits
@@ -143,65 +138,9 @@ export const restartDaemon: RestartDaemon = () => {
   return restart.status === 0 ? "restarted" : `couldn't restart it (exit ${restart.status}); run: codex app-server daemon restart`;
 };
 
-// The switch on this side, under dotagents' login lock: the profile switched to, or null after a
-// --save.
-export function switchCodexHere(name: string | undefined, save: string | undefined, options: { commit?: CommitUnderLock; daemon?: RestartDaemon } = {}): string | null {
-  const { commit = commitUnderLock, daemon = restartDaemon } = options;
-  const profiles = codexProfiles();
-  const find = (n: string) => {
-    const p = profiles.find((x) => x.name === n);
-    if (!p) throw new Error(`There is no ChatGPT profile named ${n}`);
-    return p;
-  };
-
-  if (save) {
-    find(save);
-    const slot = slotLogin();
-    if (!slot) throw new Error(`There is no Codex login in ${slotFile()} to save; sign in with: codex login`);
-    const other = ownerOf(slot.user);
-    if (other && other.name !== save) throw new Error(`That login is ${other.name}'s; sign in with ${save}'s account first`);
-    section("Vault");
-    saveToVault(save, slot);
-    return null;
-  }
-  if (!name) throw new Error("Usage: dotagents switch <profile> [--here], or dotagents switch --save <profile>");
-
-  find(name);
-  const wanted = vaultLogin(name);
-  if (!wanted) throw new Error(`There is no login saved for ${name}: sign it in with dotagents login ${name}`);
-  const slot = slotLogin();
-
-  if (slot) {
-    const owner = ownerOf(slot.user);
-    if (!owner) throw new Error(`${slotFile()} holds an account no profile knows; save it first with: dotagents switch --save <profile>`);
-    const saved = vaultLogin(owner.name);
-    // The slot's copy goes back to its vault only when it is provably the newer one: the same
-    // sign-in, renewed at least as late. Another sign-in of the account is a choice for the person.
-    if (slot.text !== saved?.text) {
-      if (!saved || slot.grant === null || slot.grant !== saved.grant || (slot.refreshed ?? 0) < (saved.refreshed ?? 0)) {
-        throw new Error(`${slotFile()} holds another sign-in of ${owner.name} than its vault; keep it with dotagents switch --save ${owner.name}, then switch again`);
-      }
-      section("Vault");
-      saveToVault(owner.name, slot);
-    }
-    if (owner.name === name) {
-      section("Slot");
-      report("ok", slotFile(), `${name} is already in the slot`);
-      recordSlot(name, slot.user);
-      warnIfRefused(name);
-      return name;
-    }
-  }
-
-  writeSlot(name, wanted, commit, daemon);
-  warnIfRefused(name);
-  return name;
-}
-
-// Puts a login in the slot, under Codex's lock, checks it, and restarts the daemon.
-function writeSlot(name: string, login: CodexLogin, commit: CommitUnderLock, daemon: RestartDaemon) {
-  section("Slot");
-  if (state.dryRun) return report("would update", slotFile(), name);
+// Puts a login in the slot, under Codex's lock, and checks it.
+function writeSlot(name: string, login: Login, { codex = {} }: SwitchOptions) {
+  const { commit = commitUnderLock } = codex;
   if (fs.lstatSync(slotFile(), { throwIfNoEntry: false })?.isSymbolicLink()) throw new Error(`${slotFile()} is a link; dotagents writes only a plain file there`);
   fs.mkdirSync(codexHome(), { recursive: true, mode: 0o700 });
   const tmp = `${slotFile()}.dotagents-${process.pid}`;
@@ -211,9 +150,13 @@ function writeSlot(name: string, login: CodexLogin, commit: CommitUnderLock, dae
   } finally {
     fs.rmSync(tmp, { force: true });
   }
-  if (slotLogin()?.user !== login.user) throw new Error(`${slotFile()} doesn't hold ${name} after writing it; run it again`);
-  report("updated", slotFile(), `now ${name}`);
-  recordSlot(name, login.user);
+  if (slotLogin()?.id !== login.id) throw new Error(`${slotFile()} doesn't hold ${name} after writing it; run it again`);
+}
+
+// Remembers what was put there, and restarts the daemon.
+function afterSlotWrite(name: string, login: Login, { codex = {} }: SwitchOptions) {
+  const { daemon = restartDaemon } = codex;
+  recordSlot(name, login.id);
   const restarted = daemon();
   if (restarted) report(restarted === "restarted" ? "updated" : "failed", "codex app-server daemon", restarted);
 }
@@ -231,35 +174,96 @@ export const codexSignIn: CodexSignIn = (home) => {
   return { ok: run.status === 0, detail: run.error?.message ?? `exit ${run.status}` };
 };
 
-export type CodexLoginOptions = { run?: CodexSignIn; commit?: CommitUnderLock; daemon?: RestartDaemon; lock?: <T>(fn: () => T) => Promise<T> };
 
-export async function loginCodex(name: string, { run = codexSignIn, commit = commitUnderLock, daemon = restartDaemon, lock = async (fn) => fn() }: CodexLoginOptions = {}) {
-  if (!codexProfiles().some((p) => p.name === name)) throw new Error(`There is no ChatGPT profile named ${name}`);
-  section(name);
-  if (state.dryRun) return report("would update", vaultDir(name), `sign ${name} in with codex login, in a folder of its own`);
-  const home = fs.mkdtempSync(path.join(os.tmpdir(), "dotagents-codex-login-"));
-  try {
-    fs.chmodSync(home, 0o700);
-    // A file, never the system keyring, so there is an auth.json to take.
-    fs.writeFileSync(path.join(home, "config.toml"), 'cli_auth_credentials_store = "file"\n', { mode: 0o600 });
-    const signed = run(home);
-    if (!signed.ok) throw new Error(`codex login didn't finish (${signed.detail})`);
-    const fresh = readLogin(path.join(home, "auth.json"));
-    if (!fresh) throw new Error("codex login left no ChatGPT login to keep; sign in with a ChatGPT account, not an API key");
-    await lock(() => {
-      const known = vaultLogin(name);
-      const owner = ownerOf(fresh.user);
-      if ((known && known.user !== fresh.user) || (owner && owner.name !== name)) {
-        throw new Error(`Signed in as ${fresh.email || "another account"}, not ${name}'s account; run it again and choose that account in the browser`);
+const codex: Provider = {
+  id: "codex",
+  labels: LABELS.codex,
+  configDir: codexHome,
+  desktop: false,
+  profiles: codexProfiles,
+  profileRecord({ name, color, isDefault }) {
+    if (isDefault) throw new Error("--default names the profile the Claude Desktop app opens; a ChatGPT profile has none");
+    return { name, configDir: codexHome(), color, provider: "codex" };
+  },
+
+  account(p) {
+    const account = codexAccount(p);
+    return account ? { id: account.user, email: account.email, plan: account.plan, shown: account.email || "saved" } : null;
+  },
+  slot: slotLogin,
+  slotProfile: codexSlotProfile,
+  slotPath: slotFile,
+  saved: (p) => vaultLogin(p.name),
+  vaultLogin,
+  ownerOf,
+  writeVault: (name, login) => writePrivate(vaultFile(name), login.text),
+
+  noSlotLogin: () => `There is no Codex login in ${slotFile()} to save; sign in with: codex login`,
+  noSavedLogin: (name) => `There is no login saved for ${name}: sign it in with dotagents login ${name}`,
+  checkSave(slot, save) {
+    const other = ownerOf(slot.id);
+    if (other && other.name !== save) throw new Error(`That login is ${other.name}'s; sign in with ${save}'s account first`);
+  },
+  beforeLeave(slot, _wanted, name, ctx) {
+    const owner = ownerOf(slot.id);
+    if (!owner) throw new Error(`${slotFile()} holds an account no profile knows; save it first with: dotagents switch --save <profile>`);
+    const saved = vaultLogin(owner.name);
+    // The slot's copy goes back to its vault only when it is provably the newer one: the same
+    // sign-in, renewed at least as late. Another sign-in of the account is a choice for the person.
+    if (slot.text !== saved?.text) {
+      if (!saved || slot.grant === null || slot.grant !== saved.grant || (slot.refreshed ?? 0) < (saved.refreshed ?? 0)) {
+        throw new Error(`${slotFile()} holds another sign-in of ${owner.name} than its vault; keep it with dotagents switch --save ${owner.name}, then switch again`);
       }
       section("Vault");
-      saveToVault(name, fresh);
-      if (slotLogin()?.user === fresh.user) writeSlot(name, fresh, commit, daemon);
-    });
-  } finally {
-    fs.rmSync(home, { recursive: true, force: true });
-  }
-}
+      ctx.save(owner.name, slot);
+    }
+    return owner.name === name;
+  },
+  slotDetail: (name) => name,
+  writeSlot,
+  afterSlotWrite,
+  afterAlready: (name, slot) => recordSlot(name, slot.id),
+  refused: (p) => refusedCodex(p.name),
+  switched: "Codex sessions already open stay on the old account until you restart them.",
+  signInHint: (name) => `sign it in with: dotagents login ${name}`,
+  addHint: (name) => `Sign it in with: dotagents login ${name}`,
+
+  async signIn(profiles, { codex = {} }, ctx) {
+    const { run = codexSignIn, lock = withLoginLock } = codex;
+    for (const p of profiles) {
+      const { name } = p;
+      section(name);
+      if (state.dryRun) {
+        report("would update", vaultDir(name), `sign ${name} in with codex login, in a folder of its own`);
+        continue;
+      }
+      const home = fs.mkdtempSync(path.join(os.tmpdir(), "dotagents-codex-login-"));
+      try {
+        fs.chmodSync(home, 0o700);
+        // A file, never the system keyring, so there is an auth.json to take.
+        fs.writeFileSync(path.join(home, "config.toml"), 'cli_auth_credentials_store = "file"\n', { mode: 0o600 });
+        const signed = run(home);
+        if (!signed.ok) throw new Error(`codex login didn't finish (${signed.detail})`);
+        const fresh = readLogin(path.join(home, "auth.json"));
+        if (!fresh) throw new Error("codex login left no ChatGPT login to keep; sign in with a ChatGPT account, not an API key");
+        await lock(() => {
+          ctx.accept(p, fresh, fresh.email || "another account");
+          section("Vault");
+          ctx.save(name, fresh);
+          if (slotLogin()?.id === fresh.id) ctx.put(name, fresh);
+        });
+      } finally {
+        fs.rmSync(home, { recursive: true, force: true });
+      }
+    }
+  },
+
+  verifyProfiles: verifyCodexLogins,
+  install: installCodex,
+  verifyConfig: verifyCodexConfig,
+};
+
+export default codex;
 
 // ── Checks ───────────────────────────────────────────────────────────────────────────────────
 // The checklist of `profile list` for the Codex logins of this side, and the switch's warning.
@@ -270,7 +274,7 @@ export async function loginCodex(name: string, { run = codexSignIn, commit = com
 function refusedCodex(name: string) {
   const saved = vaultLogin(name);
   const slot = slotLogin();
-  const login = slot && saved && slot.user === saved.user ? slot : saved;
+  const login = slot && saved && slot.id === saved.id ? slot : saved;
   const mark = login && codexLoginMark(login.text);
   if (!mark) return false;
   try {
@@ -281,10 +285,6 @@ function refusedCodex(name: string) {
 }
 
 const renewHint = (name: string) => `renew it, on ${sideName()}: dotagents login ${name}`;
-
-function warnIfRefused(name: string) {
-  if (refusedCodex(name)) checkWarn(`${name}'s login was refused by OpenAI`, renewHint(name));
-}
 
 // Which profile and ChatGPT user the last switch or login put in this side's slot: no token.
 const slotRecord = () => path.join(stateDir(), "codex-slot.json");
@@ -336,8 +336,8 @@ export function verifyCodexLogins() {
     // Nothing recorded yet.
   }
   const now = slotLogin();
-  if (put && typeof put.profile === "string" && typeof put.user === "string" && now && now.user !== put.user) {
-    const holds = ownerOf(now.user)?.name;
+  if (put && typeof put.profile === "string" && typeof put.user === "string" && now && now.id !== put.user) {
+    const holds = ownerOf(now.id)?.name;
     checkWarn(`the slot on ${side} holds ${holds ?? "an account no profile knows"}, but the last switch put ${put.profile} there`, `a Codex left open may have written its old login back; run dotagents switch ${put.profile} again, or dotagents switch --save ${holds ?? "<profile>"} if the new login is wanted`);
   }
 }

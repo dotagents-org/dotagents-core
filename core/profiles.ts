@@ -9,15 +9,14 @@
 
 import os from "node:os";
 import path from "node:path";
-import { CREDENTIAL_VARIABLES, defaultConfigDir } from "./claude-code.ts";
+import { defaultConfigDir } from "./claude-code.ts";
 import { isWindows, lstat, removeGenerated, samePath } from "./common.ts";
 import { type Shortcuts, applyDesktop, powershellShortcuts, removeDesktop, removeTray, verifyDesktop } from "./desktop.ts";
 import { installGlobal } from "./global.ts";
-import { codexAccount, codexHome, codexProfiles, verifyCodexLogins } from "./codex.ts";
-import { PALETTE, type Profile, type ProviderId, claudeProfiles, loadProfiles, migrateLegacyProfiles, profilesFile, removeProfile, saveProfile } from "./machine-state.ts";
+import { PALETTE, type Profile, claudeProfiles, loadProfiles, migrateLegacyProfiles, profilesFile, removeProfile, saveProfile } from "./machine-state.ts";
 import { checkItem, checkWarn, displayPath, report, section } from "./output.ts";
 import { state } from "./state.ts";
-import { profileAccount } from "./switch.ts";
+import { providerById, providers } from "./providers.ts";
 
 const SAFE_PROFILE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const HEX = /^#[0-9a-fA-F]{6}$/;
@@ -57,27 +56,17 @@ export function setUpProfile(
 ) {
   if (!SAFE_PROFILE.test(name)) throw new Error(`'${name}' is not a valid profile name: use lowercase letters, digits and dashes`);
   if (color !== undefined && !HEX.test(color)) throw new Error(`'${color}' is not a color: use #RRGGBB`);
-  if (provider !== "claude" && provider !== "codex") throw new Error(`'${provider}' is not a provider: use claude or codex`);
+  const kind = providerById(provider);
   const all = loadProfiles();
   const prior = all.find((a) => a.name === name);
   if (prior && (prior.provider ?? "claude") !== provider) throw new Error(`${name} is already a ${prior.provider ?? "claude"} profile`);
-  if (provider === "codex") {
-    if (isDefault) throw new Error("--default names the profile the Claude Desktop app opens; a ChatGPT profile has none");
-    record({ name, configDir: codexHome(), color: color ?? prior?.color ?? PALETTE[all.filter((a) => a.name !== name).length % PALETTE.length], provider: provider as ProviderId }, prior);
-    return;
+  const profile = kind.profileRecord({ name, isDefault, prior, all, color: color ?? prior?.color ?? PALETTE[all.filter((a) => a.name !== name).length % PALETTE.length] });
+  // The provider with a Desktop app per profile also gets the configuration applied.
+  if (kind.desktop) {
+    section("Configuration");
+    installGlobal(repo);
+    applyProfile(repo, profile, desktop);
   }
-  const otherDefault = all.find((a) => a.default && a.name !== name);
-  // The default profile is the one the normal Desktop app opens: only one.
-  if (isDefault && otherDefault) throw new Error(`${otherDefault.name} is already the default profile`);
-  const profile: Profile = {
-    name,
-    configDir: defaultConfigDir(),
-    color: color ?? prior?.color ?? PALETTE[all.filter((a) => a.name !== name).length % PALETTE.length],
-    ...(isDefault || prior?.default ? { default: true } : {}),
-  };
-  section("Configuration");
-  installGlobal(repo);
-  applyProfile(repo, profile, desktop);
   record(profile, prior);
 }
 
@@ -115,35 +104,30 @@ export function installProfiles(repo: string, { desktop = desktopDefault() }: De
   if (desktop) removeTray();
 }
 
-// The profiles' checklist: each one's login saved, each a different claude.ai account, and no
-// variable that would sign Claude Code in as someone else.
+// The profiles' checklist: each one's login saved, each a different account of its provider, each
+// provider's own checks, and no variable that would sign an agent in as someone else.
 export function verifyProfiles({ desktop = desktopDefault() }: DesktopOption = {}) {
   section("Profiles");
-  const seen = new Map<string, string>();
-  for (const profile of claudeProfiles()) {
-    if (desktop) verifyDesktop(profile.name, profile.default);
-    checkItem(samePath(profile.configDir, defaultConfigDir()), `${profile.name} uses ${displayPath(defaultConfigDir())}`, "move it there with: dotagents install");
-    const account = profileAccount(profile);
-    if (!account) {
-      checkWarn(`${profile.name} has no saved login`, `sign in with claude auth login, then: dotagents switch --save ${profile.name}`);
-      continue;
+  for (const provider of providers()) {
+    const seen = new Map<string, string>();
+    for (const profile of provider.profiles()) {
+      if (desktop && provider.desktop) verifyDesktop(profile.name, profile.default);
+      provider.verifyProfile?.(profile);
+      const account = provider.account(profile);
+      if (!account) {
+        checkWarn(`${profile.name} has no saved login`, provider.signInHint(profile.name));
+        continue;
+      }
+      const twin = seen.get(account.id);
+      checkItem(!twin, `${profile.name} is a different ${provider.labels.service} account`, `${profile.name} and ${twin} hold the same account; sign one of them in again and save it with dotagents switch --save`);
+      seen.set(account.id, profile.name);
     }
-    const twin = seen.get(account.accountUuid);
-    checkItem(!twin, `${profile.name} is a different claude.ai account`, `${profile.name} and ${twin} hold the same account; sign one of them in again and save it with dotagents switch --save`);
-    seen.set(account.accountUuid, profile.name);
   }
-  const users = new Map<string, string>();
-  for (const profile of codexProfiles()) {
-    const account = codexAccount(profile);
-    if (!account) {
-      checkWarn(`${profile.name} has no saved login`, `sign it in with: dotagents login ${profile.name}`);
-      continue;
-    }
-    const twin = users.get(account.user);
-    checkItem(!twin, `${profile.name} is a different ChatGPT account`, `${profile.name} and ${twin} hold the same account; sign one of them in again and save it with dotagents switch --save`);
-    users.set(account.user, profile.name);
-  }
-  verifyCodexLogins();
-  const exported = CREDENTIAL_VARIABLES.filter((v) => process.env[v]);
-  if (exported.length) checkWarn(`${exported.join(", ")} set in this shell`, "they sign Claude Code in over the slot's login; unset them");
+  for (const provider of providers()) provider.verifyProfiles?.();
+  for (const provider of providers()) provider.verifyEnvironment?.();
+}
+
+// The Logins section: how long each saved login lasts, on each side.
+export function verifyLogins(now = new Date()) {
+  for (const provider of providers()) provider.verifyLogins?.(now);
 }

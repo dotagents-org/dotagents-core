@@ -9,11 +9,11 @@ import path from "node:path";
 import { type Activity, sessionActivity } from "./claude-code.ts";
 import { liveUsage, sideProfiles } from "./live.ts";
 import { codexLiveUsage } from "./codex-usage.ts";
-import { codexAccount, codexProfiles, codexSlotProfile, readLogin } from "./codex.ts";
+import { codexAccount, codexProfiles, codexSlotProfile, readLogin } from "./providers/codex.ts";
 import { PALETTE, type Peer, type Profile, loadMachine, sideName } from "./machine-state.ts";
 import { peerUp } from "./peer.ts";
 import { peerRunningLater } from "./sessions.ts";
-import { liveLogin, profilePlan, slotProfile } from "./switch.ts";
+import { liveLogin, profilePlan, slotProfile } from "./providers/claude-store.ts";
 import { AVATAR_STATES, type AvatarState, type ProfileUsage, STALE_MS, avatarState, avatarWorking, elapsedPct, normalize, pace, profileUsage } from "./usage.ts";
 
 // The live record joined to what the cache gave: it wins when it is about the profile's account
@@ -265,7 +265,7 @@ export function readCodexSlots(view?: PeerView): Record<string, string> {
     peer = undefined;
   }
   if (!peer || (view && !view.up(peer))) return slots;
-  const user = readLogin(path.join(peer.home, ".codex", "auth.json"))?.user;
+  const user = readLogin(path.join(peer.home, ".codex", "auth.json"))?.id;
   const there = user ? codexProfiles().find((p) => codexAccount(p)?.user === user)?.name : undefined;
   if (there) slots[peer.name] = there;
   return slots;
