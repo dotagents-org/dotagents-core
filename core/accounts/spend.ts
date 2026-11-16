@@ -72,6 +72,15 @@ const lines = (file: string) => {
   }
 };
 
+function ownerIn(line: string, current: string | null): string | null {
+  if (!line.includes('"type":"session-owner"')) return current;
+  try {
+    return JSON.parse(line).accountUuid ?? current;
+  } catch {
+    return current;
+  }
+}
+
 // The messages of one transcript since `since`. owner: the account of the session it belongs to, for a
 // subagent's transcript, which names none. seen: message ids already counted (Claude Code writes a
 // message once per content block, and a resumed session may carry earlier ones).
@@ -80,9 +89,7 @@ function readTranscript(file: string, since: number, seen: Set<string>, owner: s
   let account = owner;
   for (const line of lines(file)) {
     if (line.includes('"type":"session-owner"')) {
-      try {
-        account = JSON.parse(line).accountUuid ?? account;
-      } catch {}
+      account = ownerIn(line, account);
       continue;
     }
     if (!line.includes('"type":"assistant"')) continue;
@@ -109,9 +116,7 @@ function ownerOf(file: string) {
   let account: string | null = null;
   for (const line of lines(file)) {
     if (!line.includes('"type":"session-owner"')) continue;
-    try {
-      account = JSON.parse(line).accountUuid ?? account;
-    } catch {}
+    account = ownerIn(line, account);
   }
   return account;
 }
