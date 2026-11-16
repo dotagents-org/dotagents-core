@@ -23,8 +23,9 @@ const AGENTS = "claude-code";
 export function loadCatalog(repo: string): CatalogEntry[] {
   try {
     return JSON.parse(fs.readFileSync(catalogFile(repo), "utf8")).skills ?? [];
-  } catch {
-    return [];
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return [];
+    throw new Error(`Cannot read ${catalogFile(repo)}: ${(error as Error).message}`, { cause: error });
   }
 }
 

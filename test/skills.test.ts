@@ -6,7 +6,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { test } from "node:test";
 import { addedByCalls, applySkills, listSkills, resolveSkills, skillsIn, verifySkills } from "../core/skills.ts";
-import { catalogFile, findRequires, parseSkill } from "../core/thirdparty.ts";
+import { catalogFile, findRequires, loadCatalog, parseSkill, saveCatalog } from "../core/thirdparty.ts";
 import { REPO, fakeInstaller, fakeThirdParty, quiet, tempWorkspace, withConfig } from "./helpers.ts";
 
 
@@ -65,6 +65,19 @@ function tempRepo(t: Parameters<typeof tempWorkspace>[0], own: Record<string, st
   fs.writeFileSync(catalogFile(repo), JSON.stringify({ skills: catalog }));
   return repo;
 }
+
+test("a broken third-party catalog cannot be read or overwritten", (t) => {
+  const repo = tempRepo(t, {});
+  const file = catalogFile(repo);
+  fs.writeFileSync(file, "{broken");
+  assert.throws(() => loadCatalog(repo), /third-party-skills.json|JSON/);
+  assert.throws(() => listSkills(repo), /third-party-skills.json|JSON/);
+  assert.equal(fs.readFileSync(file, "utf8"), "{broken");
+  fs.unlinkSync(file);
+  assert.deepEqual(loadCatalog(repo), []);
+  saveCatalog(repo, []);
+  assert.deepEqual(loadCatalog(repo), []);
+});
 
 test("a skill calls another through the Skill tool or a link into its folder", (t) => {
   const root = tempWorkspace(t);
