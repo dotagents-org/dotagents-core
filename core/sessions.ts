@@ -2,7 +2,7 @@
 // .artifacts/session-archives/ (the session-archive skill's parser, so the archive is the same
 // file the skill writes), and delete one with everything Claude Code keeps for it. Every config
 // folder is read: this side's ~/.claude and the other side's (core/peer.ts), since a profile's
-// sessions live in the slot of the side that ran them (ADR 0011).
+// sessions live in the slot of the side that ran them.
 //
 // A session still running is deleted only when the caller asks (the user confirmed, and it is
 // archived first), ending its Claude Code on this side first. Running means: on this side, its

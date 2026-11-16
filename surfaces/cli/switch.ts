@@ -1,5 +1,5 @@
 // `switch`: which account each slot holds (~/.claude for Claude, ~/.codex/auth.json for Codex), and
-// changing it (ADR 0009, ADR 0007).
+// changing it (ADR 0004, ADR 0007).
 
 import { providerFor, providers, activeProfiles } from "../../core/accounts/providers.ts";
 import { brand, fancy, finish, header, line, paint, tone } from "../../core/output.ts";

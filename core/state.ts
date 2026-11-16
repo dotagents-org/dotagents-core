@@ -1,5 +1,5 @@
 // The state of one run: --dry-run, the counters the summary prints, and the folder paths are
-// shown relative to. Every module reads it; only lib/output.ts updates the counters.
+// shown relative to. Every module reads it; only core/output.ts updates the counters.
 
 import type { Status } from "./output.ts";
 

@@ -12,6 +12,7 @@ dotagents-core/
 ├── docs/                      this documentation
 ├── cli.ts                     the dotagents command: reads the arguments, picks the command, prints the help
 ├── core/                      the data and the actions, drawing nothing (see below)
+│   └── accounts/              the accounts: profiles, switch, login, usage; one file per provider in providers/
 ├── surfaces/                  the ways in, each using core/ only
 │   ├── cli/                   one file per command: its help, its questions, its run
 │   └── web/                   server.ts: the local API of dotagents start (127.0.0.1, token, live events, apiVersion)
@@ -28,7 +29,7 @@ The command is TypeScript run directly by Node (type stripping, no build step) w
 
 **Core and surfaces.** `core/` holds the data and the actions and draws nothing. A surface is a way in: the commands (`surfaces/cli/`) and the local API (`surfaces/web/`, which the dotagents sidebar reads over HTTP; the panel, the avatars and everything else drawn live there). Nothing here draws a page. Each surface uses `core/` and never another surface; `cli.ts`, at the root, is the one place that picks one, and where `start` joins the command line to the web server. `test/boundaries.test.ts` fails when an import breaks the rule.
 
-The arrows point to what a part uses. The table below gives each module's interface.
+The arrows point to what a part uses, and none runs in a circle (`test/boundaries.test.ts`). The accounts go one way: surfaces, then the coordination, then `providers.ts`, then each provider's files, then the storage they share. The table below gives each module's interface.
 
 ```mermaid
 %%{init: {"look": "handDrawn", "handDrawnSeed": 3, "theme": "base", "themeVariables": {"fontFamily": "Geist Mono, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace", "fontSize": "14px", "primaryColor": "#171717", "primaryTextColor": "#ededed", "primaryBorderColor": "#171717", "lineColor": "#8f8f8f", "textColor": "#171717", "edgeLabelBackground": "#ededed", "clusterBkg": "transparent", "clusterBorder": "#8f8f8f", "titleColor": "#808080"}}}%%
@@ -43,11 +44,15 @@ flowchart TB
         direction LR
         workspace["workspace.ts<br/>the standard"] --> skills["skills.ts<br/>own + third-party"] --> thirdparty["thirdparty.ts<br/>catalog, npx"]
         workspace --> git["git.ts<br/>.git/info/exclude"]
-        profiles["profiles.ts<br/>Claude profiles"] --> global["global.ts<br/>machine level"]
-        profiles --> desktop["desktop.ts<br/>Desktop on Windows"] --> taskbar["taskbar.ts<br/>taskbar button"]
-        usage["usage.ts<br/>plan usage"]
-        live["live.ts<br/>usage from Anthropic"] --> switch["switch.ts<br/>slot and vaults"]
-        sessions["sessions.ts<br/>list, archive, delete"] --> switch
+        global["global.ts<br/>machine level"]
+        desktop["desktop.ts<br/>Desktop on Windows"] --> taskbar["taskbar.ts<br/>taskbar button"]
+        sessions["sessions.ts<br/>list, archive, delete"]
+        revision["revision.ts<br/>prompt revision"]
+    end
+
+    subgraph accounts["core/accounts: one person's seats"]
+        direction LR
+        coordination["profiles, switch, login,<br/>usage-refresh, snapshot"] --> providers["providers.ts<br/>the interface and the list"] --> adapters["providers/<br/>claude*.ts, codex*.ts"] --> storage["vault.ts, usage-record.ts<br/>logins and readings"]
     end
 
     subgraph shared["core: shared by every module"]
@@ -61,6 +66,8 @@ flowchart TB
     end
 
     surfaces --> features --> shared
+    surfaces --> accounts --> shared
+    features --> accounts
 ```
 
 | Module | Interface | Behind it |
@@ -69,20 +76,36 @@ flowchart TB
 | `core/skills.ts` | `listSkills(repo)`, `resolveSkills(repo, names)`, `skillsIn(repo, ws)`, `applySkills(ws, skills, { installer })`, `verifySkills(repo, ws)` | Own skills and third-party ones as one list (`name`, `kind`, `source`, `description`). Linking, installing (and in which order), and the skill checks. |
 | `core/thirdparty.ts` | `loadCatalog`, `saveCatalog`, `discoverSkills`, `parseSkill`, `npxInstaller` | The catalog file, reading `SKILL.md`, and the installer adapter that runs `npx skills add`. |
 | `core/git.ts` | `ensureExcluded`, `removeExcluded`, `gitRepoOf`, `isRepoRoot`, `trackedAgentFiles`, `untrackedAgentFiles` | Keeping agent files out of a project's git through `.git/info/exclude`. |
+| `core/memory.ts` | `applyMemory(ws, configDirs)`, `verifyMemory(ws, configDirs)`, `projectSlug(dir)` | Workspace memory: `autoMemoryDirectory` in the workspace's `.claude/settings.local.json` pointing at `.artifacts/memory/`, the copy of each profile's earlier memory of the workspace, and its checklist. |
 | `core/global.ts` | `installGlobal(repo, configDir?)`, `renderInstructions(repo)` | The machine level: instructions, rules and settings, applied to one Claude Code config folder (`~/.claude` by default). |
 | `core/claude-code.ts` | `defaultConfigDir`, `userFiles(configDir)`, `projectFiles(ws)`, `sessionActivity(configDir)` | Where Claude Code reads its configuration, at the user level and in a workspace, and its running sessions (`sessions/<pid>.json`, working or waiting, counted while the process runs). No other module spells these paths out. |
-| `core/profiles.ts` | `setUpProfile`, `dropProfile`, `installProfiles`, `verifyProfiles` | The Claude profiles of the machine, one per claude.ai account, all in `~/.claude` (ADR 0011): the configuration applied there, each profile's Desktop app on Windows, and a record from the folder per profile moved to `~/.claude`. |
-| `core/desktop.ts` | `applyDesktop`, `removeDesktop`, `verifyDesktop`, `powershellShortcuts` | A second Claude Desktop app per profile on Windows: data folder, `.vbs` launcher and Start menu shortcut. Shortcuts go through an adapter: PowerShell for real, a fake one in the tests. |
+| `core/desktop.ts` | `applyDesktop`, `removeDesktop`, `verifyDesktop`, `openDesktop`, `powershellShortcuts` | A second Claude Desktop app per profile on Windows: data folder, `.vbs` launcher and Start menu shortcut. Shortcuts go through an adapter: PowerShell for real, a fake one in the tests. |
 | `core/taskbar.ts` | `taskbarWatcher`, `appIdFor`, `SHORTCUT_APP_ID_CS` | One taskbar button per profile: the PowerShell watcher (with its C#) that tags an instance's windows with the profile's AppUserModelID, icon and name, and the C# that writes that ID into a shortcut. |
-| `core/usage.ts` | `profileUsage(profile, now)`, `normalize(cache, now)`, `pace(window, now)`, `elapsedPct(window, now)`, `thresholdAlerts(list, levels)`, `bar(pct)` | The usage of a profile, read from Claude Code's cache and normalized into windows (session, week, per-model week), with the pace, the uniform pace mark, the 70% and 90% notices (once per crossing, re-armed 5 points below) and the states (not signed in, no data, stale). Takes "now" as an argument, so the tests fix it. |
-| `core/memory.ts` | `applyMemory(ws, configDirs)`, `verifyMemory(ws, configDirs)`, `projectSlug(dir)` | Workspace memory: `autoMemoryDirectory` in the workspace's `.claude/settings.local.json` pointing at `.artifacts/memory/`, the copy of each profile's earlier memory of the workspace, and its checklist. |
-| `core/switch.ts` | `switchProfile({ name, save, here, peer })`, `slotProfile()`, `liveLogin(profile)`, `withLoginLock(fn)`, `peerSwitch` | The switch in place (ADR 0009): the side's slot (`~/.claude`, `~/.claude.json`'s `oauthAccount`), a vault per profile and side, saving the slot back before writing the chosen login, the check after, and the same switch on the other side through an adapter. Also where each profile's login lives now (the slot, its vault or its folder) and the lock every change to a login takes. |
-| `core/snapshot.ts` | `readUsage(now)`, `usageJson(list, now)` | The usage of every profile for every surface: this side's caches and live records (the newer wins, a slot's cache of another account set aside), its running sessions, and, when `machine.json` knows the other side of the machine, that side's caches too (paths translated, read only), the newer data of the same account winning. The versioned JSON of `usage --json`. |
+| `core/peer.ts` | `applyPeer(find)`, `findPeer`, `peerUp`, `runOnPeer`, `peerToolCheck` | Finds the other side of the machine (Windows from WSL, WSL from Windows) once, at install, and records it. Finding it runs a command there, so it goes through an adapter; the tests pass a fake one. |
 | `core/sessions.ts` | `listSessions({ dirs, under })`, `configDirs()`, `fromPeer(path, peer)`, `archiveRoot(dir)`, `archiveSession(session, labels)`, `deleteSession(session)`, `accountLabels()` | Claude Code's sessions in every config folder, this side's and the other side's: a quick summary of each transcript (title, accounts, last activity), the workspace its archive goes to, whether it still runs, the archive written with the `session-archive` skill's parser (imported, so the two write the same file), and the deletion of everything Claude Code keeps for a session. |
-| `core/peer.ts` | `applyPeer(find)`, `findPeer` | Finds the other side of the machine (Windows from WSL, WSL from Windows) once, at install, and records it. Finding it runs a command there, so it goes through an adapter; the tests pass a fake one. |
-| `core/live.ts` | `refreshUsage({ fetcher })`, `fetchLive(profile)`, `liveUsage(name)`, `httpFetcher` | Live usage (ADR 0008): each profile's usage asked of Anthropic's OAuth usage endpoint with its login, renewed only near expiry and written back in place under the login lock, at most once a minute per profile, with backoff; kept in `<state>/usage/`. The network is an adapter; the tests pass a fake one. |
-| `core/codex-usage.ts` | `refreshAllUsage({ force })`, `fetchCodexLive(profile, { spawnIt })`, `askRateLimits(spawnIt, home)`, `normalizeRateLimits(result)`, `codexLiveUsage(name, user, now)` | Live usage of the ChatGPT profiles: `codex app-server` over stdio JSON-RPC (`account/rateLimits/read`), in the real `CODEX_HOME` for the slot's profile and a temporary one with a vault copy for the others, a renewed copy written back to the vault; the answer kept in `<state>/usage/<profile>.json` like Claude's. The app-server is a `SpawnAppServer`; the tests pass a fake script. |
+| `core/revision.ts` | `runHook`, `revise`, `reviseSession`, `enable`, `disable`, `isEnabled`, `readBackend`, `saveBackend` | Prompt revision (ADR 0006): the opt-in `UserPromptSubmit` hook that proofreads each message with Sonnet, through the signed-in account or an API key, and its log. |
+| `core/accounts/providers.ts` | `providers()`, `providerFor(profile)`, `providerById`, `activeProfiles`, `installProviders`, `verifyProviderConfigs`, the `Provider` type | The one shape of what differs between Claude and ChatGPT (slot, vault, sign-in, usage, checks), and the list of providers: a provider left out of it is off everywhere. Nothing outside `core/accounts/` imports a provider's own files, and nothing outside `providers/` branches on which provider a profile has; `test/boundaries.test.ts` checks both. |
+| `core/accounts/provider-labels.ts` | `LABELS` | What each provider is called in messages. A leaf: it imports no adapter. |
+| `core/accounts/profiles.ts` | `setUpProfile`, `dropProfile`, `installProfiles`, `verifyProfiles`, `verifyLogins`, `launcherDir` | The profiles of the machine, one per account the person holds, all sharing one config folder per side: the configuration applied there and each Claude profile's Desktop app on Windows. |
+| `core/accounts/switch.ts` | `switchProfile({ name, save, here, peer })`, `switchHere`, `saveToVault`, `putInSlot`, `peerSwitch` | The switch in place (ADR 0004), the same order for every provider, under the login lock: save the slot's login back to its vault, write the chosen one, check it, and the same switch on the other side through an adapter. |
+| `core/accounts/login.ts` | `loginProfile({ name, all })` | `login`: the sign-in each provider runs its own way (Claude through the slot, Codex in a temporary folder), then the check that the account is the profile's and the new login kept in its vault. |
+| `core/accounts/vault.ts` | `vaultDir`, `withLoginLock(fn)`, `writePrivate` | Where each profile's saved login waits (`<state>/vault/<profile>/`, readable only by the user), and the lock and whole-file writes every change to a login takes. |
+| `core/accounts/usage-refresh.ts` | `refreshUsage({ force })`, `fetchUsage(profile)` | Asking each provider for its profiles' usage the same way: the pacing between asks, the backoff after a failure, the record kept and the report. |
+| `core/accounts/usage-record.ts` | `readRecord`, `writeRecord`, `BACKOFF_MS` | The last usage reading per profile, `<state>/usage/<profile>.json`, each provider's in its own shape. |
+| `core/accounts/usage.ts` | `profileUsage(profile, now)`, `normalize(cache, now)`, `pace(window, now)`, `thresholdAlerts(list, levels)`, `avatarState`, `usageLines`, `shortLines` | The usage of a profile normalized into windows (session, week, per-model week), with the pace, the 70% and 90% notices, the states (not signed in, no data, stale) and the lines the views print. Takes "now" as an argument, so the tests fix it. |
+| `core/accounts/snapshot.ts` | `readAll(now)`, `usageJson(list, now)`, `startAnswer`, `watchPeer` | The usage of every profile for every surface: each provider reads its own, in the providers' order, and this module puts them together with the current account of each side. The versioned JSON of `usage --json` and the `start` API. |
+| `core/accounts/spend.ts` | `spendReport`, `readSpend`, `recordHistory`, `readHistory` | `usage --spend`: the history of each window's %, the tokens in Claude Code's transcripts on both sides, and what 1% costs. |
+| `core/accounts/prices.ts` | `costOf(model, tokens)` | The API's prices, in one place, for the spend and the prompt revision. |
+| `core/accounts/providers/claude.ts` | `claude` (default export, a `Provider`), `claudeLogin` | Claude's steps: the slot (`~/.claude`, `~/.claude.json`'s `oauthAccount`), its vault, the sign-in through the slot, its checks. |
+| `core/accounts/providers/claude-store.ts` | `slotLogin`, `vaultLogin`, `knownLogin`, `slotProfile`, `liveLogin`, `profileAccount`, `loginMark` | Where a Claude profile's login is and whose it is. |
+| `core/accounts/providers/claude-usage.ts` | `askClaude`, `liveUsage(name)`, `httpFetcher`, `LIVE_EVERY_MS` | Live usage (ADR 0003): Anthropic's OAuth usage endpoint with the profile's login, renewed only near expiry and written back under the login lock. The network is an adapter; the tests pass a fake one. |
+| `core/accounts/providers/claude-snapshot.ts` | `readClaudeUsage`, `readClaudeSlots` | Claude's part of the snapshot: Claude Code's caches and the live records, the newer winning, and the other side's caches when `machine.json` knows it. |
+| `core/accounts/providers/codex.ts` | `codex` (default export, a `Provider`), `codexSignIn`, `restartDaemon`, `verifyCodexLogins` | ChatGPT's steps (ADR 0007): the slot `<CODEX_HOME>/auth.json` under Codex's lock, the sign-in in a temporary folder, the daemon restart, its checks. |
+| `core/accounts/providers/codex-store.ts` | `slotLogin`, `vaultLogin`, `codexSlotProfile`, `codexAccount`, `codexLoginMark` | Where a ChatGPT profile's login is and whose it is. |
+| `core/accounts/providers/codex-usage.ts` | `askCodex`, `askRateLimits`, `normalizeRateLimits`, `codexLiveUsage`, `readCodexUsage`, `readCodexSlots` | Live usage of the ChatGPT profiles through `codex app-server` (`account/rateLimits/read`), in a temporary `CODEX_HOME` for the profiles outside the slot. The app-server is a `SpawnAppServer`; the tests pass a fake script. |
+| `core/accounts/providers/codex-config.ts` | `installCodex`, `verifyCodexConfig`, `codexHome`, `codexOnPath` | What `install` puts in Codex's configuration: the instructions with the rules at the end. |
 | `core/machine-state.ts` | `loadWorkspaces`, `registerWorkspace`, `untrackWorkspace`, `loadProfiles`, `saveProfile`, `removeProfile`, `stateDir` | What dotagents remembers about this machine, outside the repository. Every file has a format version and is checked when read: a broken file, or one from a newer dotagents, stops the command instead of being overwritten. |
+| `core/log.ts` | `log`, `logChange`, `logFile`, `mask` | The logs of what runs on its own, one text file each in `<state>/logs/`, with credentials and email addresses masked ([Logs](logs.md)). |
 | `core/common.ts` | file actions (`ensureDirLink`, `ensureFile`, `writeGenerated`, `ensureJsonKey`…), `runWithSpinner`, `parseArgs` | Junctions on Windows and symlinks elsewhere, backups, dry run. |
 | `core/output.ts` | `report`, `checkItem`, `checkWarn`, `section`, `header`, `finish`, `setRenderer`, `displayPath` | Every result becomes an event for the current renderer: the rail in a terminal, plain lines when piped, a list in the tests. The modules never print. |
 | `core/theme.ts` | `colorLevel(env, isTTY)`, `backgroundOf(env)`, `painter(level, background)`, `ROLES`, `readableOn(hex, background)`, `badge(level)` | How dotagents looks, for every surface: the color level from the environment (`NO_COLOR`, `FORCE_COLOR`, `TERM`, the terminal), the background (`DOTAGENTS_THEME`, `COLORFGBG`, dark by default), the roles in Geist's palette (one hex per background, a basic color at 16 colors), a profile color's readable variant and the badge. |

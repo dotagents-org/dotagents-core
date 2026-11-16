@@ -75,7 +75,7 @@ ${PROPERTY_STORE}
 // The watcher, a PowerShell script with its C# compiled on start (Windows PowerShell 5.1, .NET
 // Framework). Its parameters say which instance and how to show it.
 export function taskbarWatcher() {
-  return `# The taskbar watcher of one Claude Desktop instance: see lib/taskbar.ts in dotagents.
+  return `# The taskbar watcher of one Claude Desktop instance: see core/taskbar.ts in dotagents.
 param(
   [Parameter(Mandatory)] [string]$AppId,
   [Parameter(Mandatory)] [string]$DisplayName,

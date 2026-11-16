@@ -1,11 +1,10 @@
 // Prompt revision: an opt-in UserPromptSubmit hook that rewrites each message the user sends
 // (spelling, punctuation, grammar, same words) with the newest Sonnet at low effort: by default
-// through the
-// signed-in Claude account (a lean `claude -p`), or through the user's own Anthropic API key when
+// through the signed-in Claude account (a lean `claude -p`), or through the user's own Anthropic API key when
 // they choose it. The revised text is shown in the chat (systemMessage) and handed to the model
 // (additionalContext); Claude Code records both in the transcript, where the session archive
 // reads it. The hook never blocks and never changes the prompt: any failure lets it through as is.
-// ADR 0015 in the workspace's .artifacts/decisions/.
+// ADR 0006 in the workspace's .artifacts/decisions/.
 
 import { costOf } from "./accounts/prices.ts";
 import { spawn } from "node:child_process";
@@ -21,7 +20,6 @@ import { state } from "./state.ts";
 import { archiveFile, parseTranscript, readRevisions, revisionsFile } from "../skills/session-archive/scripts/archive-session.ts";
 import type { Session } from "./sessions.ts";
 
-// The mark that starts the revised text in the chat; the session archive looks for it.
 // How the revision reaches Claude, around the revised text. The session archive finds it by the
 // first line, so the chat line (systemMessage) is free to be just the text.
 export const CONTEXT_HEAD = "The user's message above, proofread (spelling, punctuation, grammar):\n\n";

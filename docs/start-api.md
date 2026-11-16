@@ -1,6 +1,6 @@
 # The start API
 
-`dotagents start` serves a local API, which the [dotagents sidebar](https://github.com/dotagents-org/dotagents-sidebar) reads: the accounts' usage, state and slots, and a few actions. This page is its contract. The command itself is in [Commands](commands.md#dotagents-start); the code is `surfaces/web/server.ts` (the server) and `core/snapshot.ts` (`startAnswer`, the data).
+`dotagents start` serves a local API, which the [dotagents sidebar](https://github.com/dotagents-org/dotagents-sidebar) reads: the accounts' usage, state and slots, and a few actions. This page is its contract. The command itself is in [Commands](commands.md#dotagents-start); the code is `surfaces/web/server.ts` (the server) and `core/accounts/snapshot.ts` (`startAnswer`, the data).
 
 ## Reaching it
 

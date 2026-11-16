@@ -1,4 +1,4 @@
-// Claude, the accounts of Claude Code, switched in place (ADR 0009): each side's slot is ~/.claude
+// Claude, the accounts of Claude Code, switched in place (ADR 0004): each side's slot is ~/.claude
 // and ~/.claude.json (core/accounts/providers/claude-store.ts), every account's login waits in a vault, and
 // a switch saves the slot's login back (Claude Code may have renewed the token since), writes the
 // chosen one in and checks it. Always manual. Credentials are copied whole and never printed. The

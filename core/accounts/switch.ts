@@ -1,8 +1,8 @@
-// The switch in place (ADR 0009), the same for every provider: the common order of the steps,
+// The switch in place (ADR 0004), the same for every provider: the common order of the steps,
 // under one lock across dotagents' processes, with what differs between Claude and Codex left to
 // the provider's own steps (core/accounts/providers.ts): the side's slot, a vault per profile and side,
 // saving the slot's login back before writing the chosen one, the check after, and the same switch
-// on the other side through an adapter. Always manual (ADR 0001). Credentials are copied whole and
+// on the other side through an adapter. Always manual (ADR 0004). Credentials are copied whole and
 // never printed.
 
 import { spawnSync } from "node:child_process";

@@ -1,5 +1,5 @@
 // The Claude profiles of this machine: one per claude.ai account the person holds. Every profile
-// uses the same config folder, ~/.claude, the slot (ADR 0009 and ADR 0011): the history, settings
+// uses the same config folder, ~/.claude, the slot (ADR 0004): the history, settings
 // and skills are shared, and `dotagents switch` puts a profile's login in it from the profile's
 // vault. On Windows each profile also gets a Claude Desktop app of its own (core/desktop.ts), so
 // the accounts can be open at the same time there.

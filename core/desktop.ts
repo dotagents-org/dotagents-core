@@ -22,7 +22,7 @@ import { checkItem, checkWarn, report, section } from "./output.ts";
 import { state } from "./state.ts";
 import { SHORTCUT_APP_ID_CS, appIdFor, taskbarWatcher, taskbarWatcherFile } from "./taskbar.ts";
 
-// appId: the AppUserModelID that gives the profile its own taskbar button (lib/taskbar.ts).
+// appId: the AppUserModelID that gives the profile its own taskbar button (core/taskbar.ts).
 export type Shortcut = { target: string; args: string; description: string; icon: string; appId: string };
 
 // Reads and writes .lnk files. read returns null when the file doesn't exist.
@@ -50,7 +50,7 @@ const MARK = (name: string) => `dotagents:${name}`;
 
 // The default profile opens the normal app, the others their own data folder; every one with
 // CLAUDE_CONFIG_DIR cleared (~/.claude).
-// Then it starts the taskbar watcher, hidden, for the profile's own button (lib/taskbar.ts).
+// Then it starts the taskbar watcher, hidden, for the profile's own button (core/taskbar.ts).
 function vbsLauncher(repo: string, launcherDir: string, name: string, isDefault: boolean) {
   const q = (s: string) => s.replace(/"/g, '""');
   const arg = (flag: string, value: string) => ` -${flag} ""${q(value)}""`;
@@ -108,7 +108,6 @@ function ensureShortcut(lnk: string, wanted: Shortcut, shortcuts: Shortcuts) {
   report(current ? "updated" : "created", lnk);
 }
 
-// The data folder, the launcher and the shortcut of a profile's Desktop app.
 // Opens a profile's Desktop app through its launcher, as its Start menu shortcut does (the accounts tab's
 // "Open Desktop"). From WSL it runs the Windows side's launcher, through the interop (wscript.exe
 // and the launcher's Windows path), since the app lives on Windows.
@@ -130,6 +129,7 @@ export function openDesktop(name: string, launcherDir: string, { run = launch, t
   return { ok: true, detail: `opening ${appTitle(name)}` };
 }
 
+// The data folder, the launcher and the shortcut of a profile's Desktop app.
 export function applyDesktop(
   repo: string,
   profile: { name: string; default?: boolean },
@@ -150,7 +150,7 @@ export function applyDesktop(
   ensureShortcut(shortcutFile(profile.name), shortcutFor(repo, profile.name, launcherDir), shortcuts);
 }
 
-// The tray panel (ADR 0010) was dropped for the panel in HTML (ADR 0012). Its launcher in the
+// The tray panel was dropped for the panel in the sidebar. Its launcher in the
 // Startup folder, which install wrote, goes; a file there that isn't dotagents' stays.
 export const trayStartupFile = () => path.join(appData(), "Microsoft", "Windows", "Start Menu", "Programs", "Startup", "dotagents-tray.vbs");
 
