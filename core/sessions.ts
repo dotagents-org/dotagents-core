@@ -171,6 +171,8 @@ function summary(file: string) {
       prompt = (isToolResult ? "" : promptText(content)) || null;
     }
   }
+  // The name given with /rename wins over the generated titles, which keep coming after it.
+  const named = linesWith(buf, '"type":"custom-title"').map((o) => o.customTitle).filter((t) => typeof t === "string" && t);
   const titles = linesWith(buf, '"type":"ai-title"').map((o) => o.aiTitle).filter((t) => typeof t === "string" && t);
   const accounts: string[] = [];
   for (const o of linesWith(buf, '"type":"session-owner"')) if (typeof o.accountUuid === "string" && !accounts.includes(o.accountUuid)) accounts.push(o.accountUuid);
@@ -178,7 +180,7 @@ function summary(file: string) {
   const key = Buffer.from('"timestamp":"');
   const tail = buf.lastIndexOf(key);
   const ended = tail >= 0 ? buf.subarray(tail + key.length, buf.indexOf(0x22, tail + key.length)).toString("utf8") : null;
-  return { cwd, started, ended, accounts, title: clip(titles.at(-1) ?? prompt ?? "(no messages)", 80) };
+  return { cwd, started, ended, accounts, title: clip(named.at(-1) ?? titles.at(-1) ?? prompt ?? "(no messages)", 80) };
 }
 
 // Asks the other side's dotagents which sessions its Claude Code is running; null when it can't
