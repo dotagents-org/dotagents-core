@@ -8,6 +8,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { type Activity, sessionActivity } from "./claude-code.ts";
 import { liveUsage, sideProfiles } from "./live.ts";
+import { codexLiveUsage } from "./codex-usage.ts";
 import { codexAccount, codexProfiles, codexSlotProfile, readLogin } from "./codex.ts";
 import { type Peer, type Profile, loadMachine } from "./machine-state.ts";
 import { peerUp } from "./peer.ts";
@@ -231,10 +232,20 @@ export function usageJson(list: ProfileUsage[], now: Date) {
   };
 }
 
-// The Codex profiles, for the start API (ADR 0017): who they are, and whether a login is saved.
-// Their usage comes later, so they carry no numbers yet.
-export function codexUsage(): ProfileUsage[] {
-  return codexProfiles().map((p) => ({ name: p.name, color: p.color, provider: "codex", state: codexAccount(p) ? "no-data" : "not-signed-in", fetchedAt: null, windows: [] }));
+// The Codex profiles, for the start API (ADR 0017): who they are, and what dotagents last asked of
+// codex app-server for their usage (core/codex-usage.ts), with the plan Codex reports. `no-data` is
+// a saved login with nothing read yet; windows are never made up.
+export function codexUsage(now = new Date()): ProfileUsage[] {
+  return codexProfiles().map((p) => {
+    const base = { name: p.name, color: p.color, provider: "codex" as const, fetchedAt: null, windows: [] };
+    const account = codexAccount(p);
+    if (!account) return { ...base, state: "not-signed-in" };
+    const live = codexLiveUsage(p.name, account.user, now);
+    const error = live.error ? { error: live.error } : {};
+    if (!live.fetchedAt) return { ...base, ...error, state: "no-data" };
+    const stale = now.getTime() - live.fetchedAt.getTime() > STALE_MS;
+    return { ...base, ...error, state: stale ? "stale" : "ok", fetchedAt: live.fetchedAt, windows: live.windows, source: "live" as const, ...(live.plan ? { plan: live.plan } : {}) };
+  });
 }
 
 // Which Codex profile is in each side's slot. The other side's slot is told apart by the ChatGPT

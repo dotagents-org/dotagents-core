@@ -41,8 +41,8 @@ const USER_AGENT = `dotagents/${JSON.parse(fs.readFileSync(new URL("../package.j
 export const LIVE_EVERY_MS = 55_000;
 // Early renewal of the vault's copy, which nobody else renews.
 const RENEW_EARLY_MS = 5 * 60_000;
-const BACKOFF_MS = 60_000;
-const MAX_BACKOFF_MS = 15 * 60_000;
+export const BACKOFF_MS = 60_000;
+export const MAX_BACKOFF_MS = 15 * 60_000;
 
 // What dotagents keeps per profile: the last usage, as Claude Code's cache keeps it (fetchedAtMs,
 // accountUuid, utilization), and the last attempt, with its error and when to try again.
@@ -62,7 +62,7 @@ export function readRecord(name: string, dir?: string): LiveRecord {
 }
 
 // In one step, so a surface reading it never sees half a file.
-const writeRecord = (name: string, record: LiveRecord) => writePrivate(recordFile(name), `${JSON.stringify({ version: 1, ...record }, null, 2)}\n`);
+export const writeRecord = (name: string, record: Record<string, unknown>) => writePrivate(recordFile(name), `${JSON.stringify({ version: 1, ...record }, null, 2)}\n`);
 
 // The live usage of a profile, as the snapshot reads it: the cache-shaped part and the last error.
 export function liveUsage(name: string, dir?: string) {

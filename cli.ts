@@ -32,7 +32,8 @@ import { openDesktop } from "./core/desktop.ts";
 import { forgetServer, liveServer, loadMachine, loadProfiles, providerOf, recordServer } from "./core/machine-state.ts";
 import { launcherDir } from "./core/profiles.ts";
 import { peerSwitch, sideName, switchProfile } from "./core/switch.ts";
-import { LIVE_EVERY_MS, refreshUsage } from "./core/live.ts";
+import { refreshAllUsage } from "./core/codex-usage.ts";
+import { LIVE_EVERY_MS } from "./core/live.ts";
 import { untrack, workspaces } from "./surfaces/cli/workspaces.ts";
 import { UsageError, parseArgs } from "./core/common.ts";
 import { brand, captureAsync, displayPath, fancy, tone } from "./core/output.ts";
@@ -45,7 +46,7 @@ const start: Command = {
   name: "start",
   usage: "[--port <n>]",
   summary: "start the accounts' local API on 127.0.0.1, live, for the dotagents sidebar",
-  more: ["asks Anthropic for each profile's usage every minute;", "reads the other side only while it runs, never waking WSL;", "leaves its address and token in start.json, for the sidebar;", "one per side: a second start leaves the running one alone;", "Ctrl+C stops it"],
+  more: ["asks Anthropic for each profile's usage every minute, and Codex for the slot's every 5;", "reads the other side only while it runs, never waking WSL;", "leaves its address and token in start.json, for the sidebar;", "one per side: a second start leaves the running one alone;", "Ctrl+C stops it"],
   group: "Profiles",
   async run({ args }) {
     const port = args.port === undefined ? undefined : Number(args.port);
@@ -69,7 +70,7 @@ const start: Command = {
     // The live usage, every minute; a failure is printed when it changes, not on every tick.
     const said = new Map<string, string>();
     const tick = async () => {
-      const events = await oneAtATime(() => captureAsync(() => refreshUsage()));
+      const events = await oneAtATime(() => captureAsync(() => refreshAllUsage()));
       for (const e of events) {
         if (e.kind !== "result" || e.status === "ok") continue;
         const text = e.status === "failed" ? e.detail : "";
