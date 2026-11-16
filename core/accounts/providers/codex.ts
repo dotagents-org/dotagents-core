@@ -16,6 +16,7 @@ import { LABELS } from "../provider-labels.ts";
 import type { Login, Provider, SwitchOptions } from "../providers.ts";
 import { state } from "../../state.ts";
 import { vaultDir, withLoginLock, writePrivate } from "../vault.ts";
+import { readRecord } from "../usage-record.ts";
 import { CODEX_OTHER_EVERY_MS, CODEX_SLOT_EVERY_MS, askCodex, readCodexSlots, readCodexUsage } from "./codex-usage.ts";
 import { codexHome, installCodex, verifyCodexConfig } from "./codex-config.ts";
 import { codexAccount, codexLoginMark, codexProfiles, codexSlotProfile, ownerOf, readLogin, slotFile, slotLogin, vaultFile, vaultLogin } from "./codex-store.ts";
@@ -266,11 +267,7 @@ function refusedCodex(name: string) {
   const login = slot && saved && slot.id === saved.id ? slot : saved;
   const mark = login && codexLoginMark(login.text);
   if (!mark) return false;
-  try {
-    return JSON.parse(fs.readFileSync(path.join(stateDir(), "usage", `${name}.json`), "utf8"))?.refused === mark;
-  } catch {
-    return false;
-  }
+  return readRecord(name).refused === mark;
 }
 
 const renewHint = (name: string) => `renew it, on ${sideName()}: dotagents login ${name}`;
