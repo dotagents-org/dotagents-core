@@ -26,10 +26,10 @@ import { update } from "./surfaces/cli/update.ts";
 import { usage } from "./surfaces/cli/usage.ts";
 import { logs } from "./surfaces/cli/logs.ts";
 import { doctor } from "./surfaces/cli/doctor.ts";
-import { startServer } from "./surfaces/web/server.ts";
+import { startServer, type Action } from "./surfaces/web/server.ts";
 import { startAnswer, watchPeer } from "./core/accounts/snapshot.ts";
 import { openDesktop } from "./core/desktop.ts";
-import { forgetServer, liveServer, loadMachine, loadProfiles, recordServer, sideName } from "./core/machine-state.ts";
+import { forgetServer, liveServer, loadMachine, loadProfiles, recordServer, sideName, type Profile } from "./core/machine-state.ts";
 import { launcherDir } from "./core/accounts/profiles.ts";
 import { peerSwitch, switchProfile } from "./core/accounts/switch.ts";
 import { LIVE_EVERY_MS, providerFor } from "./core/accounts/providers.ts";
@@ -42,6 +42,44 @@ import { log, logChange } from "./core/log.ts";
 
 // The local API the dotagents sidebar reads its accounts from. Defined here, at the root, because it
 // joins two surfaces: the command line starts it, surfaces/web/ serves it.
+const repo = path.dirname(fileURLToPath(import.meta.url));
+const version = JSON.parse(fs.readFileSync(path.join(repo, "package.json"), "utf8")).version;
+const { bold, muted, high } = tone;
+
+const known = (body: unknown): Profile | null => {
+  const name = (body as { profile?: unknown } | null)?.profile;
+  return typeof name === "string" ? loadProfiles().find((p) => p.name === name) ?? null : null;
+};
+
+type Serial = <T>(fn: () => Promise<T>) => Promise<T>;
+
+// The sidebar's switch request: validate the profile and side before touching either slot.
+async function switchAction(body: unknown, oneAtATime: Serial): Promise<Action> {
+  const profile = known(body);
+  if (!profile) return { status: 404, body: { ok: false, detail: "no such profile" } };
+  const name = profile.name;
+  const side = (body as { side?: unknown }).side;
+  let peer;
+  try {
+    peer = loadMachine().peer;
+  } catch {
+    peer = undefined;
+  }
+  if (side !== undefined && side !== sideName() && side !== peer?.name) return { status: 404, body: { ok: false, detail: "no such side" } };
+  if (side !== undefined && side === peer?.name) {
+    const other = await oneAtATime(async () => peerSwitch(name));
+    return { status: other?.ok ? 200 : 502, body: other ?? { ok: false, detail: "no other side" } };
+  }
+  try {
+    const events = await oneAtATime(() => captureAsync(() => switchProfile({ name, here: side !== undefined })));
+    const failed = events.filter((e) => e.kind === "result" && e.status === "failed");
+    return { status: failed.length ? 502 : 200, body: { ok: !failed.length, detail: failed.map((e) => ("detail" in e ? e.detail : "")).join("; ") || `now ${name}` } };
+  } catch (err) {
+    log("core", "error", "start switch", err as Error);
+    return { status: 409, body: { ok: false, detail: (err as Error).message } };
+  }
+}
+
 const start: Command = {
   name: "start",
   usage: "[--port <n>]",
@@ -80,51 +118,25 @@ const start: Command = {
       }
       return events;
     };
-    const known = (body: unknown) => {
-      const name = (body as { profile?: unknown } | null)?.profile;
-      return typeof name === "string" && loadProfiles().some((p) => p.name === name) ? name : null;
-    };
     const server = await startServer({
       read: () => startAnswer(new Date(), view),
       port,
       // The accounts tab's buttons, in the dotagents sidebar.
       actions: {
         // On both sides, or on one: { "side": "WSL" } names it.
-        switch: async (body) => {
-          const name = known(body);
-          if (!name) return { status: 404, body: { ok: false, detail: "no such profile" } };
-          const side = (body as { side?: unknown }).side;
-          let peer;
-          try {
-            peer = loadMachine().peer;
-          } catch {
-            peer = undefined;
-          }
-          if (side !== undefined && side !== sideName() && side !== peer?.name) return { status: 404, body: { ok: false, detail: "no such side" } };
-          if (side !== undefined && side === peer?.name) {
-            const other = await oneAtATime(async () => peerSwitch(name));
-            return { status: other?.ok ? 200 : 502, body: other ?? { ok: false, detail: "no other side" } };
-          }
-          try {
-            const events = await oneAtATime(() => captureAsync(() => switchProfile({ name, here: side !== undefined })));
-            const failed = events.filter((e) => e.kind === "result" && e.status === "failed");
-            return { status: failed.length ? 502 : 200, body: { ok: !failed.length, detail: failed.map((e) => ("detail" in e ? e.detail : "")).join("; ") || `now ${name}` } };
-          } catch (err) {
-            log("core", "error", "start switch", err as Error);
-            return { status: 409, body: { ok: false, detail: (err as Error).message } };
-          }
-        },
+        switch: (body) => switchAction(body, oneAtATime),
         // The accounts tab's refresh: the minute's update, now.
         refresh: async () => {
           const failed = (await tick()).flatMap((e) => (e.kind === "result" && e.status === "failed" ? [`${e.target}: ${e.detail}`] : []));
           return { status: failed.length ? 502 : 200, body: { ok: !failed.length, detail: failed.join("; ") } };
         },
         desktop: (body) => {
-          const name = known(body);
-          if (!name) return { status: 404, body: { ok: false, detail: "no such profile" } };
-          const profile = loadProfiles().find((p) => p.name === name);
+          const profile = known(body);
+          if (!profile) return { status: 404, body: { ok: false, detail: "no such profile" } };
+          const name = profile.name;
           try {
-            if (profile && !providerFor(profile).desktop) return { status: 409, body: { ok: false, detail: `${name} is a ${providerFor(profile).labels.account} profile; it has no Claude Desktop` } };
+            const provider = providerFor(profile);
+            if (!provider.desktop) return { status: 409, body: { ok: false, detail: `${name} is a ${provider.labels.account} profile; it has no Claude Desktop` } };
           } catch (err) {
             return { status: 409, body: { ok: false, detail: (err as Error).message } };
           }
@@ -154,10 +166,6 @@ const start: Command = {
 
 // In the order the help lists them.
 const COMMANDS: Command[] = [install, update, settingsPull, revision, revisionOn, revisionOff, revisionFix, revisionHook, logs, doctor, profileAdd, profileList, profileRemove, switchCommand, login, usage, start, newWorkspace, init, check, workspaces, untrack, sessions, sessionsRm, skills, skillsAdd, skillsRemove];
-
-const repo = path.dirname(fileURLToPath(import.meta.url));
-const version = JSON.parse(fs.readFileSync(path.join(repo, "package.json"), "utf8")).version;
-const { bold, muted, high } = tone;
 
 function help() {
   const cmd = ({ name, usage, summary, more = [] }: Command) => {
