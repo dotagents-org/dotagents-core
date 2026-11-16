@@ -79,6 +79,11 @@ What changed for someone who updates a clone. The format follows [Keep a Changel
 - Avoid appending headings and plain text again when importing profile memory on another init.
 - Keep separate git exclude blocks for a repository root and a nested workspace.
 - Preserve the surrounding AGENTS.md text when adding a repository, including empty sections and literal replacement characters.
+- Show a path whose name starts with two dots (`..notes`) inside the workspace or the home folder relative to it, instead of in full.
+- `init --wrap` no longer asks whether to wrap the repository.
+- A third-party skills catalog that isn't valid JSON stops the command with its path, instead of being read as empty and overwritten.
+- `install` skips a `~/.claude.json` or settings file that holds JSON but not an object, instead of updating it.
+- A profile with no icon of its own gives its Desktop windows the app's icon in the taskbar, instead of a path the watcher could not read.
 
 - **The live usage says it is dotagents:** the requests to Anthropic's usage and token endpoints sent Claude Code's User-Agent, which the Usage Policy of 2026-11-12 forbids ("misrepresent the product or client being used"); they now send `dotagents/<version>`. The endpoint had also started answering Claude Code's User-Agent with 429 for these requests, so the live usage works again.
 - **`sessions` and `sessions rm` now see title-only transcripts:** Claude Code leaves a stub with just a title (no message, no folder) when a session opens and closes empty. The list dropped it for lacking a folder, so `sessions rm` never deleted it and `/resume` kept showing it. It is now listed under the folder its project is named after.
