@@ -12,7 +12,7 @@ import { codexSlotProfile } from "../core/codex.ts";
 import { loadProfiles, saveProfile } from "../core/machine-state.ts";
 import { setUpProfile, verifyProfiles } from "../core/profiles.ts";
 import { state } from "../core/state.ts";
-import { type PeerSwitch, switchProfile } from "../core/switch.ts";
+import { type PeerSwitch, loginProfile, switchProfile } from "../core/switch.ts";
 import { REPO, quiet } from "./helpers.ts";
 
 function machine(t: TestContext) {
@@ -148,4 +148,56 @@ test("the switch waits for Codex's commit lock and gives up after 5 s", { skip: 
   await assert.rejects(switchProfile({ name: "hopper", peer: noPeer, codex }), /holds its login lock/);
   assert.ok(Date.now() - started >= 4500, "it waited for the lock");
   assert.equal(slotToken(home), "rt-dijkstra1", "the slot is untouched");
+});
+
+// Stands in for codex login: writes the account's auth.json into the folder it is given, and
+// keeps the folder to check it is never the live one.
+function fakeSignIn(text: string, seen: string[] = []) {
+  return (home: string) => {
+    seen.push(home);
+    assert.match(fs.readFileSync(path.join(home, "config.toml"), "utf8"), /cli_auth_credentials_store = "file"/);
+    fs.writeFileSync(path.join(home, "auth.json"), text);
+    return { ok: true, detail: "" };
+  };
+}
+
+test("login signs in in a folder of its own, keeps the login in the vault and, for the slot's account, puts it there", async (t) => {
+  const home = machine(t);
+  const { codex, restarts } = await twoSaved(home);
+  const seen: string[] = [];
+  quiet();
+  await loginProfile({ name: "hopper", codex: { ...codex, run: fakeSignIn(auth("user-hopper", "hopper2", { grant: "grant-2" }), seen) } });
+  assert.equal(vaultToken(home, "hopper"), "rt-hopper2");
+  assert.equal(slotToken(home), "rt-dijkstra1", "dijkstra stays in the slot");
+  assert.notEqual(path.resolve(seen[0]), path.join(home, ".codex"));
+  assert.equal(fs.existsSync(seen[0]), false, "the folder is gone");
+  assert.deepEqual(restarts, []);
+  quiet();
+  await loginProfile({ name: "dijkstra", codex: { ...codex, run: fakeSignIn(auth("user-dijkstra", "dijkstra2", { grant: "grant-2" })) } });
+  assert.equal(vaultToken(home, "dijkstra"), "rt-dijkstra2");
+  assert.equal(slotToken(home), "rt-dijkstra2", "the slot's account got the new login");
+  assert.deepEqual(restarts, ["restart"]);
+  // The new login is the slot's now, so a switch goes on without asking.
+  quiet();
+  await switchProfile({ name: "hopper", peer: noPeer, codex });
+  assert.equal(slotToken(home), "rt-hopper2");
+});
+
+test("login refuses another account than the profile's, and keeps nothing", async (t) => {
+  const home = machine(t);
+  const { codex } = await twoSaved(home);
+  quiet();
+  await assert.rejects(loginProfile({ name: "hopper", codex: { ...codex, run: fakeSignIn(auth("user-dijkstra", "dijkstra2")) } }), /not hopper's account/);
+  assert.equal(vaultToken(home, "hopper"), "rt-hopper1");
+  assert.equal(vaultToken(home, "dijkstra"), "rt-dijkstra1");
+  quiet();
+  await assert.rejects(loginProfile({ name: "hopper", codex: { ...codex, run: () => ({ ok: false, detail: "exit 1" }) } }), /didn't finish/);
+});
+
+test("login of a profile with no saved login yet keeps its first one", async (t) => {
+  const home = machine(t);
+  quiet();
+  await loginProfile({ name: "hopper", codex: { run: fakeSignIn(auth("user-hopper", "hopper1")), daemon: () => null } });
+  assert.equal(vaultToken(home, "hopper"), "rt-hopper1");
+  assert.equal(fs.existsSync(slot(home)), false, "an empty slot stays empty");
 });

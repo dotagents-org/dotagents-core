@@ -112,7 +112,7 @@ A profile is one claude.ai account the person holds (ADR 0009 and ADR 0011 in th
 Then save the profile's login, once on each side: sign in with `claude auth login`, which puts the account in `~/.claude`, and run `dotagents switch --save personal`. In the second Desktop app, sign in with **e-mail and code**: Google sign-in returns to the normal app. Links `claude://` also open the normal app, and an app update reopens only the normal one. Running it again changes nothing.
 
 - Only one profile is the default: the one the normal Desktop app opens.
-- `--provider codex` makes it a ChatGPT account for Codex (ADR 0017). For now that profile is only its record in `profiles.json` (version 2, see [The profiles file](profiles-file.md)), on `~/.codex` (or `CODEX_HOME`): no Claude configuration, no Desktop app, no `--default`. Save its login once on each side: sign in with `codex login`, then `dotagents switch --save <name>`.
+- `--provider codex` makes it a ChatGPT account for Codex (ADR 0017). For now that profile is only its record in `profiles.json` (version 2, see [The profiles file](profiles-file.md)), on `~/.codex` (or `CODEX_HOME`): no Claude configuration, no Desktop app, no `--default`. Sign it in once on each side with [`dotagents login <name>`](#dotagents-login).
 - `--color #RRGGBB` sets the profile's color in the listings and its avatar. Without it, profiles get `#D77655`, `#376B80`, `#7A5C9E`, `#B5607F`, `#6B7F4A` and `#5B6478`, in the order they are added. The avatar's shape comes from the profile's name, always the same.
 
 ## dotagents profile list
@@ -156,7 +156,7 @@ The same command switches a [Codex profile](#dotagents-profile-add) (ADR 0017): 
 2. copies the chosen login into `auth.json` byte for byte, mode `600`, holding Codex's own commit lock (`auth.json.lock`: `flock` on Linux and WSL, `LockFileEx` on Windows; gives up after 5 s if Codex holds it), and refuses a link there;
 3. checks the slot holds that account, then restarts Codex's app-server daemon when it runs (`codex app-server daemon restart`), since a running one keeps the old login.
 
-Codex sessions already open (the terminal, the extension, the desktop app) stay on the old account until restarted. `login`, the expiry checks and the live usage are for Claude profiles only, for now.
+Codex sessions already open (the terminal, the extension, the desktop app) stay on the old account until restarted. The expiry checks and the live usage are for Claude profiles only, for now.
 
 ## dotagents login
 
@@ -175,6 +175,10 @@ A login lasts a few weeks, and no renewal extends it: `profile list` says when e
 
 The login lock is held only around the slot changes, not while the browser waits for you. `--all` takes every profile on this side whose login runs out within a week, was refused by Anthropic, or isn't saved yet. Each side of the machine has its own login, so run it on the other side too.
 
+
+### Codex profiles
+
+`dotagents login <name>` for a Codex profile runs `codex login` in a temporary folder of its own (`CODEX_HOME`, readable only by you, with `cli_auth_credentials_store = "file"`), never in `~/.codex`: a sign-in there revokes the login before it, which may be another profile's saved one. Then it checks the account signed in is the profile's (a profile's first sign-in takes any account no other profile holds), keeps the new login in the profile's vault, and, when that account is in the slot, puts it there too and restarts Codex's daemon, as [`switch`](#codex-profiles) does. The folder is deleted at the end, also after a failure. `--all` covers only Claude profiles for now.
 ## dotagents usage
 
 ```bash

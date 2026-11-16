@@ -164,23 +164,68 @@ export function switchCodexHere(name: string | undefined, save: string | undefin
     }
   }
 
+  writeSlot(name, wanted, commit, daemon);
+  return name;
+}
+
+// Puts a login in the slot, under Codex's lock, checks it, and restarts the daemon.
+function writeSlot(name: string, login: CodexLogin, commit: CommitUnderLock, daemon: RestartDaemon) {
   section("Slot");
-  if (state.dryRun) {
-    report("would update", slotFile(), name);
-    return name;
-  }
+  if (state.dryRun) return report("would update", slotFile(), name);
   if (fs.lstatSync(slotFile(), { throwIfNoEntry: false })?.isSymbolicLink()) throw new Error(`${slotFile()} is a link; dotagents writes only a plain file there`);
   fs.mkdirSync(codexHome(), { recursive: true, mode: 0o700 });
   const tmp = `${slotFile()}.dotagents-${process.pid}`;
-  fs.writeFileSync(tmp, wanted.text, { mode: 0o600 });
+  fs.writeFileSync(tmp, login.text, { mode: 0o600 });
   try {
     commit(tmp, slotFile());
   } finally {
     fs.rmSync(tmp, { force: true });
   }
-  if (slotLogin()?.user !== wanted.user) throw new Error(`${slotFile()} doesn't hold ${name} after the switch; run it again`);
+  if (slotLogin()?.user !== login.user) throw new Error(`${slotFile()} doesn't hold ${name} after writing it; run it again`);
   report("updated", slotFile(), `now ${name}`);
   const restarted = daemon();
   if (restarted) report(restarted === "restarted" ? "updated" : "failed", "codex app-server daemon", restarted);
-  return name;
+}
+
+// ── Signing a Codex profile in ───────────────────────────────────────────────────────────────
+// codex login in the live folder revokes the login before it, which may be another profile's
+// saved one. So the sign-in runs in a temporary CODEX_HOME, only the user's, and its auth.json is
+// taken into the vault; when the profile's account is in the slot, the new login goes there too.
+// dotagents' lock is held only around the vault and slot writes, never while the browser waits.
+
+export type CodexSignIn = (home: string) => { ok: boolean; detail: string };
+
+export const codexSignIn: CodexSignIn = (home) => {
+  const run = spawnSync("codex", ["login"], { stdio: "inherit", env: { ...process.env, CODEX_HOME: home }, shell: process.platform === "win32" });
+  return { ok: run.status === 0, detail: run.error?.message ?? `exit ${run.status}` };
+};
+
+export type CodexLoginOptions = { run?: CodexSignIn; commit?: CommitUnderLock; daemon?: RestartDaemon; lock?: <T>(fn: () => T) => Promise<T> };
+
+export async function loginCodex(name: string, { run = codexSignIn, commit = commitUnderLock, daemon = restartDaemon, lock = async (fn) => fn() }: CodexLoginOptions = {}) {
+  if (!codexProfiles().some((p) => p.name === name)) throw new Error(`There is no Codex profile named ${name}`);
+  section(name);
+  if (state.dryRun) return report("would update", vaultDir(name), `sign ${name} in with codex login, in a folder of its own`);
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), "dotagents-codex-login-"));
+  try {
+    fs.chmodSync(home, 0o700);
+    // A file, never the system keyring, so there is an auth.json to take.
+    fs.writeFileSync(path.join(home, "config.toml"), 'cli_auth_credentials_store = "file"\n', { mode: 0o600 });
+    const signed = run(home);
+    if (!signed.ok) throw new Error(`codex login didn't finish (${signed.detail})`);
+    const fresh = readLogin(path.join(home, "auth.json"));
+    if (!fresh) throw new Error("codex login left no ChatGPT login to keep; sign in with a ChatGPT account, not an API key");
+    await lock(() => {
+      const known = vaultLogin(name);
+      const owner = ownerOf(fresh.user);
+      if ((known && known.user !== fresh.user) || (owner && owner.name !== name)) {
+        throw new Error(`Signed in as ${fresh.email || "another account"}, not ${name}'s account; run it again and choose that account in the browser`);
+      }
+      section("Vault");
+      saveToVault(name, fresh);
+      if (slotLogin()?.user === fresh.user) writeSlot(name, fresh, commit, daemon);
+    });
+  } finally {
+    fs.rmSync(home, { recursive: true, force: true });
+  }
 }

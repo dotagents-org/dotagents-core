@@ -12,7 +12,7 @@ import { createHash } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { defaultConfigDir, stateFile } from "./claude-code.ts";
-import { type CommitUnderLock, type RestartDaemon, switchCodexHere } from "./codex.ts";
+import { type CodexLoginOptions, type CommitUnderLock, type RestartDaemon, loginCodex, switchCodexHere } from "./codex.ts";
 import { type Peer, type Profile, claudeProfiles, loadMachine, loadProfiles, providerOf, stateDir } from "./machine-state.ts";
 import { checkItem, checkWarn, report, section } from "./output.ts";
 import { state } from "./state.ts";
@@ -370,9 +370,12 @@ function dueLogins(now: Date) {
   });
 }
 
-export type LoginOptions = { name?: string; all?: boolean; now?: Date; run?: ClaudeLogin };
+export type LoginOptions = { name?: string; all?: boolean; now?: Date; run?: ClaudeLogin; codex?: CodexLoginOptions };
 
-export async function loginProfile({ name, all = false, now = new Date(), run = claudeLogin }: LoginOptions) {
+export async function loginProfile({ name, all = false, now = new Date(), run = claudeLogin, codex }: LoginOptions) {
+  // A Codex profile signs in its own way (core/codex.ts); --all is Claude's for now.
+  const other = !all && name ? loadProfiles().find((p) => p.name === name) : undefined;
+  if (other && providerOf(other) === "codex") return loginCodex(name as string, { lock: withLoginLock, ...codex });
   const profiles = claudeProfiles();
   if (!all && !name) throw new Error("Usage: dotagents login <profile>, or dotagents login --all");
   if (name && !profiles.some((p) => p.name === name)) throw new Error(`There is no profile named ${name}`);
