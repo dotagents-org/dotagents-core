@@ -92,6 +92,8 @@ The agent files live next to the repositories, never inside them. `new` clones s
 
 A profile is one claude.ai account. Every profile uses `~/.claude`, so the history and the configuration are shared; `switch` puts a profile's login there, on one side of the machine or both, and its login waits in a vault while another is in use. `usage` and the dotagents sidebar show what each one has used, from Claude Code's own cache or asked of Anthropic. On Windows, each profile also gets its own Claude Desktop app.
 
+One account is enough: everything else works the same with a single profile, and a second one is your choice. More than one is for a person who holds several seats in their own name, under each provider's terms; see [Several accounts and the providers' terms](docs/security.md#several-accounts-and-the-providers-terms).
+
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="assets/readme/accounts-dark.svg">
