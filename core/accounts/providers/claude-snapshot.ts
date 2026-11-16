@@ -7,7 +7,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { type Activity, sessionActivity } from "../../claude-code.ts";
-import { PALETTE, type Peer, type Profile, sideName, sidePeer } from "../../machine-state.ts";
+import { PALETTE, type Peer, peerStateDir, type Profile, sideName, sidePeer } from "../../machine-state.ts";
 import type { PeerView } from "../snapshot.ts";
 import { type ProfileUsage, STALE_MS, normalize, profileUsage } from "../usage.ts";
 import { liveUsage, sideProfiles } from "./claude-usage.ts";
@@ -55,7 +55,7 @@ function translate(native: string, peer: Peer) {
 function peerUsage(peer: Peer, now: Date): ProfileUsage[] {
   let profiles: Profile[] = [{ name: "claude", color: PALETTE[0], default: true, configDir: path.join(peer.nativeHome, ".claude") }];
   try {
-    const data = JSON.parse(fs.readFileSync(path.join(peer.home, ".config", "dotagents", "profiles.json"), "utf8"));
+    const data = JSON.parse(fs.readFileSync(path.join(peerStateDir(peer), "profiles.json"), "utf8"));
     const claude = Array.isArray(data?.profiles) ? data.profiles.filter((p: Profile) => (p?.provider ?? "claude") === "claude") : [];
     if (claude.length) profiles = claude;
   } catch {
@@ -65,7 +65,7 @@ function peerUsage(peer: Peer, now: Date): ProfileUsage[] {
     const local = typeof p?.configDir === "string" ? translate(p.configDir, peer) : null;
     if (!local) return [];
     const mine = profileUsage({ ...p, configDir: local }, now, peer.home);
-    const live = typeof p?.name === "string" ? liveUsage(p.name, path.join(peer.home, ".config", "dotagents")) : { cache: null, error: null };
+    const live = typeof p?.name === "string" ? liveUsage(p.name, peerStateDir(peer)) : { cache: null, error: null };
     return [withLive(mine, live, live.cache?.accountUuid ?? mine.accountUuid, now)];
   });
 }

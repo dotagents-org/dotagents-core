@@ -178,6 +178,7 @@ export function recordCopy(dest: string, digest: string) {
 // reaches it (/mnt/c/Users/me, \\wsl.localhost\Ubuntu\home\me), and as that side spells it
 // (C:\Users\me, /home/me), to translate the paths in its profiles.json.
 export type Peer = { name: string; home: string; nativeHome: string };
+export const peerStateDir = (peer: Peer) => path.join(peer.home, ".config", "dotagents");
 export type Machine = { peer?: Peer };
 
 const MACHINE = { name: "machine.json", version: 1 };

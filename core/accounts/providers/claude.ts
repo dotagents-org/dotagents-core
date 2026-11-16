@@ -10,7 +10,7 @@ import path from "node:path";
 import { CREDENTIAL_VARIABLES, defaultConfigDir, stateFile } from "../../claude-code.ts";
 import { samePath } from "../../common.ts";
 import { LABELS } from "../provider-labels.ts";
-import { type Peer, claudeProfiles, loadMachine, sideName } from "../../machine-state.ts";
+import { type Peer, peerStateDir, claudeProfiles, loadMachine, sideName } from "../../machine-state.ts";
 import { checkItem, checkWarn, displayPath, report, section } from "../../output.ts";
 import type { Provider } from "../providers.ts";
 import { readClaudeSlots, readClaudeUsage } from "./claude-snapshot.ts";
@@ -42,7 +42,7 @@ const expiryOf = (login: StoredLogin | null) => {
 function peerLogins(peer: Peer, uuids: Map<string, string>) {
   const peerSlot = loginOf(path.join(peer.home, ".claude", ".credentials.json"), readJson(path.join(peer.home, ".claude.json"))?.oauthAccount);
   return (name: string) => {
-    const dir = path.join(peer.home, ".config", "dotagents", "vault", name);
+    const dir = path.join(peerStateDir(peer), "vault", name);
     const saved = loginOf(path.join(dir, "credentials.json"), readJson(path.join(dir, "account.json")));
     const uuid = saved?.id ?? uuids.get(name);
     return peerSlot && uuid && peerSlot.id === uuid ? peerSlot : saved;
@@ -100,7 +100,7 @@ function verifyLogins(now: Date) {
   const peer = loadMachine().peer;
   if (!peer) return;
   const other = peerLogins(peer, uuids);
-  for (const p of claudeProfiles()) checkExpiry(p.name, peer.name, other(p.name), now, path.join(peer.home, ".config", "dotagents"));
+  for (const p of claudeProfiles()) checkExpiry(p.name, peer.name, other(p.name), now, peerStateDir(peer));
   checkSlot(peer.home, peer.name, uuids);
 }
 
