@@ -72,6 +72,7 @@ export type Event =
 export type Renderer = (event: Event) => void;
 
 const home = os.homedir();
+const isInside = (rel: string) => rel !== ".." && !rel.startsWith(`..${path.sep}`) && !path.isAbsolute(rel);
 
 // Shows a path relative to state.base when inside it, with ~ for the home folder, and forward
 // slashes. Only in a terminal: piped output keeps the full path.
@@ -79,11 +80,11 @@ export function displayPath(p: string): string {
   if (!fancy || !p || !path.isAbsolute(p)) return p;
   if (state.base) {
     const rel = path.relative(state.base, p);
-    if (rel && !rel.startsWith("..") && !path.isAbsolute(rel)) return toSlash(rel);
+    if (rel && isInside(rel)) return toSlash(rel);
     if (rel === "") return ".";
   }
   const relHome = path.relative(home, p);
-  if (!relHome.startsWith("..") && !path.isAbsolute(relHome)) return toSlash(path.join("~", relHome));
+  if (isInside(relHome)) return toSlash(path.join("~", relHome));
   return toSlash(p);
 }
 

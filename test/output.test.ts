@@ -1,10 +1,27 @@
 // The output module: every result is counted and handed to the renderer as one event.
 
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
+import os from "node:os";
+import path from "node:path";
 import { test } from "node:test";
 import { capture, captureAsync, checkItem, checkWarn, finish, flushSection, line, plainRenderer, report, section, setRenderer, terminalRenderer } from "../core/output.ts";
 import { state } from "../core/state.ts";
 import { quiet } from "./helpers.ts";
+
+test("displayPath shortens names beginning with two dots inside the workspace and home", () => {
+  const home = os.homedir();
+  const source = `import { displayPath } from "./core/output.ts";
+import { state } from "./core/state.ts";
+state.base = ${JSON.stringify(path.join(home, "work"))};
+console.log(JSON.stringify([displayPath(${JSON.stringify(path.join(home, "work", "..x"))}), displayPath(${JSON.stringify(path.join(home, "..x"))}), displayPath(${JSON.stringify(home)})]));`;
+  const result = execFileSync(process.execPath, ["--input-type=module", "--eval", source], {
+    cwd: path.resolve(import.meta.dirname, ".."),
+    env: { ...process.env, FORCE_COLOR: "1" },
+    encoding: "utf8",
+  });
+  assert.deepEqual(JSON.parse(result.trim()), ["..x", "~/..x", "~"]);
+});
 
 test("results, checks and warnings become events and counters", () => {
   const events = quiet();
