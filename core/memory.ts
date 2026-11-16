@@ -67,6 +67,32 @@ function setMemoryKey(ws: string) {
   report("updated", file, shown);
 }
 
+function copyNote(src: string, dest: string, note: string) {
+  const from = path.join(src, note);
+  const to = path.join(dest, note);
+  const theirs = read(from);
+  const ours = read(to);
+  if (ours === null) {
+    if (state.dryRun) report("would create", to, `from ${displayPath(from)}`);
+    else {
+      fs.copyFileSync(from, to);
+      report("created", to, `from ${displayPath(from)}`);
+    }
+  } else if (ours === theirs) report("ok", to);
+  else checkWarn(`${note} differs in ${displayPath(src)}`, "the workspace's copy was kept; merge them by hand if the profile's has something new");
+}
+
+function importProfileMemory(src: string, dest: string, lines: string[]) {
+  for (const note of notesIn(src)) copyNote(src, dest, note);
+  const known = new Set(lines.map((line) => linkTarget(line) ?? line));
+  for (const line of indexLines(read(path.join(src, "MEMORY.md")))) {
+    const key = linkTarget(line) ?? line;
+    if (known.has(key)) continue;
+    lines.push(line);
+    known.add(key);
+  }
+}
+
 export function applyMemory(ws: string, configDirs: string[], { now = Date.now() }: { now?: number } = {}) {
   setMemoryKey(ws);
   const dest = memoryDir(ws);
@@ -84,27 +110,7 @@ export function applyMemory(ws: string, configDirs: string[], { now = Date.now()
       checkWarn(`a session is writing to ${displayPath(project)} right now`, "its memory moves in on the next init, once the session is done");
       continue;
     }
-    for (const note of notesIn(src)) {
-      const from = path.join(src, note);
-      const to = path.join(dest, note);
-      const theirs = read(from);
-      const ours = read(to);
-      if (ours === null) {
-        if (state.dryRun) report("would create", to, `from ${displayPath(from)}`);
-        else {
-          fs.copyFileSync(from, to);
-          report("created", to, `from ${displayPath(from)}`);
-        }
-      } else if (ours === theirs) report("ok", to);
-      else checkWarn(`${note} differs in ${displayPath(src)}`, "the workspace's copy was kept; merge them by hand if the profile's has something new");
-    }
-    const known = new Set(lines.map((line) => linkTarget(line) ?? line));
-    for (const line of indexLines(read(path.join(src, "MEMORY.md")))) {
-      const key = linkTarget(line) ?? line;
-      if (known.has(key)) continue;
-      lines.push(line);
-      known.add(key);
-    }
+    importProfileMemory(src, dest, lines);
   }
 
   const text = lines.length ? `${lines.join("\n")}\n` : "";

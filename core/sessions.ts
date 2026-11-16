@@ -252,7 +252,7 @@ export function listSessions({ dirs = configDirs(), under, now = Date.now(), run
       } catch {
         continue;
       }
-      for (const name of names) {
+      const readSession = (name: string): Session | null => {
         const file = path.join(projects, slug, name);
         let st: fs.Stats;
         let info: ReturnType<typeof summary>;
@@ -260,17 +260,17 @@ export function listSessions({ dirs = configDirs(), under, now = Date.now(), run
           st = fs.statSync(file);
           info = summary(file);
         } catch {
-          continue;
+          return null;
         }
         let localCwd = info.cwd && cd.peer ? fromPeer(info.cwd, cd.peer) : info.cwd;
         // A transcript with no record of its folder (Claude Code leaves a title-only stub when a
         // session opens and closes with no message) still sits in its project's folder, whose
         // name is that folder's path.
         if (under && !info.cwd && slug === projectSlug(under)) localCwd = under;
-        if (under && !(localCwd && inside(localCwd, under))) continue;
+        if (under && !(localCwd && inside(localCwd, under))) return null;
         const id = path.basename(name, ".jsonl");
         const known = live ?? liveThere();
-        list.push({
+        return {
           id,
           side: cd.side,
           configDir: cd.dir,
@@ -287,7 +287,11 @@ export function listSessions({ dirs = configDirs(), under, now = Date.now(), run
           running: Boolean(known?.has(id)) || now - st.mtimeMs < RECENT_MS,
           pid: pids?.get(id) ?? null,
           checked: known !== null,
-        });
+        };
+      };
+      for (const name of names) {
+        const session = readSession(name);
+        if (session) list.push(session);
       }
     }
   }
