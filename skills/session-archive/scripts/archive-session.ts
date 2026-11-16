@@ -158,6 +158,7 @@ export function parseTranscript(file: string): ArchivedSession {
   };
   const seenMsgs = new Set<string>();
   const toolLines = new Map<string, number>(); // tool_use id → index of its line in s.out
+  let customTitle: string | null = null; // from /rename; wins over the ai-title written after it
   for (const obj of transcriptLines(file)) {
     s.sessionId = str(obj.sessionId) ?? s.sessionId;
     const ts = str(obj.timestamp);
@@ -167,6 +168,7 @@ export function parseTranscript(file: string): ArchivedSession {
     }
     const t = obj.type;
     if (t === "ai-title") s.title = str(obj.aiTitle) ?? s.title;
+    if (t === "custom-title") customTitle = str(obj.customTitle) ?? customTitle;
     if (t === "cost-state") s.cost = obj;
     if (t === "session-owner" && str(obj.accountUuid)) addOnce(s.accounts, obj.accountUuid);
     if (t === "attachment" && isObject(obj.attachment) && obj.attachment.type === "edited_text_file") addOnce(s.userEdited, str(obj.attachment.filename) ?? "?");
@@ -243,6 +245,7 @@ export function parseTranscript(file: string): ArchivedSession {
       }
     }
   }
+  s.title = customTitle ?? s.title;
   return s;
 }
 

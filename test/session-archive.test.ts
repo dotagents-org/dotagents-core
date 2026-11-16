@@ -110,6 +110,12 @@ test("run from a workspace's skill link, the script finds the session by id and 
   assert.deepEqual(fs.readdirSync(path.dirname(out)), [path.basename(out)]);
 });
 
+test("a name given with /rename wins over the generated titles written after it", (t) => {
+  const s = setup(t);
+  fs.appendFileSync(s.transcript, `${JSON.stringify({ type: "custom-title", customTitle: "parser-fix", sessionId: ID })}\n${JSON.stringify({ type: "ai-title", aiTitle: "Later title", sessionId: ID })}\n`);
+  assert.equal(parseTranscript(s.transcript).title, "parser-fix");
+});
+
 test("without a session id, the newest transcript started inside the project root is archived", (t) => {
   const s = setup(t);
   const root = path.join(s.root, "proj");

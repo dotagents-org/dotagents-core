@@ -96,6 +96,12 @@ test("sessions are listed from every config folder, newest first, with title, ac
   assert.deepEqual(listSessions({ dirs: [s.here, peer], under: s.ws }).map((x) => x.id), ["one"], "only the ones started inside the folder");
 });
 
+test("a name given with /rename wins over the generated titles written after it", (t) => {
+  const s = setup(t);
+  session(s.here, "one", [...lines(s.ws, "one"), { type: "ai-title", aiTitle: "First title" }, { type: "custom-title", customTitle: "release-plan" }, { type: "ai-title", aiTitle: "Later title" }]);
+  assert.equal(listSessions({ dirs: [s.here] })[0].title, "release-plan");
+});
+
 test("a title-only stub, with no folder recorded, is listed under the folder its project is named after", (t) => {
   const s = setup(t);
   const project = path.join(s.here.dir, "projects", projectSlug(s.ws));
