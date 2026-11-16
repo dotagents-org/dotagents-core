@@ -4,9 +4,8 @@ import fs from "node:fs";
 import path from "node:path";
 import { UsageError } from "../../core/common.ts";
 import { type LogName, logsDir, peerLogsDir } from "../../core/log.ts";
-import { loadMachine } from "../../core/machine-state.ts";
 import { brand, displayPath, tone } from "../../core/output.ts";
-import { sideName } from "../../core/machine-state.ts";
+import { sideName, sidePeer } from "../../core/machine-state.ts";
 import type { Command } from "./shared.ts";
 
 const { bold, muted } = tone;
@@ -20,12 +19,7 @@ export const logs: Command = {
   more: ["core.log, sidebar.log and host.log, in <state>/logs/;", "--side wsl or windows: only that side"],
   group: "Machine",
   run({ args }) {
-    let peer;
-    try {
-      peer = loadMachine().peer;
-    } catch {
-      peer = undefined;
-    }
+    const peer = sidePeer();
     const sides = [{ name: sideName(), dir: logsDir() }, ...(peer ? [{ name: peer.name, dir: peerLogsDir(peer.home) }] : [])];
     const want = args.side?.toLowerCase();
     const shown = want ? sides.filter((s) => s.name.toLowerCase() === want) : sides;

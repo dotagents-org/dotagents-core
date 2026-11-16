@@ -1,10 +1,9 @@
 // `doctor`: whether dotagents can do its job on this machine, and what to do when it can't, in words
 // for someone who doesn't know the tool: Node, the other side of the machine, the logins.
 
-import { loadMachine } from "../../core/machine-state.ts";
 import { checkItem, finish, header, section } from "../../core/output.ts";
 import { inWsl, nodeOk, peerToolCheck, runOnPeer } from "../../core/peer.ts";
-import { sideName } from "../../core/machine-state.ts";
+import { sideName, sidePeer } from "../../core/machine-state.ts";
 import { verifyLogins } from "../../core/accounts/profiles.ts";
 import type { Command } from "./shared.ts";
 
@@ -22,12 +21,7 @@ export const doctor: Command = {
     // Only WSL and Windows have another side
     if (inWsl() || process.platform === "win32") {
       section("The other side");
-      let peer;
-      try {
-        peer = loadMachine().peer;
-      } catch {
-        peer = undefined;
-      }
+      const peer = sidePeer();
       const lost = inWsl()
         ? "WSL doesn't see Windows: check that /mnt/c is mounted and that cmd.exe runs from WSL, then run dotagents install"
         : "Windows doesn't see WSL: start the distro (open a WSL terminal), then run dotagents install";
