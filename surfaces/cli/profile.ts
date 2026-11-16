@@ -22,7 +22,7 @@ export const profileAdd: Command = {
     header("profile add", name);
     setUpProfile(repo, { name, isDefault: args.default, color: args.color, provider: args.provider });
     const profile = loadProfiles().find((a) => a.name === name);
-    if (profile && providerOf(profile) === "codex") return finish(codexAccount(profile) ? "" : `Save its login: sign in with codex login, then run dotagents switch --save ${name}`);
+    if (profile && providerOf(profile) === "codex") return finish(codexAccount(profile) ? "" : `Sign it in with: dotagents login ${name}`);
     finish(profile && !profileAccount(profile) ? `Save its login: sign in with claude auth login, then run dotagents switch --save ${name}` : "");
   },
 };

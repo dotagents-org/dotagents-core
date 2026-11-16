@@ -97,17 +97,22 @@ export const commitUnderLock: CommitUnderLock = (tmp, dest) => {
   if (run.status !== 0) throw new Error(`Couldn't write ${dest}: ${run.status === 1 && !run.stderr ? "Codex holds its login lock; try again" : (run.stderr || `exit ${run.status}`).trim()}`);
 };
 
+// Runs the codex command. On Windows it may be a .cmd shim, which only a shell runs, and Node
+// warns about arguments passed apart to a shell: the command goes as one line (fixed arguments).
+const runCodex = (args: string[], options: Parameters<typeof spawnSync>[2]) =>
+  process.platform === "win32" ? spawnSync(`codex ${args.join(" ")}`, { ...options, shell: true }) : spawnSync("codex", args, options);
+
 // A running Codex app-server keeps the old login in memory and doesn't see the file change (it
 // compares the workspace's account_id, the same for every seat), and Codex 0.169 has no reload-auth:
 // the daemon is restarted when it runs. Null when there is none, or no codex command.
 export type RestartDaemon = () => string | null;
 
 export const restartDaemon: RestartDaemon = () => {
-  const codex = (args: string[]) => spawnSync("codex", args, { encoding: "utf8", timeout: 30_000, shell: process.platform === "win32", windowsHide: true });
+  const codex = (args: string[]) => runCodex(args, { encoding: "utf8", timeout: 30_000, windowsHide: true });
   const version = codex(["app-server", "daemon", "version"]);
   let running = false;
   try {
-    running = version.status === 0 && JSON.parse(version.stdout).status === "running";
+    running = version.status === 0 && JSON.parse(String(version.stdout)).status === "running";
   } catch {
     // An older Codex without the daemon, or its output changed: nothing to restart.
   }
@@ -141,7 +146,7 @@ export function switchCodexHere(name: string | undefined, save: string | undefin
 
   find(name);
   const wanted = vaultLogin(name);
-  if (!wanted) throw new Error(`There is no login saved for ${name}: sign in with codex login, then run dotagents switch --save ${name}`);
+  if (!wanted) throw new Error(`There is no login saved for ${name}: sign it in with dotagents login ${name}`);
   const slot = slotLogin();
 
   if (slot) {
@@ -196,7 +201,7 @@ function writeSlot(name: string, login: CodexLogin, commit: CommitUnderLock, dae
 export type CodexSignIn = (home: string) => { ok: boolean; detail: string };
 
 export const codexSignIn: CodexSignIn = (home) => {
-  const run = spawnSync("codex", ["login"], { stdio: "inherit", env: { ...process.env, CODEX_HOME: home }, shell: process.platform === "win32" });
+  const run = runCodex(["login"], { stdio: "inherit", env: { ...process.env, CODEX_HOME: home } });
   return { ok: run.status === 0, detail: run.error?.message ?? `exit ${run.status}` };
 };
 

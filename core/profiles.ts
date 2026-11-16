@@ -53,8 +53,8 @@ function record(profile: Profile, prior: Profile | undefined) {
 
 // Adds a profile, or brings one up to date: its record, the configuration and, on Windows, its
 // Desktop app. Its login comes into the vault with: claude auth login, then dotagents switch --save.
-// A Codex profile is only its record for now: its login comes in with codex login, then switch
-// --save (ADR 0017), and the configuration for Codex comes later.
+// A Codex profile is only its record for now: its login comes in with dotagents login (ADR 0017),
+// and the configuration for Codex comes later.
 export function setUpProfile(
   repo: string,
   { name, isDefault = false, color, provider = "claude", desktop = desktopDefault() }: { name: string; isDefault?: boolean; color?: string; provider?: string } & DesktopOption
@@ -140,7 +140,7 @@ export function verifyProfiles({ desktop = desktopDefault() }: DesktopOption = {
   for (const profile of codexProfiles()) {
     const account = codexAccount(profile);
     if (!account) {
-      checkWarn(`${profile.name} has no saved login`, `sign in with codex login, then: dotagents switch --save ${profile.name}`);
+      checkWarn(`${profile.name} has no saved login`, `sign it in with: dotagents login ${profile.name}`);
       continue;
     }
     const twin = users.get(account.user);
