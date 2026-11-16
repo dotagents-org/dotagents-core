@@ -27,6 +27,7 @@ export async function fetchUsage(p: Profile, options: UsageOptions = {}): Promis
   const asked = await usage.ask(p, { ...options, now });
   if (asked.ok) {
     writeRecord(p.name, asked.record);
+    asked.afterWrite?.();
     return { status: "updated", detail: usage.done };
   }
   const failures = (Number(record.failures) || 0) + 1;

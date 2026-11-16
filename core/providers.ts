@@ -55,9 +55,9 @@ export type SignInContext = { accept: (profile: Profile, fresh: Login, who: stri
 // What the usage refresh may be given: Claude's network, Codex's app-server, the clock, a forced ask.
 export type UsageOptions = { fetcher?: Fetcher; spawnIt?: SpawnAppServer; now?: () => number; force?: boolean; timeoutMs?: number };
 
-// One ask of a provider's usage: the record to keep, or why it failed (refusedMark: the mark of the
+// One ask of a provider's usage: the record to keep (afterWrite: what to do once it is written), or why it failed (refusedMark: the mark of the
 // login the company turned down; retryAfter: ms the company asked to wait).
-export type Asked = { ok: true; record: Record<string, unknown> } | { ok: false; error: string; refusedMark?: string | null; retryAfter?: number };
+export type Asked = { ok: true; record: Record<string, unknown>; afterWrite?: () => void } | { ok: false; error: string; refusedMark?: string | null; retryAfter?: number };
 
 export type Provider = {
   id: ProviderId;

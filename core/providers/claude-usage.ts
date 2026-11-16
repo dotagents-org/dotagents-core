@@ -143,9 +143,8 @@ export async function askClaude(p: Profile, { fetcher = httpFetcher, now = Date.
   const at = now();
   const usage = normalize({ fetchedAtMs: at, utilization }, new Date(at));
   if (!usage) return fail("Anthropic's answer is not a usage this dotagents reads");
-  // The history of the % that usage --spend reads, from this reading: no request of its own
-  recordHistory(p.name, usage.windows, new Date(at));
-  return { ok: true, record: { fetchedAtMs: at, accountUuid: login.accountUuid, utilization, askedAtMs: at } };
+  // The history of the % that usage --spend reads, from this reading, once the reading is kept: no request of its own
+  return { ok: true, record: { fetchedAtMs: at, accountUuid: login.accountUuid, utilization, askedAtMs: at }, afterWrite: () => recordHistory(p.name, usage.windows, new Date(at)) };
 }
 
 // The profiles of this side; without any, the one in ~/.claude.

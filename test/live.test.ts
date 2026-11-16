@@ -207,3 +207,11 @@ test("a login Anthropic refuses is marked refused, and a good answer clears the 
   await fetchUsage(profile("work"), { fetcher: anthropic().fetcher, now: clock(NOW + 2 * HOUR) });
   assert.equal(readRecord("work").refused, undefined, "a good answer clears it");
 });
+
+test("a reading is kept even when its spend history can't be written", async (t) => {
+  const home = machine(t);
+  const { fetcher } = anthropic();
+  fs.mkdirSync(path.join(home, "state", "usage", "personal.history.jsonl"), { recursive: true }); // a folder where the history file goes
+  await assert.rejects(fetchUsage(profile("personal"), { fetcher, now: clock(NOW) }));
+  assert.equal(readRecord("personal").fetchedAtMs, NOW);
+});
