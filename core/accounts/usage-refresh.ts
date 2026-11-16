@@ -37,7 +37,7 @@ async function fetchUnlocked(p: Profile, options: UsageOptions): Promise<LiveRes
   writeRecord(p.name, { ...record, askedAtMs: now() });
   const asked = await usage.ask(p, { ...options, now });
   if (asked.ok) {
-    writeRecord(p.name, asked.record);
+    writeRecord(p.name, { ...asked.record, askedAtMs: now() });
     asked.afterWrite?.();
     return { status: "updated", detail: usage.done };
   }

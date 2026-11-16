@@ -234,7 +234,7 @@ export async function askCodex(
     return { ok: false, error: `Codex's answer is not a usage this dotagents reads (${safe((err as Error).message)})`, refusedMark: null };
   }
   const at = now();
-  return { ok: true, record: { provider: "codex", fetchedAtMs: at, user: login.id, plan: usage.plan, windows: usage.windows, askedAtMs: at } };
+  return { ok: true, record: { provider: "codex", fetchedAtMs: at, user: login.id, plan: usage.plan, windows: usage.windows } };
 }
 
 // The usage kept for a Codex profile, as the snapshot reads it: its windows as of now, when they
