@@ -164,6 +164,12 @@ function readGlobalConfig(repo: string) {
 const differing = (data: Record<string, unknown>, keys: Record<string, unknown>) =>
   Object.entries(keys).filter(([k, v]) => JSON.stringify(data[k]) !== JSON.stringify(v));
 
+function writeJsonAtomic(file: string, data: Record<string, unknown>) {
+  const tmp = `${file}.dotagents-${process.pid}`;
+  fs.writeFileSync(tmp, `${JSON.stringify(data, null, 2)}\n`);
+  fs.renameSync(tmp, file);
+}
+
 function applyGlobalConfig(repo: string, file: string) {
   const { keys, refused } = readGlobalConfig(repo);
   if (!Object.keys(keys).length && !refused.length) return;
@@ -179,9 +185,7 @@ function applyGlobalConfig(repo: string, file: string) {
   if (!changes.length) return report("ok", file, shown(Object.entries(keys)));
   if (state.dryRun) return report("would update", file, shown(changes));
   // Claude Code rewrites this file often: write it whole and in one step, never half.
-  const tmp = `${file}.dotagents-${process.pid}`;
-  fs.writeFileSync(tmp, `${JSON.stringify({ ...data, ...Object.fromEntries(changes) }, null, 2)}\n`);
-  fs.renameSync(tmp, file);
+  writeJsonAtomic(file, { ...data, ...Object.fromEntries(changes) });
   report("updated", file, shown(changes));
 }
 
@@ -283,8 +287,6 @@ function applyMcpServers(repo: string, file: string) {
   if (!changes.length) return report("ok", file, names(Object.keys(wanted)));
   if (state.dryRun) return report("would update", file, names(changes.map(([n]) => n)));
   // Claude Code rewrites this file often: write it whole and in one step, never half.
-  const tmp = `${file}.dotagents-${process.pid}`;
-  fs.writeFileSync(tmp, `${JSON.stringify({ ...data, mcpServers: { ...current, ...Object.fromEntries(changes) } }, null, 2)}\n`);
-  fs.renameSync(tmp, file);
+  writeJsonAtomic(file, { ...data, mcpServers: { ...current, ...Object.fromEntries(changes) } });
   report("updated", file, names(changes.map(([n]) => n)));
 }
