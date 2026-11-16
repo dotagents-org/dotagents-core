@@ -9,10 +9,10 @@ import { createHash } from "node:crypto";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { type Profile, loadProfiles, providerOf } from "./machine-state.ts";
-import { report, section } from "./output.ts";
+import { type Profile, loadProfiles, providerOf, stateDir } from "./machine-state.ts";
+import { checkItem, checkWarn, report, section } from "./output.ts";
 import { state } from "./state.ts";
-import { vaultDir, writePrivate } from "./switch.ts";
+import { sideName, vaultDir, writePrivate } from "./switch.ts";
 
 export const codexHome = () => process.env.CODEX_HOME || path.join(os.homedir(), ".codex");
 export const slotFile = () => path.join(codexHome(), "auth.json");
@@ -177,11 +177,14 @@ export function switchCodexHere(name: string | undefined, save: string | undefin
     if (owner.name === name) {
       section("Slot");
       report("ok", slotFile(), `${name} is already in the slot`);
+      recordSlot(name, slot.user);
+      warnIfRefused(name);
       return name;
     }
   }
 
   writeSlot(name, wanted, commit, daemon);
+  warnIfRefused(name);
   return name;
 }
 
@@ -200,6 +203,7 @@ function writeSlot(name: string, login: CodexLogin, commit: CommitUnderLock, dae
   }
   if (slotLogin()?.user !== login.user) throw new Error(`${slotFile()} doesn't hold ${name} after writing it; run it again`);
   report("updated", slotFile(), `now ${name}`);
+  recordSlot(name, login.user);
   const restarted = daemon();
   if (restarted) report(restarted === "restarted" ? "updated" : "failed", "codex app-server daemon", restarted);
 }
@@ -244,5 +248,86 @@ export async function loginCodex(name: string, { run = codexSignIn, commit = com
     });
   } finally {
     fs.rmSync(home, { recursive: true, force: true });
+  }
+}
+
+// ── Checks ───────────────────────────────────────────────────────────────────────────────────
+// The checklist of `profile list` for the Codex logins of this side, and the switch's warning.
+
+// Whether OpenAI refused this profile's login: the live usage marks the profile's record with the
+// login it was refused (refused in <state>/usage/<profile>.json, core/codex-usage.ts), the slot's
+// when the profile's account is there, else the vault's. A new sign-in or renewal changes the mark.
+function refusedCodex(name: string) {
+  const saved = vaultLogin(name);
+  const slot = slotLogin();
+  const login = slot && saved && slot.user === saved.user ? slot : saved;
+  const mark = login && codexLoginMark(login.text);
+  if (!mark) return false;
+  try {
+    return JSON.parse(fs.readFileSync(path.join(stateDir(), "usage", `${name}.json`), "utf8"))?.refused === mark;
+  } catch {
+    return false;
+  }
+}
+
+const renewHint = (name: string) => `renew it, on ${sideName()}: dotagents login ${name}`;
+
+function warnIfRefused(name: string) {
+  if (refusedCodex(name)) checkWarn(`${name}'s login was refused by OpenAI`, renewHint(name));
+}
+
+// Which profile and ChatGPT user the last switch or login put in this side's slot: no token.
+const slotRecord = () => path.join(stateDir(), "codex-slot.json");
+
+function recordSlot(profile: string, user: string) {
+  if (!state.dryRun) writePrivate(slotRecord(), `${JSON.stringify({ profile, user })}\n`);
+}
+
+// A top-level key of config.toml (one inside a [section] is another setting), or null.
+function configValue(key: string): string | null {
+  let text: string;
+  try {
+    text = fs.readFileSync(path.join(codexHome(), "config.toml"), "utf8");
+  } catch {
+    return null;
+  }
+  for (const raw of text.split(/\r?\n/)) {
+    const line = raw.trim();
+    if (line.startsWith("[")) return null;
+    const match = line.match(new RegExp(`^${key}\\s*=\\s*(?:"([^"]*)"|'([^']*)'|([^\\s#]+))`));
+    if (match) return match[1] ?? match[2] ?? match[3];
+  }
+  return null;
+}
+
+const CODEX_KEY_VARIABLES = ["OPENAI_API_KEY", "CODEX_API_KEY"];
+
+export function verifyCodexLogins() {
+  if (!codexProfiles().length) return;
+  const side = sideName();
+  for (const p of codexProfiles()) if (refusedCodex(p.name)) checkItem(false, `${p.name} on ${side}: OpenAI refused the login`, renewHint(p.name));
+
+  const link = fs.lstatSync(slotFile(), { throwIfNoEntry: false });
+  if (link && (link.isSymbolicLink() || link.nlink > 1)) {
+    checkItem(false, `${slotFile()} is ${link.isSymbolicLink() ? "a link" : "a file with more than one name"}`, "dotagents writes only a plain file there; with Codex closed, replace it with a plain copy, or sign in again with codex login");
+  }
+
+  const store = configValue("cli_auth_credentials_store");
+  if (store !== null && store !== "file") {
+    checkWarn(`cli_auth_credentials_store is "${store}" in ${path.join(codexHome(), "config.toml")}`, 'the switch swaps auth.json and Codex would not read it; set it to "file" there');
+  }
+  const exported = CODEX_KEY_VARIABLES.filter((v) => process.env[v]);
+  if (exported.length) checkWarn(`${exported.join(", ")} set in this shell`, "Codex signs in with that key over the slot's login; unset it");
+
+  let put: { profile?: unknown; user?: unknown } | null = null;
+  try {
+    put = JSON.parse(fs.readFileSync(slotRecord(), "utf8"));
+  } catch {
+    // Nothing recorded yet.
+  }
+  const now = slotLogin();
+  if (put && typeof put.profile === "string" && typeof put.user === "string" && now && now.user !== put.user) {
+    const holds = ownerOf(now.user)?.name;
+    checkWarn(`the slot on ${side} holds ${holds ?? "an account no profile knows"}, but the last switch put ${put.profile} there`, `a Codex left open may have written its old login back; run dotagents switch ${put.profile} again, or dotagents switch --save ${holds ?? "<profile>"} if the new login is wanted`);
   }
 }

@@ -13,7 +13,7 @@ import { CREDENTIAL_VARIABLES, defaultConfigDir } from "./claude-code.ts";
 import { isWindows, lstat, removeGenerated, samePath } from "./common.ts";
 import { type Shortcuts, applyDesktop, powershellShortcuts, removeDesktop, removeTray, verifyDesktop } from "./desktop.ts";
 import { installGlobal } from "./global.ts";
-import { codexAccount, codexHome, codexProfiles } from "./codex.ts";
+import { codexAccount, codexHome, codexProfiles, verifyCodexLogins } from "./codex.ts";
 import { type Profile, type Provider, claudeProfiles, loadProfiles, migrateLegacyProfiles, profilesFile, removeProfile, saveProfile } from "./machine-state.ts";
 import { checkItem, checkWarn, displayPath, report, section } from "./output.ts";
 import { state } from "./state.ts";
@@ -147,6 +147,7 @@ export function verifyProfiles({ desktop = desktopDefault() }: DesktopOption = {
     checkItem(!twin, `${profile.name} is a different ChatGPT account`, `${profile.name} and ${twin} hold the same account; sign one of them in again and save it with dotagents switch --save`);
     users.set(account.user, profile.name);
   }
+  verifyCodexLogins();
   const exported = CREDENTIAL_VARIABLES.filter((v) => process.env[v]);
   if (exported.length) checkWarn(`${exported.join(", ")} set in this shell`, "they sign Claude Code in over the slot's login; unset them");
 }

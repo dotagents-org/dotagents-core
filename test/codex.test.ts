@@ -8,7 +8,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { test, type TestContext } from "node:test";
-import { codexSlotProfile } from "../core/codex.ts";
+import { codexLoginMark, codexSlotProfile } from "../core/codex.ts";
 import { codexUsage, readCodexSlots } from "../core/snapshot.ts";
 import { loadProfiles, saveProfile } from "../core/machine-state.ts";
 import { setUpProfile, verifyProfiles } from "../core/profiles.ts";
@@ -210,4 +210,93 @@ test("the start API lists the Codex profiles, without numbers, and which one is 
   await twoSaved(home);
   assert.deepEqual(codexUsage().map((p) => [p.name, p.state, p.windows.length]), [["hopper", "no-data", 0], ["dijkstra", "no-data", 0]]);
   assert.deepEqual(readCodexSlots(), { [sideName()]: "dijkstra" });
+});
+
+// ── The checks of the logins ─────────────────────────────────────────────────────────────────
+const refuse = (home: string, name: string, text: string) => {
+  fs.mkdirSync(path.join(home, "state", "usage"), { recursive: true });
+  fs.writeFileSync(path.join(home, "state", "usage", `${name}.json`), JSON.stringify({ version: 1, provider: "codex", refused: codexLoginMark(text) }));
+};
+const checked = () => {
+  const events = quiet();
+  verifyProfiles({ desktop: null });
+  return JSON.stringify(events);
+};
+
+test("the checklist fails a login OpenAI refused until a new sign-in or a renewal changes it, and the switch warns", async (t) => {
+  const home = machine(t);
+  const { codex } = await twoSaved(home); // dijkstra in the slot
+  assert.doesNotMatch(checked(), /refused/);
+  // The slot's profile: the mark is of the slot's file.
+  refuse(home, "dijkstra", fs.readFileSync(slot(home), "utf8"));
+  assert.match(checked(), /dijkstra on [^"]*: OpenAI refused the login[^]*dotagents login dijkstra/);
+  // Codex renewed the token in the slot: another mark, no refusal.
+  signIn(home, auth("user-dijkstra", "dijkstra2"));
+  assert.doesNotMatch(checked(), /refused/);
+  // Another profile: the mark is of its vault's login, and the switch to it warns.
+  refuse(home, "hopper", fs.readFileSync(path.join(home, "state", "vault", "hopper", "auth.json"), "utf8"));
+  assert.match(checked(), /hopper on [^"]*: OpenAI refused the login/);
+  const events = quiet();
+  await switchProfile({ name: "hopper", peer: noPeer, codex });
+  assert.equal(slotToken(home), "rt-hopper1", "it still switches");
+  assert.match(JSON.stringify(events), /hopper's login was refused by OpenAI/);
+  // A new sign-in brings another refresh token to the vault.
+  fs.writeFileSync(path.join(home, "state", "vault", "hopper", "auth.json"), auth("user-hopper", "hopper2"));
+  signIn(home, auth("user-hopper", "hopper2"));
+  assert.doesNotMatch(checked(), /refused/);
+});
+
+test("the checklist warns about a credentials store other than file, only at the top level, and about key variables", async (t) => {
+  const home = machine(t);
+  await twoSaved(home);
+  const config = path.join(home, ".codex", "config.toml");
+  assert.doesNotMatch(checked(), /cli_auth_credentials_store/);
+  fs.writeFileSync(config, 'model = "x"\ncli_auth_credentials_store = "keyring"\n');
+  assert.match(checked(), /cli_auth_credentials_store is \\"keyring\\"/);
+  fs.writeFileSync(config, 'cli_auth_credentials_store = "file"\n');
+  assert.doesNotMatch(checked(), /cli_auth_credentials_store/);
+  fs.writeFileSync(config, '[other]\ncli_auth_credentials_store = "auto"\n');
+  assert.doesNotMatch(checked(), /cli_auth_credentials_store/);
+  assert.equal(fs.readFileSync(config, "utf8"), '[other]\ncli_auth_credentials_store = "auto"\n', "config.toml is never edited");
+  t.after(() => { delete process.env.CODEX_API_KEY; delete process.env.OPENAI_API_KEY; });
+  process.env.CODEX_API_KEY = "sk-fake-secret";
+  const out = checked();
+  assert.match(out, /CODEX_API_KEY set in this shell/);
+  assert.doesNotMatch(out, /sk-fake-secret/);
+});
+
+test("the checklist warns when the slot holds another user than the one the last switch put there", async (t) => {
+  const home = machine(t);
+  const { codex } = await twoSaved(home);
+  await switchProfile({ name: "hopper", peer: noPeer, codex });
+  assert.doesNotMatch(checked(), /last switch put/);
+  // An open Codex wrote dijkstra's login back over the switch.
+  signIn(home, auth("user-dijkstra", "dijkstra1"));
+  const out = checked();
+  assert.match(out, /holds dijkstra, but the last switch put hopper there/);
+  assert.match(out, /written its old login back[^]*dotagents switch hopper again[^]*switch --save dijkstra/);
+  assert.doesNotMatch(out, /example\.com|rt-|at-/);
+  signIn(home, auth("user-stranger", "x"));
+  assert.match(checked(), /an account no profile knows, but the last switch put hopper/);
+  // A login puts its profile in the slot too.
+  signIn(home, auth("user-hopper", "hopper1"));
+  await switchProfile({ name: "dijkstra", peer: noPeer, codex });
+  signIn(home, auth("user-hopper", "hopper1"));
+  assert.match(checked(), /last switch put dijkstra/);
+});
+
+test("the checklist fails an auth.json that is a link or has more than one name", async (t) => {
+  const home = machine(t);
+  await twoSaved(home);
+  assert.doesNotMatch(checked(), /a link|more than one name/);
+  const real = path.join(home, "elsewhere.json");
+  fs.copyFileSync(slot(home), real);
+  fs.rmSync(slot(home));
+  fs.symlinkSync(real, slot(home));
+  assert.match(checked(), /auth\.json is a link/);
+  fs.rmSync(slot(home));
+  fs.copyFileSync(real, slot(home));
+  fs.rmSync(real);
+  fs.linkSync(slot(home), real);
+  assert.match(checked(), /more than one name/);
 });
