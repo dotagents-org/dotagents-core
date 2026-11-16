@@ -2,6 +2,7 @@
 // uses core/ and never another surface. cli.ts, at the root, is the only place that picks one.
 
 import assert from "node:assert/strict";
+import ts from "typescript";
 import fs from "node:fs";
 import path from "node:path";
 import { test } from "node:test";
@@ -14,11 +15,21 @@ function sources(dir: string): string[] {
   });
 }
 
-// Every module a file imports, statically or with import(), resolved to a path in the repository.
-function imports(file: string) {
-  const text = fs.readFileSync(file, "utf8");
-  const specs = [...text.matchAll(/(?:from\s+|import\s*\(?\s*)["'](\.{1,2}\/[^"']+)["']/g)].map((m) => m[1]);
-  return specs.map((s) => path.relative(REPO, path.resolve(path.dirname(file), s)).split(path.sep).join("/"));
+// Parse source so comments, strings and type-only imports cannot invent dependencies.
+function imports(file: string, runtime = false) {
+  const source = fs.readFileSync(file, "utf8");
+  const text = runtime ? ts.transpileModule(source, {
+    compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ESNext, verbatimModuleSyntax: true },
+  }).outputText : source;
+  const ast = ts.createSourceFile(file, text, ts.ScriptTarget.Latest, true);
+  const specs: string[] = [];
+  const visit = (node: ts.Node) => {
+    if ((ts.isImportDeclaration(node) || ts.isExportDeclaration(node)) && node.moduleSpecifier && ts.isStringLiteral(node.moduleSpecifier)) specs.push(node.moduleSpecifier.text);
+    if (ts.isCallExpression(node) && node.expression.kind === ts.SyntaxKind.ImportKeyword && node.arguments[0] && ts.isStringLiteral(node.arguments[0])) specs.push(node.arguments[0].text);
+    ts.forEachChild(node, visit);
+  };
+  visit(ast);
+  return specs.filter((spec) => spec.startsWith(".")).map((spec) => path.relative(REPO, path.resolve(path.dirname(file), spec)).split(path.sep).join("/"));
 }
 
 // "surfaces/cli/usage.ts" → "cli"; null outside surfaces/.
@@ -34,5 +45,49 @@ test("a surface never imports another surface", () => {
     const own = surfaceOf(path.relative(REPO, f).split(path.sep).join("/"));
     return imports(f).filter((i) => surfaceOf(i) && surfaceOf(i) !== own).map((i) => `${path.relative(REPO, f)} → ${i}`);
   });
+  assert.deepEqual(wrong, []);
+});
+
+// Type-only imports disappear before execution and cannot form a runtime cycle.
+test("core has no runtime import cycles", () => {
+  const graph = new Map(sources(path.join(REPO, "core")).map((file) => {
+    const specs = imports(file, true).map((rel) => path.join(REPO, rel));
+    return [file, specs] as const;
+  }));
+  const seen = new Set<string>();
+  const active: string[] = [];
+  const visit = (file: string) => {
+    assert.ok(!active.includes(file), `runtime cycle: ${[...active, file].map((f) => path.relative(REPO, f)).join(" → ")}`);
+    if (seen.has(file)) return;
+    active.push(file);
+    for (const imported of graph.get(file) ?? []) if (graph.has(imported)) visit(imported);
+    active.pop();
+    seen.add(file);
+  };
+  for (const file of graph.keys()) visit(file);
+});
+
+// IDs in state validation and Claude-only features are contracts, not account dispatch.
+test("account behavior is selected through provider adapters", () => {
+  const wrong: string[] = [];
+  for (const file of [path.join(REPO, "cli.ts"), ...sources(path.join(REPO, "core")), ...sources(path.join(REPO, "surfaces"))]) {
+    const rel = path.relative(REPO, file).split(path.sep).join("/");
+    if (rel.startsWith("core/providers/") || rel === "core/providers.ts" || rel === "core/machine-state.ts") continue;
+    const ast = ts.createSourceFile(file, fs.readFileSync(file, "utf8"), ts.ScriptTarget.Latest, true);
+    const visit = (node: ts.Node) => {
+      if (ts.isBinaryExpression(node) && [ts.SyntaxKind.EqualsEqualsEqualsToken, ts.SyntaxKind.ExclamationEqualsEqualsToken, ts.SyntaxKind.EqualsEqualsToken, ts.SyntaxKind.ExclamationEqualsToken].includes(node.operatorToken.kind)) {
+        for (const [value, id] of [[node.left, node.right], [node.right, node.left]]) {
+          if (!ts.isStringLiteral(id) || !["claude", "codex"].includes(id.text)) continue;
+          // Profile creation validates the public provider argument before dispatching.
+          if (rel === "core/profiles.ts" && ts.isIdentifier(value) && value.text === "provider") continue;
+          if ((ts.isPropertyAccessExpression(value) && value.name.text === "provider") || (ts.isCallExpression(value) && value.expression.getText(ast) === "providerOf")) {
+            wrong.push(`${rel}:${ast.getLineAndCharacterOfPosition(node.getStart()).line + 1}`);
+          }
+        }
+      }
+      ts.forEachChild(node, visit);
+    };
+    visit(ast);
+  }
   assert.deepEqual(wrong, []);
 });
