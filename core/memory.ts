@@ -98,12 +98,12 @@ export function applyMemory(ws: string, configDirs: string[], { now = Date.now()
       } else if (ours === theirs) report("ok", to);
       else checkWarn(`${note} differs in ${displayPath(src)}`, "the workspace's copy was kept; merge them by hand if the profile's has something new");
     }
-    const known = new Set(lines.map(linkTarget));
+    const known = new Set(lines.map((line) => linkTarget(line) ?? line));
     for (const line of indexLines(read(path.join(src, "MEMORY.md")))) {
-      const target = linkTarget(line);
-      if (target && known.has(target)) continue;
+      const key = linkTarget(line) ?? line;
+      if (known.has(key)) continue;
       lines.push(line);
-      known.add(target);
+      known.add(key);
     }
   }
 

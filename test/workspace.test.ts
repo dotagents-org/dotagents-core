@@ -7,7 +7,7 @@ import path from "node:path";
 import { test, type TestContext } from "node:test";
 import { state } from "../core/state.ts";
 import { resolveSkills } from "../core/skills.ts";
-import { applyWorkspace, verifyWorkspace, wrapRepository } from "../core/workspace.ts";
+import { applyWorkspace, listRepoInAgentsMd, verifyWorkspace, wrapRepository } from "../core/workspace.ts";
 import { REPO, fakeInstaller, fakeThirdParty, quiet, tempWorkspace } from "./helpers.ts";
 
 const git = (cwd: string, ...args: string[]) => spawnSync("git", ["-C", cwd, ...args], { encoding: "utf8" });
@@ -289,3 +289,23 @@ test("the workspace folder can have any name", async (t) => {
   verifyWorkspace(REPO, ws);
   assert.equal(state.problems, 0);
 });
+
+for (const [label, before] of [
+  ["empty section", "# Project\n\n## Repositories\n## Rules\nKeep this.\n"],
+  ["repeated body", "# Project\n\nRepeated text\n\n## Repositories\nRepeated text\n\n## Rules\nKeep this.\n"],
+  ["replacement characters", "# Project\n\n## Repositories\n\n## Rules\nKeep this.\n"],
+]) {
+  test(`listing a repository preserves the document around an ${label}`, (t) => {
+    const ws = tempWorkspace(t);
+    const file = path.join(ws, "AGENTS.md");
+    fs.writeFileSync(file, before);
+    quiet();
+    listRepoInAgentsMd(ws, "app", "https://example.com/$&/$1");
+    const after = read(ws, "AGENTS.md");
+    assert.equal(after.slice(0, after.indexOf("## Repositories")), before.slice(0, before.indexOf("## Repositories")));
+    assert.equal(after.slice(after.indexOf("## Rules")), before.slice(before.indexOf("## Rules")));
+    assert.ok(after.includes("- `app/`: https://example.com/$&/$1\n"));
+    listRepoInAgentsMd(ws, "app", "https://example.com/$&/$1");
+    assert.equal(read(ws, "AGENTS.md"), after);
+  });
+}

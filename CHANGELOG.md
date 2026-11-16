@@ -75,6 +75,9 @@ What changed for someone who updates a clone. The format follows [Keep a Changel
 ### Fixed
 
 - **ChatGPT login safety:** a switch checks the reconciled slot fingerprint under Codex's lock before replacing it. Usage queries recheck their login and interval under the login lock, wait for the app-server tree to exit, drain stderr and mask email addresses in public errors.
+- Avoid appending headings and plain text again when importing profile memory on another init.
+- Keep separate git exclude blocks for a repository root and a nested workspace.
+- Preserve the surrounding AGENTS.md text when adding a repository, including empty sections and literal replacement characters.
 
 - **The live usage says it is dotagents:** the requests to Anthropic's usage and token endpoints sent Claude Code's User-Agent, which the Usage Policy of 2026-11-12 forbids ("misrepresent the product or client being used"); they now send `dotagents/<version>`. The endpoint had also started answering Claude Code's User-Agent with 429 for these requests, so the live usage works again.
 - **`sessions` and `sessions rm` now see title-only transcripts:** Claude Code leaves a stub with just a title (no message, no folder) when a session opens and closes empty. The list dropped it for lacking a folder, so `sessions rm` never deleted it and `/resume` kept showing it. It is now listed under the folder its project is named after.
