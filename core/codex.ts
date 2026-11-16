@@ -132,9 +132,14 @@ export const restartDaemon: RestartDaemon = () => {
     // An older Codex without the daemon, or its output changed: nothing to restart.
   }
   if (!running) return null;
-  // No pipes: the restarted daemon would inherit them and keep them open, so whoever runs this
-  // (the other side's switch, through PowerShell) would wait on it until its timeout.
-  const restart = runCodex(["app-server", "daemon", "restart"], { stdio: "ignore", timeout: 30_000, windowsHide: true });
+  // The restarted daemon outlives this command and keeps every handle it inherited. On Windows a
+  // child inherits all of them, the pipes of whoever runs dotagents too (the other side's switch,
+  // through PowerShell), which would then wait on the daemon until its timeout: Start-Process starts
+  // the restart without passing any handle on, and only that process is waited for.
+  const restart =
+    process.platform === "win32"
+      ? spawnSync("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", "$p = Start-Process -FilePath codex -ArgumentList 'app-server','daemon','restart' -WindowStyle Hidden -PassThru; $p.WaitForExit(); exit $p.ExitCode"], { stdio: "ignore", timeout: 60_000, windowsHide: true })
+      : runCodex(["app-server", "daemon", "restart"], { stdio: "ignore", timeout: 30_000 });
   return restart.status === 0 ? "restarted" : `couldn't restart it (exit ${restart.status}); run: codex app-server daemon restart`;
 };
 
