@@ -8,8 +8,6 @@ import type { ProviderId } from "../machine-state.ts";
 export type Labels = {
   // The account, in group headings and lists.
   account: string;
-  // Where the account is held: "a different claude.ai account".
-  service: string;
   // The tool that holds the account's login in a slot.
   tool: string;
   // Who refuses a login and answers for the usage.
@@ -23,15 +21,13 @@ export type Labels = {
 export const LABELS: Record<ProviderId, Labels> = {
   claude: {
     account: "Claude",
-    service: "claude.ai",
     tool: "Claude Code",
     company: "Anthropic",
-    profile: "profile",
-    noLogin: (name) => `no saved login: sign in with claude auth login, then run dotagents switch --save ${name}`,
+    profile: "Claude profile",
+    noLogin: (name) => `no saved login: run dotagents login ${name}`,
   },
   codex: {
     account: "ChatGPT",
-    service: "ChatGPT",
     tool: "Codex",
     company: "OpenAI",
     profile: "ChatGPT profile",

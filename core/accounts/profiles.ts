@@ -1,4 +1,4 @@
-// The Claude profiles of this machine: one per claude.ai account the person holds. Every profile
+// The Claude profiles of this machine: one per Claude account the person holds. Every profile
 // uses the same config folder, ~/.claude, the slot (ADR 0004): the history, settings
 // and skills are shared, and `dotagents switch` puts a profile's login in it from the profile's
 // vault. On Windows each profile also gets a Claude Desktop app of its own (core/desktop.ts), so
@@ -63,7 +63,7 @@ export function setUpProfile(
   const profile = kind.profileRecord({ name, isDefault, prior, all, color: color ?? prior?.color ?? PALETTE[all.filter((a) => a.name !== name).length % PALETTE.length] });
   // The provider with a Desktop app per profile also gets the configuration applied.
   if (kind.desktop) {
-    section("Configuration");
+    section("Claude Code configuration");
     installGlobal(repo);
     applyProfile(repo, profile, desktop);
   }
@@ -119,7 +119,7 @@ export function verifyProfiles({ desktop = desktopDefault() }: DesktopOption = {
         continue;
       }
       const twin = seen.get(account.id);
-      checkItem(!twin, `${profile.name} is a different ${provider.labels.service} account`, `${profile.name} and ${twin} hold the same account; sign one of them in again and save it with dotagents switch --save`);
+      checkItem(!twin, `${profile.name} is a different ${provider.labels.account} account`, `${profile.name} and ${twin} hold the same account; sign one of them in again and save it with dotagents switch --save`);
       seen.set(account.id, profile.name);
     }
   }
@@ -129,5 +129,6 @@ export function verifyProfiles({ desktop = desktopDefault() }: DesktopOption = {
 
 // The Logins section: how long each saved login lasts, on each side.
 export function verifyLogins(now = new Date()) {
+  section("Logins");
   for (const provider of providers()) provider.verifyLogins?.(now);
 }

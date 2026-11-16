@@ -82,7 +82,6 @@ function checkExpiry(name: string, side: string, login: StoredLogin | null, now:
 }
 
 function verifyLogins(now: Date) {
-  section("Logins");
   // In WSL the slot must be a folder: Windows reaches it through \\wsl.localhost, which doesn't
   // follow a Linux link, so the Desktop's Code tab in WSL mode couldn't install its server there.
   if (sideName() === "WSL" && fs.lstatSync(slotDir(), { throwIfNoEntry: false })?.isSymbolicLink()) {
@@ -193,8 +192,8 @@ const claude: Provider = {
     return refusedLogin(p.name, slot && known && slot.id === known.id ? slot : known);
   },
   switched: "Conversations open in VS Code and the terminal go on in the new account; type continue in them.",
-  signInHint: (name) => `sign in with claude auth login, then: dotagents switch --save ${name}`,
-  addHint: (name) => `Save its login: sign in with claude auth login, then run dotagents switch --save ${name}`,
+  signInHint: (name) => `sign it in with: dotagents login ${name}`,
+  addHint: (name) => `Sign it in with: dotagents login ${name}`,
   unknownSlotHint: "The slot holds an account no profile knows: dotagents switch --save <profile>",
 
   usage: {

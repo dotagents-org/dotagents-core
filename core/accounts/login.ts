@@ -27,7 +27,7 @@ export async function loginProfile({ name, all = false, now = new Date(), ...opt
   // --all belongs to the provider that can tell which logins run out; else the first one.
   const provider = profile ? providerFor(profile) : all ? (providers().find((p) => p.dueLogins) ?? providers()[0]) : providers()[0];
   if (!all && !name) throw new Error("Usage: dotagents login <profile>, or dotagents login --all");
-  if (name && !provider.profiles().some((p) => p.name === name)) throw new Error(`There is no ${provider.labels.profile} named ${name}`);
+  if (name && !profile) throw new Error(`There is no profile named ${name}`);
   const due = all ? (provider.dueLogins?.(now) ?? []) : provider.profiles().filter((p) => p.name === name);
   if (!due.length) {
     section("Logins");

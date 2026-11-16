@@ -60,7 +60,7 @@ Run Claude Code from the workspace root, where `AGENTS.md` and `.agents/` are.
 
 Optional: dotagents works the same with one account. Add more only for seats you hold yourself, and read your provider's terms first ([Several accounts and the providers' terms](security.md#several-accounts-and-the-providers-terms)).
 
-One profile per claude.ai account. Sign in once per account, and save each login in its profile's vault:
+One profile per Claude account. Sign in once per account, and save each login in its profile's vault:
 
 ```bash
 dotagents profile add work            # one profile per account

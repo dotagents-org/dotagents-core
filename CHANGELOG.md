@@ -63,6 +63,7 @@ What changed for someone who updates a clone. The format follows [Keep a Changel
 
 ### Changed
 
+- **Claude and ChatGPT read the same in the terminal.** `profile list` groups the profiles under Claude and ChatGPT, as `usage` does, checks that each ChatGPT profile uses `~/.codex`, and lists the ChatGPT logins in the Logins section on both sides, with when each was last renewed (OpenAI gives no end date); `doctor` shows them too. A profile with no saved login says `dotagents login <name>` for both providers, the checks say "a different Claude account", the section of Claude Code's configuration is named so, next to Codex's, and the help names both agents and both companies.
 - The start API keeps its switch and desktop responses while sharing profile lookup and isolating the switch action.
 - **Nothing personal in the tool:** the examples, the tests, the `session-archive` skill and the README's diagrams name the profiles `work` and `personal`, and the README's note about being a personal project is gone; the personal configuration lives in `dotagents-config`.
 - **The settings are a copy on every system.** `~/.claude/settings.json` was a link to the repository's file on Linux and macOS, so `/model`, `/effort` and `/auto-mode-setup` changed the repository on every use; `install` now copies it there too, as on Windows, and turns an old link into a copy. `model`, `modelSettings`, `effortLevel` and `autoMode` are the machine's: a change in them is not a change, `install` keeps the copy's and `settings pull` doesn't take them.

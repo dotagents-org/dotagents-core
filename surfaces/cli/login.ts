@@ -8,8 +8,8 @@ import type { Command } from "./shared.ts";
 export const login: Command = {
   name: "login",
   usage: "<profile> | --all",
-  summary: "sign a profile in again on this side, then put the previous one back",
-  more: ["runs claude auth login with the profile in the slot and keeps the new login in its vault;", "--all: every profile whose login runs out within a week;", "a ChatGPT profile: codex login in a folder of its own, never ~/.codex;", "each side signs in on its own: run it on the other side too"],
+  summary: "sign a profile in again on this side and keep the new login in its vault",
+  more: ["a Claude profile: claude auth login in the slot, then the previous one put back;", "a ChatGPT profile: codex login in a folder of its own, never ~/.codex;", "--all: every Claude profile whose login runs out within a week;", "each side signs in on its own: run it on the other side too"],
   group: "Profiles",
   async run({ args, positional }) {
     header("login", args.all ? "--all" : (positional[0] ?? ""));

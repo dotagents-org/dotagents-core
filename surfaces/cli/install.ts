@@ -8,7 +8,7 @@ export const install: Command = {
   name: "install",
   usage: "",
   summary: "apply the global configuration to this machine",
-  more: ["to ~/.claude and to every profile folder"],
+  more: ["to ~/.claude and ~/.codex"],
   group: "Machine",
   run({ repo }) {
     header("install");

@@ -87,7 +87,7 @@ export const usage: Command = {
   name: "usage",
   usage: "[--refresh] [--short] [--json] [--spend]",
   summary: "show how much of each profile's plan is used",
-  more: ["from Claude Code's cache and the last live ask;", "--refresh: ask Anthropic for fresh numbers first;", "--spend: what 1% costs, and where the window's spend went"],
+  more: ["from each account's last live ask, and Claude Code's cache;", "--refresh: ask Anthropic and OpenAI for fresh numbers first;", "--spend: for the Claude profiles, what 1% costs, and where the window's spend went"],
   group: "Profiles",
   async run({ args }) {
     if (args.watch) throw new Error("usage --watch was removed with the full-screen view; run usage --refresh, or usage again");

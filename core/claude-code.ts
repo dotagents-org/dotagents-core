@@ -34,7 +34,7 @@ export function stateFile(configDir: string, home = os.homedir()) {
 
 export type SignedIn = { accountUuid: string; email: string };
 
-// The claude.ai account signed in to a config folder, or null. Reads only the account fields.
+// The Claude account signed in to a config folder, or null. Reads only the account fields.
 export function signedIn(configDir: string, home?: string): SignedIn | null {
   try {
     const account = JSON.parse(fs.readFileSync(stateFile(configDir, home), "utf8")).oauthAccount;

@@ -90,7 +90,7 @@ The agent files live next to the repositories, never inside them. `new` clones s
 
 ### Several accounts, one view
 
-A profile is one claude.ai account. Every profile uses `~/.claude`, so the history and the configuration are shared; `switch` puts a profile's login there, on one side of the machine or both, and its login waits in a vault while another is in use. `usage` and the dotagents sidebar show what each one has used, from Claude Code's own cache or asked of Anthropic. On Windows, each profile also gets its own Claude Desktop app.
+A profile is one Claude account, for Claude Code, or one ChatGPT account, for Codex. Every Claude profile uses `~/.claude` and every ChatGPT one `~/.codex`, so the history and the configuration are shared; `switch` puts a profile's login there, on one side of the machine or both, and its login waits in a vault while another is in use. `usage` and the dotagents sidebar show what each one has used, asked of Anthropic or OpenAI. On Windows, each Claude profile also gets its own Claude Desktop app.
 
 One account is enough: everything else works the same with a single profile, and a second one is your choice. More than one is for a person who holds several seats in their own name, under each provider's terms; see [Several accounts and the providers' terms](docs/security.md#several-accounts-and-the-providers-terms).
 
@@ -157,7 +157,7 @@ app-workspace/
 With more than one Claude account:
 
 ```bash
-dotagents profile add work # one profile per claude.ai account
+dotagents profile add work # one profile per Claude account
 dotagents switch work # its login in ~/.claude, on both sides; --here for this side only
 dotagents usage --refresh # every account's usage, asked of Anthropic
 dotagents start # the local API the dotagents sidebar reads
@@ -188,10 +188,10 @@ dotagents-config/
 | [`update [--all]`](docs/commands.md#dotagents-update) | Pulls your repository and reinstalls; `--all` also refreshes every workspace. |
 | [`settings pull`](docs/commands.md#dotagents-settings-pull) | Brings a settings change made with `/config` (the Windows copy) back into the repository. |
 | [`revision`](docs/commands.md#dotagents-revision), [`revision on`](docs/commands.md#dotagents-revision), [`revision off`](docs/commands.md#dotagents-revision), [`revision fix`](docs/commands.md#dotagents-revision) | Prompt revision, off by default: each message you send, proofread by the cheapest Claude model, shown in the chat and archived that way. |
-| [`profile add <name>`](docs/commands.md#dotagents-profile-add), [`profile list`](docs/commands.md#dotagents-profile-list), [`profile remove`](docs/commands.md#dotagents-profile-remove) | One profile per claude.ai account, all in `~/.claude`; on Windows, a Desktop app each. |
-| [`switch <profile>`](docs/commands.md#dotagents-switch) | Puts a profile's login in `~/.claude` on both sides (`--here` for one), keeping each account's login in a vault. |
-| [`login <profile>`](docs/commands.md#dotagents-login) | Signs a profile in again on this side when its login runs out, then puts the previous account back; `--all` for every login running out. |
-| [`usage`](docs/commands.md#dotagents-usage) | How much of each profile's plan is used, with a projection to the reset, from Claude Code's cache or, with `--refresh`, asked of Anthropic. |
+| [`profile add <name>`](docs/commands.md#dotagents-profile-add), [`profile list`](docs/commands.md#dotagents-profile-list), [`profile remove`](docs/commands.md#dotagents-profile-remove) | One profile per Claude account, in `~/.claude` (on Windows, a Desktop app each), or per ChatGPT account, in `~/.codex`. |
+| [`switch <profile>`](docs/commands.md#dotagents-switch) | Puts a profile's login in its agent's slot (`~/.claude` or `~/.codex`) on both sides (`--here` for one), keeping each account's login in a vault. |
+| [`login <profile>`](docs/commands.md#dotagents-login) | Signs a profile in again on this side when its login runs out, keeping the new login in its vault; `--all` for every Claude login running out. |
+| [`usage`](docs/commands.md#dotagents-usage) | How much of each profile's plan is used, with a projection to the reset, asked of Anthropic or OpenAI (`--refresh` asks now). |
 | [`start`](docs/commands.md#dotagents-start) | Starts the accounts' local API on 127.0.0.1, live, which the dotagents sidebar reads. |
 | [`new <git-url> [folder]`](docs/commands.md#dotagents-new) | Creates a workspace, clones the repository into it and applies the standards. |
 | [`init [path]`](docs/commands.md#dotagents-init) | Applies the standards to a folder, offering to wrap a repository first. |

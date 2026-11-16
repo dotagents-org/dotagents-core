@@ -1,6 +1,6 @@
 # The profiles file
 
-`profiles.json` lists the profiles of a machine: one per account the person holds, a claude.ai account or, from version 2, a ChatGPT one for Codex. It is the contract between the parts of dotagents that share the profiles: `dotagents profile add/remove` writes it, and everything else (installing the configuration into each profile's config folder, pointing each profile's memory at a workspace, `switch`, `usage`, `start`) reads it. Another tool that reads or writes it follows this page.
+`profiles.json` lists the profiles of a machine: one per account the person holds, a Claude account or, from version 2, a ChatGPT one for Codex. It is the contract between the parts of dotagents that share the profiles: `dotagents profile add/remove` writes it, and everything else (installing the configuration into each profile's config folder, pointing each profile's memory at a workspace, `switch`, `usage`, `start`) reads it. Another tool that reads or writes it follows this page.
 
 ## Where
 
@@ -26,7 +26,7 @@
 | `configDir` | string | Its Claude Code config folder, an absolute path. Today every profile uses `~/.claude`. |
 | `color` | string | Its color, `#RRGGBB`. |
 | `default` | boolean, optional | `true` on the profile the normal Claude Desktop app opens; at most one. Absent otherwise. |
-| `provider` | string, optional | Whose account it holds and which agent's login slot it switches: `claude` (a claude.ai account, for Claude Code) or `codex` (a ChatGPT account, for Codex). Absent means `claude`, and a writer leaves it out for a Claude profile. |
+| `provider` | string, optional | Whose account it holds and which agent's login slot it switches: `claude` (a Claude account, for Claude Code) or `codex` (a ChatGPT account, for Codex). Absent means `claude`, and a writer leaves it out for a Claude profile. |
 
 ## Rules
 

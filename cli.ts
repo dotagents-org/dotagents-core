@@ -178,7 +178,7 @@ function help() {
   const groups = (["Machine", "Profiles", "Workspace", "Skills"] as const).map(
     (group) => `${title(group)}\n${COMMANDS.filter((c) => c.group === group).map(cmd).join("\n")}`
   );
-  return `${brand()} ${muted(version)}  Claude Code configuration
+  return `${brand()} ${muted(version)}  Claude Code and Codex configuration
 
 ${title("Usage")}
   dotagents ${muted("<command> [options]")}
@@ -195,8 +195,8 @@ ${title("Options")}
   ${bold("--short")}      (usage) one line, for a prompt or a status line
   ${bold("--json")}       (usage, sessions) the data, for scripts
   ${bold("--all")}        (sessions) every project's sessions, not only this folder's; (login) every login running out
-  ${bold("--refresh")}    (usage) ask Anthropic for fresh numbers first
-  ${bold("--spend")}      (usage) what 1% of each window costs, and where the spend went
+  ${bold("--refresh")}    (usage) ask Anthropic and OpenAI for fresh numbers first
+  ${bold("--spend")}      (usage) what 1% of each Claude window costs, and where the spend went
   ${bold("--no-pull")}    (update) skip git pull, only reapply
   ${bold("--no-archive")} (sessions rm) delete without archiving
   ${bold("--from")}       (settings pull) the profile to take the settings from

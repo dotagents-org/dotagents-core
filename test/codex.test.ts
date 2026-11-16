@@ -13,7 +13,7 @@ import { test, type TestContext } from "node:test";
 import { codexLoginMark, codexSlotProfile } from "../core/accounts/providers/codex-store.ts";
 import { readCodexSlots, readCodexUsage as codexUsage } from "../core/accounts/providers/codex-usage.ts";
 import { loadProfiles, saveProfile, sideName } from "../core/machine-state.ts";
-import { setUpProfile, verifyProfiles } from "../core/accounts/profiles.ts";
+import { setUpProfile, verifyLogins, verifyProfiles } from "../core/accounts/profiles.ts";
 import { state } from "../core/state.ts";
 import { loginProfile } from "../core/accounts/login.ts";
 import { type PeerSwitch, switchProfile } from "../core/accounts/switch.ts";
@@ -223,6 +223,7 @@ const refuse = (home: string, name: string, text: string) => {
 const checked = () => {
   const events = quiet();
   verifyProfiles({ desktop: null });
+  verifyLogins();
   return JSON.stringify(events);
 };
 
@@ -230,6 +231,9 @@ test("the checklist fails a login OpenAI refused until a new sign-in or a renewa
   const home = machine(t);
   const { codex } = await twoSaved(home); // dijkstra in the slot
   assert.doesNotMatch(checked(), /refused/);
+  // Each saved login in the Logins section, and each profile on Codex's folder, as Claude's are.
+  assert.match(checked(), /"title":"Logins"[^]*hopper on [^"]*: login good[^]*dijkstra on [^"]*: login good/);
+  assert.match(checked(), /hopper uses [^"]*\.codex/);
   // The slot's profile: the mark is of the slot's file.
   refuse(home, "dijkstra", fs.readFileSync(slot(home), "utf8"));
   assert.match(checked(), /dijkstra on [^"]*: OpenAI refused the login[^]*dotagents login dijkstra/);
@@ -450,4 +454,20 @@ test("login --all stays Claude-only even when Codex test dependencies are suppli
     lock: async (fn) => { calls++; return fn(); },
   } });
   assert.equal(calls, 0);
+});
+
+test("the Logins section shows each ChatGPT login on the other side too, refused or renewed when", async (t) => {
+  const home = machine(t);
+  await twoSaved(home);
+  const peer = path.join(home, "peer");
+  fs.writeFileSync(path.join(home, "state", "machine.json"), JSON.stringify({ version: 1, peer: { name: "Windows", home: peer, nativeHome: "C:\\Users\\test" } }));
+  const peerVault = path.join(peer, ".config", "dotagents", "vault", "hopper");
+  fs.mkdirSync(peerVault, { recursive: true });
+  const login = auth("user-hopper", "hopper-win", { refreshed: "2026-11-10T10:00:00Z" });
+  fs.writeFileSync(path.join(peerVault, "auth.json"), login);
+  assert.match(checked(), /hopper on Windows: login good, renewed Nov 10/);
+  assert.doesNotMatch(checked(), /dijkstra on Windows/, "a profile with no login saved there isn't listed");
+  fs.mkdirSync(path.join(peer, ".config", "dotagents", "usage"), { recursive: true });
+  fs.writeFileSync(path.join(peer, ".config", "dotagents", "usage", "hopper.json"), JSON.stringify({ version: 1, provider: "codex", refused: codexLoginMark(login) }));
+  assert.match(checked(), /hopper on Windows: OpenAI refused the login/);
 });

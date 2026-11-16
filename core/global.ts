@@ -218,7 +218,7 @@ export function pullSettings(repo: string, configDirs: string[], { from }: { fro
 // behind, global config options changed in a profile, and changes in the repository that no other
 // clone will get until they're committed.
 export function verifyGlobal(repo: string, configDirs: string[]) {
-  section("Configuration");
+  section("Claude Code configuration");
   const source = settingsSource(repo);
   const { keys } = readGlobalConfig(repo);
   for (const dir of configDirs) {

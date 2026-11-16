@@ -6,12 +6,13 @@
 // steps here are the ones the common coordination (core/accounts/switch.ts, login.ts) calls.
 
 import { spawnSync } from "node:child_process";
+import { samePath } from "../../common.ts";
 import { createHash } from "node:crypto";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { type Profile, sideName, stateDir } from "../../machine-state.ts";
-import { checkItem, checkWarn, report, section } from "../../output.ts";
+import { type Profile, loadMachine, peerStateDir, sideName, stateDir } from "../../machine-state.ts";
+import { checkItem, checkWarn, displayPath, report, section } from "../../output.ts";
 import { LABELS } from "../provider-labels.ts";
 import type { Login, Provider, SwitchOptions } from "../providers.ts";
 import { state } from "../../state.ts";
@@ -211,8 +212,8 @@ const codex: Provider = {
     together: false,
     locked: true,
     hasLogin: (p) => (codexSlotProfile()?.name === p.name ? readLogin(slotFile()) : vaultLogin(p.name)) !== null,
-    dryRun: "would ask Codex for the usage",
-    done: "asked Codex for the usage",
+    dryRun: "would ask OpenAI for the usage",
+    done: "asked OpenAI for the usage",
     ask: askCodex,
   },
 
@@ -248,7 +249,11 @@ const codex: Provider = {
 
   readUsage: readCodexUsage,
   readSlots: (_list, view) => readCodexSlots(view),
+  verifyProfile(profile) {
+    checkItem(samePath(profile.configDir, codexHome()), `${profile.name} uses ${displayPath(codexHome())}`, `update it with: dotagents profile add ${profile.name} --provider codex`);
+  },
   verifyProfiles: verifyCodexLogins,
+  verifyLogins,
   install: installCodex,
   verifyConfig: verifyCodexConfig,
 };
@@ -271,6 +276,31 @@ function refusedCodex(name: string) {
 }
 
 const renewHint = (name: string) => `renew it, on ${sideName()}: dotagents login ${name}`;
+
+// The Logins section, as Claude's: each ChatGPT profile's saved login, on this side and on the
+// other one. OpenAI tells no end date for a login, so a good one says when it was last renewed.
+function checkLogins(side: string, vault: (name: string) => Login | null, slot: Login | null, stateHome?: string) {
+  for (const p of codexProfiles()) {
+    const saved = vault(p.name);
+    if (!saved) continue;
+    const login = slot && slot.id === saved.id ? slot : saved;
+    const mark = codexLoginMark(login.text);
+    if (mark && readRecord(p.name, stateHome).refused === mark) {
+      checkItem(false, `${p.name} on ${side}: OpenAI refused the login`, `renew it, on ${side}: dotagents login ${p.name}`);
+      continue;
+    }
+    const date = !login.refreshed ? "" : `, renewed ${new Date(login.refreshed).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" })}`;
+    checkItem(true, `${p.name} on ${side}: login good${date}`);
+  }
+}
+
+function verifyLogins() {
+  checkLogins(sideName(), vaultLogin, slotLogin());
+  const peer = loadMachine().peer;
+  if (!peer) return;
+  const home = peerStateDir(peer);
+  checkLogins(peer.name, (name) => readLogin(path.join(home, "vault", name, "auth.json")), readLogin(path.join(peer.home, ".codex", "auth.json")), home);
+}
 
 // Which profile and ChatGPT user the last switch or login put in this side's slot: no token.
 const slotRecord = () => path.join(stateDir(), "codex-slot.json");
@@ -301,8 +331,6 @@ const CODEX_KEY_VARIABLES = ["OPENAI_API_KEY", "CODEX_API_KEY"];
 export function verifyCodexLogins() {
   if (!codexProfiles().length) return;
   const side = sideName();
-  for (const p of codexProfiles()) if (refusedCodex(p.name)) checkItem(false, `${p.name} on ${side}: OpenAI refused the login`, renewHint(p.name));
-
   const link = fs.lstatSync(slotFile(), { throwIfNoEntry: false });
   if (link && (link.isSymbolicLink() || link.nlink > 1)) {
     checkItem(false, `${slotFile()} is ${link.isSymbolicLink() ? "a link" : "a file with more than one name"}`, "dotagents writes only a plain file there; with Codex closed, replace it with a plain copy, or sign in again with codex login");
