@@ -35,6 +35,12 @@ test("start actions reject missing profiles and sides and preserve provider desk
   assert.deepEqual(await ask("switch", { profile: "missing" }), { status: 404, body: { apiVersion: 2, ok: false, detail: "no such profile" } });
   assert.deepEqual(await ask("switch", { profile: "claude", side: "nowhere" }), { status: 404, body: { apiVersion: 2, ok: false, detail: "no such side" } });
   assert.equal((await ask("switch", { profile: "claude" })).status, 409);
+  const vault = path.join(state, "vault", "claude");
+  fs.mkdirSync(vault, { recursive: true });
+  fs.writeFileSync(path.join(vault, "credentials.json"), JSON.stringify({ claudeAiOauth: { accessToken: "fake-access", refreshToken: "fake-refresh", expiresAt: Date.now() + 60_000 } }));
+  fs.writeFileSync(path.join(vault, "account.json"), JSON.stringify({ accountUuid: "fake-account", emailAddress: "fake@example.invalid" }));
+  assert.equal((await ask("switch", { profile: "claude", side: "WSL" })).status, 200);
+  assert.equal((await ask("switch", { profile: "claude" })).status, 502, "a local switch reports a failed peer result");
   assert.equal((await ask("switch", { profile: "claude", side: "Windows" })).status, 502);
   const powershell = path.join(bin, "powershell.exe");
   fs.writeFileSync(powershell, "#!/bin/sh\nexit 0\n", { mode: 0o755 });
