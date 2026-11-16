@@ -1,6 +1,6 @@
 # Global instructions
 
-These apply to Claude Code on this machine. The source is `global/instructions.md` in your dotagents configuration, at `{{AGENTS_CONFIG}}`. Edit it there and run `dotagents install` again, not in the copies.
+These apply to the coding agents on this machine (Claude Code and Codex). The source is `global/instructions.md` in your dotagents configuration, at `{{AGENTS_CONFIG}}`. Edit it there and run `dotagents install` again, not in the copies.
 
 ## Workspaces
 

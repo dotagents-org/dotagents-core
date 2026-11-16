@@ -1,5 +1,6 @@
 // `profile add`, `profile list` and `profile remove`: the Claude profiles of this machine.
 
+import { verifyCodexConfig } from "../../core/codex-config.ts";
 import { verifyGlobal } from "../../core/global.ts";
 import { profileAccount, slotProfile, verifyLogins } from "../../core/switch.ts";
 import { configDirs, dropProfile, setUpProfile, verifyProfiles } from "../../core/profiles.ts";
@@ -55,6 +56,7 @@ export const profileList: Command = {
     }
     verifyProfiles();
     verifyGlobal(repo, configDirs());
+    verifyCodexConfig(repo);
     verifyLogins();
     finish();
   },

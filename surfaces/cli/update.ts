@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { runWithSpinner } from "../../core/common.ts";
+import { installCodex } from "../../core/codex-config.ts";
 import { applyPeer } from "../../core/peer.ts";
 import { installProfiles } from "../../core/profiles.ts";
 import { checkWarn, displayPath, fancy, finish, header, line, report, section, tone } from "../../core/output.ts";
@@ -47,6 +48,7 @@ export const update: Command = {
 
     installProfiles(repo);
     applyPeer();
+    installCodex(repo);
 
     if (args.all) {
       for (const w of loadWorkspaces()) {

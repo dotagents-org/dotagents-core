@@ -18,6 +18,7 @@ export const AGENT_FILES = [
   ".agents/",
   ".artifacts/",
   ".claude/",
+  ".codex/",
 ];
 
 const BEGIN = "# >>> dotagents: agent configuration, kept out of this repository";

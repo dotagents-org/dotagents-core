@@ -16,9 +16,9 @@ import { state } from "./state.ts";
 // this clone's location, {{AGENTS_CONFIG}} the configuration's, and the file for the current platform (config/global/env/win32.md, linux.md, darwin.md)
 // is appended. The template isn't named AGENTS.md, so Claude Code never mistakes it for project instructions.
 
-export function renderInstructions(repo: string) {
+export function renderInstructions(repo: string, platform: string = process.platform) {
   let text = fs.readFileSync(path.join(configRoot(repo), "global", "instructions.md"), "utf8");
-  const envFile = path.join(configRoot(repo), "global", "env", `${process.platform}.md`);
+  const envFile = path.join(configRoot(repo), "global", "env", `${platform}.md`);
   if (fs.existsSync(envFile)) text = `${text.trimEnd()}\n\n${fs.readFileSync(envFile, "utf8")}`;
   return text.replaceAll("{{AGENTS_CONFIG}}", toSlash(configRoot(repo))).replaceAll("{{AGENTS_REPO}}", toSlash(repo));
 }
