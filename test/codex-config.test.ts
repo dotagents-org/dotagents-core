@@ -47,14 +47,12 @@ test("install writes the instructions and the rules for Codex on both sides", (t
   }
 });
 
-test("install links the own skills where Codex reads them, on this side", (t) => {
+test("install leaves the skills to the workspaces: nothing in ~/.agents/skills", (t) => {
   const { home, peer } = sides(t);
   fs.mkdirSync(path.join(home, ".codex"));
   quiet();
   installCodex(REPO, { onPath: never, peer });
-  const link = path.join(home, ".agents", "skills", "session-archive");
-  assert.ok(fs.lstatSync(link).isSymbolicLink());
-  assert.ok(fs.existsSync(path.join(link, "SKILL.md")));
+  assert.equal(fs.existsSync(path.join(home, ".agents")), false);
 });
 
 test("a second install changes nothing", (t) => {
@@ -119,7 +117,7 @@ test("check fails on a missing or old file, warns on an override, passes after i
   fs.mkdirSync(path.join(home, ".codex"));
   let events = quiet();
   verifyCodexConfig(REPO, { onPath: never, peer: undefined });
-  assert.equal(state.problems, 2); // no AGENTS.md, no skills linked
+  assert.equal(state.problems, 1); // no AGENTS.md
 
   quiet();
   installCodex(REPO, { onPath: never, peer: undefined });
