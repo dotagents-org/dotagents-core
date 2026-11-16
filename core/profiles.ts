@@ -14,14 +14,10 @@ import { isWindows, lstat, removeGenerated, samePath } from "./common.ts";
 import { type Shortcuts, applyDesktop, powershellShortcuts, removeDesktop, removeTray, verifyDesktop } from "./desktop.ts";
 import { installGlobal } from "./global.ts";
 import { codexAccount, codexHome, codexProfiles, verifyCodexLogins } from "./codex.ts";
-import { type Profile, type Provider, claudeProfiles, loadProfiles, migrateLegacyProfiles, profilesFile, removeProfile, saveProfile } from "./machine-state.ts";
+import { PALETTE, type Profile, type ProviderId, claudeProfiles, loadProfiles, migrateLegacyProfiles, profilesFile, removeProfile, saveProfile } from "./machine-state.ts";
 import { checkItem, checkWarn, displayPath, report, section } from "./output.ts";
 import { state } from "./state.ts";
 import { profileAccount } from "./switch.ts";
-
-// The colors given to profiles in the order they are added, unless --color picks one. None is
-// near a status color (red, amber, green, blue), which the avatar's dot and the bars use.
-export const PALETTE = ["#D77655", "#376B80", "#7A5C9E", "#B5607F", "#6B7F4A", "#5B6478"];
 
 const SAFE_PROFILE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const HEX = /^#[0-9a-fA-F]{6}$/;
@@ -67,7 +63,7 @@ export function setUpProfile(
   if (prior && (prior.provider ?? "claude") !== provider) throw new Error(`${name} is already a ${prior.provider ?? "claude"} profile`);
   if (provider === "codex") {
     if (isDefault) throw new Error("--default names the profile the Claude Desktop app opens; a ChatGPT profile has none");
-    record({ name, configDir: codexHome(), color: color ?? prior?.color ?? PALETTE[all.filter((a) => a.name !== name).length % PALETTE.length], provider: provider as Provider }, prior);
+    record({ name, configDir: codexHome(), color: color ?? prior?.color ?? PALETTE[all.filter((a) => a.name !== name).length % PALETTE.length], provider: provider as ProviderId }, prior);
     return;
   }
   const otherDefault = all.find((a) => a.default && a.name !== name);

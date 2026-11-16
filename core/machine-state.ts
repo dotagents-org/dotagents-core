@@ -64,11 +64,15 @@ function writeStateFile(file: string, version: number, body: Record<string, unkn
 // provider: whose account the profile holds, Claude when absent (ADR 0007). Only a Codex profile
 // writes it, and it raises the file to version 2, so a dotagents that knows only Claude stops
 // instead of treating it as a Claude one; a file of Claude profiles stays at version 1.
-export type Provider = "claude" | "codex";
-export type Profile = { name: string; configDir: string; color: string; default?: boolean; provider?: Provider };
+export type ProviderId = "claude" | "codex";
+export type Profile = { name: string; configDir: string; color: string; default?: boolean; provider?: ProviderId };
 
 const PROFILES = { name: "profiles.json", version: 2 };
-export const providerOf = (p: Profile): Provider => p.provider ?? "claude";
+export const providerOf = (p: Profile): ProviderId => p.provider ?? "claude";
+
+// The colors given to profiles in the order they are added, unless --color picks one. None is
+// near a status color (red, amber, green, blue), which the avatar's dot and the bars use.
+export const PALETTE = ["#D77655", "#376B80", "#7A5C9E", "#B5607F", "#6B7F4A", "#5B6478"];
 
 export const profilesFile = () => path.join(stateDir(), PROFILES.name);
 

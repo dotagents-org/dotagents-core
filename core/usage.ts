@@ -7,6 +7,8 @@
 
 import fs from "node:fs";
 import { type Activity, signedIn, stateFile } from "./claude-code.ts";
+import { LABELS } from "./provider-labels.ts";
+import type { ProviderId } from "./machine-state.ts";
 import type { Role } from "./theme.ts";
 
 export type UsageWindow = {
@@ -22,7 +24,7 @@ export type UsageWindow = {
 export type ProfileUsage = {
   name: string;
   // Whose account: Claude when absent (the start API says it for every profile).
-  provider?: "claude" | "codex";
+  provider?: ProviderId;
   color: string;
   default?: boolean;
   // stale: the data is older than STALE_MS; other-account: the cache belongs to a previous sign-in.
@@ -249,7 +251,7 @@ const pctSegment = (pct: number, role: Role): Segment => ({ text: `${String(pct)
 
 // What a profile without numbers says.
 function stateNote(a: ProfileUsage) {
-  if (a.state === "not-signed-in") return a.provider === "codex" ? `no saved login: run dotagents login ${a.name}` : `no saved login: sign in with claude auth login, then run dotagents switch --save ${a.name}`;
+  if (a.state === "not-signed-in") return LABELS[a.provider ?? "claude"].noLogin(a.name);
   if (a.state === "no-data") return `no data yet, run: dotagents usage --refresh${a.error ? ` (last try: ${a.error})` : ""}`;
   if (a.state === "other-account") return `the cache is another account's, run: dotagents usage --refresh${a.error ? ` (last try: ${a.error})` : ""}`;
   return null;
@@ -267,13 +269,13 @@ export function usageLines(list: ProfileUsage[], now: Date): Line[] {
   const labelWidth = Math.max(2, ...list.flatMap((a) => a.windows.map((w) => windowLabel(w).length))) + 3;
   const lines: Line[] = [];
   // With both providers in the list, one header line per group.
-  const grouped = list.some((a) => a.provider === "codex") && list.some((a) => a.provider !== "codex");
+  const grouped = new Set(list.map((a) => a.provider ?? "claude")).size > 1;
   let group: string | null = null;
   for (const a of list) {
     if (lines.length) lines.push([]);
     if (grouped && group !== (a.provider ?? "claude")) {
       group = a.provider ?? "claude";
-      lines.push([{ text: group === "codex" ? "ChatGPT" : "Claude", role: "muted" }], []);
+      lines.push([{ text: LABELS[group as ProviderId].account, role: "muted" }], []);
     }
     const stale = a.state === "stale";
     const head: Line = [nameSegment(a)];

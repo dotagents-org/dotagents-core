@@ -14,10 +14,9 @@
 import { recordHistory } from "./spend.ts";
 import fs from "node:fs";
 import path from "node:path";
-import { type Profile, claudeProfiles } from "./machine-state.ts";
+import { PALETTE, type Profile, claudeProfiles } from "./machine-state.ts";
 import { BACKOFF_MS, MAX_BACKOFF_MS, readRecord, writeRecord } from "./usage-record.ts";
 import { report, section } from "./output.ts";
-import { PALETTE } from "./profiles.ts";
 import { defaultConfigDir } from "./claude-code.ts";
 import { state } from "./state.ts";
 import { liveLogin, loginMark } from "./switch.ts";
