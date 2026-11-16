@@ -12,7 +12,7 @@ import { readLog } from "../../core/revision.ts";
 import { type Ratio, type WindowSpend, spendReport } from "../../core/accounts/spend.ts";
 import { profileAccount } from "../../core/accounts/providers.ts";
 import { displayPath } from "../../core/output.ts";
-import type { Command } from "./shared.ts";
+import { plural, type Command } from "./shared.ts";
 
 const usd = (n: number) => `US$ ${n < 1 ? n.toFixed(3) : n.toFixed(2)}`;
 const count = (n: number) => (n >= 1e6 ? `${(n / 1e6).toFixed(1)}M` : n >= 1e3 ? `${Math.round(n / 1e3)}k` : String(Math.round(n)));
@@ -64,7 +64,7 @@ function paintLine(line: Line) {
 function terminalView(list: ProfileUsage[], now: Date) {
   console.log(`${badge(colorLevel())}  ${ink.bold("usage")}\n`);
   for (const line of usageLines(list, now)) console.log(paintLine(line));
-  console.log(`\n${ink.role("muted")(`${list.length} profile${list.length === 1 ? "" : "s"}; --refresh asks ${[...new Set(list.map((p) => LABELS[p.provider ?? "claude"].company))].join(" and ")} for fresh numbers`)}`);
+  console.log(`\n${ink.role("muted")(`${plural(list.length, "profile")}; --refresh asks ${[...new Set(list.map((p) => LABELS[p.provider ?? "claude"].company))].join(" and ")} for fresh numbers`)}`);
 }
 
 // One line per window, easy to grep: "<profile> <window> <pct> <resets at> fetched <at>", then

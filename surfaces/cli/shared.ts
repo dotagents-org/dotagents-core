@@ -73,3 +73,5 @@ const truncate = (text: string, max: number) => (text.length > max ? `${text.sli
 
 // A prompt hint is one line: the author's full description, cut only where the terminal ends.
 export const fitHint = (text: string, label: string) => truncate(text, Math.max(30, (process.stdout.columns || 100) - label.length - 14));
+
+export const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;

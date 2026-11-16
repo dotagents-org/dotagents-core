@@ -10,7 +10,7 @@ import { UsageError } from "../../core/common.ts";
 import { checkWarn, displayPath, fancy, finish, header, ink, interactive, line, report, section, tone } from "../../core/output.ts";
 import { RECENT_MS, type Session, accountColors, accountLabels, archiveSession, deleteSession, listSessions, peerRunning, runningIds } from "../../core/sessions.ts";
 import { state } from "../../core/state.ts";
-import { type Command, type Context, fitHint, workspaceArg } from "./shared.ts";
+import { plural, type Command, type Context, fitHint, workspaceArg } from "./shared.ts";
 
 const { bold, muted, warn } = tone;
 
@@ -102,7 +102,7 @@ export const sessions: Command = {
       line(`  ${" ".repeat(28)}${paintedDetails(s, labels, colors, !under)}`);
     }
     line();
-    line(muted(`${list.length} session${list.length === 1 ? "" : "s"}. Delete some with: dotagents sessions rm${under ? "" : " --all"}`));
+    line(muted(`${plural(list.length, "session")}. Delete some with: dotagents sessions rm${under ? "" : " --all"}`));
     line();
   },
 };
@@ -133,7 +133,6 @@ async function ask(message: string, initialValue: boolean) {
   return answer;
 }
 
-const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
 
 // What happens to the sessions picked: archived first, deleted without an archive, or nothing.
 type Mode = "archive" | "bare" | "cancel";

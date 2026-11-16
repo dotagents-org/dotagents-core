@@ -8,7 +8,7 @@ import { registerWorkspace, untrackWorkspace } from "../../core/machine-state.ts
 import { addedByCalls, listSkills, resolveSkills, skillsIn } from "../../core/skills.ts";
 import { state } from "../../core/state.ts";
 import { applyWorkspace, assertWorkspace, wrapRepository } from "../../core/workspace.ts";
-import { type Command, type Context, expandHome, fitHint, workspaceArg } from "./shared.ts";
+import { plural, type Command, type Context, expandHome, fitHint, workspaceArg } from "./shared.ts";
 
 const { bold, muted: dim } = tone;
 
@@ -143,7 +143,7 @@ export async function askInit(ctx: Context, defaultWs: string, { opened = false 
   if (!state.dryRun) {
     const ok = exit(
       await prompts.confirm({
-        message: `Apply the standards to ${bold(displayPath(ws))}${skills.length ? ` with ${skills.length} skill${skills.length === 1 ? "" : "s"}` : ""}${extra ? ` and ${extra} they call` : ""}?`,
+        message: `Apply the standards to ${bold(displayPath(ws))}${skills.length ? ` with ${plural(skills.length, "skill")}` : ""}${extra ? ` and ${extra} they call` : ""}?`,
       })
     );
     if (!ok) {

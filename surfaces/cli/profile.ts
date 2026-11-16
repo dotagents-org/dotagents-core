@@ -5,7 +5,7 @@ import { configDirs, dropProfile, setUpProfile, verifyLogins, verifyProfiles } f
 import { activeProfiles, providerFor, providers, verifyProviderConfigs } from "../../core/accounts/providers.ts";
 import { loadProfiles } from "../../core/machine-state.ts";
 import { fancy, finish, header, line, paint, tone } from "../../core/output.ts";
-import type { Command } from "./shared.ts";
+import { plural, type Command } from "./shared.ts";
 
 const { bold, muted } = tone;
 
@@ -37,7 +37,7 @@ export const profileList: Command = {
       const hint = "No profiles yet. Add one per claude.ai account, the first with: dotagents profile add <name> --default";
       return console.log(fancy ? muted(hint) : hint);
     }
-    header("profile list", `${profiles.length} profile${profiles.length === 1 ? "" : "s"}`);
+    header("profile list", `${plural(profiles.length, "profile")}`);
     const width = Math.max(...profiles.map((a) => a.name.length)) + 2;
     const inSlot = providers().map((p) => p.slotProfile()?.name);
     for (const a of profiles) {

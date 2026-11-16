@@ -100,8 +100,6 @@ function displayDetail(detail: string) {
   return text.replace(/\\/g, "/");
 }
 
-const pluralize = (n: number, word: string) => `${n} ${word}`;
-
 // The terminal: the badge and the command, a bold title per section, one line per item, and a
 // summary. No rail, no dots between words; the icon and the word say the status without color.
 export const terminalRenderer: Renderer = (event) => {
@@ -133,17 +131,17 @@ export const terminalRenderer: Renderer = (event) => {
       // "✓ 9 created, 2 already ok".
       const c = state.counts;
       const parts = [
-        c.passed && tone.ok(pluralize(c.passed, "passed")),
-        c.created && tone.ok(pluralize(c.created, "created")),
-        c.updated && tone.warn(pluralize(c.updated, "updated")),
-        c.moved && tone.ok(pluralize(c.moved, "moved")),
-        c["would move"] && pluralize(c["would move"], "to move"),
-        c["would create"] && pluralize(c["would create"], "to create"),
-        c["would update"] && pluralize(c["would update"], "to update"),
-        c.ok && tone.muted(pluralize(c.ok, "already ok")),
-        c.skipped && tone.warn(pluralize(c.skipped, "skipped")),
-        c.warnings && tone.warn(pluralize(c.warnings, c.warnings === 1 ? "warning" : "warnings")),
-        c.failed && tone.high(pluralize(c.failed, "failed")),
+        c.passed && tone.ok(`${c.passed} passed`),
+        c.created && tone.ok(`${c.created} created`),
+        c.updated && tone.warn(`${c.updated} updated`),
+        c.moved && tone.ok(`${c.moved} moved`),
+        c["would move"] && `${c["would move"]} to move`,
+        c["would create"] && `${c["would create"]} to create`,
+        c["would update"] && `${c["would update"]} to update`,
+        c.ok && tone.muted(`${c.ok} already ok`),
+        c.skipped && tone.warn(`${c.skipped} skipped`),
+        c.warnings && tone.warn(`${c.warnings} ${c.warnings === 1 ? "warning" : "warnings"}`),
+        c.failed && tone.high(`${c.failed} failed`),
       ].filter(Boolean);
       const icon = state.problems ? tone.high(SYMBOLS.failed) : tone.ok(SYMBOLS.passed);
       line();
