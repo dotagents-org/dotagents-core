@@ -2,7 +2,8 @@
 // vault's copy, <state>/vault/<profile>/auth.json. The file is read only to tell whose login it is,
 // and never printed.
 
-import { createHash } from "node:crypto";
+import { hashMark } from "../usage-record.ts";
+
 import fs from "node:fs";
 import path from "node:path";
 import type { Login } from "../providers.ts";
@@ -50,7 +51,7 @@ export function readLogin(file: string): Login | null {
 export function codexLoginMark(text: string): string | null {
   try {
     const token = JSON.parse(text)?.tokens?.refresh_token;
-    return typeof token === "string" && token ? createHash("sha256").update(token).digest("hex").slice(0, 16) : null;
+    return typeof token === "string" && token ? hashMark(token) : null;
   } catch {
     return null;
   }

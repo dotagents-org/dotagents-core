@@ -4,7 +4,8 @@
 // account's login (<state>/vault/<profile>/credentials.json and account.json). Credentials are
 // copied whole and never printed.
 
-import { createHash } from "node:crypto";
+import { hashMark } from "../usage-record.ts";
+
 import fs from "node:fs";
 import path from "node:path";
 import type { Login } from "../providers.ts";
@@ -110,7 +111,7 @@ export function profilePlan(p: Profile): string | null {
 export function loginMark(credentials: string): string | null {
   try {
     const token = JSON.parse(credentials)?.claudeAiOauth?.refreshToken;
-    return typeof token === "string" && token ? createHash("sha256").update(token).digest("hex").slice(0, 16) : null;
+    return typeof token === "string" && token ? hashMark(token) : null;
   } catch {
     return null;
   }

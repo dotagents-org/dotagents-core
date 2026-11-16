@@ -2,6 +2,7 @@
 // by core/accounts/providers/claude-usage.ts for Claude and core/accounts/providers/codex-usage.ts for Codex, each in its own shape, and read by
 // the snapshot, the checks and the prompt revision.
 
+import { createHash } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { stateDir } from "../machine-state.ts";
@@ -29,3 +30,6 @@ export function readRecord(name: string, dir?: string): LiveRecord {
 
 // In one step, so a surface reading it never sees half a file.
 export const writeRecord = (name: string, record: Record<string, unknown>) => writePrivate(recordFile(name), `${JSON.stringify({ version: 1, ...record }, null, 2)}\n`);
+
+// A stable, non-secret mark for comparing a refused login with its renewed copy.
+export const hashMark = (token: string) => createHash("sha256").update(token).digest("hex").slice(0, 16);
