@@ -55,6 +55,7 @@ spawn only appears as a tool line in the parent's transcript.
 ## Other line types worth knowing about
 
 - `ai-title` — `aiTitle` field holds a short auto-generated session title.
+- `custom-title` — `customTitle` field holds the name given with `/rename`; Claude Code keeps writing `ai-title` lines after it, but the custom one is the session's name.
 - `session-owner` — `accountUuid`, `organizationUuid` and `sessionId` of the
   claude.ai account signed in when the line was written; repeated during the
   session. Seen from 2.1.312 on, not in every session. Two different
