@@ -158,9 +158,9 @@ export function avatarState(p: ProfileUsage, now: Date): AvatarState {
 
 // Whether a session works on the account: its avatar hops. Not one that stopped (no login, a
 // window at 100%).
-export function avatarWorking(p: ProfileUsage): boolean {
+export function avatarWorking(p: ProfileUsage, now: Date): boolean {
   if (!p.activity?.working) return false;
-  const state = avatarState(p, new Date());
+  const state = avatarState(p, now);
   return state !== "error" && state !== "limit";
 }
 

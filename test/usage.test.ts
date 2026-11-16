@@ -298,10 +298,10 @@ test("each profile's avatar state, most urgent first: error, limit, waiting, war
   assert.equal(avatarState({ ...base, windows: win(30, "2026-10-28T16:00:00Z") }, NOW), "warn", "the pace runs out before the reset");
   // Working is the body's (it hops), apart from the state: any state but one that stopped.
   assert.equal(avatarState({ ...base, activity: { working: 2, waiting: 0 } }, NOW), "ok");
-  assert.equal(avatarWorking({ ...base, activity: { working: 2, waiting: 0 } }), true);
-  assert.equal(avatarWorking({ ...base, windows: win(75), activity: { working: 1, waiting: 0 } }), true, "warn and working at once");
-  assert.equal(avatarWorking({ ...base, windows: win(100), activity: { working: 1, waiting: 0 } }), false, "a stopped account doesn't hop");
-  assert.equal(avatarWorking(base), false);
+  assert.equal(avatarWorking({ ...base, activity: { working: 2, waiting: 0 } }, NOW), true);
+  assert.equal(avatarWorking({ ...base, windows: win(75), activity: { working: 1, waiting: 0 } }, NOW), true, "warn and working at once");
+  assert.equal(avatarWorking({ ...base, windows: win(100), activity: { working: 1, waiting: 0 } }, NOW), false, "a stopped account doesn't hop");
+  assert.equal(avatarWorking(base, NOW), false);
   assert.equal(avatarState({ ...base, state: "stale", activity: { working: 1, waiting: 0 } }, NOW), "ok", "a working account isn't asleep");
   assert.equal(avatarState(base, NOW), "ok");
   assert.equal(avatarState({ ...base, state: "stale" }, NOW), "asleep");

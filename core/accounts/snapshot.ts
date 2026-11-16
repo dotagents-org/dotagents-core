@@ -79,7 +79,7 @@ export function usageJson(list: ProfileUsage[], now: Date) {
       plan: p.plan ?? null,
       fetchedAt: p.fetchedAt?.toISOString() ?? null,
       avatar: avatarState(p, now),
-      working: avatarWorking(p),
+      working: avatarWorking(p, now),
       windows: p.windows.map((w) => ({ ...w, resetsAt: w.resetsAt?.toISOString() ?? null, elapsedPct: elapsedPct(w, now), projection: projection(p.state === "ok" ? pace(w, now) : null) })),
     })),
   };
