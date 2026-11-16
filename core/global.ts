@@ -172,12 +172,8 @@ function applyGlobalConfig(repo: string, file: string) {
   if (!Object.keys(keys).length) return;
   const text = readText(file);
   if (text === null) return report("skipped", file, "Claude Code hasn't run in this profile yet; run install again after it does");
-  let data: Record<string, unknown>;
-  try {
-    data = JSON.parse(text);
-  } catch {
-    return report("skipped", file, "not valid JSON");
-  }
+  const data = parse(text);
+  if (!data) return report("skipped", file, "not valid JSON");
   const changes = differing(data, keys);
   const shown = (list: [string, unknown][]) => list.map(([k, v]) => `${k}: ${JSON.stringify(v)}`).join(", ");
   if (!changes.length) return report("ok", file, shown(Object.entries(keys)));

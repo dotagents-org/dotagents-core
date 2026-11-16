@@ -218,6 +218,20 @@ test("the global config keys go into each profile's .claude.json, leaving the re
   assert.equal(JSON.parse(fs.readFileSync(path.join(home, ".claude.json"), "utf8")).copyOnSelect, false);
 });
 
+test("global config leaves a non-object .claude.json untouched", (t) => {
+  const home = tempHome(t);
+  const repo = tempRepo(t);
+  fs.writeFileSync(path.join(repo, "config", "claude", "global-config.json"), JSON.stringify({ copyOnSelect: false }));
+  const file = path.join(home, ".claude.json");
+  for (const bad of ["[]", "null"]) {
+    fs.writeFileSync(file, bad);
+    const events = quiet();
+    installGlobal(repo, undefined, { copy: true });
+    assert.equal(fs.readFileSync(file, "utf8"), bad);
+    assert.ok(events.some((event) => event.kind === "result" && event.status === "skipped" && event.detail === "not valid JSON"));
+  }
+});
+
 test("the MCP servers of this system go into .claude.json as claude mcp add would write them, leaving the others alone", (t) => {
   const home = tempHome(t);
   const repo = tempRepo(t);
