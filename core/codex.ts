@@ -5,6 +5,7 @@
 // whose login it is: never printed, never renewed here (the refresh token is single-use).
 
 import { spawnSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -14,8 +15,8 @@ import { state } from "./state.ts";
 import { vaultDir, writePrivate } from "./switch.ts";
 
 export const codexHome = () => process.env.CODEX_HOME || path.join(os.homedir(), ".codex");
-const slotFile = () => path.join(codexHome(), "auth.json");
-const vaultFile = (name: string) => path.join(vaultDir(name), "auth.json");
+export const slotFile = () => path.join(codexHome(), "auth.json");
+export const vaultFile = (name: string) => path.join(vaultDir(name), "auth.json");
 
 // A login: the file as Codex wrote it, and who it is. user: the person (chatgpt_user_id); the
 // workspace's account_id is the same for every seat in it, so it can't tell two seats apart.
@@ -42,6 +43,17 @@ export function readLogin(file: string): CodexLogin | null {
       refreshed: Number.isNaN(refreshed) ? null : refreshed,
       email: typeof payload.email === "string" ? payload.email : "",
     };
+  } catch {
+    return null;
+  }
+}
+
+// The mark of a login's refresh token, as loginMark in core/switch.ts does for Claude's: tells a
+// login apart without keeping any of it.
+export function codexLoginMark(text: string): string | null {
+  try {
+    const token = JSON.parse(text)?.tokens?.refresh_token;
+    return typeof token === "string" && token ? createHash("sha256").update(token).digest("hex").slice(0, 16) : null;
   } catch {
     return null;
   }

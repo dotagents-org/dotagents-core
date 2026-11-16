@@ -37,6 +37,8 @@ export type ProfileUsage = {
   source?: "cache" | "live";
   // The profile's running sessions, for a profile whose login Claude Code is using.
   activity?: Activity;
+  // The plan Codex reports for a Codex profile ("team"); not read from Claude's endpoint.
+  plan?: string;
   // Why the last live ask failed; the numbers shown are older than it.
   error?: string;
 };
@@ -54,7 +56,7 @@ function toDate(v: unknown): Date | null {
   return null;
 }
 
-function window(kind: UsageWindow["kind"], pct: unknown, resetsAt: unknown, now: Date, model?: string): UsageWindow | null {
+export function usageWindow(kind: UsageWindow["kind"], pct: unknown, resetsAt: unknown, now: Date, model?: string): UsageWindow | null {
   if (typeof pct !== "number") return null;
   const when = toDate(resetsAt);
   const reset = Boolean(when && when.getTime() <= now.getTime());
@@ -70,17 +72,17 @@ function windows(utilization: Record<string, unknown>, now: Date): UsageWindow[]
       .map((raw) => {
         const l = record(raw);
         if (!l) return null;
-        if (l.kind === "session") return window("session", l.percent, l.resets_at, now);
-        if (l.kind === "weekly_all") return window("week", l.percent, l.resets_at, now);
+        if (l.kind === "session") return usageWindow("session", l.percent, l.resets_at, now);
+        if (l.kind === "weekly_all") return usageWindow("week", l.percent, l.resets_at, now);
         const model = record(record(record(l.scope)?.model))?.display_name;
-        if (l.kind === "weekly_scoped" && typeof model === "string") return window("model-week", l.percent, l.resets_at, now, model);
+        if (l.kind === "weekly_scoped" && typeof model === "string") return usageWindow("model-week", l.percent, l.resets_at, now, model);
         return null;
       })
       .filter((w): w is UsageWindow => w !== null);
   }
   const field = (name: string, kind: UsageWindow["kind"], model?: string) => {
     const f = record(utilization[name]);
-    return f ? window(kind, f.utilization, f.resets_at, now, model) : null;
+    return f ? usageWindow(kind, f.utilization, f.resets_at, now, model) : null;
   };
   return [field("five_hour", "session"), field("seven_day", "week"), field("seven_day_opus", "model-week", "Opus"), field("seven_day_sonnet", "model-week", "Sonnet")].filter(
     (w): w is UsageWindow => w !== null
@@ -247,7 +249,7 @@ const pctSegment = (pct: number, role: Role): Segment => ({ text: `${String(pct)
 
 // What a profile without numbers says.
 function stateNote(a: ProfileUsage) {
-  if (a.state === "not-signed-in") return `no saved login: sign in with claude auth login, then run dotagents switch --save ${a.name}`;
+  if (a.state === "not-signed-in") return a.provider === "codex" ? `no saved login: run dotagents login ${a.name}` : `no saved login: sign in with claude auth login, then run dotagents switch --save ${a.name}`;
   if (a.state === "no-data") return `no data yet, run: dotagents usage --refresh${a.error ? ` (last try: ${a.error})` : ""}`;
   if (a.state === "other-account") return `the cache is another account's, run: dotagents usage --refresh${a.error ? ` (last try: ${a.error})` : ""}`;
   return null;
@@ -264,8 +266,15 @@ export const activityText = (a: Activity | undefined) =>
 export function usageLines(list: ProfileUsage[], now: Date): Line[] {
   const labelWidth = Math.max(2, ...list.flatMap((a) => a.windows.map((w) => windowLabel(w).length))) + 3;
   const lines: Line[] = [];
+  // With both providers in the list, one header line per group.
+  const grouped = list.some((a) => a.provider === "codex") && list.some((a) => a.provider !== "codex");
+  let group: string | null = null;
   for (const a of list) {
     if (lines.length) lines.push([]);
+    if (grouped && group !== (a.provider ?? "claude")) {
+      group = a.provider ?? "claude";
+      lines.push([{ text: group === "codex" ? "Codex" : "Claude", role: "muted" }], []);
+    }
     const stale = a.state === "stale";
     const head: Line = [nameSegment(a)];
     if (a.default) head.push({ text: "  " }, { text: "[default]", role: "muted" });
