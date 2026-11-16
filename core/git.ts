@@ -59,9 +59,9 @@ export function ensureExcluded(ws: string) {
   const block = [BEGIN, ...patternsFor(ws, repo.top), END].join("\n");
   const current = fs.existsSync(repo.exclude) ? fs.readFileSync(repo.exclude, "utf8") : "";
   // One block per workspace path; rewrite it when the list changes.
-  const pattern = new RegExp(`${escape(BEGIN)}\\n(?:.*\\n)*?${escape(END)}`, "g");
+  const pattern = blockPattern();
   const blocks = current.match(pattern) ?? [];
-  const mine = blocks.find((b) => b.includes(patternsFor(ws, repo.top)[0]));
+  const mine = blocks.find((b) => b.split("\n").includes(patternsFor(ws, repo.top)[0]));
   if (mine === block) return report("ok", repo.exclude, "agent files excluded from git");
   if (state.dryRun) return report(mine ? "would update" : "would create", repo.exclude, "exclude the agent files from git");
   const next = mine ? current.replace(mine, block) : `${current}${current && !current.endsWith("\n") ? "\n" : ""}${block}\n`;
@@ -76,7 +76,7 @@ export function removeExcluded(ws: string) {
   const repo = gitRepoOf(ws);
   if (!repo || !fs.existsSync(repo.exclude)) return;
   const first = patternsFor(ws, repo.top)[0];
-  const pattern = new RegExp(`${escape(BEGIN)}\\n(?:.*\\n)*?${escape(END)}\\n?`, "g");
+  const pattern = blockPattern(true);
   const current = fs.readFileSync(repo.exclude, "utf8");
   const next = current.replace(pattern, (block) => (block.split("\n").includes(first) ? "" : block));
   if (next === current) return;
@@ -104,5 +104,7 @@ export function untrackedAgentFiles(ws: string) {
   const out = git(repo.top, "ls-files", "--others", "--exclude-standard", "--directory", "--", ...paths);
   return out ? out.split("\n").filter(Boolean) : [];
 }
+
+const blockPattern = (trailingNewline = false) => new RegExp(`${escape(BEGIN)}\\n(?:.*\\n)*?${escape(END)}${trailingNewline ? "\\n?" : ""}`, "g");
 
 const escape = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
