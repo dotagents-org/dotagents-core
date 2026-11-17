@@ -53,7 +53,7 @@ dotagents update --all         # also refresh every tracked workspace
 dotagents update --no-pull     # skip the pull and only reapply
 ```
 
-- When the pull changes `package-lock.json`, it runs `npm install` before going on, so the next run can start. When it changes the command's entry file (`bin` in `package.json`), it runs `npm link` too, so `dotagents` keeps working. When it changes the version, it says so (`version 0.1.0 → 0.2.0`) and points to [`CHANGELOG.md`](../CHANGELOG.md), which lists what changed and what to do.
+- When the pull changes `package-lock.json`, it runs `npm install` before going on, so the next run can start. When it changes the command's entry file (`bin` in `package.json`), it runs `npm link` too, so `dotagents` keeps working. When it changes the version, it says so (`version <old> → <new>`) and points to [`CHANGELOG.md`](../CHANGELOG.md), which lists what changed and what to do.
 - If the pull fails (local changes, diverged history), it stops and asks you to fix the repository first.
 - With `--all`, for each tracked workspace it:
   - applies the standards again, which puts back any skill that is missing (useful on a new machine or after cloning a workspace again);
@@ -273,7 +273,7 @@ While it runs it leaves its port, token and pid in `<state>/start.json`, readabl
 
 The full contract (the endpoints, the token, the events, every field and the actions' answers) is in [The start API](start-api.md).
 
-Every answer of the API and every event carries `"apiVersion": 2`, the format of what the server says, apart from the `version` of the usage data inside it. A client that doesn't know the version it gets refuses it, instead of misreading it; the number goes up only with a change an older client would misread. Version 2 (0.2.0) added the ChatGPT profiles and the slots per provider: a client of version 1 would take a ChatGPT profile for a Claude one. When the data can't be read (a state file being written, a bad one), the answer is `{ "apiVersion": 2, "error": "<why>" }` and the server keeps running.
+Every answer of the API and every event carries `"apiVersion": 2`, the format of what the server says, apart from the `version` of the usage data inside it. A client that doesn't know the version it gets refuses it, instead of misreading it; the number goes up only with a change an older client would misread. Version 2 added the ChatGPT profiles and the slots per provider: a client of version 1 would take a ChatGPT profile for a Claude one. When the data can't be read (a state file being written, a bad one), the answer is `{ "apiVersion": 2, "error": "<why>" }` and the server keeps running.
 
 ### In VS Code
 

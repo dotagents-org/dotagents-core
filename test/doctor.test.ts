@@ -9,7 +9,7 @@ test("Node 22.18 or newer runs dotagents", () => {
 });
 
 test("the other side's answer says what to do, in words for someone who doesn't know the tool", () => {
-  assert.deepEqual(peerToolCheck("WSL", { status: 0, stdout: "v24.20.0\n0.1.0\n" }), { passed: true, detail: "Node v24.20.0, dotagents 0.1.0" });
+  assert.deepEqual(peerToolCheck("WSL", { status: 0, stdout: "v24.20.0\n0.0.0\n" }), { passed: true, detail: "Node v24.20.0, dotagents 0.0.0" });
   const old = peerToolCheck("WSL", { status: 1, stdout: "v22.11.0\n", stderr: "SyntaxError" });
   assert.equal(old.passed, false);
   assert.match(old.detail, /WSL runs Node v22\.11\.0, and dotagents needs 22\.18 or newer; in WSL: nvm install 24/);

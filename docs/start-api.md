@@ -90,4 +90,4 @@ The other side's switch needs a dotagents there that knows the profile: a ChatGP
 
 ## The version rule
 
-`apiVersion` is the format of what the server says, apart from `version` of the usage data inside it. A client that doesn't know the version it gets refuses it instead of misreading it. The number goes up only with a change an older client would misread; adding a field doesn't. Version 2 (0.2.0) added the ChatGPT profiles, `plan`, and `slots` and `current` per provider: a client of version 1 would take a ChatGPT profile for a Claude one.
+`apiVersion` is the format of what the server says, apart from `version` of the usage data inside it. A client that doesn't know the version it gets refuses it instead of misreading it. The number goes up only with a change an older client would misread; adding a field doesn't. Version 2 added the ChatGPT profiles, `plan`, and `slots` and `current` per provider: a client of version 1 would take a ChatGPT profile for a Claude one.
