@@ -161,7 +161,7 @@ test("the checklist says when each profile's saved login expires, warning a week
   let events = quiet();
   verifyLogins(now);
   const text = (k: string) => events.filter((e) => e.kind === k).map((e) => ("text" in e ? e.text : "")).join("\n");
-  assert.match(text("check"), /work.*Nov 19/);
+  assert.match(text("check"), /work on [^:]*: login good, until Nov 19/, "the same shape as a ChatGPT login's line");
   assert.match(text("warning"), /personal.*expires in 3 days/);
   assert.equal(state.problems, 0);
   fs.writeFileSync(path.join(home, ".claude-personal", ".credentials.json"), withExpiry("p1", now.getTime() - day));

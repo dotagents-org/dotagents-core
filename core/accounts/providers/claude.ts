@@ -79,7 +79,8 @@ function checkExpiry(name: string, side: string, login: StoredLogin | null, now:
   const renew = renewHint(name, side);
   if (expires <= now.getTime()) return checkItem(false, `${name} on ${side}: login expired on ${date}`, renew);
   if (days < WARN_DAYS) return checkWarn(`${name} on ${side}: login expires in ${days} day${days === 1 ? "" : "s"} (${date})`, renew);
-  checkItem(true, `${name} on ${side}: login good until ${date}`);
+  // The same line as a ChatGPT login's ("login good, renewed <date>"), with what Anthropic tells: the end
+  checkItem(true, `${name} on ${side}: login good, until ${date}`);
 }
 
 function verifyLogins(now: Date) {
