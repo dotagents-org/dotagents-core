@@ -45,7 +45,7 @@ dotagents works with a single account. The configuration, the workspaces, the us
 Each seat stays under its provider's terms, and you are the one bound by them. Read them before adding a second account:
 
 - **Anthropic:** the [Usage Policy](https://www.anthropic.com/legal/aup), the [Commercial Terms](https://www.anthropic.com/legal/commercial-terms) for Team and Enterprise seats, and the [Consumer Terms](https://www.anthropic.com/legal/consumer-terms) for Pro and Max.
-- **OpenAI**, for Codex, planned for 0.2.0: the [Services Agreement](https://openai.com/policies/services-agreement/) for ChatGPT Business and Enterprise seats, the [Usage Policies](https://openai.com/policies/usage-policies/), and the [Terms of Use](https://openai.com/policies/terms-of-use/) for individual plans.
+- **OpenAI**, for Codex: the [Services Agreement](https://openai.com/policies/services-agreement/) for ChatGPT Business and Enterprise seats, the [Usage Policies](https://openai.com/policies/usage-policies/), and the [Terms of Use](https://openai.com/policies/terms-of-use/) for individual plans.
 
 Both forbid sharing a login between people. OpenAI's Services Agreement also forbids circumventing usage limits or configuring the service to avoid them. If your provider says one person may not hold several seats for the same work, keep one account.
 
