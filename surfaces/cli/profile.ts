@@ -2,7 +2,7 @@
 
 import { verifyGlobal } from "../../core/global.ts";
 import { configDirs, dropProfile, setUpProfile, verifyLogins, verifyProfiles } from "../../core/accounts/profiles.ts";
-import { activeProfiles, providerFor, providers, verifyProviderConfigs } from "../../core/accounts/providers.ts";
+import { listedProfiles, providerFor, providers, verifyProviderConfigs } from "../../core/accounts/providers.ts";
 import { loadProfiles } from "../../core/machine-state.ts";
 import { fancy, finish, header, line, paint, tone } from "../../core/output.ts";
 import { plural, type Command } from "./shared.ts";
@@ -32,7 +32,7 @@ export const profileList: Command = {
   summary: "list the profiles and check them",
   group: "Profiles",
   run({ repo }) {
-    const profiles = activeProfiles();
+    const profiles = listedProfiles();
     if (!profiles.length) {
       const hint = "No profiles yet. Add one per Claude account, the first with: dotagents profile add <name> --default, and one per ChatGPT account with: dotagents profile add <name> --provider codex";
       return console.log(fancy ? muted(hint) : hint);

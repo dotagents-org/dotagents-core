@@ -181,6 +181,14 @@ export function providerFor(p: Profile): Provider {
 // Every profile whose provider is on: what the lists and the loops over profiles use.
 export const activeProfiles = (): Profile[] => loadProfiles().filter((p) => PROVIDERS.some((x) => x.id === (p.provider ?? "claude")));
 
+// The profiles as the listings show them, like usage: by provider, in the providers' order, and
+// within each the one in this side's slot first, the rest in the order of profiles.json.
+export function listedProfiles(): Profile[] {
+  const inSlot = PROVIDERS.map((p) => p.slotProfile()?.name);
+  const rank = (p: Profile) => PROVIDERS.indexOf(providerFor(p)) * 2 + (inSlot.includes(p.name) ? 0 : 1);
+  return activeProfiles().map((p, i) => ({ p, i })).sort((a, b) => rank(a.p) - rank(b.p) || a.i - b.i).map(({ p }) => p);
+}
+
 // What install writes for each provider that has something to write, and the checklist of it.
 export const installProviders = (repo: string) => PROVIDERS.forEach((p) => p.install?.(repo));
 export const verifyProviderConfigs = (repo: string) => PROVIDERS.forEach((p) => p.verifyConfig?.(repo));

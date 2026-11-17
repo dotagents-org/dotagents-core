@@ -8,6 +8,7 @@ import path from "node:path";
 import { test, type TestContext } from "node:test";
 import { saveMachine, saveProfile, sideName } from "../core/machine-state.ts";
 import { readAll, startAnswer } from "../core/accounts/snapshot.ts";
+import { listedProfiles } from "../core/accounts/providers.ts";
 import { quiet } from "./helpers.ts";
 
 const NOW = new Date("2026-11-16T12:00:00Z");
@@ -97,6 +98,16 @@ test("the profile in the slot comes first for each provider, in the API and in u
   assert.deepEqual(a.profiles.map((p) => p.name), ["lovelace", "turing", "dijkstra", "hopper"]);
   assert.deepEqual([a.current.claude.profile, a.current.codex!.profile], ["lovelace", "dijkstra"]);
   assert.deepEqual(readAll(NOW).map((p) => p.name), ["lovelace", "turing", "dijkstra", "hopper"]);
+});
+
+test("profile list orders like usage: by provider, the one in the slot first", (t) => {
+  const m = machine(t);
+  m.codex("hopper", "#7B61A8", "user-hopper", "team");
+  m.claude("turing", "#D77655", "uuid-t", "team");
+  m.codex("dijkstra", "#B8862B", "user-dijkstra", "team");
+  m.claude("lovelace", "#376B80", "uuid-l", "team", true);
+  put(path.join(m.home, ".codex", "auth.json"), codexAuth("user-dijkstra", "team"));
+  assert.deepEqual(listedProfiles().map((p) => p.name), ["lovelace", "turing", "dijkstra", "hopper"]);
 });
 
 test("this side's slot comes first, then the other side's, then the rest", (t) => {
