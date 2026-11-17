@@ -140,7 +140,11 @@ const KIND: Record<number, StoredWindow["kind"]> = { 300: "session", 10080: "wee
 
 const rec = (v: unknown): Record<string, unknown> | null => (typeof v === "object" && v !== null && !Array.isArray(v) ? (v as Record<string, unknown>) : null);
 
-export function normalizeRateLimits(result: unknown): { plan: string | null; windows: StoredWindow[] } {
+// An idle window: Codex gives a 0% window with nothing used a reset a whole window from the time it
+// is asked, where Claude gives none. Read the same as Claude's, as no window open (2 minutes of slack).
+const IDLE_SLACK_MS = 2 * 60_000;
+
+export function normalizeRateLimits(result: unknown, nowMs = Date.now()): { plan: string | null; windows: StoredWindow[] } {
   const r = rec(result);
   const snapshot = rec(rec(r?.rateLimitsByLimitId)?.codex) ?? rec(r?.rateLimits);
   if (!snapshot) throw new Error("the answer has no rate limits");
@@ -153,7 +157,9 @@ export function normalizeRateLimits(result: unknown): { plan: string | null; win
     if (!kind) throw new Error(`the ${name} window is ${String(w.windowDurationMins)} minutes long, not a 5-hour or 7-day one`);
     if (windows.some((x) => x.kind === kind)) throw new Error(`two ${kind} windows`);
     if (w.resetsAt !== null && w.resetsAt !== undefined && typeof w.resetsAt !== "number") throw new Error(`the ${name} window's resetsAt is not a time`);
-    windows.push({ kind, pct: w.usedPercent, resetsAt: typeof w.resetsAt === "number" ? w.resetsAt * 1000 : null });
+    const resetsAt = typeof w.resetsAt === "number" ? w.resetsAt * 1000 : null;
+    const idle = w.usedPercent === 0 && resetsAt !== null && Math.abs(resetsAt - (nowMs + (w.windowDurationMins as number) * 60_000)) <= IDLE_SLACK_MS;
+    windows.push({ kind, pct: w.usedPercent, resetsAt: idle ? null : resetsAt });
   }
   if (!windows.length) throw new Error("the answer has no window");
   return { plan: typeof snapshot.planType === "string" ? snapshot.planType : null, windows: windows.sort((a, b) => Number(b.kind === "session") - Number(a.kind === "session")) };
@@ -227,13 +233,13 @@ export async function askCodex(
     const { error, refused } = describe(failure, p.name);
     return { ok: false, error, refusedMark: refused ? mark : null };
   }
+  const at = now();
   let usage;
   try {
-    usage = normalizeRateLimits(result);
+    usage = normalizeRateLimits(result, at);
   } catch (err) {
     return { ok: false, error: `Codex's answer is not a usage this dotagents reads (${safe((err as Error).message)})`, refusedMark: null };
   }
-  const at = now();
   return { ok: true, record: { provider: "codex", fetchedAtMs: at, user: login.id, plan: usage.plan, windows: usage.windows } };
 }
 

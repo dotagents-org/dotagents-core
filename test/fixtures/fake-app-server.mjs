@@ -21,6 +21,9 @@ const answers = {
   legacy: () => ({ result: { rateLimits: good } }),
   // Windows in the opposite order.
   swapped: () => ({ result: { rateLimits: snapshot(window(17, 10080, NOW_S + 86400), window(42, 300, NOW_S + 3600)) } }),
+  // Nothing used: Codex still gives each window a reset a whole window away, and one used window.
+  idle: () => ({ result: { rateLimits: snapshot(window(0, 300, NOW_S + 300 * 60 - 2), window(0, 10080, NOW_S + 10080 * 60)) } }),
+  idlesession: () => ({ result: { rateLimits: snapshot(window(0, 300, NOW_S + 3600), window(17, 10080, NOW_S + 86400)) } }),
   unknown: () => ({ result: { rateLimits: snapshot(window(5, 60, NOW_S + 60), null) } }),
   empty: () => ({ result: { rateLimits: snapshot(null, null) } }),
   missing: () => ({ error: { code: -32601, message: "Method not found" } }),

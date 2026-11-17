@@ -104,6 +104,18 @@ test("the older rateLimits field and windows in any order are read the same", as
   assert.deepEqual(read("hopper").windows.map((w) => [w.kind, w.pct]), [["session", 42], ["week", 17]]);
 });
 
+test("a 0% window that resets a whole window from now is no window open, as Claude reads it", async (t) => {
+  const m = await machine(t);
+  await fetchUsage(profile("dijkstra"), { spawnIt: fake(m.log, "idle"), now: () => NOW });
+  assert.deepEqual(read("dijkstra").windows.map((w) => [w.kind, w.pct, w.resetsAt]), [["session", 0, null], ["week", 0, null]]);
+  const text = usageLines([read("dijkstra")], new Date(NOW)).map((l) => l.map((s) => s.text).join("")).join("\n");
+  assert.match(text, /no window open/);
+  assert.doesNotMatch(text, /resets 4h/);
+  // A 0% window that already started (its reset is sooner than a whole window) keeps its reset
+  await fetchUsage(profile("hopper"), { spawnIt: fake(m.log, "idlesession"), now: () => NOW });
+  assert.equal(read("hopper").windows[0].resetsAt?.getTime(), NOW + 3_600_000);
+});
+
 test("a window that passed its reset reads as 0%, and old numbers are stale", async (t) => {
   const m = await machine(t);
   await fetchUsage(profile("dijkstra"), { spawnIt: fake(m.log, "good"), now: () => NOW });
