@@ -8,15 +8,17 @@ dotagents <command> [options]
 |---|---|
 | [`install`](#dotagents-install) | Applies the global configuration to this machine, in every profile folder. |
 | [`update [--all]`](#dotagents-update) | Pulls this repository and runs `install`; with `--all`, also refreshes every tracked workspace. |
-| [`settings pull [--from <profile>]`](#dotagents-settings-pull) | Brings a settings change made in a profile (a Windows copy) into this repository. |
-| [`revision [on [--api] \| off \| fix [ids…] [--all] [--yes]]`](#dotagents-revision) | Prompt revision, off by default: each message you send, proofread by the cheapest Claude model, shown in the chat and kept in the session archive. |
-| [`profile add <name>`](#dotagents-profile-add) | Adds a profile: one Claude account (on Windows, with a Desktop app of its own), or one ChatGPT account with `--provider codex`. |
+| [`settings pull [--from <profile>]`](#dotagents-settings-pull) | Brings a change from the local Claude Code settings copy into the configuration repository. |
+| [`revision [on [--api] \| off \| fix [ids…] [--all] [--yes]]`](#dotagents-revision) | Proofreads Claude Code prompts, shows the revision in the chat and keeps it in the session archive. Off by default. |
+| [`doctor`](#dotagents-doctor) | Checks Node.js, the connection to the other side and the profiles' logins. |
+| [`logs [--side <side>]`](#dotagents-logs) | Shows the latest entries from the core, sidebar and host logs. |
+| [`profile add <name>`](#dotagents-profile-add) | Adds one Claude or ChatGPT account, with its own Desktop launcher on Windows. |
 | [`profile list`](#dotagents-profile-list) | Lists the profiles and checks them. |
 | [`profile remove <name>`](#dotagents-profile-remove) | Forgets a profile; its saved login is kept. |
 | [`start [--port <n>]`](#dotagents-start) | Starts the accounts' local API on 127.0.0.1, live, which the dotagents sidebar reads. |
-| [`switch [<profile>] [--here] [--save <profile>]`](#dotagents-switch) | Puts a profile's login in `~/.claude`, on both sides of the machine. |
+| [`switch [<profile>] [--here] [--save <profile>]`](#dotagents-switch) | Puts a profile's login in its agent's slot, on both sides of the machine. |
 | [`login <profile> \| --all`](#dotagents-login) | Signs a profile in again on this side, keeping the new login in its vault. |
-| [`usage [--short] [--json]`](#dotagents-usage) | Shows how much of each profile's plan is used (5-hour session, week), from Claude Code's cache. |
+| [`usage [--refresh] [--short] [--json] [--spend]`](#dotagents-usage) | Shows Claude and ChatGPT usage. `--spend` estimates Claude costs from local transcripts. |
 | [`new <git-url> [folder]`](#dotagents-new) | Creates a workspace folder (any name; `<name>-workspace` by default), clones the repository into it and applies the standards. |
 | [`init [path]`](#dotagents-init) | Applies the standards to a folder and puts the chosen skills in it. |
 | [`check [path]`](#dotagents-check) | Runs the standards checklist on a workspace, changing nothing. |
@@ -41,7 +43,7 @@ dotagents install
 
 Where Codex is installed (a `codex` command on the PATH, or a `~/.codex` folder), it also writes `~/.codex/AGENTS.md`, the instructions with the rules at the end (Codex has no rules folder); the other side of the machine writes its own when `install` runs there. Without Codex nothing is created. `config.toml` is never touched.
 
-Run it again after editing `config/global/` or `config/rules/`, and on Windows also after editing the settings in `config/claude/`. On Linux and macOS the settings and the rules are links, so their changes apply right away.
+Run it again after editing the global instructions or `claude/settings.json`. Claude Code's rules are linked. The rules in Codex's generated `AGENTS.md` are updated when `install` runs again.
 
 ## dotagents update
 
@@ -65,7 +67,7 @@ dotagents settings pull                  # the one profile whose settings change
 dotagents settings pull --from personal  # when several changed in different ways
 ```
 
-On Windows each profile has a copy of `config/claude/settings.json`, and `/config` writes to that copy. `install` remembers what it last copied, so it can tell a copy that only fell behind the repository (it updates it) from one changed in the profile (it keeps it and says so). `settings pull` copies the changed one into the repository; commit it, and the next `install` takes it to the other profiles. With several profiles changed in different ways it stops and asks for `--from`. On Linux and macOS the profiles link to the repository's file, so there is nothing to pull.
+On every system `/config` writes to the local copy of `config/claude/settings.json`. `install` updates a copy that fell behind the repository and preserves local edits. `settings pull` brings those edits back into the configuration repository, excluding machine-specific keys such as `model` and `effortLevel`. Use `--from` to select an older profile's copy when several differ.
 
 ## dotagents revision
 
@@ -106,7 +108,7 @@ dotagents profile add personal           # a second account
 dotagents profile add personal --color '#376B80'
 ```
 
-A profile is one Claude account the person holds (ADR 0004 in the workspace's `.artifacts/decisions/`). Every profile uses the same config folder, `~/.claude`, on WSL and on Windows alike: the history, settings, skills and memory are shared, and [`switch`](#dotagents-switch) puts a profile's login in it. Two profiles can't hold the same account. Earlier versions called profiles accounts (`dotagents account add`, `accounts.json`); `install` moves `accounts.json` to `profiles.json`. For a profile, `profile add`:
+A profile represents one account the person holds. On each side, Claude profiles share `~/.claude` and ChatGPT profiles share `~/.codex` or `$CODEX_HOME`. [`switch`](#dotagents-switch) puts a profile's login in its provider's slot. Two profiles of the same provider can't hold the same account. Earlier versions called profiles accounts (`dotagents account add`, `accounts.json`); `install` moves `accounts.json` to `profiles.json`. For a Claude profile, `profile add`:
 
 - applies the configuration of `install` to `~/.claude`;
 - records the profile in `profiles.json`, next to `workspaces.json` (its format is [The profiles file](profiles-file.md));
@@ -176,7 +178,7 @@ A login lasts a few weeks, and no renewal extends it: `profile list` says when e
 4. keeps the new login in the profile's vault;
 5. puts the account that was in the slot back, also when a step failed.
 
-The login lock is held only around the slot changes, not while the browser waits for you. `--all` takes every profile on this side whose login runs out within a week, was refused by Anthropic, or isn't saved yet. Each side of the machine has its own login, so run it on the other side too.
+The login lock is held only around the slot changes, not while the browser waits for you. `--all` takes every Claude profile on this side whose login runs out within a week, was refused by Anthropic, or isn't saved yet. Each side of the machine has its own login, so run it on the other side too.
 
 
 ### ChatGPT profiles
@@ -189,10 +191,10 @@ dotagents usage            # every profile: the 5-hour window, the week, per-mod
 dotagents usage --refresh # ask Anthropic and OpenAI for fresh numbers first
 dotagents usage --short    # one line per profile, for a status line
 dotagents usage --json     # the data, for scripts
-dotagents usage --spend    # what 1% of each window costs, and where the spend went
+dotagents usage --spend    # what 1% of each Claude window costs, and where the spend went
 ```
 
-Shows, for each profile, the newer of two sources: the usage Claude Code keeps in the profile's state file (`cachedUsageUtilization` in `~/.claude.json`, or `<folder>/.claude.json`), and the usage dotagents last asked of Anthropic itself (`--refresh`, or `start` every minute), kept in `<state>/usage/<profile>.json`. Without `--refresh` it makes no network call. Without profiles, it shows the one in `~/.claude`.
+For Claude, shows the newer of Claude Code's cache (`cachedUsageUtilization` in `~/.claude.json`, or `<folder>/.claude.json`) and the last reading from Anthropic. For ChatGPT, shows the last reading from the Codex app-server. Live readings are kept in `<state>/usage/<profile>.json`. Without `--refresh` it makes no network call. Without profiles, it shows the Claude login in `~/.claude`.
 
 ```
  dotagents  usage
@@ -235,11 +237,11 @@ Claude Code writes its cache when it asks for the usage, which happens during se
 
 The ChatGPT profiles are listed after the Claude ones, under a `ChatGPT` header line (and the Claude ones under `Claude`) when both exist. Their usage is asked of the official `codex app-server` over stdio, never of chatgpt.com: dotagents sends `initialize`, the `initialized` notification and `account/rateLimits/read`, and Codex makes the call with its own login, so no token, client id or User-Agent of dotagents' goes on the wire. The 300-minute window is the 5-hour session and the 10080-minute one the week; any other shape is refused with a reason, and a window that was never read is unknown, never 0%. The profile in the side's slot is asked in the real `CODEX_HOME`, as it is; any other is asked in a temporary `CODEX_HOME` (mode 0700, `cli_auth_credentials_store = "file"`) with a copy of its vault `auth.json`, one at a time under the same lock as `switch`. If Codex renewed that copy and it is still the same ChatGPT user, the renewed login goes back to the vault, even when the call failed, since the refresh token is single-use; the temporary folder is then deleted. `start` asks about each profile once a minute, as for Claude, with the same backoff on errors (`usage --refresh` asks all of them now, except one that is backing off), and a call that hangs is killed after 20 seconds. Each profile's answer is kept in `<state>/usage/<profile>.json`: `provider: "codex"`, `fetchedAtMs`, `user` (the ChatGPT user the numbers are about), `plan`, `windows` (`kind`, `pct`, `resetsAt` in ms or null), and the last attempt's `askedAtMs`, `failures`, `retryAtMs` and `error`. When OpenAI refuses the login (a 401, `refresh_token_reused`, an invalidated or expired token, no authentication), the error says to run `dotagents login <profile>` and `refused` holds the mark of that login (a short hash of its refresh token: the slot's `auth.json` for the slot's profile, the vault's for the others); a good answer clears both.
 
-On a Windows machine with WSL, `install` finds the other side (Windows from WSL, WSL from Windows) and records it in `machine.json`. `usage` then also reads that side's caches, read only: when the same account has newer numbers there, they win, and the profile says so (`4m ago on Windows`). Data older than 6 hours is marked stale and drawn muted. A profile that isn't signed in, has no data yet, or holds the cache of an earlier sign-in says so instead of showing a number.
+On a Windows machine with WSL, `install` finds the other side (Windows from WSL, WSL from Windows) and records it in `machine.json`. For Claude profiles, `usage` can use a newer reading for the same account from that side and shows where it came from (`4m ago on Windows`). ChatGPT usage reads this side's records. Data older than 6 hours is marked stale and drawn muted. A profile that isn't signed in, has no data yet, or holds the cache of an earlier sign-in says so instead of showing a number.
 
 ### What 1% costs
 
-`usage --spend` puts a cost on each window's %, per profile. Every live reading that changes a window's % (`start`, every minute, or `--refresh`) adds a line to `<state>/usage/<profile>.history.jsonl`, so it asks Anthropic nothing more. The spend is the tokens of every assistant message in Claude Code's transcripts on both sides of the machine (`~/.claude/projects/`, subagents included), each one under the account its session ran as, at the API's prices. Between two readings of the same window where the % rose, the spend over the % gives `1% ≈ US$ X ≈ N tokens`; a rise with no spend here (claude.ai, the Desktop outside Code, another machine) is counted as unexplained, and the line says how much of the rise that was. Under it, the current 5-hour and weekly windows' spend, by model and by folder, and the prompt revisions' cost. `--json` gives the same data.
+`usage --spend` estimates the cost of each Claude window's %, per profile. Every live reading that changes a window's % (`start`, every minute, or `--refresh`) adds a line to `<state>/usage/<profile>.history.jsonl`, so it asks Anthropic nothing more. The spend is the tokens of every assistant message in Claude Code's transcripts on both sides of the machine (`~/.claude/projects/`, subagents included), each one under the account its session ran as, at the API's prices. Between two readings of the same window where the % rose, the spend over the % gives `1% ≈ US$ X ≈ N tokens`; a rise with no spend here (claude.ai, the Desktop outside Code, another machine) is counted as unexplained, and the line says how much of the rise that was. Under it, the current 5-hour and weekly windows' spend, by model and by folder, and the prompt revisions' cost. `--json` gives the same data.
 
 The dollar is the API's price, a unit to compare with: a subscription isn't charged per token. The % comes in whole numbers, so the relation is rough until days of readings pile up.
 
@@ -248,6 +250,7 @@ The dollar is the API's price, a unit to compare with: a subscription isn't char
 ```bash
 dotagents start              # on 127.0.0.1:7337, or the next free port
 dotagents start --port 0     # any free port
+dotagents start --dry-run    # preview without starting the API or writing state
 ```
 
 Starts the accounts' local API, which the [dotagents sidebar](https://github.com/dotagents-org/dotagents-sidebar) reads to show every account (its accounts tab and the status bar) and to switch; the sidebar starts one in the background when none answers. It serves no pages: only `/api/usage` (the same data as `usage --json`, with what follows) and `/api/events`, which sends it again whenever it changes, and the actions below. While it runs, it asks Anthropic and OpenAI for each profile's usage every minute, as `usage --refresh` does, and prints a failure when it changes. It listens only on `127.0.0.1`, answers only requests addressed to itself (so a web page elsewhere can't reach it) and nothing without the token it leaves in `start.json`. Ctrl+C stops it.
@@ -256,7 +259,7 @@ Started by hand it lives as long as its terminal. To run it on its own, the way 
 
 The other side of the machine is read only while it runs: on Windows, the server asks `wsl.exe` every 5 seconds whether the distro is running and never reads `\\wsl.localhost` when it isn't, so it doesn't start WSL. The data then carries `"peer": { "name": "WSL", "up": false }`. While the other side runs, its running Claude Code sessions count for the account in its slot (`working`, `waiting`); the server asks that side's `dotagents sessions --running` every 15 seconds, in the background, so a read never waits on it.
 
-Its data adds `sides`, the sides of the machine (`["WSL", "Windows"]`, this one first), `slots`, the profile in each side's slot per provider (`{ "claude": { "WSL": "work", "Windows": "personal" }, "codex": { "WSL": "codex-work" } }`), and `current`, the current account and its avatar state per provider (`claude`, and `codex` when there is a ChatGPT profile): the profile in a slot in the worst state, or the brand when none is. Each profile says its `provider` (`claude` or `codex`); the ChatGPT profiles come after the Claude ones, with their live `windows` (the 5-hour `session` and the 7-day `week`) and `plan` (Codex's plan type, `team`) once read, `no-data` when a login is saved and nothing was read yet, and `not-signed-in` when no login is saved. The `desktop` action refuses a ChatGPT profile.
+See the [API contract](start-api.md) for `sides`, `slots`, `current` and the full profile fields. The `desktop` action opens the profile's launcher on Windows for both providers.
 
 Three actions, for the sidebar's accounts tab, are the only writes. Each takes a JSON body (`{ "profile": "<name>" }` for the first two), with the token in the `x-dotagents-token` header (never in the address); a GET there answers 405, an unknown profile 404:
 
@@ -264,7 +267,7 @@ Three actions, for the sidebar's accounts tab, are the only writes. Each takes a
 |---|---|
 | `POST /api/switch` | [`switch`](#dotagents-switch) to the profile, on both sides, or only on the side `"side"` names (`{ "profile": "work", "side": "Windows" }`). |
 | `POST /api/desktop` | Opens the profile's Desktop app (Windows), as its Start menu shortcut does. |
-| `POST /api/refresh` | Asks Anthropic for every profile's usage now, without waiting for the minute. |
+| `POST /api/refresh` | Starts a refresh for both providers, subject to the normal interval and error backoff. |
 
 While it runs it leaves its port, token and pid in `<state>/start.json`, readable only by you, and takes it away when it stops. A second `start`, while the server in `start.json` answers, says so and leaves it running: one server per side of the machine. A `start.json` whose server doesn't answer (left behind by a WSL shutdown, say) doesn't count.
 
@@ -440,7 +443,7 @@ Removes a skill from the catalog. Workspaces that already installed it keep it; 
 | `--skills a,b` | `init`, `new`, `skills add` | Skills to use, or to register. |
 | `--all` | `update`, `skills add`, `sessions`, `sessions rm` | Every tracked workspace, every skill of the source, or every project's sessions. |
 | `--wrap` | `init` | Move a repository into `<name>-workspace/` before applying the standards. |
-| `--default` | `profile add` | The profile in `~/.claude`. |
+| `--default` | `profile add` | Opens the provider's standard Desktop app on Windows. One default profile per provider. |
 | `--color #RRGGBB` | `profile add` | The profile's color in the listings. |
 | `--short` | `usage` | One line, for a prompt or a status line. |
 | `--json` | `usage`, `sessions` | The data, for scripts. |
@@ -454,7 +457,7 @@ Removes a skill from the catalog. Workspaces that already installed it keep it; 
 | `--here` | `switch` | Only this side of the machine. |
 | `--side <side>` | `logs` | Only that side: `wsl` or `windows`. |
 | `--api` | `revision on` | Revise through your Anthropic API key instead of the Claude account. |
-| `--save <profile>` | `switch` | Keep the login in `~/.claude` as that profile's. |
+| `--save <profile>` | `switch` | Save the login in the provider's slot to that profile's vault. |
 | `--help`, `--version` | | |
 
 Paths can be written with `~` for the home folder, also in PowerShell and cmd, which don't expand it themselves. The short paths dotagents prints can be pasted back.

@@ -11,7 +11,7 @@ export const settingsPull: Command = {
   name: "settings pull",
   usage: "[--from <profile>]",
   summary: "bring a settings change made in a profile into this repository",
-  more: ["for copies (Windows) that /config wrote to;", "--from: the profile to take it from"],
+  more: ["for the local Claude Code settings that /config wrote to;", "--from: the profile to take it from"],
   group: "Machine",
   run({ repo, args }) {
     header("settings pull", args.from ?? "");
