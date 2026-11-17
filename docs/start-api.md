@@ -48,7 +48,7 @@ Top level:
 | `apiVersion` | The format of this answer; `2`. |
 | `version` | The format of the usage data, the same as `usage --json`'s `version` (`1`). |
 | `generatedAt` | When it was read, ISO. |
-| `profiles` | Every profile, Claude's first (this side's order, the one in the slot first), then Codex's (the order of `profiles.json`). |
+| `profiles` | Every profile, Claude's first, then Codex's. Within each provider, the one in this side's slot first, then the one in the other side's slot, then the rest in the order of `profiles.json`. |
 | `sides` | The sides of the machine, this one first; one entry when no other side was found by `install`. |
 | `peer` | The other side: `{ "name", "up" }`. Absent without one. When it is not `up` it isn't read at all, and WSL is never started for it. |
 | `slots` | The profile in each side's slot, per provider: `{ "claude": { "<side>": "<profile>" }, "codex": { ... } }`. Both keys are always there; a side with no known profile in its slot, or the other side while it is down, is left out. |

@@ -76,6 +76,7 @@ What changed for someone who updates a clone. The format follows [Keep a Changel
 
 ### Fixed
 
+- **The account in use comes first for ChatGPT too.** `usage`, the start API and with them the sidebar's panel and switch list put the profile in this side's slot first, then the other side's, for each provider; ChatGPT profiles kept the order of `profiles.json`.
 - **A ChatGPT 5-hour window with nothing used reads as no window open, as Claude's does.** Codex gives an idle window a reset a whole window from the time it is asked, so `usage` and the panel showed `0%  resets 4h 59m` for a ChatGPT profile where a Claude one shows `0%  no window open`.
 - **ChatGPT login safety:** a switch checks the reconciled slot fingerprint under Codex's lock before replacing it. Usage queries recheck their login and interval under the login lock, wait for the app-server tree to exit, drain stderr and mask email addresses in public errors.
 - Avoid appending headings and plain text again when importing profile memory on another init.

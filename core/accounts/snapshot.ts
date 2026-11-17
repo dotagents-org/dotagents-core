@@ -85,8 +85,18 @@ export function usageJson(list: ProfileUsage[], now: Date) {
   };
 }
 
-// Each provider's profiles, as it read them, each one marked with its provider.
-const readEach = (now: Date, view?: PeerView) => providers().map((p) => ({ provider: p, list: p.readUsage(now, view).map((u) => ({ ...u, provider: p.id })) }));
+// Each provider's profiles, each one marked with its provider, with the profile in each side's slot
+// and the current one. The profile in this side's slot comes first, then the one in the other
+// side's, then the rest, each in the order the provider read them, so the account in use here leads
+// the usage, the panel and the switch list, for every provider alike.
+const readEach = (now: Date, view?: PeerView) =>
+  providers().map((p) => {
+    const read = p.readUsage(now, view).map((u) => ({ ...u, provider: p.id }));
+    const slots = p.readSlots(read, view);
+    const current = read.length ? currentFor(read, slots, now) : null;
+    const rank = (u: ProfileUsage) => (slots[sideName()] === u.name ? 0 : Object.values(slots).includes(u.name) ? 1 : 2);
+    return { provider: p, list: read.map((u, i) => ({ u, i })).sort((a, b) => rank(a.u) - rank(b.u) || a.i - b.i).map(({ u }) => u), slots, current };
+  });
 
 // The usage command's list: every provider's profiles, in the providers' order. A profile names its
 // provider once a provider after the first (Claude) has profiles.
@@ -101,8 +111,8 @@ export function readAll(now: Date, view?: PeerView): ProfileUsage[] {
 // per provider, and the current one of each provider that has profiles.
 export function startAnswer(now: Date, view?: PeerView) {
   const each = readEach(now, view);
-  const slots = Object.fromEntries(each.map((e) => [e.provider.id, e.provider.readSlots(e.list, view)]));
-  const current = Object.fromEntries(each.filter((e) => e.list.length).map((e) => [e.provider.id, currentFor(e.list, slots[e.provider.id], now)]));
+  const slots = Object.fromEntries(each.map((e) => [e.provider.id, e.slots]));
+  const current = Object.fromEntries(each.flatMap((e) => (e.current ? [[e.provider.id, e.current]] : [])));
   const json = { ...usageJson(each.flatMap((e) => e.list), now), slots, current };
   const peer = sidePeer();
   // The sides, in the accounts tab's order: this one, then the other.

@@ -7,7 +7,7 @@ import os from "node:os";
 import path from "node:path";
 import { test, type TestContext } from "node:test";
 import { saveMachine, saveProfile, sideName } from "../core/machine-state.ts";
-import { startAnswer } from "../core/accounts/snapshot.ts";
+import { readAll, startAnswer } from "../core/accounts/snapshot.ts";
 import { quiet } from "./helpers.ts";
 
 const NOW = new Date("2026-11-16T12:00:00Z");
@@ -84,6 +84,30 @@ test("Claude and Codex: Claude first, Codex plan from the login, a current per p
   assert.equal(a.current.claude.profile, "turing");
   const hopper = a.profiles.find((p) => p.name === "hopper")!;
   assert.deepEqual(Object.keys(hopper).sort(), ["avatar", "color", "fetchedAt", "name", "plan", "provider", "state", "windows", "working"]);
+});
+
+test("the profile in the slot comes first for each provider, in the API and in usage", (t) => {
+  const m = machine(t);
+  m.claude("turing", "#D77655", "uuid-t", "team");
+  m.claude("lovelace", "#376B80", "uuid-l", "team", true);
+  m.codex("hopper", "#7B61A8", "user-hopper", "team");
+  m.codex("dijkstra", "#B8862B", "user-dijkstra", "team");
+  put(path.join(m.home, ".codex", "auth.json"), codexAuth("user-dijkstra", "team"));
+  const a = startAnswer(NOW);
+  assert.deepEqual(a.profiles.map((p) => p.name), ["lovelace", "turing", "dijkstra", "hopper"]);
+  assert.deepEqual([a.current.claude.profile, a.current.codex!.profile], ["lovelace", "dijkstra"]);
+  assert.deepEqual(readAll(NOW).map((p) => p.name), ["lovelace", "turing", "dijkstra", "hopper"]);
+});
+
+test("this side's slot comes first, then the other side's, then the rest", (t) => {
+  const m = machine(t);
+  m.codex("knuth", "#6B7F4A", "user-knuth", "team");
+  m.codex("dijkstra", "#B8862B", "user-dijkstra", "team");
+  m.codex("hopper", "#7B61A8", "user-hopper", "team");
+  put(path.join(m.home, ".codex", "auth.json"), codexAuth("user-hopper", "team"));
+  put(path.join(m.peer, ".codex", "auth.json"), codexAuth("user-dijkstra", "team"));
+  saveMachine({ peer: { name: "Windows", home: m.peer, nativeHome: "C:\\Users\\me" } });
+  assert.deepEqual(startAnswer(NOW, { up: () => true }).profiles.filter((p) => p.provider === "codex").map((p) => p.name), ["hopper", "dijkstra", "knuth"]);
 });
 
 test("the live usage's plan wins over the login's", (t) => {
