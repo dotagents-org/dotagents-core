@@ -72,7 +72,7 @@ function peerUsage(peer: Peer, now: Date): ProfileUsage[] {
 const hasNumbers = (p: ProfileUsage) => (p.state === "ok" || p.state === "stale") && p.fetchedAt !== null;
 
 // The other side's running sessions, for the account in its slot: every profile there uses its
-// ~/.claude (ADR 0011). Whether a session still runs can't be told from here (its pid is the other
+// ~/.claude (ADR 0004). Whether a session still runs can't be told from here (its pid is the other
 // side's), so live holds the session ids that side says are running.
 function peerActivity(peer: Peer, running: (peer: Peer) => Set<string> | null): { accountUuid: string; activity: Activity } | null {
   let accountUuid: unknown;

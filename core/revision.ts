@@ -5,7 +5,7 @@
 // they choose it. The revised text is shown in the chat (systemMessage) and handed to the model
 // (additionalContext); Claude Code records both in the transcript, where the session archive
 // reads it. The hook never blocks and never changes the prompt: any failure lets it through as is.
-// ADR 0015 in the workspace's .artifacts/decisions/.
+// ADR 0006 in the workspace's .artifacts/decisions/.
 
 import { costOf } from "./prices.ts";
 import { spawn } from "node:child_process";

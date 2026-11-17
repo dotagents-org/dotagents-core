@@ -1,4 +1,4 @@
-// `switch`: which account the side's slot (~/.claude) holds, and changing it (ADR 0009).
+// `switch`: which account the side's slot (~/.claude) holds, and changing it (ADR 0004).
 
 import { loadProfiles } from "../../core/machine-state.ts";
 import { brand, fancy, finish, header, line, paint, tone } from "../../core/output.ts";

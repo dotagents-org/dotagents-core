@@ -1,4 +1,4 @@
-// Live usage (ADR 0008): each profile's usage asked of Anthropic with the login Claude Code keeps,
+// Live usage (ADR 0003): each profile's usage asked of Anthropic with the login Claude Code keeps,
 // renewed only when it is about to expire and written back to the copy it came from. The network
 // is a fake here, and the credentials too.
 

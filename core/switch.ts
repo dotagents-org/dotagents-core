@@ -1,10 +1,10 @@
-// The switch in place (ADR 0009). Each side of the machine has one slot: ~/.claude (its
+// The switch in place (ADR 0004). Each side of the machine has one slot: ~/.claude (its
 // .credentials.json) and ~/.claude.json (its oauthAccount block), which the command line, the VS
 // Code extension and the Desktop's Code tab in WSL mode all read, so they change together. Every
 // account's login is kept in a vault, one per account and side (<state>/vault/<profile>/), readable
 // only by the user. A switch saves the slot's login back to its account's vault (Claude Code may
 // have renewed the token since), writes the chosen account's in, and checks the account after.
-// Always manual (ADR 0001). Credentials are copied whole and never printed.
+// Always manual (ADR 0004). Credentials are copied whole and never printed.
 
 import { spawnSync } from "node:child_process";
 import { log } from "./log.ts";

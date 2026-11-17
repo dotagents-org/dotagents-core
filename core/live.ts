@@ -1,4 +1,4 @@
-// Live usage (ADR 0008): each profile's usage asked of Anthropic's OAuth usage endpoint, with the
+// Live usage (ADR 0003): each profile's usage asked of Anthropic's OAuth usage endpoint, with the
 // login Claude Code keeps, about once a minute. The access token is renewed here only when it is
 // about to expire, and the rotated token written back at once to the copy it came from: a renewal
 // spends the old refresh token, so a copy left behind signs that profile out. A copy Claude Code

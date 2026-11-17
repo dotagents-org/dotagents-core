@@ -1,4 +1,4 @@
-// The switch in place (ADR 0009): each side has one slot (~/.claude and ~/.claude.json); every
+// The switch in place (ADR 0004): each side has one slot (~/.claude and ~/.claude.json); every
 // account's login is kept in a vault, and a switch saves the slot's login back to its account's
 // vault and writes the chosen one in. Fake credentials only.
 

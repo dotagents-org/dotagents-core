@@ -150,7 +150,7 @@ export function applyDesktop(
   ensureShortcut(shortcutFile(profile.name), shortcutFor(repo, profile.name, launcherDir), shortcuts);
 }
 
-// The tray panel (ADR 0010) was dropped for the panel in HTML (ADR 0012). Its launcher in the
+// The tray panel was dropped for the panel in HTML (ADR 0002). Its launcher in the
 // Startup folder, which install wrote, goes; a file there that isn't dotagents' stays.
 export const trayStartupFile = () => path.join(appData(), "Microsoft", "Windows", "Start Menu", "Programs", "Startup", "dotagents-tray.vbs");
 
