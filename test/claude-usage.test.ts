@@ -13,6 +13,8 @@ import { fetchUsage, refreshUsage } from "../core/accounts/usage-refresh.ts";
 import { readRecord } from "../core/accounts/usage-record.ts";
 import { loadProfiles, saveProfile } from "../core/machine-state.ts";
 import { readClaudeUsage as readUsage } from "../core/accounts/providers/claude-snapshot.ts";
+import { startAnswer } from "../core/accounts/snapshot.ts";
+import { switchProfile } from "../core/accounts/switch.ts";
 import { state } from "../core/state.ts";
 import { loginMark } from "../core/accounts/providers/claude-store.ts";
 import { withLoginLock } from "../core/accounts/vault.ts";
@@ -103,6 +105,32 @@ test("a profile is asked at most once a minute, by any number of runs", async (t
   assert.equal(calls.length, 2);
 });
 
+test("a usage query waiting for the login lock follows the profile into its vault after a switch", async (t) => {
+  machine(t);
+  await switchProfile({ save: "work" });
+  const { fetcher, calls } = anthropic();
+  let pending: ReturnType<typeof fetchUsage> | undefined;
+  await switchProfile({ name: "personal", here: true, afterSave: () => {
+    pending = fetchUsage(profile("work"), { fetcher, now: clock(NOW) });
+  } });
+  assert.ok(pending);
+  assert.equal((await pending).status, "updated");
+  assert.equal(calls[0]?.headers.authorization, "Bearer at-work1");
+  assert.equal(readRecord("work").accountUuid, "uuid-work");
+  assert.equal(readUsage(new Date(NOW)).find((p) => p.name === "work")?.windows[0]?.pct, 40);
+});
+
+test("a refusal marks the login used by the query after the slot changes", async (t) => {
+  machine(t);
+  await switchProfile({ save: "work" });
+  const fetcher: Fetcher = async () => {
+    await switchProfile({ name: "personal", here: true });
+    return { status: 401, headers: new Headers(), text: "" };
+  };
+  assert.equal((await fetchUsage(profile("work"), { fetcher, now: clock(NOW) })).status, "failed");
+  assert.equal(readRecord("work").refused, loginMark(creds("work1", NOW)));
+});
+
 test("the vault's copy is renewed a few minutes early, and the rotated token replaces it in place", async (t) => {
   const home = machine(t, { personal: 2 * 60_000 });
   const { calls, fetcher } = anthropic();
@@ -119,6 +147,8 @@ test("the vault's copy is renewed a few minutes early, and the rotated token rep
   if (process.platform !== "win32") assert.equal(fs.statSync(path.join(home, "state", "vault", "personal", "credentials.json")).mode & 0o777, 0o600);
   assert.equal(calls.at(-1)!.headers.authorization, "Bearer at-personal1-new");
   assert.equal(slotCreds(home).refreshToken, "rt-work1", "the slot is untouched");
+  const renewalLog = fs.readFileSync(path.join(home, "state", "logs", "core.log"), "utf8");
+  assert.match(renewalLog, /^\S+ info Claude login: renewed and saved the login\n$/);
 });
 
 test("the slot's copy, which Claude Code renews itself, is renewed only once it has expired, and only in the slot", async (t) => {
@@ -159,6 +189,24 @@ test("a renewal Anthropic refuses changes no credentials and says to sign in aga
   assert.match(res.detail, /Refresh token expired/);
   assert.ok(!calls.some((c) => c.url.includes("/api/oauth/usage")));
   assert.equal(fs.readFileSync(path.join(home, "state", "vault", "personal", "credentials.json"), "utf8"), before);
+});
+
+test("an Anthropic error keeps useful text and masks identities and credentials, including in old usage records", async (t) => {
+  const home = machine(t);
+  const email = "fake-account@example.com";
+  const token = "fakeCredential".repeat(4);
+  const message = `Unexpected status for ${email} using ${token}`;
+  const expected = "Anthropic answered HTTP 500: Unexpected status for [redacted] using [redacted]";
+  const fetcher: Fetcher = async () => ({ status: 500, headers: new Headers(), text: JSON.stringify({ error: { message } }) });
+  const result = await fetchUsage(profile("personal"), { fetcher, now: clock(NOW) });
+  assert.deepEqual(result, { status: "failed", detail: expected });
+
+  const file = path.join(home, "state", "usage", "personal.json");
+  const record = JSON.parse(fs.readFileSync(file, "utf8"));
+  assert.equal(record.error, expected);
+  fs.writeFileSync(file, JSON.stringify({ ...record, error: `Anthropic answered HTTP 500: ${message}` }));
+  const output = startAnswer(new Date(NOW)).profiles.find((p) => p.name === "personal");
+  assert.equal(output?.error, expected);
 });
 
 test("a dry run asks nothing and writes nothing", async (t) => {

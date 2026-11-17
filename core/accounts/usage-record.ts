@@ -5,6 +5,7 @@
 import { createHash } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
+import { mask } from "../log.ts";
 import { stateDir } from "../machine-state.ts";
 import { writePrivate } from "./vault.ts";
 
@@ -22,10 +23,19 @@ export type LiveRecord = { fetchedAtMs?: number; accountUuid?: string; utilizati
 
 const recordFile = (name: string, dir = stateDir()) => path.join(dir, "usage", `${name}.json`);
 
+// Provider error messages reach the terminal and the local API. Redact identities and credentials.
+export const maskUsageError = (text: string) => mask(text)
+  .replace(/[A-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, "[redacted]")
+  .replace(/[A-Za-z0-9_\-.+/=]{32,}/g, "[redacted]")
+  .replace(/[\r\n]+/g, " ");
+
 export function readRecord(name: string, dir?: string): LiveRecord {
   try {
     const data = JSON.parse(fs.readFileSync(recordFile(name, dir), "utf8"));
-    return typeof data === "object" && data !== null && !Array.isArray(data) ? data : {};
+    if (typeof data !== "object" || data === null || Array.isArray(data)) return {};
+    // An older version may have stored an upstream error before masking it.
+    if (typeof data.error === "string") data.error = maskUsageError(data.error);
+    return data;
   } catch {
     return {};
   }

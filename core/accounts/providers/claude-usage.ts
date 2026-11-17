@@ -13,8 +13,9 @@
 
 import { recordHistory } from "../spend.ts";
 import fs from "node:fs";
+import { log } from "../../log.ts";
 import { PALETTE, type Profile, claudeProfiles } from "../../machine-state.ts";
-import { readRecord } from "../usage-record.ts";
+import { maskUsageError, readRecord } from "../usage-record.ts";
 import { defaultConfigDir } from "../../claude-code.ts";
 import { liveLogin, loginMark } from "./claude-store.ts";
 import { withLoginLock, writePrivate } from "../vault.ts";
@@ -55,28 +56,34 @@ function errorText(status: number, text: string) {
   } catch {
     message = undefined;
   }
-  return `HTTP ${status}${typeof message === "string" ? `: ${message.slice(0, 160)}` : ""}`;
+  return `HTTP ${status}${typeof message === "string" ? `: ${maskUsageError(message).slice(0, 160)}` : ""}`;
 }
 
 type Oauth = { accessToken?: unknown; refreshToken?: unknown; expiresAt?: unknown };
 
-const readCredentials = (file: string): { all: Record<string, unknown>; oauth: Oauth } | null => {
+const readCredentials = (file: string): { text: string; all: Record<string, unknown>; oauth: Oauth } | null => {
   try {
-    const all = JSON.parse(fs.readFileSync(file, "utf8"));
-    return typeof all?.claudeAiOauth === "object" && all.claudeAiOauth !== null ? { all, oauth: all.claudeAiOauth } : null;
+    const text = fs.readFileSync(file, "utf8");
+    const all = JSON.parse(text);
+    return typeof all?.claudeAiOauth === "object" && all.claudeAiOauth !== null ? { text, all, oauth: all.claudeAiOauth } : null;
   } catch {
     return null;
   }
 };
 
-// A valid access token for the login, renewed first when it is due. Under the lock, and read again
-// there: a switch, another dotagents or Claude Code may have renewed it a moment ago.
-async function accessToken(file: string, shared: boolean, fetcher: Fetcher, now: () => number): Promise<{ token: string } | { error: string; refused?: boolean }> {
+type UsageLogin = { token: string; accountUuid: string; mark: string | null };
+
+// Select the login and read its credentials under the same lock, since a switch can move it to
+// the vault. Pass the identity and mark along with the token so a later switch cannot change them.
+async function usageLogin(p: Profile, fetcher: Fetcher, now: () => number): Promise<UsageLogin | { error: string; refusedMark?: string | null }> {
   return withLoginLock(async () => {
+    const login = liveLogin(p);
+    if (!login) return { error: "no login saved for it" };
+    const { file, shared, accountUuid } = login;
     const creds = readCredentials(file);
     if (!creds || typeof creds.oauth.accessToken !== "string" || !creds.oauth.accessToken) return { error: "no login in its credentials; sign in again" };
     const expiresAt = typeof creds.oauth.expiresAt === "number" ? creds.oauth.expiresAt : 0;
-    if (expiresAt - now() > (shared ? 0 : RENEW_EARLY_MS)) return { token: creds.oauth.accessToken };
+    if (expiresAt - now() > (shared ? 0 : RENEW_EARLY_MS)) return { token: creds.oauth.accessToken, accountUuid, mark: loginMark(creds.text) };
     if (typeof creds.oauth.refreshToken !== "string" || !creds.oauth.refreshToken) return { error: "the login expired and has no refresh token; sign in again" };
     const res = await fetcher(TOKEN_URL, {
       method: "POST",
@@ -84,7 +91,7 @@ async function accessToken(file: string, shared: boolean, fetcher: Fetcher, now:
       body: JSON.stringify({ grant_type: "refresh_token", client_id: CLIENT_ID, refresh_token: creds.oauth.refreshToken }),
     });
     // 400 and 401 are the refresh token turned down (invalid_grant); anything else may pass.
-    if (res.status !== 200) return { error: `couldn't renew the login (${errorText(res.status, res.text)})`, refused: res.status === 400 || res.status === 401 };
+    if (res.status !== 200) return { error: `couldn't renew the login (${errorText(res.status, res.text)})`, refusedMark: res.status === 400 || res.status === 401 ? loginMark(creds.text) : null };
     let body: { access_token?: unknown; refresh_token?: unknown; expires_in?: unknown };
     try {
       body = JSON.parse(res.text);
@@ -95,42 +102,37 @@ async function accessToken(file: string, shared: boolean, fetcher: Fetcher, now:
       return { error: "couldn't renew the login: the answer has no token" };
     const rotated = typeof body.refresh_token === "string" && body.refresh_token ? body.refresh_token : creds.oauth.refreshToken;
     const oauth = { ...creds.oauth, accessToken: body.access_token, refreshToken: rotated, expiresAt: now() + body.expires_in * 1000 };
+    const text = JSON.stringify({ ...creds.all, claudeAiOauth: oauth });
     try {
-      writePrivate(file, JSON.stringify({ ...creds.all, claudeAiOauth: oauth }));
+      writePrivate(file, text);
     } catch (err) {
       // The old refresh token is spent: losing the new one signs the profile out.
       return { error: `renewed the login but couldn't save it to ${file} (${(err as Error).message}); sign in again` };
     }
-    return { token: body.access_token };
+    log("core", "info", "Claude login", "renewed and saved the login");
+    return { token: body.access_token, accountUuid, mark: loginMark(text) };
   });
 }
 
 // Asks Anthropic for one profile's usage: the answer as a record to keep, or why it failed. The
 // pacing, the backoff and the writing are the common refresh's (core/accounts/usage-refresh.ts).
 export async function askClaude(p: Profile, { fetcher = httpFetcher, now = Date.now }: { fetcher?: Fetcher; now?: () => number } = {}): Promise<Asked> {
-  const login = liveLogin(p);
-  if (!login) return { ok: false, error: "no login saved for it" };
-  const fail = (error: string, { retryAfter, refused = false }: { retryAfter?: number; refused?: boolean } = {}): Asked => ({
-    ok: false,
-    error,
-    retryAfter,
-    // The login as it is now in its file: the one just refused.
-    refusedMark: refused ? loginMark(fs.readFileSync(login.file, "utf8")) : null,
-  });
-
+  const fail = (error: string, { retryAfter, refusedMark }: { retryAfter?: number; refusedMark?: string | null } = {}): Asked => ({ ok: false, error, retryAfter, refusedMark });
+  let login: UsageLogin;
   let res: Awaited<ReturnType<Fetcher>>;
   try {
-    const token = await accessToken(login.file, login.shared, fetcher, now);
-    if ("error" in token) return fail(token.error, { refused: token.refused });
-    res = await fetcher(USAGE_URL, { method: "GET", headers: { authorization: `Bearer ${token.token}`, "anthropic-beta": BETA, "user-agent": USER_AGENT, "content-type": "application/json" } });
+    const credentials = await usageLogin(p, fetcher, now);
+    if ("error" in credentials) return fail(credentials.error, { refusedMark: credentials.refusedMark });
+    login = credentials;
+    res = await fetcher(USAGE_URL, { method: "GET", headers: { authorization: `Bearer ${login.token}`, "anthropic-beta": BETA, "user-agent": USER_AGENT, "content-type": "application/json" } });
   } catch (err) {
-    return fail(`couldn't reach Anthropic (${(err as Error).name === "TimeoutError" ? "timed out" : (err as Error).message})`);
+    return fail(`couldn't reach Anthropic (${(err as Error).name === "TimeoutError" ? "timed out" : maskUsageError((err as Error).message).slice(0, 160)})`);
   }
   if (res.status === 429) {
     const seconds = Number(res.headers.get("retry-after"));
     return fail("Anthropic asks to wait (429)", { retryAfter: Number.isFinite(seconds) && seconds > 0 ? seconds * 1000 : undefined });
   }
-  if (res.status === 401) return fail("Anthropic refused the login (401); sign in again", { refused: true });
+  if (res.status === 401) return fail("Anthropic refused the login (401); sign in again", { refusedMark: login.mark });
   if (res.status !== 200) return fail(`Anthropic answered ${errorText(res.status, res.text)}`);
   let utilization: unknown;
   try {

@@ -4,7 +4,7 @@
 
 ## Where
 
-`profiles.json` in the machine's state folder: `$DOTAGENTS_STATE_DIR`, or `$XDG_CONFIG_HOME/dotagents`, or `~/.config/dotagents`. No file means no profiles: only `~/.claude` is configured.
+`profiles.json` in the machine's state folder: `$DOTAGENTS_STATE_DIR`, or `$XDG_CONFIG_HOME/dotagents`, or `~/.config/dotagents`. `install` can configure both agents without a profiles file.
 
 ## Format
 
@@ -23,7 +23,7 @@
 | `version` | number | The format: `1`, or `2` when a profile has a `provider` other than `claude`. |
 | `profiles` | array | The profiles, in the order they were added. |
 | `name` | string | The profile's name: lowercase letters, digits and dashes. Unique. |
-| `configDir` | string | Its Claude Code config folder, an absolute path. Today every profile uses `~/.claude`. |
+| `configDir` | string | The agent's config folder, an absolute path. Claude profiles use `~/.claude`; ChatGPT profiles use `$CODEX_HOME` or `~/.codex`. |
 | `color` | string | Its color, `#RRGGBB`. |
 | `default` | boolean, optional | `true` on the profile the normal Desktop app of its provider opens (Claude Desktop, or the ChatGPT app); at most one per provider. Absent otherwise. |
 | `provider` | string, optional | Whose account it holds and which agent's login slot it switches: `claude` (a Claude account, for Claude Code) or `codex` (a ChatGPT account, for Codex). Absent means `claude`, and a writer leaves it out for a Claude profile. |

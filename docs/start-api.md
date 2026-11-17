@@ -61,7 +61,7 @@ A profile:
 | `name`, `color` | The profile's name and its `#RRGGBB` color. |
 | `provider` | `claude` or `codex`. |
 | `plan` | The plan, or `null` when unknown. Claude: `subscriptionType` in the credentials Claude Code keeps next to the tokens (the slot's `.credentials.json` when the profile's account is there, else its vault's); only that field is read, and it is `null` where the credentials aren't in a file (the macOS keychain). Codex: the plan the live usage recorded, else `chatgpt_plan_type` in the id_token of the saved login. |
-| `default` | `true` on the profile in `~/.claude`'s place by default (Claude only; absent otherwise). |
+| `default` | `true` on the profile whose shortcut opens the provider's standard Desktop app on Windows. Absent on other profiles. |
 | `state` | `ok`, `stale` (older than 6 hours), `no-data` (a login is saved, nothing was read yet), `not-signed-in` (no saved login) or `other-account` (the cache is of an earlier sign-in; Claude only). |
 | `fetchedAt` | When the numbers were read, ISO, or `null`. |
 | `windows` | The usage windows, empty when there are no numbers (never 0% made up). Each: `kind` (`session`, `week` or `model-week`, with `model`), `pct`, `resetsAt` (ISO or `null`), `reset` (the reset time has passed), `elapsedPct` (how much of the window has gone by) and `projection` (`{ atResetPct, runsOutAt? }`, `{ from }` while the window is young, or `null`). Codex has `session` and `week` only. |
@@ -74,7 +74,7 @@ A profile:
 
 Nothing in the answer carries a token, an account id or the ChatGPT user id.
 
-`current` is `{ "claude": { "profile", "state" } }` and, only when there is at least one ChatGPT profile, `"codex"` with the same shape. Each is computed over that provider's profiles and slots: the profile in a slot in the worst avatar state (the same one on both sides after a switch, else the worse of the two). With no profile of the provider in a slot, `profile` is the brand `"dotagents"`, in the worst state among all of that provider's profiles (`asleep` with none).
+`current` is `{ "claude": { "profile", "state" } }` and, only when there is at least one ChatGPT profile, `"codex"` with the same shape. Each provider picks the profile in a slot with the most urgent avatar state. When the states tie, the profile in this side's slot wins. With no profile of the provider in a slot, `profile` is the brand `"dotagents"`, in the most urgent state among all of that provider's profiles (`asleep` with none).
 
 ## Actions
 
@@ -84,7 +84,7 @@ Nothing in the answer carries a token, an account id or the ChatGPT user id.
 |---|---|---|---|
 | `switch` | `{ "profile": "<name>", "side"?: "<side>" }` | [`switch`](commands.md#dotagents-switch) to the profile, Claude or Codex alike (its provider picks the slot). Without `side`, on both sides; with this side's name, `--here`; with the other side's name, only there, by running `dotagents switch <name> --here` on it. | 200 `now <name>`; 404 `no such profile` or `no such side`; 502 with what failed (on the other side, why that side couldn't); 409 when the switch itself refuses (the slot holds an account no profile knows, say). |
 | `desktop` | `{ "profile": "<name>" }` | Opens the profile's Desktop app (Windows): Claude Desktop for a Claude profile, the ChatGPT app for a ChatGPT one. | 200; 404 `no such profile`; 409 when it can't open. |
-| `refresh` | `{}` | The minute's update, now: asks Anthropic for every profile's usage, and Codex for the profiles whose time has come. | 200; 502 with each failure as `<target>: <why>`. |
+| `refresh` | `{}` | Runs a usage update for both providers, subject to the normal interval and error backoff. | 200; 502 with each failure as `<target>: <why>`. |
 
 The other side's switch needs a dotagents there that knows the profile: a ChatGPT profile switched on a side whose dotagents is older, or without that profile, answers 502 with that side's own message.
 

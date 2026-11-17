@@ -28,7 +28,7 @@ import { type Profile, sideName, sidePeer } from "../../machine-state.ts";
 import type { PeerView } from "../snapshot.ts";
 import { codexAccount, codexLoginMark, codexProfiles, codexSlotProfile, readLogin, slotFile, vaultFile, vaultLogin } from "./codex-store.ts";
 import type { Asked } from "../providers.ts";
-import { readRecord } from "../usage-record.ts";
+import { maskUsageError, readRecord } from "../usage-record.ts";
 import { type ProfileUsage, STALE_MS, type UsageWindow, usageWindow } from "../usage.ts";
 import { writePrivate } from "../vault.ts";
 
@@ -162,16 +162,13 @@ export function normalizeRateLimits(result: unknown, nowMs = Date.now()): { plan
   return { plan: typeof snapshot.planType === "string" ? snapshot.planType : null, windows: windows.sort((a, b) => Number(b.kind === "session") - Number(a.kind === "session")) };
 }
 
-// Text safe to keep: nothing that looks like a token survives, nor more than a line.
-const safe = (text: string) => text.replace(/[A-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, "[redacted]").replace(/[A-Za-z0-9_\-.+/=]{32,}/g, "[redacted]").replace(/[\r\n]+/g, " ").slice(0, 160);
-
 // What the app-server says when OpenAI turns the login down (a 401, a spent or revoked refresh
 // token), or when there is none to use.
 const REFUSED = /\b401\b|unauthori[sz]ed|refresh_token_reused|invalidated|expired|revoked|authentication required/i;
 
 function describe(err: unknown, name: string): { error: string; refused: boolean } {
   const e = err as RpcError;
-  const message = safe(e.message ?? String(err));
+  const message = maskUsageError(e.message ?? String(err)).slice(0, 160);
   if (e instanceof RpcError) {
     if (e.code === -32601 || /unknown variant|method not found/i.test(e.message)) return { error: "this Codex doesn't offer account/rateLimits/read; update Codex", refused: false };
     if (REFUSED.test(e.message)) return { error: `OpenAI refused the login (${message}); sign in again with: dotagents login ${name}`, refused: true };
@@ -235,7 +232,7 @@ export async function askCodex(
   try {
     usage = normalizeRateLimits(result, at);
   } catch (err) {
-    return { ok: false, error: `Codex's answer is not a usage this dotagents reads (${safe((err as Error).message)})`, refusedMark: null };
+    return { ok: false, error: `Codex's answer is not a usage this dotagents reads (${maskUsageError((err as Error).message).slice(0, 160)})`, refusedMark: null };
   }
   return { ok: true, record: { provider: "codex", fetchedAtMs: at, user: login.id, plan: usage.plan, windows: usage.windows } };
 }
@@ -263,7 +260,7 @@ export function readCodexUsage(now = new Date()): ProfileUsage[] {
   return codexProfiles().map((p) => {
     const account = codexAccount(p);
     // The plan the live usage recorded, else the one the saved login says.
-    const base = { name: p.name, color: p.color, provider: "codex" as const, fetchedAt: null, windows: [], ...(account?.plan ? { plan: account.plan } : {}) };
+    const base = { name: p.name, color: p.color, provider: "codex" as const, fetchedAt: null, windows: [], ...(p.default ? { default: true } : {}), ...(account?.plan ? { plan: account.plan } : {}) };
     if (!account) return { ...base, state: "not-signed-in" };
     const live = codexLiveUsage(p.name, account.user, now);
     const error = live.error ? { error: live.error } : {};

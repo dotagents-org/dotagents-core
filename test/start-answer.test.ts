@@ -12,6 +12,7 @@ import { listedProfiles } from "../core/accounts/providers.ts";
 import { quiet } from "./helpers.ts";
 
 const NOW = new Date("2026-11-16T12:00:00Z");
+const peerName = process.platform === "win32" ? "WSL" : "Windows";
 
 const b64 = (o: object) => Buffer.from(JSON.stringify(o)).toString("base64url");
 // Long tokens, so a leak is told from the text around it.
@@ -49,8 +50,8 @@ function machine(t: TestContext) {
       put(path.join(home, ".claude.json"), JSON.stringify({ oauthAccount: { accountUuid: uuid, emailAddress: `${name}@example.com` } }));
     }
   };
-  const codex = (name: string, color: string, user: string, plan?: string) => {
-    saveProfile({ name, configDir: path.join(home, ".codex"), color, provider: "codex" });
+  const codex = (name: string, color: string, user: string, plan?: string, isDefault = false) => {
+    saveProfile({ name, configDir: path.join(home, ".codex"), color, provider: "codex", ...(isDefault ? { default: true } : {}) });
     put(vault(name, "auth.json"), codexAuth(user, plan));
   };
   return { home, peer, claude, codex };
@@ -74,7 +75,7 @@ test("Claude only: no codex entry in current, the plan from the saved credential
 test("Claude and Codex: Claude first, Codex plan from the login, a current per provider", (t) => {
   const m = machine(t);
   m.claude("turing", "#D77655", "uuid-t", "max", true);
-  m.codex("hopper", "#7B61A8", "user-hopper", "team");
+  m.codex("hopper", "#7B61A8", "user-hopper", "team", true);
   m.codex("dijkstra", "#B8862B", "user-dijkstra");
   fs.mkdirSync(path.join(m.home, ".codex"), { recursive: true });
   fs.writeFileSync(path.join(m.home, ".codex", "auth.json"), codexAuth("user-hopper", "team"));
@@ -84,7 +85,8 @@ test("Claude and Codex: Claude first, Codex plan from the login, a current per p
   assert.deepEqual(a.current.codex, { profile: "hopper", state: "asleep" });
   assert.equal(a.current.claude.profile, "turing");
   const hopper = a.profiles.find((p) => p.name === "hopper")!;
-  assert.deepEqual(Object.keys(hopper).sort(), ["avatar", "color", "fetchedAt", "name", "plan", "provider", "state", "windows", "working"]);
+  assert.deepEqual(Object.keys(hopper).sort(), ["avatar", "color", "default", "fetchedAt", "name", "plan", "provider", "state", "windows", "working"]);
+  assert.deepEqual(a.profiles.filter((p) => p.default).map((p) => p.name), ["turing", "hopper"]);
 });
 
 test("the profile in the slot comes first for each provider, in the API and in usage", (t) => {
@@ -110,15 +112,20 @@ test("profile list orders like usage: by provider, the one in the slot first", (
   assert.deepEqual(listedProfiles().map((p) => p.name), ["lovelace", "turing", "dijkstra", "hopper"]);
 });
 
-test("this side's slot comes first, then the other side's, then the rest", (t) => {
+test("this side's slot comes first and wins ties for the current account", (t) => {
   const m = machine(t);
   m.codex("knuth", "#6B7F4A", "user-knuth", "team");
   m.codex("dijkstra", "#B8862B", "user-dijkstra", "team");
   m.codex("hopper", "#7B61A8", "user-hopper", "team");
   put(path.join(m.home, ".codex", "auth.json"), codexAuth("user-hopper", "team"));
   put(path.join(m.peer, ".codex", "auth.json"), codexAuth("user-dijkstra", "team"));
-  saveMachine({ peer: { name: "Windows", home: m.peer, nativeHome: "C:\\Users\\me" } });
-  assert.deepEqual(startAnswer(NOW, { up: () => true }).profiles.filter((p) => p.provider === "codex").map((p) => p.name), ["hopper", "dijkstra", "knuth"]);
+  saveMachine({ peer: { name: peerName, home: m.peer, nativeHome: m.peer } });
+  const tied = startAnswer(NOW, { up: () => true });
+  assert.deepEqual(tied.profiles.filter((p) => p.provider === "codex").map((p) => p.name), ["hopper", "dijkstra", "knuth"]);
+  assert.deepEqual(tied.current.codex, { profile: "hopper", state: "asleep" });
+
+  put(path.join(m.home, "state", "usage", "dijkstra.json"), JSON.stringify({ version: 1, provider: "codex", fetchedAtMs: NOW.getTime() - 60_000, user: "user-dijkstra", plan: "team", windows: [{ kind: "session", pct: 100, resetsAt: Date.parse("2026-11-16T14:00:00Z") }] }));
+  assert.deepEqual(startAnswer(NOW, { up: () => true }).current.codex, { profile: "dijkstra", state: "limit" });
 });
 
 test("the live usage's plan wins over the login's", (t) => {
@@ -137,15 +144,15 @@ test("a Codex profile in a slot on each side, and the peer's state", (t) => {
   m.codex("dijkstra", "#B8862B", "user-dijkstra", "team");
   put(path.join(m.home, ".codex", "auth.json"), codexAuth("user-hopper", "team"));
   put(path.join(m.peer, ".codex", "auth.json"), codexAuth("user-dijkstra", "team"));
-  saveMachine({ peer: { name: "Windows", home: m.peer, nativeHome: "C:\\Users\\me" } });
+  saveMachine({ peer: { name: peerName, home: m.peer, nativeHome: m.peer } });
   const up = startAnswer(NOW, { up: () => true });
-  assert.deepEqual(up.slots.codex, { [sideName()]: "hopper", Windows: "dijkstra" });
-  assert.deepEqual(up.sides, [sideName(), "Windows"]);
-  assert.deepEqual(up.peer, { name: "Windows", up: true });
-  assert.equal(up.current.codex!.profile === "hopper" || up.current.codex!.profile === "dijkstra", true);
+  assert.deepEqual(up.slots.codex, { [sideName()]: "hopper", [peerName]: "dijkstra" });
+  assert.deepEqual(up.sides, [sideName(), peerName]);
+  assert.deepEqual(up.peer, { name: peerName, up: true });
+  assert.equal(up.current.codex!.profile, "hopper");
   const down = startAnswer(NOW, { up: () => false });
   assert.deepEqual(down.slots.codex, { [sideName()]: "hopper" });
-  assert.deepEqual(down.peer, { name: "Windows", up: false });
+  assert.deepEqual(down.peer, { name: peerName, up: false });
 });
 
 test("nothing in the answer carries a token or the ChatGPT user id", (t) => {

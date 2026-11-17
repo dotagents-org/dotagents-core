@@ -52,8 +52,8 @@ export function watchPeer({ up = peerUp, running = runningIfUp, now = Date.now }
 }
 
 // The current account: the one in a slot, in the worst state (the same one on both sides
-// after a switch, else the worse of the two); with no account in a slot, the brand in the worst
-// state of all.
+// after a switch, else the worse of the two). Ties keep the first profile in the list. With no
+// account in a slot, the brand in the worst state of all.
 export function currentFor(list: ProfileUsage[], slots: Record<string, string>, now: Date): { profile: string; state: AvatarState } {
   const rank = (p: ProfileUsage) => AVATAR_STATES.indexOf(avatarState(p, now));
   const current = list.filter((p) => Object.values(slots).includes(p.name));
@@ -93,9 +93,12 @@ const readEach = (now: Date, view?: PeerView) =>
   providers().map((p) => {
     const read = p.readUsage(now, view).map((u) => ({ ...u, provider: p.id }));
     const slots = p.readSlots(read, view);
-    const current = read.length ? currentFor(read, slots, now) : null;
-    const rank = (u: ProfileUsage) => (slots[sideName()] === u.name ? 0 : Object.values(slots).includes(u.name) ? 1 : 2);
-    return { provider: p, list: read.map((u, i) => ({ u, i })).sort((a, b) => rank(a.u) - rank(b.u) || a.i - b.i).map(({ u }) => u), slots, current };
+    const here = slots[sideName()];
+    const inSlots = Object.values(slots);
+    const rank = (u: ProfileUsage) => (here === u.name ? 0 : inSlots.includes(u.name) ? 1 : 2);
+    const list = read.sort((a, b) => rank(a) - rank(b));
+    const current = list.length ? currentFor(list, slots, now) : null;
+    return { provider: p, list, slots, current };
   });
 
 // The usage command's list: every provider's profiles, in the providers' order. A profile names its
