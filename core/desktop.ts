@@ -52,8 +52,8 @@ export type DesktopApp = {
   env: (dataDir: string, isDefault: boolean) => string[];
   // A folder inside the data folder made before the first start, as the data folder is.
   innerDir?: (dataDir: string) => string;
-  // Its own taskbar button per profile (core/taskbar.ts): Claude Desktop's only.
-  taskbar: boolean;
+  // Its main process, which the taskbar watcher looks for (core/taskbar.ts).
+  process: string;
 };
 
 const q = (s: string) => s.replace(/"/g, '""');
@@ -68,7 +68,7 @@ export const CLAUDE_DESKTOP: DesktopApp = {
   install: "install it from claude.ai/download",
   // Every one with CLAUDE_CONFIG_DIR cleared, so the Code tab inside the app uses ~/.claude.
   env: () => unset("CLAUDE_CONFIG_DIR"),
-  taskbar: true,
+  process: "claude.exe",
 };
 
 const codexHomeIn = (dataDir: string) => path.join(dataDir, "codex-home");
@@ -80,7 +80,7 @@ export const CHATGPT_DESKTOP: DesktopApp = {
   // The normal app reads ~/.codex (the slot); a profile's own app, CODEX_HOME in its data folder.
   env: (dataDir, isDefault) => (isDefault ? unset("CODEX_HOME") : [`shell.Environment("PROCESS")("CODEX_HOME") = "${q(codexHomeIn(dataDir))}"`]),
   innerDir: codexHomeIn,
-  taskbar: false,
+  process: "ChatGPT.exe",
 };
 
 export const desktopExe = (app = CLAUDE_DESKTOP) => app.exe();
@@ -98,25 +98,26 @@ export const desktopLauncherFile = (launcherDir: string, name: string, app = CLA
 const MARK = (name: string) => `dotagents:${name}`;
 
 // The default profile opens the normal app, the others their own data folder, each with the app's
-// environment. Then, for Claude Desktop, it starts the taskbar watcher, hidden, for the profile's own
-// button (core/taskbar.ts).
+// environment. Then it starts the taskbar watcher, hidden, for the profile's own button and look
+// (core/taskbar.ts).
 function vbsLauncher(repo: string, launcherDir: string, name: string, isDefault: boolean, app: DesktopApp) {
   const exe = app.exe();
   const dataDir = desktopDataDir(name, app);
   const arg = (flag: string, value: string) => ` -${flag} ""${q(value)}""`;
   const watcher =
     `powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -WindowStyle Hidden -File ""${q(taskbarWatcherFile(launcherDir))}""` +
-    arg("AppId", appIdFor(name)) +
+    arg("AppId", appIdFor(name, app.prefix)) +
     arg("DisplayName", appTitle(name, app)) +
     arg("Icon", windowIcon(repo, name, app)) +
     arg("Launcher", desktopLauncherFile(launcherDir, name)) +
-    (isDefault ? "" : arg("DataDir", dataDir));
+    (isDefault ? "" : arg("DataDir", dataDir)) +
+    arg("Exe", app.process);
   return [
     `' ${app.name} as the ${name} profile.`,
     'Set shell = CreateObject("WScript.Shell")',
     ...app.env(dataDir, isDefault),
     isDefault ? `shell.Run """${q(exe)}""", 1, False` : `shell.Run """${q(exe)}"" --user-data-dir=""${q(dataDir)}""", 1, False`,
-    ...(app.taskbar ? [`shell.Run "${watcher}", 0, False`] : []),
+    `shell.Run "${watcher}", 0, False`,
     "",
   ].join("\r\n");
 }
@@ -134,10 +135,8 @@ export const profileIcon = (repo: string, name: string, app = CLAUDE_DESKTOP) =>
 // The same icon for a window's taskbar button, which takes an .ico file as a plain path.
 const windowIcon = (repo: string, name: string, app: DesktopApp) => iconFile(repo, name, app);
 
-// The ChatGPT app's shortcut carries no AppUserModelID of dotagents': without the taskbar watcher,
-// its windows keep the app's own button.
 function shortcutFor(repo: string, name: string, launcherDir: string, app: DesktopApp): Shortcut {
-  return { target: wscript(), args: `"${desktopLauncherFile(launcherDir, name, app)}"`, description: MARK(name), icon: profileIcon(repo, name, app), appId: app.taskbar ? appIdFor(name) : "" };
+  return { target: wscript(), args: `"${desktopLauncherFile(launcherDir, name, app)}"`, description: MARK(name), icon: profileIcon(repo, name, app), appId: appIdFor(name, app.prefix) };
 }
 
 const sameShortcut = (a: Shortcut, b: Shortcut) =>
@@ -194,7 +193,7 @@ export function applyDesktop(
     ensureDir(desktopDataDir(profile.name, app));
     if (app.innerDir) ensureDir(app.innerDir(desktopDataDir(profile.name, app)));
   }
-  if (app.taskbar) writeGenerated(taskbarWatcherFile(launcherDir), taskbarWatcher(), { comment: "#", onForeign: "backup" });
+  writeGenerated(taskbarWatcherFile(launcherDir), taskbarWatcher(), { comment: "#", onForeign: "backup" });
   writeGenerated(desktopLauncherFile(launcherDir, profile.name, app), vbsLauncher(repo, launcherDir, profile.name, Boolean(profile.default), app), {
     comment: "'",
     onForeign: "backup",

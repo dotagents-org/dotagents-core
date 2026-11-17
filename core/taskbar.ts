@@ -1,20 +1,21 @@
 // One taskbar button per profile on Windows, and the profile's look on the instance: window
-// title and icon, and the notification-area icon. Every Claude Desktop window carries the package's
-// identity, so the taskbar puts every instance under one Claude button. Two things split them:
+// title and icon, and the notification-area icon, for Claude Desktop and the ChatGPT app alike (both
+// Electron: the ChatGPT one a fork whose classes start with "Owl"). Every window of an app carries
+// its package's identity, so the taskbar puts every instance under one button. Two things split them:
 // - the profile's Start menu shortcut carries an AppUserModelID of its own
 //   (System.AppUserModel.ID, written through the shortcut's property store);
 // - a watcher, started by the profile's launcher next to the app, gives the windows of that
 //   instance the same ID, the profile's icon and name and the command that opens it again
 //   (through each window's property store). Windows then shows them as their own button, and
 //   pinning it pins the profile.
-// The watcher finds the instance by the claude.exe command line (--user-data-dir for an extra
+// The watcher finds the instance by its app's command line, claude.exe or ChatGPT.exe (--user-data-dir for an extra
 // profile, none for the default one), runs one per profile (a named mutex) and ends when that
 // instance closes. The technique is the one leonxlnx/claude-desktop-multi-profile (MIT) and
 // freenitial/claude_desktop_profiles_manager use.
 
 import path from "node:path";
 
-export const appIdFor = (name: string) => `dotagents.claude.${name}`;
+export const appIdFor = (name: string, prefix = "claude") => `dotagents.${prefix}.${name}`;
 export const taskbarWatcherFile = (launcherDir: string) => path.join(launcherDir, "claude-taskbar.ps1");
 
 // The property store pieces both C# snippets share: System.AppUserModel.* as LPWSTR values.
@@ -84,6 +85,8 @@ param(
   [Parameter(Mandatory)] [string]$Launcher,
   # The profile's --user-data-dir; empty for the default profile, whose app has none.
   [string]$DataDir = "",
+  # The app's process: claude.exe (Claude Desktop) or ChatGPT.exe (the ChatGPT app).
+  [string]$Exe = "claude.exe",
   # How long to wait for the app to show up before giving up.
   [int]$StartupSeconds = 60
 )
@@ -103,15 +106,17 @@ ${PROPERTY_STORE}
   [DllImport("user32.dll")] static extern IntPtr GetWindow(IntPtr window, uint relation);
   [DllImport("user32.dll")] static extern uint GetWindowThreadProcessId(IntPtr window, out uint processId);
 
-  // The Claude Desktop processes of this instance. The Claude Code CLI is claude.exe too, so the
-  // executable has to be the Desktop app's (its package or its installer folder).
-  public static HashSet<uint> Instance(string dataDir) {
+  // The app's processes of this instance. The Claude Code CLI is claude.exe too, so the
+  // executable has to be the Desktop app's (its package or its installer folder). exe is the
+  // launcher's -Exe, one of two fixed names.
+  public static HashSet<uint> Instance(string dataDir, string exe) {
     var found = new HashSet<uint>();
-    using (var search = new ManagementObjectSearcher("SELECT ProcessId, ExecutablePath, CommandLine FROM Win32_Process WHERE Name = 'claude.exe'")) {
+    if (exe != "claude.exe" && exe != "ChatGPT.exe") return found;
+    using (var search = new ManagementObjectSearcher("SELECT ProcessId, ExecutablePath, CommandLine FROM Win32_Process WHERE Name = '" + exe + "'")) {
       foreach (ManagementObject p in search.Get()) {
-        var exe = Convert.ToString(p["ExecutablePath"]) ?? "";
+        var where = Convert.ToString(p["ExecutablePath"]) ?? "";
         var line = Convert.ToString(p["CommandLine"]) ?? "";
-        if (exe.IndexOf("WindowsApps", StringComparison.OrdinalIgnoreCase) < 0 && exe.IndexOf("AnthropicClaude", StringComparison.OrdinalIgnoreCase) < 0) continue;
+        if (where.IndexOf("WindowsApps", StringComparison.OrdinalIgnoreCase) < 0 && where.IndexOf("AnthropicClaude", StringComparison.OrdinalIgnoreCase) < 0) continue;
         var custom = line.IndexOf("--user-data-dir", StringComparison.OrdinalIgnoreCase) >= 0;
         var mine = dataDir.Length == 0 ? !custom : line.IndexOf(dataDir, StringComparison.OrdinalIgnoreCase) >= 0;
         if (mine) found.Add(Convert.ToUInt32(p["ProcessId"]));
@@ -169,7 +174,8 @@ ${PROPERTY_STORE}
     }
   }
 
-  // The notification-area icon belongs to the instance's hidden Electron_NotifyIconHostWindow.
+  // The notification-area icon belongs to the instance's hidden Electron_NotifyIconHostWindow
+  // (OwlElectron_NotifyIconHostWindow in the ChatGPT app).
   // Electron numbers its icons from 3 and a new one gets a higher number, so the highest that
   // answers is the one showing. NIM_MODIFY with no flags only says whether a number exists.
   static void DressTray(IntPtr host, string name) {
@@ -195,7 +201,7 @@ ${PROPERTY_STORE}
       uint processId;
       GetWindowThreadProcessId(window, out processId);
       if (!processes.Contains(processId)) return true;
-      if (ClassOf(window) == "Electron_NotifyIconHostWindow") { if (tray) DressTray(window, name); return true; }
+      if (ClassOf(window).EndsWith("Electron_NotifyIconHostWindow")) { if (tray) DressTray(window, name); return true; }
       if (IsWindowVisible(window) && GetWindow(window, 4) == IntPtr.Zero) DressWindow(window, name);
       return true;
     }, IntPtr.Zero);
@@ -239,11 +245,11 @@ $deadline = (Get-Date).AddSeconds($StartupSeconds)
 $pass = 0
 $seen = $false
 while ($true) {
-  $processes = [DotagentsTaskbar]::Instance($DataDir)
+  $processes = [DotagentsTaskbar]::Instance($DataDir, $Exe)
   if ($processes.Count -gt 0) {
     $seen = $true
     [DotagentsTaskbar]::Tag($processes, $AppId, $DisplayName, $Icon, $relaunch)
-    # The tray icon every fifth pass (10 s): Claude puts its own back when Explorer restarts or
+    # The tray icon every fifth pass (10 s): the app puts its own back when Explorer restarts or
     # the theme changes.
     [DotagentsTaskbar]::Dress($processes, $DisplayName, ($pass % 5) -eq 0)
     $pass++
