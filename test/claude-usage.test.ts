@@ -7,7 +7,8 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { test, type TestContext } from "node:test";
-import { type Fetcher, LIVE_EVERY_MS } from "../core/accounts/providers/claude-usage.ts";
+import { type Fetcher } from "../core/accounts/providers/claude-usage.ts";
+import { ASK_EVERY_MS } from "../core/accounts/usage-record.ts";
 import { fetchUsage, refreshUsage } from "../core/accounts/usage-refresh.ts";
 import { readRecord } from "../core/accounts/usage-record.ts";
 import { loadProfiles, saveProfile } from "../core/machine-state.ts";
@@ -98,7 +99,7 @@ test("a profile is asked at most once a minute, by any number of runs", async (t
   const again = await fetchUsage(profile("personal"), { fetcher, now: clock(NOW + 30_000) });
   assert.equal(again.status, "ok");
   assert.equal(calls.length, 1);
-  await fetchUsage(profile("personal"), { fetcher, now: clock(NOW + LIVE_EVERY_MS) });
+  await fetchUsage(profile("personal"), { fetcher, now: clock(NOW + ASK_EVERY_MS) });
   assert.equal(calls.length, 2);
 });
 
@@ -139,12 +140,12 @@ test("a 429 backs off, as long as it asks, and keeps the numbers already there w
   machine(t);
   await fetchUsage(profile("personal"), { fetcher: anthropic().fetcher, now: clock(NOW) });
   const limited = anthropic({ usage: 429, retryAfter: "300" });
-  const res = await fetchUsage(profile("personal"), { fetcher: limited.fetcher, now: clock(NOW + LIVE_EVERY_MS) });
+  const res = await fetchUsage(profile("personal"), { fetcher: limited.fetcher, now: clock(NOW + ASK_EVERY_MS) });
   assert.equal(res.status, "failed");
   assert.match(res.detail, /429/);
-  await fetchUsage(profile("personal"), { fetcher: limited.fetcher, now: clock(NOW + LIVE_EVERY_MS + 120_000) });
+  await fetchUsage(profile("personal"), { fetcher: limited.fetcher, now: clock(NOW + ASK_EVERY_MS + 120_000) });
   assert.equal(limited.calls.length, 1, "not again before the five minutes it asked for");
-  const personal = readUsage(new Date(NOW + LIVE_EVERY_MS + 1000)).find((p) => p.name === "personal")!;
+  const personal = readUsage(new Date(NOW + ASK_EVERY_MS + 1000)).find((p) => p.name === "personal")!;
   assert.equal(personal.windows[0].pct, 65);
   assert.match(personal.error ?? "", /429/);
 });

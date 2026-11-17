@@ -23,7 +23,7 @@ On Linux, WSL and macOS, the vault, `start.json`, the usage records and the logs
 | `api.anthropic.com/api/oauth/usage` | `dotagents start` (once a minute per profile, at most), `usage --refresh` | each profile's access token, to read its plan's usage |
 | `platform.claude.com/v1/oauth/token` | when a profile's token is about to expire | its refresh token, to renew the login |
 | Anthropic, through the `claude` command or your API key | `dotagents revision on` only (off by default) | the message you sent, to proofread it |
-| OpenAI, through the official `codex app-server` | `start` (every 5 minutes for the slot, 30 for other accounts), `usage --refresh` | Codex uses the account login to read ChatGPT usage and renew it when needed |
+| OpenAI, through the official `codex app-server` | `dotagents start` (once a minute per profile, at most), `usage --refresh` | Codex uses the account login to read ChatGPT usage and renew it when needed |
 | GitHub and npm | `update` (`git pull`), `skills add` (`npx skills`) | nothing of yours: they download code |
 
 The two requests to Anthropic's OAuth endpoints say who makes them: `User-Agent: dotagents/<version>`, never another client's name.

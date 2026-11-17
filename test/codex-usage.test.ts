@@ -8,7 +8,8 @@ import os from "node:os";
 import path from "node:path";
 import { test, type TestContext } from "node:test";
 import { codexLoginMark } from "../core/accounts/providers/codex-store.ts";
-import { CODEX_OTHER_EVERY_MS, CODEX_SLOT_EVERY_MS, type SpawnAppServer } from "../core/accounts/providers/codex-usage.ts";
+import { type SpawnAppServer } from "../core/accounts/providers/codex-usage.ts";
+import { ASK_EVERY_MS } from "../core/accounts/usage-record.ts";
 import { fetchUsage, refreshUsage } from "../core/accounts/usage-refresh.ts";
 import { loadProfiles, saveProfile } from "../core/machine-state.ts";
 import { readCodexUsage as codexUsage } from "../core/accounts/providers/codex-usage.ts";
@@ -193,7 +194,7 @@ test("no token reaches the output, the record or the logs", async (t) => {
   for (const f of fs.existsSync(logs) ? fs.readdirSync(logs) : []) for (const secret of secrets) assert.ok(!fs.readFileSync(path.join(logs, f), "utf8").includes(secret));
 });
 
-test("the slot's profile is asked every 5 minutes, the others every 30, usage --refresh at once, and an error backs off", async (t) => {
+test("every profile is asked about once a minute, as Claude's, usage --refresh at once, and an error backs off", async (t) => {
   const m = await machine(t);
   let now = NOW;
   const ask = (name: string, mode: string, force = false) => fetchUsage(profile(name), { spawnIt: fake(m.log, mode), now: () => now, force });
@@ -201,16 +202,16 @@ test("the slot's profile is asked every 5 minutes, the others every 30, usage --
   await ask("hopper", "good");
   await ask("dijkstra", "good");
   assert.equal(asked(), 2);
-  now += CODEX_SLOT_EVERY_MS - 1000;
+  now += ASK_EVERY_MS - 1000;
   assert.equal((await ask("hopper", "good")).status, "ok");
   assert.equal((await ask("dijkstra", "good")).status, "ok");
   assert.equal(asked(), 2);
   now += 2000;
-  assert.equal((await ask("hopper", "good")).status, "updated", "the slot's, after 5 minutes");
-  assert.equal((await ask("dijkstra", "good")).status, "ok", "the other one waits for its 30");
-  assert.equal(asked(), 3);
+  assert.equal((await ask("hopper", "good")).status, "updated", "the slot's, after a minute");
+  assert.equal((await ask("dijkstra", "good")).status, "updated", "the other one too, after a minute");
+  assert.equal(asked(), 4);
   assert.equal((await ask("dijkstra", "good", true)).status, "updated", "--refresh asks now");
-  now += CODEX_OTHER_EVERY_MS;
+  now += ASK_EVERY_MS;
   assert.equal((await ask("dijkstra", "unknown")).status, "failed");
   assert.equal((await ask("dijkstra", "good", true)).status, "ok", "force skips the wait, not the backoff");
   now += 61_000;
@@ -419,7 +420,7 @@ test("Windows usage termination stops the shell and its child tree with a valida
 
 test("a slot changed externally during usage cannot assign another account's numbers or refusal to the old profile", async (t) => {
   const m = await machine(t);
-  const previous = { version: 1, provider: "codex", user: "user-hopper", fetchedAtMs: NOW - CODEX_SLOT_EVERY_MS, askedAtMs: NOW - CODEX_SLOT_EVERY_MS, windows: [{ kind: "session", pct: 9, resetsAt: NOW + 3_600_000 }] };
+  const previous = { version: 1, provider: "codex", user: "user-hopper", fetchedAtMs: NOW - ASK_EVERY_MS, askedAtMs: NOW - ASK_EVERY_MS, windows: [{ kind: "session", pct: 9, resetsAt: NOW + 3_600_000 }] };
   const file = path.join(m.home, "state", "usage", "hopper.json");
   fs.mkdirSync(path.dirname(file), { recursive: true });
   for (const mode of ["good", "refused"]) {

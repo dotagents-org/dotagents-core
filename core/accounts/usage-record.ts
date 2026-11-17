@@ -8,6 +8,9 @@ import path from "node:path";
 import { stateDir } from "../machine-state.ts";
 import { writePrivate } from "./vault.ts";
 
+// Each profile of every provider is asked at most once in this time, from any number of dotagents
+// processes: about once a minute, so start, which ticks every minute, asks each one on every tick.
+export const ASK_EVERY_MS = 55_000;
 export const BACKOFF_MS = 60_000;
 export const MAX_BACKOFF_MS = 15 * 60_000;
 

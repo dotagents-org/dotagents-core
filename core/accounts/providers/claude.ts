@@ -14,7 +14,8 @@ import { type Peer, peerStateDir, claudeProfiles, loadMachine, sideName } from "
 import { checkItem, checkWarn, displayPath, report, section } from "../../output.ts";
 import type { Provider } from "../providers.ts";
 import { readClaudeSlots, readClaudeUsage } from "./claude-snapshot.ts";
-import { LIVE_EVERY_MS, askClaude, sideProfiles } from "./claude-usage.ts";
+import { askClaude, sideProfiles } from "./claude-usage.ts";
+import { ASK_EVERY_MS } from "../usage-record.ts";
 import { state } from "../../state.ts";
 import { readRecord } from "../usage-record.ts";
 import { vaultDir, withLoginLock, writePrivate } from "../vault.ts";
@@ -198,7 +199,7 @@ const claude: Provider = {
 
   usage: {
     profiles: sideProfiles,
-    every: () => LIVE_EVERY_MS,
+    every: () => ASK_EVERY_MS,
     forceable: false,
     together: true,
     hasLogin: (p) => liveLogin(p) !== null,

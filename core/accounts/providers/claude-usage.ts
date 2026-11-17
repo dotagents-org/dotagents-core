@@ -36,8 +36,6 @@ const BETA = "oauth-2025-04-20";
 // dotagents says who it is: the Usage Policy forbids misrepresenting the client being used.
 const USER_AGENT = `dotagents/${JSON.parse(fs.readFileSync(new URL("../../../package.json", import.meta.url), "utf8")).version}`;
 
-// At most one request per profile in this time, from any number of dotagents processes.
-export const LIVE_EVERY_MS = 55_000;
 // Early renewal of the vault's copy, which nobody else renews.
 const RENEW_EARLY_MS = 5 * 60_000;
 

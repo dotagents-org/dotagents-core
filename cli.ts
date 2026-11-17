@@ -32,7 +32,7 @@ import { openDesktop } from "./core/desktop.ts";
 import { forgetServer, liveServer, loadMachine, loadProfiles, recordServer, sideName, type Profile } from "./core/machine-state.ts";
 import { launcherDir } from "./core/accounts/profiles.ts";
 import { peerSwitch, switchProfile } from "./core/accounts/switch.ts";
-import { LIVE_EVERY_MS, providerFor } from "./core/accounts/providers.ts";
+import { ASK_EVERY_MS, providerFor } from "./core/accounts/providers.ts";
 import { refreshUsage } from "./core/accounts/usage-refresh.ts";
 import { untrack, workspaces } from "./surfaces/cli/workspaces.ts";
 import { UsageError, parseArgs } from "./core/common.ts";
@@ -160,7 +160,7 @@ const start: Command = {
     for (const signal of ["SIGINT", "SIGTERM", "SIGHUP"] as const) process.on(signal, () => process.exit(0));
     console.log(`${brand()}  ${bold("start")}\n\nThe API is on 127.0.0.1:${server.port}; the dotagents sidebar reads it.\n${muted("Only this machine reaches it, and only with the token in start.json. Ctrl+C stops it.")}`);
     await tick();
-    setInterval(tick, LIVE_EVERY_MS + 5_000).unref();
+    setInterval(tick, ASK_EVERY_MS + 5_000).unref();
   },
 };
 

@@ -22,7 +22,7 @@ import type { ProfileUsage } from "./usage.ts";
 // What the rest of the core reads of Claude alone: the account behind a login (sessions, usage --spend)
 // and the live usage's pace (start).
 export { profileAccount } from "./providers/claude-store.ts";
-export { LIVE_EVERY_MS } from "./providers/claude-usage.ts";
+export { ASK_EVERY_MS } from "./usage-record.ts";
 
 // A login as a provider keeps it: text is the file as the agent wrote it, never printed. id is the
 // account's own (Claude's accountUuid, the ChatGPT user); the other fields are what only one

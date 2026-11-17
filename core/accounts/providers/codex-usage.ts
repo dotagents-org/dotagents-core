@@ -46,9 +46,6 @@ export const spawnAppServer: SpawnAppServer = (home) => {
 
 const VERSION = JSON.parse(fs.readFileSync(new URL("../../../package.json", import.meta.url), "utf8")).version;
 
-// The profile in the slot is asked about every 5 minutes, the others far less often.
-export const CODEX_SLOT_EVERY_MS = 5 * 60_000;
-export const CODEX_OTHER_EVERY_MS = 30 * 60_000;
 // A call that hangs is killed after this.
 export const ASK_TIMEOUT_MS = 20_000;
 

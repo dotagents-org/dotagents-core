@@ -18,7 +18,8 @@ import type { Login, Provider, SwitchOptions } from "../providers.ts";
 import { state } from "../../state.ts";
 import { vaultDir, withLoginLock, writePrivate } from "../vault.ts";
 import { readRecord } from "../usage-record.ts";
-import { CODEX_OTHER_EVERY_MS, CODEX_SLOT_EVERY_MS, askCodex, readCodexSlots, readCodexUsage } from "./codex-usage.ts";
+import { askCodex, readCodexSlots, readCodexUsage } from "./codex-usage.ts";
+import { ASK_EVERY_MS } from "../usage-record.ts";
 import { codexHome, installCodex, verifyCodexConfig } from "./codex-config.ts";
 import { codexAccount, codexLoginMark, codexProfiles, codexSlotProfile, ownerOf, readLogin, slotFile, slotLogin, vaultFile, vaultLogin } from "./codex-store.ts";
 
@@ -207,7 +208,7 @@ const codex: Provider = {
 
   usage: {
     profiles: codexProfiles,
-    every: (p) => (codexSlotProfile()?.name === p.name ? CODEX_SLOT_EVERY_MS : CODEX_OTHER_EVERY_MS),
+    every: () => ASK_EVERY_MS,
     forceable: true,
     together: false,
     locked: true,
