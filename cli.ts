@@ -89,6 +89,11 @@ const start: Command = {
   async run({ args }) {
     const port = args.port === undefined ? undefined : Number(args.port);
     if (port !== undefined && !(Number.isInteger(port) && port >= 0 && port < 65536)) throw new UsageError(`--port takes a number, not ${args.port}`);
+    if (state.dryRun) {
+      const address = port === 0 ? "127.0.0.1 at a free port" : port === undefined ? "127.0.0.1" : `127.0.0.1:${port}`;
+      console.log(`Would start the local API on ${address}.`);
+      return;
+    }
     // One server per machine side: a second start leaves the running one alone.
     const running = await liveServer();
     if (running) {
@@ -194,7 +199,7 @@ ${title("Options")}
   ${bold("--provider")}   (profile add) claude (the default) or codex
   ${bold("--short")}      (usage) one line, for a prompt or a status line
   ${bold("--json")}       (usage, sessions) the data, for scripts
-  ${bold("--all")}        (sessions) every project's sessions, not only this folder's; (login) every login running out
+  ${bold("--all")}        (sessions) every project's sessions; (login) every Claude login due for renewal
   ${bold("--refresh")}    (usage) ask Anthropic and OpenAI for fresh numbers first
   ${bold("--spend")}      (usage) what 1% of each Claude window costs, and where the spend went
   ${bold("--no-pull")}    (update) skip git pull, only reapply

@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { spawn } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -7,6 +7,21 @@ import { fileURLToPath } from "node:url";
 import { test } from "node:test";
 
 const cli = fileURLToPath(new URL("../cli.ts", import.meta.url));
+
+test("start --dry-run previews the listener without creating state", (t) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "dotagents-start-preview-"));
+  const state = path.join(root, "state");
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const run = spawnSync(process.execPath, [cli, "start", "--port", "0", "--dry-run"], {
+    env: { ...process.env, HOME: root, USERPROFILE: root, DOTAGENTS_STATE_DIR: state },
+    encoding: "utf8",
+    timeout: 3_000,
+  });
+  assert.ifError(run.error);
+  assert.equal(run.status, 0, run.stderr);
+  assert.match(run.stdout, /would start the local API on 127\.0\.0\.1 at a free port/i);
+  assert.equal(fs.existsSync(state), false);
+});
 
 test("start actions reject missing profiles and sides and preserve provider desktop policy", async (t) => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "dotagents-start-actions-"));
