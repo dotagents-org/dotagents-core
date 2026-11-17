@@ -123,6 +123,8 @@ test("a ChatGPT profile gets \"ChatGPT <Name>\": the default one the normal app 
   // Its own taskbar button and look, as Claude's: the watcher looks for ChatGPT.exe with its folder.
   assert.match(vbs, /claude-taskbar\.ps1"" -AppId ""dotagents\.chatgpt\.dijkstra"" -DisplayName ""ChatGPT Dijkstra"".* -DataDir ""[^"]*ChatGPT-dijkstra"" -Exe ""ChatGPT\.exe""", 0, False/);
   assert.match(defaultVbs, /-AppId ""dotagents\.chatgpt\.hopper"".* -Exe ""ChatGPT\.exe""/);
+  // Its taskbar button opens it again through its own launcher.
+  assert.match(vbs, /-Launcher ""[^"]*chatgpt-desktop-dijkstra\.vbs""/);
   assert.doesNotMatch(defaultVbs, /-DataDir/);
   assert.ok(fs.existsSync(taskbarWatcherFile(launcherDir())));
   const lnk = saved.get(shortcutFile("dijkstra", CHATGPT_DESKTOP));

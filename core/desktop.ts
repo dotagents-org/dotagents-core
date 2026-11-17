@@ -109,7 +109,7 @@ function vbsLauncher(repo: string, launcherDir: string, name: string, isDefault:
     arg("AppId", appIdFor(name, app.prefix)) +
     arg("DisplayName", appTitle(name, app)) +
     arg("Icon", windowIcon(repo, name, app)) +
-    arg("Launcher", desktopLauncherFile(launcherDir, name)) +
+    arg("Launcher", desktopLauncherFile(launcherDir, name, app)) +
     (isDefault ? "" : arg("DataDir", dataDir)) +
     arg("Exe", app.process);
   return [

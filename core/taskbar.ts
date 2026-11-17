@@ -174,8 +174,10 @@ ${PROPERTY_STORE}
     }
   }
 
-  // The notification-area icon belongs to the instance's hidden Electron_NotifyIconHostWindow
-  // (OwlElectron_NotifyIconHostWindow in the ChatGPT app).
+  // The notification-area icon belongs to the instance's hidden Electron_NotifyIconHostWindow. The
+  // ChatGPT app registers its icon by a GUID instead (IconGuid in HKCU\Control Panel\NotifyIconSettings,
+  // seen 2026-11-17), one for the executable, so all its instances share one icon: no number answers
+  // here and its tray icon stays the app's.
   // Electron numbers its icons from 3 and a new one gets a higher number, so the highest that
   // answers is the one showing. NIM_MODIFY with no flags only says whether a number exists.
   static void DressTray(IntPtr host, string name) {
