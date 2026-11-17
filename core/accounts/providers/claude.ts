@@ -4,6 +4,8 @@
 // chosen one in and checks it. Always manual. Credentials are copied whole and never printed. The
 // steps here are the ones the common coordination (core/accounts/switch.ts, login.ts) calls.
 
+import { CLAUDE_DESKTOP } from "../../desktop.ts";
+import { installGlobal } from "../../global.ts";
 import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
@@ -139,11 +141,15 @@ const claude: Provider = {
   id: "claude",
   labels: LABELS.claude,
   configDir: defaultConfigDir,
-  desktop: true,
+  desktop: CLAUDE_DESKTOP,
+  configure(repo) {
+    section("Claude Code configuration");
+    installGlobal(repo);
+  },
   profiles: claudeProfiles,
   profileRecord({ name, color, isDefault, prior, all }) {
     const otherDefault = all.find((a) => a.default && a.name !== name);
-    // The default profile is the one the normal Desktop app opens: only one.
+    // The default profile is the one the normal Desktop app opens: one per provider.
     if (isDefault && otherDefault) throw new Error(`${otherDefault.name} is already the default profile`);
     return { name, configDir: defaultConfigDir(), color, ...(isDefault || prior?.default ? { default: true } : {}) };
   },

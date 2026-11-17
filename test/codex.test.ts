@@ -74,7 +74,19 @@ test("profile add --provider codex records the profile on ~/.codex, without touc
   assert.equal(fs.existsSync(path.join(home, ".claude", "CLAUDE.md")), false, "no Claude configuration was written");
   assert.throws(() => setUpProfile(REPO, { name: "lovelace", desktop: null }), /already a codex profile/);
   assert.throws(() => setUpProfile(REPO, { name: "x", provider: "gemini", desktop: null }), /not a provider/);
-  assert.throws(() => setUpProfile(REPO, { name: "x", provider: "codex", isDefault: true, desktop: null }), /Desktop/);
+});
+
+test("each provider has its own default profile: a ChatGPT one leaves Claude's alone", (t) => {
+  machine(t);
+  quiet();
+  // machine() has work, the default Claude profile.
+  setUpProfile(REPO, { name: "hopper", provider: "codex", isDefault: true, desktop: null });
+  setUpProfile(REPO, { name: "dijkstra", provider: "codex", desktop: null });
+  const defaults = () => loadProfiles().filter((p) => p.default).map((p) => p.name);
+  assert.deepEqual(defaults().sort(), ["hopper", "work"]);
+  assert.throws(() => setUpProfile(REPO, { name: "dijkstra", provider: "codex", isDefault: true, desktop: null }), /hopper is already the default ChatGPT profile/);
+  assert.throws(() => setUpProfile(REPO, { name: "lovelace", isDefault: true, desktop: null }), /work is already the default profile/);
+  assert.deepEqual(defaults().sort(), ["hopper", "work"]);
 });
 
 test("a switch saves the slot's login to its vault, puts the chosen one in, restarts the daemon and leaves ~/.claude alone", async (t) => {

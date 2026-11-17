@@ -110,10 +110,11 @@ export function migrateLegacyProfiles() {
   return true;
 }
 
-// Adds the profile or replaces the one with the same name. Only one profile is the default.
+// Adds the profile or replaces the one with the same name. Only one profile of each provider is
+// the default.
 export function saveProfile(profile: Profile) {
   const all = loadProfiles();
-  if (profile.default) for (const a of all) delete a.default;
+  if (profile.default) for (const a of all) if (providerOf(a) === providerOf(profile)) delete a.default;
   const i = all.findIndex((a) => a.name === profile.name);
   const entry = { ...profile };
   if (!entry.default) delete entry.default;

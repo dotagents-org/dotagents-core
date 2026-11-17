@@ -13,7 +13,7 @@ export const profileAdd: Command = {
   name: "profile add",
   usage: "<name> [--default] [--provider codex]",
   summary: "add a profile, one Claude account, or one ChatGPT account with --provider codex",
-  more: ["--default: the one the normal Desktop app opens;", "--color #RRGGBB: its color in the listings;", "--provider codex: a ChatGPT account for Codex"],
+  more: ["--default: the one the normal Desktop app opens (Claude Desktop, or the ChatGPT app), one per provider;", "--color #RRGGBB: its color in the listings;", "--provider codex: a ChatGPT account for Codex"],
   group: "Profiles",
   run({ repo, args, positional }) {
     const name = positional[0];

@@ -8,7 +8,7 @@ import os from "node:os";
 import path from "node:path";
 import { test, type TestContext } from "node:test";
 import { dropProfile, installProfiles, launcherDir, setUpProfile } from "../core/accounts/profiles.ts";
-import { type Shortcut, type Shortcuts, openDesktop, profileIcon, appTitle, desktopDataDir, desktopExe, desktopLauncherFile, powershellShortcuts, shortcutFile, trayStartupFile } from "../core/desktop.ts";
+import { CHATGPT_DESKTOP, type Shortcut, type Shortcuts, openDesktop, profileIcon, appTitle, desktopDataDir, desktopExe, desktopLauncherFile, powershellShortcuts, shortcutFile, trayStartupFile } from "../core/desktop.ts";
 import { state } from "../core/state.ts";
 import { taskbarWatcher, taskbarWatcherFile } from "../core/taskbar.ts";
 import { REPO, quiet } from "./helpers.ts";
@@ -97,6 +97,52 @@ test("every profile gets a Start menu shortcut, \"Claude <Name>\"; only the seco
   setUpProfile(REPO, { name: "personal", desktop });
   assert.equal(state.counts.created, undefined);
   assert.equal(state.counts.updated, undefined);
+});
+
+test("a ChatGPT profile gets \"ChatGPT <Name>\": the default one the normal app on ~/.codex, another its own folder and CODEX_HOME", (t) => {
+  tempWindowsHome(t);
+  fs.writeFileSync(desktopExe(CHATGPT_DESKTOP), "");
+  const { saved, desktop } = fakeShortcuts();
+  quiet();
+  setUpProfile(REPO, { name: "hopper", provider: "codex", isDefault: true, desktop });
+  setUpProfile(REPO, { name: "dijkstra", provider: "codex", desktop });
+  assert.equal(state.problems, 0);
+  assert.ok(shortcutFile("dijkstra", CHATGPT_DESKTOP).endsWith("ChatGPT Dijkstra.lnk"));
+  // The default one: the normal app, which reads the slot (~/.codex) and so follows the switch.
+  assert.ok(!fs.existsSync(desktopDataDir("hopper", CHATGPT_DESKTOP)));
+  const defaultVbs = fs.readFileSync(desktopLauncherFile(launcherDir(), "hopper", CHATGPT_DESKTOP), "utf8");
+  assert.ok(defaultVbs.includes('.Remove "CODEX_HOME"'));
+  assert.ok(!defaultVbs.includes("--user-data-dir"));
+  // Another one: its data folder and, inside it, the CODEX_HOME where it signs in, both made first.
+  const dir = desktopDataDir("dijkstra", CHATGPT_DESKTOP);
+  assert.ok(dir.endsWith("ChatGPT-dijkstra"));
+  assert.ok(fs.existsSync(path.join(dir, "codex-home")));
+  const vbs = fs.readFileSync(desktopLauncherFile(launcherDir(), "dijkstra", CHATGPT_DESKTOP), "utf8");
+  assert.ok(vbs.includes(`("CODEX_HOME") = "${path.join(dir, "codex-home")}"`));
+  assert.ok(vbs.includes(`chatgpt-desktop.exe"" --user-data-dir=""${dir}""`));
+  // No taskbar watcher, which knows Claude's windows only, and no app ID of dotagents'.
+  assert.doesNotMatch(vbs, /taskbar/);
+  assert.equal(fs.existsSync(taskbarWatcherFile(launcherDir())), false);
+  const lnk = saved.get(shortcutFile("dijkstra", CHATGPT_DESKTOP));
+  assert.deepEqual([lnk?.description, lnk?.appId, lnk?.icon], ["dotagents:dijkstra", "", `${desktopExe(CHATGPT_DESKTOP)},0`]);
+  assert.ok(lnk?.args.includes("chatgpt-desktop-dijkstra.vbs"));
+  // Nothing of Claude's for a ChatGPT profile.
+  assert.equal(fs.existsSync(shortcutFile("dijkstra")), false);
+  // Open Desktop runs its launcher; removing the profile takes the launcher and the shortcut, not the folder.
+  const ran: string[][] = [];
+  const opened = openDesktop("dijkstra", launcherDir(), { run: (c, a) => void ran.push([c, ...a]), app: CHATGPT_DESKTOP, peer: { name: "Windows", home: os.homedir(), nativeHome: "C:\\Users\\me" }, toWindows: (p) => p });
+  assert.equal(opened.detail, "opening ChatGPT Dijkstra");
+  assert.ok(ran[0].at(-1)!.endsWith("chatgpt-desktop-dijkstra.vbs"));
+  // A second run changes nothing.
+  quiet();
+  setUpProfile(REPO, { name: "dijkstra", provider: "codex", desktop });
+  assert.equal(state.counts.created, undefined);
+  assert.equal(state.counts.updated, undefined);
+  quiet();
+  dropProfile("dijkstra", { desktop });
+  assert.equal(saved.has(shortcutFile("dijkstra", CHATGPT_DESKTOP)) && fs.existsSync(shortcutFile("dijkstra", CHATGPT_DESKTOP)), false);
+  assert.equal(fs.existsSync(desktopLauncherFile(launcherDir(), "dijkstra", CHATGPT_DESKTOP)), false);
+  assert.ok(fs.existsSync(dir));
 });
 
 test("the app's execution alias counts as installed, though stat can't follow it", { skip: process.platform === "win32" }, (t) => {

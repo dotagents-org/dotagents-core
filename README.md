@@ -90,7 +90,7 @@ The agent files live next to the repositories, never inside them. `new` clones s
 
 ### Several accounts, one view
 
-A profile is one Claude account, for Claude Code, or one ChatGPT account, for Codex. Every Claude profile uses `~/.claude` and every ChatGPT one `~/.codex`, so the history and the configuration are shared; `switch` puts a profile's login there, on one side of the machine or both, and its login waits in a vault while another is in use. `usage` and the dotagents sidebar show what each one has used, asked of Anthropic or OpenAI. On Windows, each Claude profile also gets its own Claude Desktop app.
+A profile is one Claude account, for Claude Code, or one ChatGPT account, for Codex. Every Claude profile uses `~/.claude` and every ChatGPT one `~/.codex`, so the history and the configuration are shared; `switch` puts a profile's login there, on one side of the machine or both, and its login waits in a vault while another is in use. `usage` and the dotagents sidebar show what each one has used, asked of Anthropic or OpenAI. On Windows, each profile also gets its own Desktop app: Claude Desktop for a Claude profile, the ChatGPT app for a ChatGPT one.
 
 One account is enough: everything else works the same with a single profile, and a second one is your choice. More than one is for a person who holds several seats in their own name, under each provider's terms; see [Several accounts and the providers' terms](docs/security.md#several-accounts-and-the-providers-terms).
 

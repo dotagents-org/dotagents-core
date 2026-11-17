@@ -101,6 +101,7 @@ Shows where the logs are on each side (`<state>/logs/`, the other side's through
 
 ```bash
 dotagents profile add work --default     # the account the normal Desktop app opens
+dotagents profile add hopper --provider codex --default   # the ChatGPT account the normal ChatGPT app opens
 dotagents profile add personal           # a second account
 dotagents profile add personal --color '#376B80'
 ```
@@ -113,8 +114,8 @@ A profile is one Claude account the person holds (ADR 0004 in the workspace's `.
 
 Then sign the profile in, once on each side: [`dotagents login personal`](#dotagents-login), or sign in with `claude auth login`, which puts the account in `~/.claude`, and run `dotagents switch --save personal`. In the second Desktop app, sign in with **e-mail and code**: Google sign-in returns to the normal app. Links `claude://` also open the normal app, and an app update reopens only the normal one. Running it again changes nothing.
 
-- Only one profile is the default: the one the normal Desktop app opens.
-- `--provider codex` makes it a ChatGPT account for Codex (ADR 0007). For now that profile is only its record in `profiles.json` (version 2, see [The profiles file](profiles-file.md)), on `~/.codex` (or `CODEX_HOME`): no Claude configuration, no Desktop app, no `--default`. Sign it in once on each side with [`dotagents login <name>`](#dotagents-login).
+- One profile of each provider is the default: the one the normal Desktop app opens (Claude Desktop for Claude, the ChatGPT app for ChatGPT).
+- `--provider codex` makes it a ChatGPT account for Codex (ADR 0007), on `~/.codex` (or `CODEX_HOME`), with no Claude configuration (its record in `profiles.json` is version 2, see [The profiles file](profiles-file.md)). Sign it in once on each side with [`dotagents login <name>`](#dotagents-login). On Windows it gets a ChatGPT app of its own, as a Claude profile gets Claude Desktop: a launcher `chatgpt-desktop-<name>.vbs` and the Start menu shortcut "ChatGPT <Name>". The ChatGPT app runs Codex inside it, which reads its login from `CODEX_HOME`: the default profile's shortcut opens the normal app, on `~/.codex`, the slot, so it shows whichever ChatGPT account `switch` put there; any other profile's starts a second app with `--user-data-dir=%APPDATA%\ChatGPT-<name>` and `CODEX_HOME` set to `codex-home` inside that folder, where you sign in once, apart from the slot and the vault. The icon is `assets/chatgpt-<name>.ico` when the repository has one. Its windows stay under the ChatGPT app's taskbar button: the taskbar watcher knows Claude Desktop's windows only.
 - `--color #RRGGBB` sets the profile's color in the listings and its avatar. Without it, profiles get `#D77655`, `#376B80`, `#7A5C9E`, `#B5607F`, `#6B7F4A` and `#5B6478`, in the order they are added. The avatar's shape comes from the profile's name, always the same.
 
 ## dotagents profile list

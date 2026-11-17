@@ -10,6 +10,7 @@
 // then each provider's files, then the storage and utilities they share (vault, usage-record,
 // machine-state, output). This file's types, and provider-labels, import no provider.
 
+import type { DesktopApp } from "../desktop.ts";
 import { type Profile, type ProviderId, loadProfiles } from "../machine-state.ts";
 import type { Labels } from "./provider-labels.ts";
 import type { Fetcher } from "./providers/claude-usage.ts";
@@ -69,8 +70,10 @@ export type Provider = {
   labels: Labels;
   // The agent's config folder: the slot is in it.
   configDir: () => string;
-  // Each profile also gets the global configuration and a Desktop app (Claude's only).
-  desktop: boolean;
+  // Each profile's Desktop app on Windows (core/desktop.ts): Claude Desktop, or the ChatGPT app.
+  desktop: DesktopApp;
+  // What adding one of its profiles applies besides that app: Claude's global configuration.
+  configure?: (repo: string) => void;
   // The profiles of this provider on this machine.
   profiles: () => Profile[];
   // The record of a new profile; throws for an option the provider has no use for.

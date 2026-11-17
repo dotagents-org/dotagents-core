@@ -13,10 +13,10 @@ import { defaultConfigDir } from "../claude-code.ts";
 import { isWindows, lstat, removeGenerated, samePath } from "../common.ts";
 import { type Shortcuts, applyDesktop, powershellShortcuts, removeDesktop, removeTray, verifyDesktop } from "../desktop.ts";
 import { installGlobal } from "../global.ts";
-import { PALETTE, type Profile, claudeProfiles, loadProfiles, migrateLegacyProfiles, profilesFile, removeProfile, saveProfile } from "../machine-state.ts";
+import { PALETTE, type Profile, loadProfiles, migrateLegacyProfiles, profilesFile, removeProfile, saveProfile } from "../machine-state.ts";
 import { checkItem, checkWarn, displayPath, report, section } from "../output.ts";
 import { state } from "../state.ts";
-import { providerById, providers } from "./providers.ts";
+import { providerById, providerFor, providers } from "./providers.ts";
 
 const SAFE_PROFILE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const HEX = /^#[0-9a-fA-F]{6}$/;
@@ -34,7 +34,7 @@ function applyProfile(repo: string, profile: Profile, desktop: { shortcuts: Shor
     section("Launcher");
     removeGenerated(launcherFile(profile.name));
   }
-  if (desktop) applyDesktop(repo, profile, { launcherDir: launcherDir(), shortcuts: desktop.shortcuts });
+  if (desktop) applyDesktop(repo, profile, { launcherDir: launcherDir(), shortcuts: desktop.shortcuts, app: providerFor(profile).desktop });
 }
 
 // Writes a profile's record when it changed.
@@ -46,10 +46,9 @@ function record(profile: Profile, prior: Profile | undefined) {
   saveProfile(profile);
 }
 
-// Adds a profile, or brings one up to date: its record, the configuration and, on Windows, its
-// Desktop app. Its login comes into the vault with: claude auth login, then dotagents switch --save.
-// A Codex profile is only its record for now: its login comes in with dotagents login (ADR 0007),
-// and the configuration for Codex comes later.
+// Adds a profile, or brings one up to date: its record, its provider's configuration and, on
+// Windows, its Desktop app (Claude Desktop, or the ChatGPT app). Its login comes into the vault with
+// dotagents login, or the agent's own sign-in and then dotagents switch --save.
 export function setUpProfile(
   repo: string,
   { name, isDefault = false, color, provider = "claude", desktop = desktopDefault() }: { name: string; isDefault?: boolean; color?: string; provider?: string } & DesktopOption
@@ -60,13 +59,10 @@ export function setUpProfile(
   const all = loadProfiles();
   const prior = all.find((a) => a.name === name);
   if (prior && (prior.provider ?? "claude") !== provider) throw new Error(`${name} is already a ${prior.provider ?? "claude"} profile`);
-  const profile = kind.profileRecord({ name, isDefault, prior, all, color: color ?? prior?.color ?? PALETTE[all.filter((a) => a.name !== name).length % PALETTE.length] });
-  // The provider with a Desktop app per profile also gets the configuration applied.
-  if (kind.desktop) {
-    section("Claude Code configuration");
-    installGlobal(repo);
-    applyProfile(repo, profile, desktop);
-  }
+  const own = all.filter((a) => (a.provider ?? "claude") === provider);
+  const profile = kind.profileRecord({ name, isDefault, prior, all: own, color: color ?? prior?.color ?? PALETTE[all.filter((a) => a.name !== name).length % PALETTE.length] });
+  kind.configure?.(repo);
+  applyProfile(repo, profile, desktop);
   record(profile, prior);
 }
 
@@ -78,7 +74,8 @@ export function dropProfile(name: string, { desktop = desktopDefault() }: Deskto
     section("Launcher");
     removeGenerated(launcherFile(name));
   }
-  if (desktop) removeDesktop(name, { launcherDir: launcherDir(), shortcuts: desktop.shortcuts });
+  const profile = loadProfiles().find((a) => a.name === name)!;
+  if (desktop) removeDesktop(name, { launcherDir: launcherDir(), shortcuts: desktop.shortcuts, app: providerFor(profile).desktop });
   section("Profiles");
   report(state.dryRun ? "would update" : "updated", profilesFile(), `removed ${name}; its saved login was kept`);
   removeProfile(name);
@@ -95,10 +92,12 @@ export function installProfiles(repo: string, { desktop = desktopDefault() }: De
     report(state.dryRun ? "would update" : "updated", profilesFile(), "moved from accounts.json, its earlier name");
   }
   installGlobal(repo);
-  for (const prior of claudeProfiles()) {
-    const profile = { ...prior, configDir: defaultConfigDir() };
-    applyProfile(repo, profile, desktop);
-    if (!samePath(prior.configDir, profile.configDir)) record(profile, prior);
+  for (const provider of providers()) {
+    for (const prior of provider.profiles()) {
+      const profile = { ...prior, configDir: provider.configDir() };
+      applyProfile(repo, profile, desktop);
+      if (!samePath(prior.configDir, profile.configDir)) record(profile, prior);
+    }
   }
   // Windows: the dropped tray panel's launcher goes.
   if (desktop) removeTray();
@@ -111,7 +110,7 @@ export function verifyProfiles({ desktop = desktopDefault() }: DesktopOption = {
   for (const provider of providers()) {
     const seen = new Map<string, string>();
     for (const profile of provider.profiles()) {
-      if (desktop && provider.desktop) verifyDesktop(profile.name, profile.default);
+      if (desktop) verifyDesktop(profile.name, profile.default, provider.desktop);
       provider.verifyProfile?.(profile);
       const account = provider.account(profile);
       if (!account) {

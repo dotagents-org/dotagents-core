@@ -134,13 +134,13 @@ const start: Command = {
           const profile = known(body);
           if (!profile) return { status: 404, body: { ok: false, detail: "no such profile" } };
           const name = profile.name;
+          let app;
           try {
-            const provider = providerFor(profile);
-            if (!provider.desktop) return { status: 409, body: { ok: false, detail: `${name} is a ${provider.labels.account} profile; it has no Claude Desktop` } };
+            app = providerFor(profile).desktop;
           } catch (err) {
             return { status: 409, body: { ok: false, detail: (err as Error).message } };
           }
-          const opened = openDesktop(name, launcherDir());
+          const opened = openDesktop(name, launcherDir(), { app });
           return { status: opened.ok ? 200 : 409, body: opened };
         },
       },
@@ -189,7 +189,7 @@ ${title("Options")}
   ${bold("--dry-run")}    show what would be done, change nothing
   ${bold("--yes")}        (init, sessions rm) don't ask anything
   ${bold("--wrap")}       (init) move a repository into <name>-workspace/ first
-  ${bold("--default")}    (profile add) the profile in ~/.claude
+  ${bold("--default")}    (profile add) the profile the normal Desktop app opens, one per provider
   ${bold("--color")}      (profile add) the profile's color, #RRGGBB
   ${bold("--provider")}   (profile add) claude (the default) or codex
   ${bold("--short")}      (usage) one line, for a prompt or a status line

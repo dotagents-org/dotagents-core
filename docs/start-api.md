@@ -83,7 +83,7 @@ Nothing in the answer carries a token, an account id or the ChatGPT user id.
 | Action | Body | Does | Answers |
 |---|---|---|---|
 | `switch` | `{ "profile": "<name>", "side"?: "<side>" }` | [`switch`](commands.md#dotagents-switch) to the profile, Claude or Codex alike (its provider picks the slot). Without `side`, on both sides; with this side's name, `--here`; with the other side's name, only there, by running `dotagents switch <name> --here` on it. | 200 `now <name>`; 404 `no such profile` or `no such side`; 502 with what failed (on the other side, why that side couldn't); 409 when the switch itself refuses (the slot holds an account no profile knows, say). |
-| `desktop` | `{ "profile": "<name>" }` | Opens the profile's Claude Desktop app (Windows). | 200; 404 `no such profile`; 409 for a ChatGPT profile (it has no Claude Desktop) or when it can't open. |
+| `desktop` | `{ "profile": "<name>" }` | Opens the profile's Desktop app (Windows): Claude Desktop for a Claude profile, the ChatGPT app for a ChatGPT one. | 200; 404 `no such profile`; 409 when it can't open. |
 | `refresh` | `{}` | The minute's update, now: asks Anthropic for every profile's usage, and Codex for the profiles whose time has come. | 200; 502 with each failure as `<target>: <why>`. |
 
 The other side's switch needs a dotagents there that knows the profile: a ChatGPT profile switched on a side whose dotagents is older, or without that profile, answers 502 with that side's own message.

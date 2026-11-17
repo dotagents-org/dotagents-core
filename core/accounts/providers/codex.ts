@@ -5,6 +5,7 @@
 // tell whose login it is: never printed, never renewed here (the refresh token is single-use). The
 // steps here are the ones the common coordination (core/accounts/switch.ts, login.ts) calls.
 
+import { CHATGPT_DESKTOP } from "../../desktop.ts";
 import { spawnSync } from "node:child_process";
 import { samePath } from "../../common.ts";
 import { createHash } from "node:crypto";
@@ -156,11 +157,13 @@ const codex: Provider = {
   id: "codex",
   labels: LABELS.codex,
   configDir: codexHome,
-  desktop: false,
+  desktop: CHATGPT_DESKTOP,
   profiles: codexProfiles,
-  profileRecord({ name, color, isDefault }) {
-    if (isDefault) throw new Error("--default names the profile the Claude Desktop app opens; a ChatGPT profile has none");
-    return { name, configDir: codexHome(), color, provider: "codex" };
+  profileRecord({ name, color, isDefault, prior, all }) {
+    const otherDefault = all.find((a) => a.default && a.name !== name);
+    // The default profile is the one the normal ChatGPT app opens, as Claude's: one per provider.
+    if (isDefault && otherDefault) throw new Error(`${otherDefault.name} is already the default ChatGPT profile`);
+    return { name, configDir: codexHome(), color, provider: "codex", ...(isDefault || prior?.default ? { default: true } : {}) };
   },
 
   account(p) {
