@@ -35,7 +35,15 @@ test("start actions reject missing profiles and sides and preserve provider desk
   const bin = path.join(root, "bin");
   fs.mkdirSync(bin);
   const child = spawn(process.execPath, [cli, "start", "--port", "0"], { env: { ...process.env, HOME: root, USERPROFILE: root, DOTAGENTS_STATE_DIR: state, PATH: `${bin}${path.delimiter}${process.env.PATH ?? ""}` }, stdio: "ignore" });
-  t.after(() => { child.kill(); fs.rmSync(root, { recursive: true, force: true }); });
+  // Wait for start to exit before removing its state: on macOS it may still be writing there.
+  t.after(async () => {
+    if (child.exitCode === null && child.signalCode === null) {
+      const exited = new Promise((resolve) => child.once("exit", resolve));
+      child.kill();
+      await exited;
+    }
+    fs.rmSync(root, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
+  });
   let address: { port: number; token: string } | undefined;
   for (let i = 0; i < 100; i++) {
     if (fs.existsSync(path.join(state, "start.json"))) { address = JSON.parse(fs.readFileSync(path.join(state, "start.json"), "utf8")); break; }
