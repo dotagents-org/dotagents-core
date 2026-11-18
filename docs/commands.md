@@ -19,7 +19,7 @@ dotagents <command> [options]
 | [`switch [<profile>] [--here] [--save <profile>]`](#dotagents-switch) | Puts a profile's login in its agent's slot, on both sides of the machine. |
 | [`login <profile> \| --all`](#dotagents-login) | Signs a profile in again on this side, keeping the new login in its vault. |
 | [`usage [--refresh] [--short] [--json] [--spend]`](#dotagents-usage) | Shows Claude and ChatGPT usage. `--spend` estimates Claude costs from local transcripts. |
-| [`new <git-url> [folder]`](#dotagents-new) | Creates a workspace folder (any name; `<name>-workspace` by default), clones the repository into it and applies the standards. |
+| [`new [git-url] [folder]`](#dotagents-new) | Creates a workspace folder (any name; `<name>-workspace` by default), clones the repository into it and applies the standards; with a folder alone, starts an empty workspace. |
 | [`init [path]`](#dotagents-init) | Applies the standards to a folder and puts the chosen skills in it. |
 | [`check [path]`](#dotagents-check) | Runs the standards checklist on a workspace, changing nothing. |
 | [`workspaces`](#dotagents-workspaces) | Lists the workspaces tracked on this machine. |
@@ -282,7 +282,7 @@ The accounts in VS Code are part of the [dotagents sidebar](https://github.com/d
 ## dotagents new
 
 ```bash
-dotagents new <git-url> [folder] [--skills a,b] [--yes] [--dry-run]
+dotagents new [git-url] [folder] [--skills a,b] [--yes] [--dry-run]
 ```
 
 Creates a workspace around a repository, in the [recommended layout](workspaces.md#recommended-layout-the-workspace-wraps-the-repositories):
@@ -292,12 +292,21 @@ dotagents new git@github.com:me/app.git                 # app-workspace/app/
 dotagents new git@github.com:me/api.git app-workspace   # adds api/ to the same workspace
 ```
 
-1. Creates the workspace folder. Its name is free (`acme-platform`, `thesis`…): pass it as `[folder]`, or answer the question in a terminal. Without one, it is `<name>-workspace/`, with `<name>` taken from the URL.
+1. Creates the workspace folder: pass it as `[folder]`, or answer the question in a terminal. Without one, it is `<name>-workspace/`, with `<name>` taken from the URL. A new folder gets `-workspace` at the end when its name lacks it (`acme` becomes `acme-workspace/`); an existing one keeps its name, so a repository can join a workspace named otherwise.
 2. Clones the repository into `<folder>/<name>/`.
 3. If the workspace already had an `AGENTS.md` with a `## Repositories` section, adds the new repository to that list. Only that section is touched.
 4. Runs `init` on the workspace, with the same questions and options.
 
 It refuses to clone over an existing folder, and refuses to use a folder that is itself a git repository as the workspace. The URL can be anything `git clone` accepts, a local path included.
+
+Without a repository, it starts an empty workspace, for a project that has no repository yet:
+
+```bash
+dotagents new thesis   # thesis-workspace/, with the standards and no repository inside
+dotagents new          # in a terminal, asks for the folder name
+```
+
+It creates the folder, with `-workspace` at the end as above, and runs `init` on it, with the same questions and options. The folder must not exist yet; for one that does, run `init`. An argument counts as the repository when it looks like one: a URL (`https://…`, `git@host:…`), a path ending in `.git`, or a local repository (not a workspace's own); anything else is the folder.
 
 ## dotagents init
 

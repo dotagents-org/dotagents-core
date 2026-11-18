@@ -22,7 +22,7 @@ The root is a git repository of its own, so the agent files have a history. Its 
 
 The project's repositories never see the agent files, so there is nothing to ignore. Cloning again, switching branches or running `git clean -fdx` inside them doesn't touch `.artifacts/` or the transcripts. `AGENTS.md` lists the repositories, so the agents know where the code is and run git inside each one (`git -C app …`).
 
-Two commands produce this layout: `dotagents new <git-url>` for a repository you don't have yet, and `dotagents init` on a repository already on disk, which offers to [wrap it](commands.md#wrapping-a-repository).
+Two commands produce this layout: `dotagents new <git-url>` for a repository you don't have yet (or `dotagents new <folder>` for a workspace with none yet), and `dotagents init` on a repository already on disk, which offers to [wrap it](commands.md#wrapping-a-repository).
 
 Some things need a git repository in the current folder, such as Claude Code worktrees. Use them from inside one of the repositories.
 

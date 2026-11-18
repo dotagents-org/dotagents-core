@@ -119,6 +119,10 @@ jobs:
           grep -F '`api/`' app-workspace/AGENTS.md
           dotagents check app-workspace
           ! dotagents new "$RUNNER_TEMP/app.git" app-workspace --yes
+          dotagents new thesis --yes
+          test -f thesis-workspace/AGENTS.md && test -d thesis-workspace/.git
+          dotagents check thesis-workspace
+          ! dotagents new thesis --yes
 
       - name: third-party skills registered once are offered by init
         run: |
