@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // `dotagents`: applies this repository's Claude Code configuration. Works on Windows, Linux and
-// macOS with Node 22.18+, which runs this TypeScript file directly (type stripping, no build).
+// macOS with Node 24+, which runs this TypeScript file directly (type stripping, no build).
 // Make it a command with `npm install && npm link` in the clone (@clack/prompts for the
 // prompts; the colors are core/theme.ts).
 //

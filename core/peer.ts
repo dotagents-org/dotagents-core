@@ -73,10 +73,9 @@ export function applyPeer(find: PeerFinder = findPeer) {
   saveMachine(found ? { peer: found } : {});
 }
 
-// Whether a Node version runs dotagents: 22.18 or newer, which runs TypeScript directly.
+// Whether a Node version runs dotagents: 24 or newer, the oldest LTS line the project supports.
 export function nodeOk(version: string) {
-  const [major, minor] = version.replace(/^v/, "").split(".").map(Number);
-  return major > 22 || (major === 22 && minor >= 18);
+  return Number(version.replace(/^v/, "").split(".")[0]) >= 24;
 }
 
 // Runs a command in a shell on the other side: from Windows, an interactive login bash in WSL (where
@@ -93,7 +92,7 @@ export function peerToolCheck(peer: string, res: { status: number | null; stdout
   const node = out.find((l) => /^v\d+\.\d+/.test(l));
   const setup = peer === "WSL" ? "in WSL: nvm install 24, then npm link in the dotagents clone there" : "on Windows: install Node 24 (nvm-windows), then npm link in the dotagents clone there";
   if (res.error || !node) return { passed: false, detail: `no Node answers on ${peer}; ${setup}` };
-  if (!nodeOk(node)) return { passed: false, detail: `${peer} runs Node ${node}, and dotagents needs 22.18 or newer; ${setup}` };
+  if (!nodeOk(node)) return { passed: false, detail: `${peer} runs Node ${node}, and dotagents needs 24 or newer; ${setup}` };
   if (res.status !== 0 || out.length < 2) return { passed: false, detail: `dotagents doesn't run on ${peer}; ${setup}` };
   return { passed: true, detail: `Node ${node}, dotagents ${out[out.indexOf(node) + 1]}` };
 }

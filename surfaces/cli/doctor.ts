@@ -16,7 +16,7 @@ export const doctor: Command = {
   run() {
     header("doctor", sideName());
     section("Node");
-    checkItem(nodeOk(process.version), `Node ${process.version} runs dotagents (22.18 or newer)`, "install a newer Node (nvm install 24), then npm link again in the dotagents clone");
+    checkItem(nodeOk(process.version), `Node ${process.version} runs dotagents (24 or newer)`, "install a newer Node (nvm install 24), then npm link again in the dotagents clone");
 
     // Only WSL and Windows have another side
     if (inWsl() || process.platform === "win32") {

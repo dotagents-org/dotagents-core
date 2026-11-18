@@ -13,7 +13,7 @@ What changed for someone who updates a clone. The format follows [Keep a Changel
 - **No more full-screen view.** dotagents is a plain command line, for people and for agents; the visual side moves to a separate app, still to come. `dotagents` with no command prints the help, `usage --watch` stops with a message, and Ink and React are no longer dependencies.
 - **`usage --json` prints an envelope:** `{ "version": 1, "generatedAt": …, "profiles": [ … ] }` instead of a bare list, so new fields never break a script again.
 - **`usage --short` changed format** for status lines: one line per profile, `5h` and `7d` with 8-cell bars (`work  5h ━━━━━━ ─  72% ↻ 3h17m   7d …`).
-- **Node 22.18 or later.** The sources are TypeScript, run directly through Node's type stripping, with no build.
+- **Node 24 or later.** The sources are TypeScript, run directly through Node's type stripping, with no build.
 - **The command's entry file is `cli.ts`, no longer `cli.mjs`.** Run `npm link` again in the clone once; from now on `dotagents update` does it when the entry file changes.
 - **Codex and OpenCode are gone.** `install` no longer writes their global configuration, and the standards, skills and docs cover Claude Code only. `move-sessions` lost its `--tools` option.
 - **Accounts are now profiles.** `dotagents account add/list/remove` became `dotagents profile add/list/remove`, and `accounts.json` became `profiles.json`; `install` and `update` move the file. A profile is the local folder; the account is the Claude sign-in it holds.

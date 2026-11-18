@@ -18,7 +18,7 @@
 
 <p align="center">
   <img alt="Windows, Linux, macOS" src="https://img.shields.io/badge/platforms-Windows%2C%20Linux%2C%20macOS-171717">
-  <img alt="Node 22.18 or later" src="https://img.shields.io/badge/node-%E2%89%A5%2022.18-171717">
+  <img alt="Node 24 or later" src="https://img.shields.io/badge/node-%E2%89%A5%2024-171717">
   <img alt="Claude Code" src="https://img.shields.io/badge/agent-Claude%20Code-171717">
   <img alt="Codex" src="https://img.shields.io/badge/agent-Codex-171717">
   <img alt="MIT license" src="https://img.shields.io/badge/license-MIT-171717">
@@ -126,7 +126,7 @@ The command runs from your clone, so an edit there is live at once on that machi
 
 ## Quick start
 
-You need Node.js 22.18+ and git. Copy [`templates/config/`](templates/config/) into a repository of your own named `dotagents-config` and make it yours (start with `global/instructions.md`), then, once per machine, clone both into a `dotagents/` folder:
+You need Node.js 24+ and git. Copy [`templates/config/`](templates/config/) into a repository of your own named `dotagents-config` and make it yours (start with `global/instructions.md`), then, once per machine, clone both into a `dotagents/` folder:
 
 ```bash
 git clone git@github.com:<you>/dotagents-config.git dotagents/dotagents-config
