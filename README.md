@@ -164,7 +164,7 @@ dotagents usage --refresh # every account's usage, asked of Anthropic
 dotagents start # the local API the dotagents sidebar reads
 ```
 
-For ChatGPT, run `dotagents profile add work-codex --provider codex` and `dotagents login work-codex` on each side. In VS Code, the [dotagents sidebar](https://github.com/dotagents-org/dotagents-sidebar/releases/latest) hosts Claude Code and Codex sessions, the accounts tab and the status bar. ChatGPT accounts require a sidebar build compatible with API 2.
+For ChatGPT, run `dotagents profile add work-codex --provider codex` and `dotagents login work-codex` on each side. In VS Code, the [dotagents sidebar](https://github.com/dotagents-org/dotagents-sidebar) hosts Claude Code and Codex sessions, the accounts tab and the status bar. ChatGPT accounts require a sidebar build compatible with API 2.
 
 More in [Getting started](docs/getting-started.md), including WSL and npm without `sudo`. What changed in each version is in the [CHANGELOG](CHANGELOG.md).
 

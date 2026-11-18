@@ -76,6 +76,6 @@ On Windows with WSL, each side has its own slot; `switch` changes both, `--here`
 
 dotagents works on its own, from the terminal, and nothing in it needs VS Code. Still, if you use VS Code, install the [dotagents sidebar](https://github.com/dotagents-org/dotagents-sidebar): it is where dotagents is most useful day to day. Claude Code runs in the secondary sidebar, in sessions that survive a window reload, and your accounts sit beside it: every account's usage and state at a glance, the current one in the status bar, and the switch a click away. It reads `dotagents start` on its own, starting it when needed.
 
-Install its `.vsix` from the [latest release](https://github.com/dotagents-org/dotagents-sidebar/releases/latest) (in a WSL window, while connected), reload the window, and open **dotagents: Sidebar** in the secondary sidebar.
+Build its `.vsix` from [its repository](https://github.com/dotagents-org/dotagents-sidebar) (`npm install`, then `npm run package`) and install it (in a WSL window, while connected), reload the window, and open **dotagents: Sidebar** in the secondary sidebar.
 
 Next: [Commands](commands.md) for every option, [Workspaces](workspaces.md) for what a workspace holds, or the [dotagents sidebar's docs](https://github.com/dotagents-org/dotagents-sidebar/tree/main/docs) for VS Code.
