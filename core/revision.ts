@@ -11,7 +11,7 @@ import { spawn } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import Anthropic from "@anthropic-ai/sdk";
+import type Anthropic from "@anthropic-ai/sdk"; // loaded on the first API call: it costs ~80 ms at start
 import { defaultConfigDir, signedIn } from "./claude-code.ts";
 import { configRoot, mkdirFor } from "./common.ts";
 import { stateDir } from "./machine-state.ts";
@@ -271,7 +271,7 @@ async function reviseText(text: string, deps: Deps) {
   else {
     const key = readKey();
     if (!deps.client && !key) return null;
-    const c = deps.client ?? (new Anthropic({ apiKey: key! }) as unknown as Client);
+    const c = deps.client ?? (new (await import("@anthropic-ai/sdk")).default({ apiKey: key! }) as unknown as Client);
     r = await revise(c, text, await currentModel(c));
   }
   if (r) logRevision(backend, r);
