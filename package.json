@@ -8,8 +8,8 @@
     "dotagents": "cli.ts"
   },
   "scripts": {
-    "typecheck": "tsc",
-    "test": "tsc && node --test \"test/**/*.test.ts\"",
+    "typecheck": "node node_modules/typescript/bin/tsc",
+    "test": "node node_modules/typescript/bin/tsc && node --test \"test/**/*.test.ts\"",
     "media": "node scripts/media.ts"
   },
   "engines": {
