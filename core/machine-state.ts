@@ -131,10 +131,14 @@ export function removeProfile(name: string) {
   return kept.length < all.length;
 }
 
+// Skills dotagents renamed, old name to new: the tracked lists read the new one.
+export const RENAMED_SKILLS: Record<string, string> = { "session-archive": "archive" };
+
 export function loadWorkspaces(): TrackedWorkspace[] {
   const data = readStateFile(workspacesFile(), WORKSPACES.version);
   const list = data?.workspaces ?? [];
   if (!Array.isArray(list) || !list.every(isWorkspace)) throw new Error(`${workspacesFile()} has an invalid workspace list; fix it or delete it`);
+  for (const w of list) w.skills = [...new Set(w.skills.map((s) => RENAMED_SKILLS[s] ?? s))].sort();
   return list;
 }
 

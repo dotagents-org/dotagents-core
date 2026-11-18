@@ -11,7 +11,8 @@
 import fs from "node:fs";
 import path from "node:path";
 import { projectFiles } from "./claude-code.ts";
-import { configRoot, ensureDirLink, lstat, realpath, samePath } from "./common.ts";
+import { configRoot, ensureDirLink, lstat, realpath, removeLink, samePath } from "./common.ts";
+import { RENAMED_SKILLS } from "./machine-state.ts";
 import { checkItem, checkWarn, report } from "./output.ts";
 import { state } from "./state.ts";
 import { findRequires, loadCatalog, npxInstaller, parseSkill, type Installer } from "./thirdparty.ts";
@@ -102,6 +103,16 @@ export function skillsIn(repo: string, ws: string) {
 // Puts the skills in the workspace. The .claude/skills link comes before any installation, so
 // the installer finds it in place instead of creating a real .claude/skills folder.
 export async function applySkills(ws: string, skills: Skill[], { installer = npxInstaller }: { installer?: Installer } = {}) {
+  // dotagents links its own skills, so a link under a renamed skill's old name is its own: it goes.
+  for (const [old, now] of Object.entries(RENAMED_SKILLS)) {
+    const link = path.join(skillsDir(ws), old);
+    if (!lstat(link)?.isSymbolicLink()) continue;
+    if (state.dryRun) report("would update", link, `renamed ${now}: the old link goes`);
+    else {
+      removeLink(link);
+      report("updated", link, `renamed ${now}: removed the old link`);
+    }
+  }
   for (const skill of skills.filter((s) => s.kind === "own")) {
     ensureDirLink(path.join(skillsDir(ws), skill.name), skill.source);
   }

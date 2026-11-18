@@ -67,8 +67,8 @@ jobs:
         run: |
           ws="$RUNNER_TEMP/ws"
           mkdir -p "$ws"
-          dotagents init "$ws" --skills move-sessions,session-archive
-          dotagents init "$ws" --skills move-sessions,session-archive | tee second.txt
+          dotagents init "$ws" --skills move-sessions,archive
+          dotagents init "$ws" --skills move-sessions,archive | tee second.txt
           ! grep -E '^(created|updated|skipped|failed)' second.txt
           dotagents check "$ws"
           test -f "$ws/.agents/skills/move-sessions/SKILL.md"

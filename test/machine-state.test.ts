@@ -26,12 +26,19 @@ test("a workspace is tracked, its skills merged, and untracked", (t) => {
   quiet();
   assert.deepEqual(loadWorkspaces(), []);
   registerWorkspace("/tmp/app-workspace", ["to-cards"]);
-  registerWorkspace("/tmp/app-workspace", ["session-archive", "to-cards"]);
-  assert.deepEqual(loadWorkspaces(), [{ path: "/tmp/app-workspace", skills: ["session-archive", "to-cards"] }]);
+  registerWorkspace("/tmp/app-workspace", ["archive", "to-cards"]);
+  assert.deepEqual(loadWorkspaces(), [{ path: "/tmp/app-workspace", skills: ["archive", "to-cards"] }]);
   assert.equal(JSON.parse(fs.readFileSync(workspacesFile(), "utf8")).version, 1);
   assert.equal(untrackWorkspace("/tmp/app-workspace"), true);
   assert.equal(untrackWorkspace("/tmp/app-workspace"), false);
   assert.deepEqual(loadWorkspaces(), []);
+});
+
+test("a renamed skill is read under its new name in the tracked list", (t) => {
+  tempStateDir(t);
+  quiet();
+  registerWorkspace("/tmp/app-workspace", ["session-archive", "to-cards"]);
+  assert.deepEqual(loadWorkspaces(), [{ path: "/tmp/app-workspace", skills: ["archive", "to-cards"] }]);
 });
 
 test("a dry run writes nothing", (t) => {

@@ -16,7 +16,7 @@ On each machine where you use agents in the vault, after the [machine setup](../
 dotagents init ~/Notes --skills obsidian-docs
 ```
 
-- `obsidian-docs` answers questions about Obsidian from the official help, the plugin directory and the forum. Add others you use, such as `humanizer` for writing or `session-archive` for transcripts.
+- `obsidian-docs` answers questions about Obsidian from the official help, the plugin directory and the forum. Add others you use, such as `humanizer` for writing or `archive` for transcripts.
 - **When the vault is not a git repository** (a cloud drive or Obsidian Sync), there is nothing to exclude, and `init` asks nothing about the layout.
 - **When the vault is a git repository** (the obsidian-git plugin, or git by hand), `init` offers to move it into `Notes-workspace/`. Answer **no**: the vault stays where it is, and the agent files are kept out of git through `.git/info/exclude`, without touching the vault's `.gitignore`. See [When the folder has to be the repository](../workspaces.md#when-the-folder-has-to-be-the-repository).
 
@@ -28,7 +28,7 @@ Notes/
 ├── skills-lock.json       third-party skills, if any
 ├── .agents/skills/        obsidian-docs → <clone>/skills/obsidian-docs, …
 ├── .claude/               skills → .agents/skills, settings.json
-├── .artifacts/            INDEX.md, plans/, session-archives/
+├── .artifacts/            INDEX.md, plans/, sessions/
 ├── .obsidian/             Obsidian's own settings
 └── <your folders and notes>
 ```
@@ -91,7 +91,7 @@ What a sync carries depends on whether it copies links:
 ## Day to day
 
 - **Ask about Obsidian itself** (a plugin, a Bases view, a setting): `obsidian-docs` looks it up in the official sources instead of guessing.
-- **Keep a record:** `session-archive` writes the session to `.artifacts/session-archives/`, which a cloud drive syncs with the vault.
+- **Keep a record:** `archive` writes the session to `.artifacts/sessions/`, which a cloud drive syncs with the vault.
 - **Plans** from Claude Code's plan mode land in `.artifacts/plans/`.
 - **After changing your own skills** in the dotagents clone, nothing needs to run: the vault links to them.
 

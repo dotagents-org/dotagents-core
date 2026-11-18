@@ -107,7 +107,7 @@ export const revisionFix: Command = {
     });
     const count = todo.reduce((n, t) => n + t.pending.messages.length, 0);
     const noRoot = list.filter((s) => !s.root).length;
-    if (noRoot) console.log(muted(`${noRoot} session${noRoot === 1 ? "" : "s"} not in a workspace with .artifacts/session-archives/, which has nowhere to keep revisions: skipped.`));
+    if (noRoot) console.log(muted(`${noRoot} session${noRoot === 1 ? "" : "s"} not in a workspace with .artifacts/sessions/, which has nowhere to keep revisions: skipped.`));
     if (!count) return finish("Nothing to revise.");
     const how = api ? `through your API key, about US$ ${(count * 0.0012).toFixed(2)}` : "through the Claude account, on its plan";
     console.log(`${bold(`${count} message${count === 1 ? "" : "s"}`)} in ${todo.length} session${todo.length === 1 ? "" : "s"} to revise, ${how}.`);

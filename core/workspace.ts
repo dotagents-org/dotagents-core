@@ -19,7 +19,20 @@ import type { Installer } from "./thirdparty.ts";
 // Relative to the workspace root, with forward slashes (Claude Code ignores backslashes on
 // Linux, macOS and WSL).
 const PLANS_DIR = ".artifacts/plans";
-const FIXED_ARTIFACTS = ["session-archives", "plans"];
+const FIXED_ARTIFACTS = ["sessions", "plans"];
+
+// .artifacts/session-archives/ became .artifacts/sessions/: moved once, when sessions/ is
+// missing or still empty.
+function moveLegacySessions(ws: string) {
+  const from = path.join(ws, ".artifacts", "session-archives");
+  const to = path.join(ws, ".artifacts", "sessions");
+  if (!fs.existsSync(from)) return;
+  if (fs.existsSync(to) && fs.readdirSync(to).length) return report("skipped", from, "sessions/ exists too: move these files into it");
+  if (state.dryRun) return report("would move", from, "to .artifacts/sessions/");
+  if (fs.existsSync(to)) fs.rmdirSync(to);
+  fs.renameSync(from, to);
+  report("moved", from, "to .artifacts/sessions/");
+}
 
 export function assertWorkspace(repo: string, ws: string) {
   if (!fs.existsSync(ws)) throw new Error(`Workspace not found: ${ws}`);
@@ -261,6 +274,7 @@ const STANDARD: StandardItem[] = [
   {
     title: ".artifacts/",
     apply({ repo, ws }) {
+      moveLegacySessions(ws);
       for (const dir of FIXED_ARTIFACTS) ensureDir(path.join(ws, ".artifacts", dir));
       createFromTemplate(path.join(repo, "templates", "workspace", "INDEX.md"), path.join(ws, ".artifacts", "INDEX.md"));
     },

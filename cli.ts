@@ -215,7 +215,7 @@ ${title("Options")}
 ${title("Examples")}
   ${muted("$")} dotagents new git@github.com:me/app.git
   ${muted("$")} dotagents init
-  ${muted("$")} dotagents init ~/projects/app --skills session-archive,to-cards
+  ${muted("$")} dotagents init ~/projects/app --skills archive,to-cards
   ${muted("$")} dotagents check ~/projects/app
   ${muted("$")} dotagents update --all
 

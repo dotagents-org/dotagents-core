@@ -23,7 +23,7 @@ test("an empty folder becomes a workspace that passes the checklist", async (t) 
   assert.ok(!fs.existsSync(path.join(ws, "CLAUDE.md"))); // Claude Code reads AGENTS.md directly
   assert.equal(JSON.parse(read(ws, ".claude", "settings.json")).plansDirectory, ".artifacts/plans");
   assert.ok(fs.lstatSync(path.join(ws, ".agents", "skills", "move-sessions")).isSymbolicLink());
-  assert.ok(fs.existsSync(path.join(ws, ".artifacts", "session-archives")));
+  assert.ok(fs.existsSync(path.join(ws, ".artifacts", "sessions")));
   assert.ok(fs.existsSync(path.join(ws, ".artifacts", "plans")));
   assert.match(read(ws, ".artifacts", "INDEX.md"), /\[AGENTS\.md\]\(\.\.\/AGENTS\.md\)/);
   assert.ok(!fs.existsSync(path.join(ws, "INDEX.md")));
@@ -45,6 +45,29 @@ test("a CLAUDE.md that imports AGENTS.md in the middle of a sentence passes with
   verifyWorkspace(REPO, ws);
   assert.equal(state.problems, 0);
   assert.equal(state.counts.warnings, undefined);
+});
+
+test("the old session-archives/ folder and session-archive link become sessions/ and archive", async (t) => {
+  const ws = tempWorkspace(t);
+  const old = path.join(ws, ".artifacts", "session-archives");
+  fs.mkdirSync(old, { recursive: true });
+  fs.writeFileSync(path.join(old, "2026-01-02-one.md"), "# one\n");
+  fs.mkdirSync(path.join(ws, ".agents", "skills"), { recursive: true });
+  fs.symlinkSync(path.join(REPO, "skills", "archive"), path.join(ws, ".agents", "skills", "session-archive"), "junction");
+  quiet({ dryRun: true });
+  await applyWorkspace(REPO, ws, resolveSkills(REPO, ["archive"]));
+  assert.ok(fs.existsSync(old));
+  quiet();
+  await applyWorkspace(REPO, ws, resolveSkills(REPO, ["archive"]));
+  assert.equal(state.problems, 0);
+  assert.ok(!fs.existsSync(old));
+  assert.equal(read(ws, ".artifacts", "sessions", "2026-01-02-one.md"), "# one\n");
+  assert.ok(!fs.existsSync(path.join(ws, ".agents", "skills", "session-archive")));
+  assert.ok(fs.existsSync(path.join(ws, ".agents", "skills", "archive", "SKILL.md")));
+  quiet();
+  await applyWorkspace(REPO, ws, resolveSkills(REPO, ["archive"]));
+  assert.equal(state.counts.moved, undefined);
+  assert.equal(state.counts.updated, undefined);
 });
 
 test("applying twice changes nothing the second time", async (t) => {

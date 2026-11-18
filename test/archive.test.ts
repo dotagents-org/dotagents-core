@@ -1,4 +1,4 @@
-// The session-archive skill's script: run as a process against a temporary Claude Code data folder
+// The archive skill's script: run as a process against a temporary Claude Code data folder
 // (CLAUDE_CONFIG_DIR), so the real one is never touched, and imported the way dotagents uses it.
 
 import assert from "node:assert/strict";
@@ -7,11 +7,11 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { test, type TestContext } from "node:test";
-import { accountsText, parseTranscript, readRevisions, renderArchive, revise } from "../skills/session-archive/scripts/archive-session.ts";
+import { accountsText, parseTranscript, readRevisions, renderArchive, revise } from "../skills/archive/scripts/archive-session.ts";
 import { CONTEXT_HEAD, CONTEXT_TAIL } from "../core/revision.ts";
 import { REPO } from "./helpers.ts";
 
-const SCRIPT = path.join(REPO, "skills", "session-archive", "scripts", "archive-session.ts");
+const SCRIPT = path.join(REPO, "skills", "archive", "scripts", "archive-session.ts");
 const ID = "11111111-2222-3333-4444-555555555555";
 
 const user = (text: string, ts: string, extra = {}) => ({ type: "user", sessionId: ID, timestamp: ts, cwd: "/w", message: { role: "user", content: text }, ...extra });
@@ -98,15 +98,15 @@ test("run from a workspace's skill link, the script finds the session by id and 
   const ws = path.join(s.root, "ws");
   const skills = path.join(ws, ".agents", "skills");
   fs.mkdirSync(skills, { recursive: true });
-  fs.symlinkSync(path.join(REPO, "skills", "session-archive"), path.join(skills, "session-archive"), "junction");
-  const res = s.run(path.join(skills, "session-archive", "scripts", "archive-session.ts"), "--session-id", ID);
+  fs.symlinkSync(path.join(REPO, "skills", "archive"), path.join(skills, "archive"), "junction");
+  const res = s.run(path.join(skills, "archive", "scripts", "archive-session.ts"), "--session-id", ID);
   assert.equal(res.status, 0, res.stderr);
-  const out = path.join(ws, ".artifacts", "session-archives", `2026-01-02-${ID}.md`);
+  const out = path.join(ws, ".artifacts", "sessions", `2026-01-02-${ID}.md`);
   assert.match(res.stdout, /transcript written/);
   assert.ok(fs.readFileSync(out, "utf8").startsWith("# Fix the parser\n"));
 
   // Run again: the same file, overwritten.
-  assert.equal(s.run(path.join(skills, "session-archive", "scripts", "archive-session.ts"), "--session-id", ID).status, 0);
+  assert.equal(s.run(path.join(skills, "archive", "scripts", "archive-session.ts"), "--session-id", ID).status, 0);
   assert.deepEqual(fs.readdirSync(path.dirname(out)), [path.basename(out)]);
 });
 
@@ -125,13 +125,13 @@ test("without a session id, the newest transcript started inside the project roo
 
   fs.writeFileSync(s.transcript, fs.readFileSync(s.transcript, "utf8").replaceAll('"cwd":"/w"', `"cwd":${JSON.stringify(path.join(root, "sub"))}`));
   assert.equal(s.run(SCRIPT, "--project-root", root).status, 0);
-  assert.ok(fs.existsSync(path.join(root, ".artifacts", "session-archives", `2026-01-02-${ID}.md`)));
+  assert.ok(fs.existsSync(path.join(root, ".artifacts", "sessions", `2026-01-02-${ID}.md`)));
 });
 
 test("revised user messages replace the verbatim ones, are kept next to the archive and survive a rewrite", (t) => {
   const s = setup(t);
   const root = path.join(s.root, "proj");
-  const out = path.join(root, ".artifacts", "session-archives", `2026-01-02-${ID}.md`);
+  const out = path.join(root, ".artifacts", "sessions", `2026-01-02-${ID}.md`);
   const prompts = (args: string[] = []) => {
     const res = s.run(SCRIPT, "--session-id", ID, "--project-root", root, "--prompts", ...args);
     assert.equal(res.status, 0, res.stderr);
@@ -212,7 +212,7 @@ test("run as a command, the script names accounts from dotagents' vault and Clau
   fs.writeFileSync(path.join(s.claude, ".claude.json"), JSON.stringify({ oauthAccount: { accountUuid: B, emailAddress: "b@example.com" } }));
   const root = path.join(s.root, "proj");
   assert.equal(s.run(SCRIPT, "--transcript", s.transcript, "--project-root", root).status, 0);
-  const md = fs.readFileSync(path.join(root, ".artifacts", "session-archives", `2026-01-02-${ID}.md`), "utf8");
+  const md = fs.readFileSync(path.join(root, ".artifacts", "sessions", `2026-01-02-${ID}.md`), "utf8");
   assert.match(md, /\| \*\*Account\*\* \| work \(a@example\.com\); also used by b@example\.com \|/);
   assert.ok(!md.includes("never-read"));
 });

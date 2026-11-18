@@ -17,7 +17,7 @@ import { configRoot, mkdirFor } from "./common.ts";
 import { stateDir } from "./machine-state.ts";
 import { report } from "./output.ts";
 import { state } from "./state.ts";
-import { archiveFile, parseTranscript, readRevisions, revisionsFile } from "../skills/session-archive/scripts/archive-session.ts";
+import { archiveFile, parseTranscript, readRevisions, revisionsFile } from "../skills/archive/scripts/archive-session.ts";
 import type { Session } from "./sessions.ts";
 
 // How the revision reaches Claude, around the revised text. The session archive finds it by the
@@ -33,8 +33,8 @@ export const FALLBACK_MODEL = "claude-sonnet-5-5";
 const TIMEOUT_MS = 8_000;
 const DAY = 24 * 60 * 60 * 1000;
 
-// The rules, one copy for the hook and for the session-archive skill's own revision step.
-export const RULES = fs.readFileSync(fileURLToPath(new URL("../skills/session-archive/references/revision-rules.md", import.meta.url)), "utf8").trim();
+// The rules, one copy for the hook and for the archive skill's own revision step.
+export const RULES = fs.readFileSync(fileURLToPath(new URL("../skills/archive/references/revision-rules.md", import.meta.url)), "utf8").trim();
 
 const dir = () => path.join(stateDir(), "revision");
 export const keyFile = () => path.join(dir(), "api-key");
@@ -300,7 +300,7 @@ const skippable = (text: string) => text.startsWith("`/") || text.startsWith("[R
 export type Pending = { archive: string; messages: { id: string; text: string }[] };
 
 // The messages of a session still to revise, and where its revisions live; null outside a project
-// with .artifacts/session-archives/, which has nowhere to keep them.
+// with .artifacts/sessions/, which has nowhere to keep them.
 export function pendingMessages(s: Pick<Session, "file" | "root">): Pending | null {
   if (!s.root) return null;
   const t = parseTranscript(s.file);

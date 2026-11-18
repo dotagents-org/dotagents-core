@@ -25,7 +25,7 @@ dotagents <command> [options]
 | [`workspaces`](#dotagents-workspaces) | Lists the workspaces tracked on this machine. |
 | [`untrack <path>`](#dotagents-untrack) | Stops tracking a workspace. Its files are not touched. |
 | [`sessions [path] [--all] [--json]`](#dotagents-sessions) | Lists Claude Code's sessions on both sides of the machine: title, account, size, where they would be archived. |
-| [`sessions rm [ids…] [--all] [--yes] [--no-archive]`](#dotagents-sessions-rm) | Deletes sessions, archiving each first into its project's `.artifacts/session-archives/`; `--no-archive` skips the archive. A running one, once you confirm, is archived and its Claude Code closed first. |
+| [`sessions rm [ids…] [--all] [--yes] [--no-archive]`](#dotagents-sessions-rm) | Deletes sessions, archiving each first into its project's `.artifacts/sessions/`; `--no-archive` skips the archive. A running one, once you confirm, is archived and its Claude Code closed first. |
 | [`skills`](#dotagents-skills) | Lists the own skills and the registered third-party ones. |
 | [`skills add <source>`](#dotagents-skills-add) | Registers third-party skills in the catalog. |
 | [`skills remove <name>`](#dotagents-skills-remove) | Removes a third-party skill from the catalog. |
@@ -74,13 +74,13 @@ On every system `/config` writes to the local copy of `config/claude/settings.js
 Prompt revision is off until you turn it on. With it on, each message you send to Claude Code is proofread before Claude answers: spelling, accents, punctuation, capitalization, small grammar errors and chat abbreviations, by the rules of the language it is written in. It corrects without rewriting: nothing is rephrased, reordered, added or removed, and an unclear part is left as written. Code, commands, paths, URLs and pasted text are left alone, and so are slash commands.
 
 - The revised message shows in the chat, under yours, after Claude Code's `UserPromptSubmit says:`, and Claude gets it next to yours, told that yours wins where they differ in meaning and to ask when the request is vague. A message that needs no change shows nothing.
-- Claude Code records the revised message in the session's transcript, so the [`session-archive`](../skills/session-archive/SKILL.md) skill and [`sessions rm`](#dotagents-sessions-rm) archive it in place of yours, with no extra step.
+- Claude Code records the revised message in the session's transcript, so the [`archive`](../skills/archive/SKILL.md) skill and [`sessions rm`](#dotagents-sessions-rm) archive it in place of yours, with no extra step.
 - The revision runs on the newest Sonnet at low effort, to cost little. Your message reaches only Anthropic. By default it goes through the Claude account signed in to Claude Code, on its plan: a lean `claude -p` with no tools, no settings, no MCP and no saved session, about 3 seconds per message. With `--api` it goes through your own Anthropic API key instead, billed to the API, with the newest Sonnet in the API's model list, checked once a day. Sonnet, not the cheaper Haiku, because on a test set it got 11 of 14 messages right where Haiku got 3 of 12, and was no slower.
 - Past 8 seconds, or on any error, the message goes on as you wrote it: the hook never blocks it and never changes it.
 
 `revision on` adds the hook to your configuration's `claude/settings.json`: on Linux and macOS that file is `~/.claude/settings.json`, so it takes effect at once; on Windows, run [`install`](#dotagents-install) to copy it. `revision on --api` also asks for an API key the first time (from console.anthropic.com) and keeps it in `revision/api-key` in the [state folder](#environment-variables), readable only by you; it is never put in `ANTHROPIC_API_KEY`, which would make Claude Code itself bill the API. The choice between the account and the key is kept per side of the machine, in the same folder: run `revision on` or `revision on --api` on each side. `revision off` removes the hook and keeps the key. `revision` alone says whether it is on, and how, and what it cost: the revisions of the last 24 hours and since the start, their cost in dollars (as Claude Code reports it through the account, at API prices; from the price list through the API), split by the API key and the Claude account when both were used, and, for the revisions through the account, how far its 5-hour and 7-day usage went in the windows of the last one. A window that restarted is never compared with the one before: the log keeps when each window ends. Each revision is logged in `revision/log.jsonl` in the state folder with its tokens, its cost and that usage at the moment it ran; the usage comes from dotagents' live usage, so it is as fresh as [`start`](#dotagents-start) or `usage --refresh` keep it, and Anthropic reports it only as a whole-window percentage, so a single revision's share of it can't be told apart. `revision hook` is what the hook runs; Claude Code calls it.
 
-`revision fix` proofreads, after the fact, the messages of sessions that ran without the revision on, or from before it existed, and rewrites those sessions' archives with them. It takes the sessions started in the current folder, the ids given (the start of an id is enough), or with `--all` every project's, on both sides. For each it counts the messages still to revise and says how many in how many sessions, and what it will cost: about US$ 0.001 each through the API key, or the account's plan; then it asks, and `--yes` skips the question. It revises the way `revision on` set up, with the same rules and the same check that nothing in code, paths, links or numbers was lost, and keeps the revisions next to each archive (`<date>-<session-id>.revisions.json`), so `sessions rm` shows them too. Slash commands, pasted text and the interruption notice are left alone, and so are sessions outside a workspace with `.artifacts/session-archives/`, which has nowhere to keep them. A message the model left as it was is not asked for again; one that failed, or lost something it must keep, is left for the next run. A session never archived gets its archive written. `--dry-run` only counts.
+`revision fix` proofreads, after the fact, the messages of sessions that ran without the revision on, or from before it existed, and rewrites those sessions' archives with them. It takes the sessions started in the current folder, the ids given (the start of an id is enough), or with `--all` every project's, on both sides. For each it counts the messages still to revise and says how many in how many sessions, and what it will cost: about US$ 0.001 each through the API key, or the account's plan; then it asks, and `--yes` skips the question. It revises the way `revision on` set up, with the same rules and the same check that nothing in code, paths, links or numbers was lost, and keeps the revisions next to each archive (`<date>-<session-id>.revisions.json`), so `sessions rm` shows them too. Slash commands, pasted text and the interruption notice are left alone, and so are sessions outside a workspace with `.artifacts/sessions/`, which has nowhere to keep them. A message the model left as it was is not asked for again; one that failed, or lost something it must keep, is left for the next run. A session never archived gets its archive written. `--dry-run` only counts.
 
 ## dotagents doctor
 
@@ -378,7 +378,7 @@ Each session shows when it was last active, its id, its title (the one Claude Co
 - the account: the profile whose Claude account ran it, from the `session-owner` records Claude Code writes, and `(shared)` when more than one account did, which happens when a session continues after a `switch`. Older transcripts don't record it: `account unknown`;
 - its size;
 - with `--all`, the folder it started in;
-- where `sessions rm` would archive it: the nearest folder at or above where it started that has `.artifacts/session-archives/`, or `no .artifacts`;
+- where `sessions rm` would archive it: the nearest folder at or above where it started that has `.artifacts/sessions/`, or `no .artifacts`;
 - `running`: a session this side's Claude Code still runs (its `sessions/<pid>.json`, while the process lives), or one whose transcript changed in the last 10 minutes. The list doesn't ask the other side, which takes a few seconds, so there a session counts as running only by that time; `sessions rm` asks.
 
 `dotagents sessions --running` prints only the ids of the sessions this side's Claude Code runs, one per line. It is how `sessions rm` asks the other side.
@@ -397,13 +397,13 @@ Deletes sessions. Without ids, it lists the ones started in this folder (`--all`
 
 Then it asks what should happen to them:
 
-1. **Archive, then delete**, with how many go into which workspace and how many have no `.artifacts/session-archives/`; it isn't offered when none can be archived. The archive keeps the user messages a `session-archive` run revised (`<name>.revisions.json` next to it).
+1. **Archive, then delete**, with how many go into which workspace and how many have no `.artifacts/sessions/`; it isn't offered when none can be archived. The archive keeps the user messages an `archive` run revised (`<name>.revisions.json` next to it).
 2. **Delete without archiving.**
 3. **Cancel**, the default.
 
-With the first, when some sessions started outside a workspace with `.artifacts/session-archives/`, it asks once more: **they can't be archived first; delete them anyway?** No keeps them.
+With the first, when some sessions started outside a workspace with `.artifacts/sessions/`, it asks once more: **they can't be archived first; delete them anyway?** No keeps them.
 
-Then, for each session, it writes the archive when asked to (the same file the `session-archive` skill writes, with the account line) and deletes:
+Then, for each session, it writes the archive when asked to (the same file the `archive` skill writes, with the account line) and deletes:
 
 - the transcript, `projects/<slug>/<id>.jsonl`;
 - its folder beside it, with subagents and tool results;

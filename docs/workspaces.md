@@ -12,7 +12,7 @@ app-workspace/            the workspace's own git repository
 ├── .claude/              links to .agents/, plus settings.json
 ├── .artifacts/           documentation written by agents and people
 │   ├── INDEX.md          map of the project's documents
-│   ├── session-archives/ session transcripts
+│   ├── sessions/ session transcripts
 │   └── plans/            plans written before implementing
 ├── app/                  git clone: only the project's own files
 └── api/                  another repository of the same project, if any
@@ -45,7 +45,7 @@ In this order:
 | | `.claude/skills` | a link to `.agents/skills`, made before any installation |
 | `.claude/` | `rules` | a link to `.agents/rules`, when that folder exists |
 | | `settings.json` | adds `"plansDirectory": ".artifacts/plans"` and keeps the rest of the file; a different value already there is respected |
-| `.artifacts/` | `session-archives/`, `plans/` | the two fixed folders |
+| `.artifacts/` | `sessions/`, `plans/` | the two fixed folders |
 | | `INDEX.md` | the map of the documents, from `templates/workspace/`, only when missing |
 | Workspace memory | `.claude/settings.local.json` | adds `"autoMemoryDirectory"` pointing at `.artifacts/memory`, so every Claude profile shares one memory of the workspace; brought up to date when the workspace moved |
 | | `.artifacts/memory/` | the folder and its `MEMORY.md`, with the memory each profile on this side kept for the workspace copied in (never deleted there; a note that differs stays as the workspace has it) |
@@ -61,7 +61,7 @@ Nothing of yours is overwritten: a file or folder already in the way is reported
 | `.agents/` | no `.agents/.agents/` or `.agents/commands/`; every rule in `.agents/rules/` linked from `AGENTS.md` |
 | Skills | `.claude/skills` is a link to `.agents/skills`; every skill folder has a `SKILL.md` whose `name` matches the folder and that is under 500 lines; own skills are links, not copies, and not also in the lock; every skill in `skills-lock.json` is installed |
 | `.claude/` | `rules` is a link when it exists; `settings.json` sets `plansDirectory` |
-| `.artifacts/` | `INDEX.md`, `session-archives/` and `plans/` exist |
+| `.artifacts/` | `INDEX.md`, `sessions/` and `plans/` exist |
 | Workspace memory | `autoMemoryDirectory` points at `.artifacts/memory`, a real folder; `MEMORY.md` fits in what Claude Code loads (200 lines, 25 KB), every note is in it and every line has its note; warns about notes a profile still keeps outside, and about `blockReadsOutsideWorkingDirectories`, which would stop the shared memory from loading |
 
 ## The standards behind it
@@ -69,6 +69,6 @@ Nothing of yours is overwritten: a file or folder already in the way is reported
 The two standards describe how a workspace is organized and why. dotagents applies the parts that can be automated.
 
 - **[standards/agents.md](../standards/agents.md), the `.agents/` folder.** It is the single source of the workspace's agent configuration, and `.claude/` only links to it. It covers where each mechanism lives (context file, skills, rules, subagents, hooks, settings, MCP), why commands become skills, how to link folders on Windows, and the rule that keeps everything out of the projects' git. It is based on Galster et al., *Configuring agentic AI coding tools: an exploratory study* (AIware '26).
-- **[standards/artifacts.md](../standards/artifacts.md), the `.artifacts/` folder.** It holds the documentation agents and people write. Its structure is free and grows with the project. Only `INDEX.md`, `session-archives/` and `plans/` are fixed. It also keeps `AGENTS.md` small and lists every document in `.artifacts/INDEX.md`, because Claude Code doesn't read `.artifacts/` on its own: a document without a link doesn't exist for them.
+- **[standards/artifacts.md](../standards/artifacts.md), the `.artifacts/` folder.** It holds the documentation agents and people write. Its structure is free and grows with the project. Only `INDEX.md`, `sessions/` and `plans/` are fixed. It also keeps `AGENTS.md` small and lists every document in `.artifacts/INDEX.md`, because Claude Code doesn't read `.artifacts/` on its own: a document without a link doesn't exist for them.
 
 When an agent writes a plan before implementing, it goes to `.artifacts/plans/`. Claude Code does it by itself through `plansDirectory`.

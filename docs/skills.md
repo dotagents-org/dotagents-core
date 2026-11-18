@@ -17,7 +17,7 @@ Skills follow the [Agent Skills](https://agentskills.io/specification) format: a
 app-workspace/
 ├── skills-lock.json                      third-party only (npx skills)
 ├── .agents/skills/
-│   ├── session-archive → <clone>/skills/session-archive
+│   ├── archive → <clone>/skills/archive
 │   └── humanizer/                        installed by npx skills add
 └── .claude/skills → .agents/skills
 ```
@@ -55,7 +55,7 @@ A third-party skill that isn't in the catalog can still be installed by hand wit
 | [map-source-files](../skills/map-source-files/SKILL.md) | Builds a File / Location / Responsibility table of a repository's source files. |
 | [move-sessions](../skills/move-sessions/SKILL.md) | Makes past Claude Code conversations follow a project folder that moved, so Claude Code lists them again from the new folder. |
 | [obsidian-docs](../skills/obsidian-docs/SKILL.md) | Answers questions about Obsidian from the official help, the plugin and theme directory, and the forum. |
-| [session-archive](../skills/session-archive/SKILL.md) | Writes the transcript of a Claude Code session to `.artifacts/session-archives/`. |
+| [archive](../skills/archive/SKILL.md) | Writes the transcript of a Claude Code session to `.artifacts/sessions/`. |
 | [to-cards](../skills/to-cards/SKILL.md) | Turns loose text (a message, an email, meeting notes) into task cards. |
 
 `dotagents skills` lists them with the registered third-party ones.

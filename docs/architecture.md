@@ -4,7 +4,7 @@
 
 ```
 dotagents-core/
-├── skills/                    the skills dotagents itself uses: session-archive (its parser serves `sessions`), move-sessions
+├── skills/                    the skills dotagents itself uses: archive (its parser serves `sessions`), move-sessions
 ├── standards/                 the .agents/ and .artifacts/ standards
 ├── templates/workspace/       AGENTS.md and INDEX.md for new workspaces
 ├── templates/config/          a generic configuration: the tests and the CI run against it, and it is where a new one starts
@@ -82,7 +82,7 @@ flowchart TB
 | `core/desktop.ts` | `applyDesktop`, `removeDesktop`, `verifyDesktop`, `openDesktop`, `powershellShortcuts` | A Desktop app per profile on Windows, Claude Desktop or the ChatGPT app (`CLAUDE_DESKTOP`, `CHATGPT_DESKTOP`, named by each provider): data folder, `.vbs` launcher and Start menu shortcut. Shortcuts go through an adapter: PowerShell for real, a fake one in the tests. |
 | `core/taskbar.ts` | `taskbarWatcher`, `appIdFor`, `SHORTCUT_APP_ID_CS` | One taskbar button per profile: the PowerShell watcher (with its C#) that tags an instance's windows with the profile's AppUserModelID, icon and name, and the C# that writes that ID into a shortcut. |
 | `core/peer.ts` | `applyPeer(find)`, `findPeer`, `peerUp`, `runOnPeer`, `peerToolCheck` | Finds the other side of the machine (Windows from WSL, WSL from Windows) once, at install, and records it. Finding it runs a command there, so it goes through an adapter; the tests pass a fake one. |
-| `core/sessions.ts` | `listSessions({ dirs, under })`, `configDirs()`, `fromPeer(path, peer)`, `archiveRoot(dir)`, `archiveSession(session, labels)`, `deleteSession(session)`, `accountLabels()` | Claude Code's sessions in every config folder, this side's and the other side's: a quick summary of each transcript (title, accounts, last activity), the workspace its archive goes to, whether it still runs, the archive written with the `session-archive` skill's parser (imported, so the two write the same file), and the deletion of everything Claude Code keeps for a session. |
+| `core/sessions.ts` | `listSessions({ dirs, under })`, `configDirs()`, `fromPeer(path, peer)`, `archiveRoot(dir)`, `archiveSession(session, labels)`, `deleteSession(session)`, `accountLabels()` | Claude Code's sessions in every config folder, this side's and the other side's: a quick summary of each transcript (title, accounts, last activity), the workspace its archive goes to, whether it still runs, the archive written with the `archive` skill's parser (imported, so the two write the same file), and the deletion of everything Claude Code keeps for a session. |
 | `core/revision.ts` | `runHook`, `revise`, `reviseSession`, `enable`, `disable`, `isEnabled`, `readBackend`, `saveBackend` | Prompt revision (ADR 0006): the opt-in `UserPromptSubmit` hook that proofreads each message with Sonnet, through the signed-in account or an API key, and its log. |
 | `core/accounts/providers.ts` | `providers()`, `providerFor(profile)`, `providerById`, `activeProfiles`, `installProviders`, `verifyProviderConfigs`, the `Provider` type | The one shape of what differs between Claude and ChatGPT (slot, vault, sign-in, usage, checks), and the list of providers: a provider left out of it is off everywhere. Nothing outside `core/accounts/` imports a provider's own files, and nothing outside `providers/` branches on which provider a profile has; `test/boundaries.test.ts` checks both. |
 | `core/accounts/provider-labels.ts` | `LABELS` | What each provider is called in messages. A leaf: it imports no adapter. |
@@ -127,7 +127,7 @@ npm test                 # type check (tsc, strict) + unit tests (node:test)
 node cli.ts --help      # run without npm link
 ```
 
-**Unit tests** (`test/`) go through the modules' interfaces on real temporary folders: applying and verifying a workspace, idempotency, dry run, links versus copies, wrapping a repository, third-party skills through a fake installer (no network), git exclusion inside a real repository, the global install with a temporary home folder, and the `move-sessions` and `session-archive` scripts against a temporary Claude Code data folder. They run in a couple of seconds.
+**Unit tests** (`test/`) go through the modules' interfaces on real temporary folders: applying and verifying a workspace, idempotency, dry run, links versus copies, wrapping a repository, third-party skills through a fake installer (no network), git exclusion inside a real repository, the global install with a temporary home folder, and the `move-sessions` and `archive` scripts against a temporary Claude Code data folder. They run in a couple of seconds.
 
 **CI** runs on every push that touches the code:
 

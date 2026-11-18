@@ -9,7 +9,7 @@
 // and writes, in order, every user message and assistant reply plus a one-line entry per tool
 // call, to:
 //
-//   <project-root>/.artifacts/session-archives/<date>-<session-id>.md
+//   <project-root>/.artifacts/sessions/<date>-<session-id>.md
 //
 // The replies are verbatim. A user message is verbatim too, unless the agent running the skill
 // revised it (spelling, clarity): the revisions live next to the archive, in
@@ -314,7 +314,7 @@ export function renderArchive(s: ArchivedSession, labels: AccountLabels = new Ma
 
 // Where a session's archive goes inside a project.
 export const archiveFile = (projectRoot: string, s: ArchivedSession) =>
-  path.join(projectRoot, ".artifacts", "session-archives", `${(s.started ?? "").slice(0, 10)}-${s.sessionId}.md`);
+  path.join(projectRoot, ".artifacts", "sessions", `${(s.started ?? "").slice(0, 10)}-${s.sessionId}.md`);
 
 // The revised user messages of an archive ({ id: text }), kept next to it.
 export const revisionsFile = (archive: string) => archive.replace(/\.md$/, ".revisions.json");

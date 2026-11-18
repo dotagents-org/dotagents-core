@@ -142,9 +142,9 @@ test("DOTAGENTS_CONFIG points the configuration at a folder of your own", (t) =>
   fs.writeFileSync(path.join(mine, "skills", "third-party-skills.json"), JSON.stringify({ skills: [] }));
   withConfig(t, mine);
   // The skills dotagents brings come along; one of yours with the same name takes its place.
-  assert.deepEqual(listSkills(REPO).map((s) => s.name), ["mine-only", "move-sessions", "session-archive"]);
-  assert.equal(listSkills(REPO).find((s) => s.name === "session-archive")?.source, path.join(REPO, "skills", "session-archive"));
-  writeSkill(path.join(mine, "skills"), "session-archive", "My own take.");
-  assert.equal(listSkills(REPO).find((s) => s.name === "session-archive")?.source, path.join(mine, "skills", "session-archive"));
+  assert.deepEqual(listSkills(REPO).map((s) => s.name), ["archive", "mine-only", "move-sessions"]);
+  assert.equal(listSkills(REPO).find((s) => s.name === "archive")?.source, path.join(REPO, "skills", "archive"));
+  writeSkill(path.join(mine, "skills"), "archive", "My own take.");
+  assert.equal(listSkills(REPO).find((s) => s.name === "archive")?.source, path.join(mine, "skills", "archive"));
   assert.equal(catalogFile(REPO), path.join(mine, "skills", "third-party-skills.json"));
 });

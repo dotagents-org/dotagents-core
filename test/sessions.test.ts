@@ -1,5 +1,5 @@
 // The sessions module on temporary Claude Code config folders: listing on both sides, archiving
-// into a project's .artifacts/session-archives/, and deleting everything a session leaves.
+// into a project's .artifacts/sessions/, and deleting everything a session leaves.
 
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
@@ -25,7 +25,7 @@ function setup(t: TestContext) {
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));
   const here: ConfigDir = { side: "Here", dir: path.join(root, "claude") };
   const ws = path.join(root, "ws");
-  fs.mkdirSync(path.join(ws, ".artifacts", "session-archives"), { recursive: true });
+  fs.mkdirSync(path.join(ws, ".artifacts", "sessions"), { recursive: true });
   fs.mkdirSync(path.join(ws, "repo", "src"), { recursive: true });
   return { root, here, ws };
 }
@@ -62,7 +62,7 @@ test("a path from the other side is reached through /mnt from WSL and through th
   assert.equal(fromPeer("C:\\x", wsl, "win32"), null);
 });
 
-test("the archive root is the nearest folder with .artifacts/session-archives/, from any folder inside it", (t) => {
+test("the archive root is the nearest folder with .artifacts/sessions/, from any folder inside it", (t) => {
   const s = setup(t);
   assert.equal(archiveRoot(path.join(s.ws, "repo", "src")), s.ws);
   assert.equal(archiveRoot(s.ws), s.ws);
@@ -138,7 +138,7 @@ test("a session is archived into its project, then deleted with everything Claud
 
   const archived = archiveSession(one, new Map([[A, "work (a@example.com)"]]));
   assert.ok(archived.ok);
-  assert.equal(archived.file, path.join(s.ws, ".artifacts", "session-archives", "2026-01-02-one.md"));
+  assert.equal(archived.file, path.join(s.ws, ".artifacts", "sessions", "2026-01-02-one.md"));
   const md = fs.readFileSync(archived.file, "utf8");
   assert.match(md, /\| \*\*Account\*\* \| work \(a@example\.com\) \|/);
   assert.match(md, /Plan the release/);
@@ -165,7 +165,7 @@ test("a session outside a standard workspace, or whose archive can't be written,
   const out = archiveSession(byId.out);
   assert.equal(out.ok, false);
 
-  fs.mkdirSync(path.join(s.ws, ".artifacts", "session-archives", "2026-01-02-bad.md")); // a folder where the file goes
+  fs.mkdirSync(path.join(s.ws, ".artifacts", "sessions", "2026-01-02-bad.md")); // a folder where the file goes
   const bad = archiveSession(byId.bad);
   assert.equal(bad.ok, false);
   assert.ok(fs.existsSync(byId.bad.file), "archiving never deletes");
@@ -187,7 +187,7 @@ test("a running session is never deleted, and a dry run touches nothing", (t) =>
   assert.ok(deleteSession(byId.old));
   state.dryRun = false;
   for (const target of sessionFiles(byId.old)) assert.ok(fs.existsSync(target), `${target} is kept`);
-  assert.deepEqual(fs.readdirSync(path.join(s.ws, ".artifacts", "session-archives")), []);
+  assert.deepEqual(fs.readdirSync(path.join(s.ws, ".artifacts", "sessions")), []);
 });
 
 test("a running session, once confirmed, has its Claude Code ended and then its files deleted; a dry run ends nothing", (t) => {
@@ -270,7 +270,7 @@ test("sessions rm archives before deleting, and --no-archive deletes without arc
       encoding: "utf8",
       env: { ...process.env, HOME: home, USERPROFILE: home, DOTAGENTS_STATE_DIR: path.join(s.root, "state") },
     });
-  const archives = path.join(s.ws, ".artifacts", "session-archives");
+  const archives = path.join(s.ws, ".artifacts", "sessions");
 
   let res = rm("11111111", "--yes");
   assert.equal(res.status, 0, res.stderr + res.stdout);

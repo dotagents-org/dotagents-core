@@ -6,7 +6,7 @@ here ([`.agents/` standard](agents.md)), and neither do code, secrets or build o
 
 **The structure is free.** It grows with the project's needs: folders and documents appear
 when there is something to put in them, named after what they hold. The only fixed parts,
-for now, are `INDEX.md`, `session-archives/`, `plans/` and `memory/`.
+for now, are `INDEX.md`, `sessions/`, `plans/` and `memory/`.
 
 ---
 
@@ -34,7 +34,7 @@ repeat the logs, loaded whole in every session.
 ```
 .artifacts/
 ├── INDEX.md                        always exists: the map of the documents
-├── session-archives/               always exists: one transcript per session
+├── sessions/               always exists: one transcript per session
 │   ├── YYYY-MM-DD-<session-id>.md
 │   ├── YYYY-MM-DD-<origin>-<slug>.md
 │   └── YYYY-MM-DD-<...>/           session attachments
@@ -55,10 +55,10 @@ repeat the logs, loaded whole in every session.
 - Its links are relative to `.artifacts/`: `[AGENTS.md](../AGENTS.md)`,
   `[plans/](plans/)`.
 
-### `session-archives/`
+### `sessions/`
 
 - One transcript per session. A Claude Code session uses the session id and is produced by
-  the `session-archive` skill. A session from another origin (claude.ai, Claude Desktop)
+  the `archive` skill. A session from another origin (claude.ai, Claude Desktop)
   uses `<origin>-<slug>`, as in `2026-10-12-claude-ai-agent-orchestration.md`.
 - Attachments go in a folder with the same name as the `.md`, without the extension.
 - The user's messages are revised for spelling and clarity, with the same meaning, and the
@@ -130,7 +130,7 @@ These keep the documents useful to the agents. They are advice, not checks.
 In the recommended layout the workspace root is a git repository of its own (see the `.agents/`
 standard), so `.artifacts/` has a history: commit it like any repository, by hand or by asking the
 agent, with the global commit rule. dotagents never commits it, never adds a remote and never
-pushes. `session-archives/` and `memory/` are close to the sessions' own text: if you add a
+pushes. `sessions/` and `memory/` are close to the sessions' own text: if you add a
 remote, make it private.
 
 ---
@@ -141,7 +141,7 @@ remote, make it private.
 
 - [ ] In the recommended layout, the workspace root is a git repository of its own, and it tracks
       no file of the projects' repositories.
-- [ ] `.artifacts/INDEX.md`, `.artifacts/session-archives/` and `.artifacts/plans/` exist,
+- [ ] `.artifacts/INDEX.md`, `.artifacts/sessions/` and `.artifacts/plans/` exist,
       and there is no `INDEX.md` at the root.
 - [ ] `.claude/settings.json` sets `plansDirectory` to `.artifacts/plans`.
 - [ ] `.claude/settings.local.json` sets `autoMemoryDirectory` to `.artifacts/memory`, a real

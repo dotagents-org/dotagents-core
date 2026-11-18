@@ -9,7 +9,7 @@ import { test, type TestContext } from "node:test";
 import { type Client, FALLBACK_MODEL, keepsHardTokens, HOOK_COMMAND, currentModel, logFile, readLog, pendingMessages, reviseSession, windowSpan, type LogEntry, disable, enable, isEnabled, keyFile, readBackend, readKey, runHook, saveBackend, saveKey } from "../core/revision.ts";
 import type { Session } from "../core/sessions.ts";
 import { state } from "../core/state.ts";
-import { parseTranscript, readRevisions, renderArchive, revise as applyRevisions, revisionsFile } from "../skills/session-archive/scripts/archive-session.ts";
+import { parseTranscript, readRevisions, renderArchive, revise as applyRevisions, revisionsFile } from "../skills/archive/scripts/archive-session.ts";
 import { quiet, withConfig } from "./helpers.ts";
 
 function setup(t: TestContext) {
@@ -199,7 +199,7 @@ test("a window's span never crosses its restart: by its end when logged, else by
 test("a past session's messages are revised with the hook's rules, kept next to its archive, and a second run asks only for what was left", async (t) => {
   const { root } = setup(t);
   const project = path.join(root, "proj");
-  fs.mkdirSync(path.join(project, ".artifacts", "session-archives"), { recursive: true });
+  fs.mkdirSync(path.join(project, ".artifacts", "sessions"), { recursive: true });
   const file = path.join(root, "s.jsonl");
   const user = (text: string, uuid: string) => JSON.stringify({ type: "user", uuid, sessionId: "sid", timestamp: "2026-01-02T10:00:00.000Z", cwd: project, message: { role: "user", content: text } });
   fs.writeFileSync(file, [user("vc ve isso", "m1"), user("sim", "m2"), user("roda `npm test` ja", "m3"), user('<pasted_content id="x">log</pasted_content>', "m4"), user("falha esta", "m5"), user("ok", "m6")].join("\n") + "\n");

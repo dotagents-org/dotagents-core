@@ -5,5 +5,5 @@ One line per document, with what it is for. A document that isn't linked here or
 | Document | What it is for |
 |---|---|
 | [AGENTS.md](../AGENTS.md) | Instructions loaded in every session |
-| [session-archives/](session-archives/) | Session transcripts, one per file |
+| [sessions/](sessions/) | Session transcripts, one per file |
 | [plans/](plans/) | Plans written before implementing, one per file |

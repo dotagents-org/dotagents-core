@@ -1,5 +1,5 @@
 // Claude Code's sessions on both sides of the machine: list them, archive one into its project's
-// .artifacts/session-archives/ (the session-archive skill's parser, so the archive is the same
+// .artifacts/sessions/ (the archive skill's parser, so the archive is the same
 // file the skill writes), and delete one with everything Claude Code keeps for it. Every config
 // folder is read: this side's ~/.claude and the other side's (core/peer.ts), since a profile's
 // sessions live in the slot of the side that ran them.
@@ -14,7 +14,7 @@ import { execFile, spawnSync } from "node:child_process";
 import { logChange } from "./log.ts";
 import fs from "node:fs";
 import path from "node:path";
-import { type AccountLabels, archiveFile, parseTranscript, promptText, readRevisions, renderArchive, revise } from "../skills/session-archive/scripts/archive-session.ts";
+import { type AccountLabels, archiveFile, parseTranscript, promptText, readRevisions, renderArchive, revise } from "../skills/archive/scripts/archive-session.ts";
 import { type ProcessProbe, defaultConfigDir, runningProcess, signedIn } from "./claude-code.ts";
 import { isWindows } from "./common.ts";
 import { type Peer, claudeProfiles, loadMachine } from "./machine-state.ts";
@@ -73,7 +73,7 @@ export type Session = {
   mtime: number;
   accounts: string[];
   // The project folder its archive goes to: the nearest folder up from the working directory with
-  // .artifacts/session-archives/. Null outside a workspace that follows the standard.
+  // .artifacts/sessions/. Null outside a workspace that follows the standard.
   root: string | null;
   running: boolean;
   // The Claude Code process running it, on this side; null on the other side or with none.
@@ -83,12 +83,12 @@ export type Session = {
   checked: boolean;
 };
 
-// The nearest folder at or above dir with .artifacts/session-archives/.
+// The nearest folder at or above dir with .artifacts/sessions/.
 export function archiveRoot(dir: string | null) {
   if (!dir) return null;
   for (let at = path.resolve(dir); ; at = path.dirname(at)) {
     try {
-      if (fs.statSync(path.join(at, ".artifacts", "session-archives")).isDirectory()) return at;
+      if (fs.statSync(path.join(at, ".artifacts", "sessions")).isDirectory()) return at;
     } catch {
       // Not here.
     }
@@ -328,7 +328,7 @@ export function accountColors(): Map<string, string> {
 
 // Writes a session's archive into its project; the file, or why it couldn't. Honors --dry-run.
 export function archiveSession(s: Session, labels: AccountLabels = new Map()): { ok: true; file: string } | { ok: false; error: string } {
-  if (!s.root) return { ok: false, error: "no .artifacts/session-archives/ in its project" };
+  if (!s.root) return { ok: false, error: "no .artifacts/sessions/ in its project" };
   try {
     const session = parseTranscript(s.file);
     const file = archiveFile(s.root, session);

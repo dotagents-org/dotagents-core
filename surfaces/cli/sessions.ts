@@ -1,11 +1,11 @@
 // `sessions` lists Claude Code's sessions on both sides of the machine; `sessions rm` deletes the
-// ones picked, archiving each first into its project's .artifacts/session-archives/ when there is
+// ones picked, archiving each first into its project's .artifacts/sessions/ when there is
 // one. A session without that folder, or whose archive failed, is deleted only when the user says
 // so; --yes never deletes one whose archive failed. --no-archive deletes without archiving any.
 
 import path from "node:path";
 import * as p from "@clack/prompts";
-import type { AccountLabels } from "../../skills/session-archive/scripts/archive-session.ts";
+import type { AccountLabels } from "../../skills/archive/scripts/archive-session.ts";
 import { UsageError } from "../../core/common.ts";
 import { checkWarn, displayPath, fancy, finish, header, ink, interactive, line, report, section, tone } from "../../core/output.ts";
 import { RECENT_MS, type Session, accountColors, accountLabels, archiveSession, deleteSession, listSessions, peerRunning, runningIds } from "../../core/sessions.ts";
@@ -148,7 +148,7 @@ function archiveHint(doomed: Session[]) {
 
 async function chooseMode(doomed: Session[]): Promise<Mode> {
   const archivable = doomed.some((s) => s.root);
-  if (!archivable) line(muted(`  None of them can be archived: ${folders(doomed, (s) => s.localCwd ?? s.cwd)} has no .artifacts/session-archives/`));
+  if (!archivable) line(muted(`  None of them can be archived: ${folders(doomed, (s) => s.localCwd ?? s.cwd)} has no .artifacts/sessions/`));
   const mode = await p.select<Mode>({
     message: `What should happen to ${plural(doomed.length, "session")}?`,
     initialValue: "cancel",
@@ -248,7 +248,7 @@ export const sessionsRm: Command = {
       if (!archive) line(`  ${warn(`${plural(doomed.length, "session")} deleted without an archive (--no-archive)`)}`);
       else {
         line(`  ${plural(doomed.length - bare.length, "session")} archived, then deleted`);
-        if (bare.length) line(`  ${warn(`${plural(bare.length, "session")} deleted without an archive: ${folders(bare, (s) => s.localCwd ?? s.cwd)} has no .artifacts/session-archives/`)}`);
+        if (bare.length) line(`  ${warn(`${plural(bare.length, "session")} deleted without an archive: ${folders(bare, (s) => s.localCwd ?? s.cwd)} has no .artifacts/sessions/`)}`);
       }
     }
     if (ask_ && archive && bare.length && !(await ask(`${plural(bare.length, "session")} can't be archived first. Delete ${bare.length === 1 ? "it" : "them"} anyway?`, false))) {
@@ -271,7 +271,7 @@ export const sessionsRm: Command = {
           }
         }
       } else {
-        checkWarn(`${s.id.slice(0, 8)} not archived`, `${displayPath(s.localCwd ?? s.cwd ?? "?")} has no .artifacts/session-archives/`);
+        checkWarn(`${s.id.slice(0, 8)} not archived`, `${displayPath(s.localCwd ?? s.cwd ?? "?")} has no .artifacts/sessions/`);
       }
       deleteSession(s, { evenRunning: alsoRunning.includes(s) });
     }
