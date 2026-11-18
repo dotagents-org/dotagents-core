@@ -1,5 +1,5 @@
 // The layers: core/ holds the data and the actions and draws nothing; each folder under surfaces/
-// uses core/ and never another surface. cli.ts, at the root, is the only place that picks one.
+// uses core/ and never another surface. main.ts, at the root, is the only place that picks one.
 
 import assert from "node:assert/strict";
 import ts from "@typescript/typescript6"; // TypeScript 7 has no stable compiler API until 7.1
@@ -52,7 +52,7 @@ test("a surface never imports another surface", () => {
 // core/sessions.ts reads Claude Code's transcripts and sits under the spend, below providers.ts, so it reads
 // Claude's store directly: going through providers.ts would close a cycle.
 test("only core/accounts imports a provider's files", () => {
-  const wrong = [path.join(REPO, "cli.ts"), ...sources(path.join(REPO, "core")), ...sources(path.join(REPO, "surfaces"))].flatMap((f) => {
+  const wrong = [path.join(REPO, "cli.ts"), path.join(REPO, "main.ts"), ...sources(path.join(REPO, "core")), ...sources(path.join(REPO, "surfaces"))].flatMap((f) => {
     const rel = path.relative(REPO, f).split(path.sep).join("/");
     if (rel.startsWith("core/accounts/")) return [];
     return imports(f).filter((i) => i.startsWith("core/accounts/providers/") && !(rel === "core/sessions.ts" && i === "core/accounts/providers/claude-store.ts")).map((i) => `${rel} → ${i}`);
@@ -82,7 +82,7 @@ test("core has no runtime import cycles", () => {
 // IDs in state validation and Claude-only features are contracts, not account dispatch.
 test("account behavior is selected through provider adapters", () => {
   const wrong: string[] = [];
-  for (const file of [path.join(REPO, "cli.ts"), ...sources(path.join(REPO, "core")), ...sources(path.join(REPO, "surfaces"))]) {
+  for (const file of [path.join(REPO, "cli.ts"), path.join(REPO, "main.ts"), ...sources(path.join(REPO, "core")), ...sources(path.join(REPO, "surfaces"))]) {
     const rel = path.relative(REPO, file).split(path.sep).join("/");
     if (rel.startsWith("core/accounts/providers/") || rel === "core/accounts/providers.ts" || rel === "core/machine-state.ts") continue;
     const ast = ts.createSourceFile(file, fs.readFileSync(file, "utf8"), ts.ScriptTarget.Latest, true);
