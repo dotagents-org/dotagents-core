@@ -5,7 +5,8 @@ import { execFileSync } from "node:child_process";
 import os from "node:os";
 import path from "node:path";
 import { test } from "node:test";
-import { capture, captureAsync, checkItem, checkWarn, finish, flushSection, line, plainRenderer, report, section, setRenderer, terminalRenderer } from "../core/output.ts";
+import { capture, captureAsync, checkItem, checkWarn, finish, flushSection, line, plainRenderer, report, section, setRenderer, setStepDrawer, terminalRenderer } from "../core/output.ts";
+import { runWithSpinner } from "../core/common.ts";
 import { state } from "../core/state.ts";
 import { quiet } from "./helpers.ts";
 
@@ -112,3 +113,23 @@ for (const [name, renderer] of [["terminal", terminalRenderer], ["plain", plainR
     assert.match(out, /Before a spinner/);
   });
 }
+
+// The core only says when a slow step starts and ends; the command line draws the spinner.
+test("a slow step goes to the step drawer, under the terminal renderer only", async (t) => {
+  quiet();
+  const steps: string[] = [];
+  setStepDrawer(async (message) => {
+    steps.push(`start ${message}`);
+    return { done: (ok) => steps.push(`done ${message} ${ok}`) };
+  });
+  t.after(() => {
+    setStepDrawer(null);
+    quiet();
+  });
+  setRenderer(terminalRenderer);
+  assert.equal((await runWithSpinner("Passing", process.execPath, ["-e", "console.log('last line')"])).last, "last line");
+  assert.equal((await runWithSpinner("Failing", process.execPath, ["-e", "process.exit(3)"])).code, 3);
+  setRenderer(plainRenderer);
+  await runWithSpinner("Plain", process.execPath, ["-e", ""]);
+  assert.deepEqual(steps, ["start Passing", "done Passing true", "start Failing", "done Failing false"]);
+});

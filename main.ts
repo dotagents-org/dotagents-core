@@ -32,13 +32,15 @@ import { ASK_EVERY_MS, providerFor } from "./core/accounts/providers.ts";
 import { refreshUsage } from "./core/accounts/usage-refresh.ts";
 import { untrack, workspaces } from "./surfaces/cli/workspaces.ts";
 import { UsageError, parseArgs } from "./core/common.ts";
-import { brand, captureAsync, displayPath, fancy, tone } from "./core/output.ts";
+import { brand, captureAsync, displayPath, fancy, setStepDrawer, tone } from "./core/output.ts";
+import { spinnerStep } from "./surfaces/cli/prompts.ts";
 import { state } from "./core/state.ts";
 import { log, logChange } from "./core/log.ts";
 
 // The local API the dotagents sidebar reads its accounts from. Defined here, at the root, because it
 // joins two surfaces: the command line starts it, surfaces/web/ serves it.
 const repo = path.dirname(fileURLToPath(import.meta.url));
+if (fancy) setStepDrawer(spinnerStep);
 const version = JSON.parse(fs.readFileSync(path.join(repo, "package.json"), "utf8")).version;
 const { bold, muted, high } = tone;
 

@@ -266,5 +266,19 @@ export async function captureAsync(fn: () => Promise<void>, options: CaptureOpti
   return events;
 }
 
-// The terminal spinner draws over the screen, so it only turns under the terminal renderer.
-export const spinnerAllowed = () => renderer === terminalRenderer;
+// A step that takes a while (a clone, an install). The core only says when it starts and ends; the
+// command line registers a drawer, the spinner. It draws over the screen, so it only turns under
+// the terminal renderer.
+export type Step = { done(ok: boolean): void };
+export type StepDrawer = (message: string) => Promise<Step>;
+let drawStep: StepDrawer | null = null;
+
+export function setStepDrawer(next: StepDrawer | null) {
+  drawStep = next;
+}
+
+export async function startStep(message: string): Promise<Step | null> {
+  if (!drawStep || renderer !== terminalRenderer) return null;
+  flushSection();
+  return drawStep(message);
+}
