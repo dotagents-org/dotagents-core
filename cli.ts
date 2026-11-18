@@ -6,5 +6,7 @@
 
 import module from "node:module";
 
-if (!process.argv.includes("--dry-run")) module.enableCompileCache();
+// --dry-run or --dry-run=<anything>, as parseArgs (core/common.ts) reads it
+const dryRun = process.argv.some((arg) => arg === "--dry-run" || arg.startsWith("--dry-run="));
+if (!dryRun) module.enableCompileCache();
 await import("./main.ts");

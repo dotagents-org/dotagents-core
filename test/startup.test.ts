@@ -49,11 +49,13 @@ test("cli.ts is executable", { skip: process.platform === "win32" }, () => {
 });
 
 // The compile cache lives in the temporary folder; a dry run writes nothing, not even there.
-test("--dry-run leaves the compile cache off", () => {
-  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "dotagents-cache-"));
-  const env: NodeJS.ProcessEnv = { ...process.env, TMPDIR: tmp, TEMP: tmp, TMP: tmp };
-  delete env.NODE_COMPILE_CACHE;
-  const res = spawnSync(process.execPath, [path.join(REPO, "cli.ts"), "--help", "--dry-run"], { encoding: "utf8", env });
-  assert.equal(res.status, 0, res.stderr);
-  assert.deepEqual(fs.readdirSync(tmp), []);
+test("--dry-run leaves the compile cache off, in either form the parser takes", () => {
+  for (const flag of ["--dry-run", "--dry-run=true"]) {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "dotagents-cache-"));
+    const env: NodeJS.ProcessEnv = { ...process.env, TMPDIR: tmp, TEMP: tmp, TMP: tmp };
+    delete env.NODE_COMPILE_CACHE;
+    const res = spawnSync(process.execPath, [path.join(REPO, "cli.ts"), "--help", flag], { encoding: "utf8", env });
+    assert.equal(res.status, 0, res.stderr);
+    assert.deepEqual(fs.readdirSync(tmp), [], flag);
+  }
 });
