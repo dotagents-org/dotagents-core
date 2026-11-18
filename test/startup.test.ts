@@ -42,3 +42,18 @@ test("the revision hook loads the Anthropic SDK only to call the API", (t) => {
   const res = run(t, ["revision", "hook"], ["@anthropic-ai/sdk"], JSON.stringify({ prompt: "/clear" }));
   assert.equal(res.stdout, "");
 });
+
+// npm link points the dotagents command at cli.ts itself, so on Linux and macOS it must stay executable.
+test("cli.ts is executable", { skip: process.platform === "win32" }, () => {
+  assert.ok(fs.statSync(path.join(REPO, "cli.ts")).mode & 0o111);
+});
+
+// The compile cache lives in the temporary folder; a dry run writes nothing, not even there.
+test("--dry-run leaves the compile cache off", () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "dotagents-cache-"));
+  const env: NodeJS.ProcessEnv = { ...process.env, TMPDIR: tmp, TEMP: tmp, TMP: tmp };
+  delete env.NODE_COMPILE_CACHE;
+  const res = spawnSync(process.execPath, [path.join(REPO, "cli.ts"), "--help", "--dry-run"], { encoding: "utf8", env });
+  assert.equal(res.status, 0, res.stderr);
+  assert.deepEqual(fs.readdirSync(tmp), []);
+});
