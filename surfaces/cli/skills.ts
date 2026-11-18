@@ -2,13 +2,13 @@
 // third-party catalog.
 
 import path from "node:path";
-import * as p from "@clack/prompts";
 import { configRoot } from "../../core/common.ts";
 import { brand, displayPath, fancy, finish, header, interactive, line, report, section, tone } from "../../core/output.ts";
 import { listSkills } from "../../core/skills.ts";
 import { state } from "../../core/state.ts";
 import { SAFE_NAME, SAFE_SOURCE, catalogFile, discoverSkills, loadCatalog, saveCatalog } from "../../core/thirdparty.ts";
 import { type Command, fitHint, wrap } from "./shared.ts";
+import { loadPrompts } from "./prompts.ts";
 
 const { bold, muted } = tone;
 
@@ -86,6 +86,7 @@ export const skillsAdd: Command = {
       if (!interactive || args.yes) {
         throw new Error(`${source} has ${found.length} skills (${found.map((s) => s.name).join(", ")}). Pick with --skills a,b, or take them all with --all`);
       }
+      const p = await loadPrompts();
       const picked = await p.multiselect({
         message: `Which skills from ${bold(source)} should be registered?`,
         options: found.map((s) => ({ value: s.name, label: s.name, hint: fitHint(s.description, s.name) })),

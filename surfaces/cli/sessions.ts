@@ -4,13 +4,13 @@
 // so; --yes never deletes one whose archive failed. --no-archive deletes without archiving any.
 
 import path from "node:path";
-import * as p from "@clack/prompts";
 import type { AccountLabels } from "../../skills/session-archive/scripts/archive-session.ts";
 import { UsageError } from "../../core/common.ts";
 import { checkWarn, displayPath, fancy, finish, header, ink, interactive, line, report, section, tone } from "../../core/output.ts";
 import { RECENT_MS, type Session, accountColors, accountLabels, archiveSession, deleteSession, listSessions, peerRunning, runningIds } from "../../core/sessions.ts";
 import { state } from "../../core/state.ts";
 import { plural, type Command, type Context, fitHint, workspaceArg } from "./shared.ts";
+import { loadPrompts } from "./prompts.ts";
 
 const { bold, muted, warn } = tone;
 
@@ -125,6 +125,7 @@ export function byIds(ids: string[], all: Session[]) {
 }
 
 async function ask(message: string, initialValue: boolean) {
+  const p = await loadPrompts();
   const answer = await p.confirm({ message, initialValue });
   if (p.isCancel(answer)) {
     p.cancel("Nothing was deleted.");
@@ -149,6 +150,7 @@ function archiveHint(doomed: Session[]) {
 async function chooseMode(doomed: Session[]): Promise<Mode> {
   const archivable = doomed.some((s) => s.root);
   if (!archivable) line(muted(`  None of them can be archived: ${folders(doomed, (s) => s.localCwd ?? s.cwd)} has no .artifacts/session-archives/`));
+  const p = await loadPrompts();
   const mode = await p.select<Mode>({
     message: `What should happen to ${plural(doomed.length, "session")}?`,
     initialValue: "cancel",
@@ -192,6 +194,7 @@ export const sessionsRm: Command = {
       }
       // Searched by everything a row shows: title, folder, side, account, archive folder.
       const searchable = new Map(free.map((s) => [s.id, `${when(s)} ${s.title} ${details(s, labels, true)}`.toLowerCase()]));
+      const p = await loadPrompts();
       const picked = await p.autocompleteMultiselect({
         message: "Which sessions should be deleted?",
         placeholder: "Type to search: title, folder, side, account",
@@ -232,7 +235,7 @@ export const sessionsRm: Command = {
     // --no-archive and --yes answer for the user; --dry-run shows the archiving way.
     const mode: Mode = args["no-archive"] ? "bare" : ask_ ? await chooseMode(doomed) : "archive";
     if (mode === "cancel") {
-      p.cancel("Nothing was deleted.");
+      (await loadPrompts()).cancel("Nothing was deleted.");
       return;
     }
     const archive = mode === "archive";

@@ -30,8 +30,12 @@ function run(t: { name: string }, args: string[], blocked: string[], input = "")
   return res;
 }
 
-test("--help doesn't load the Anthropic SDK", (t) => {
-  run(t, ["--help"], ["@anthropic-ai/sdk"]);
+test("--help loads neither the Anthropic SDK nor the prompts", (t) => {
+  run(t, ["--help"], ["@anthropic-ai/sdk", "@clack/prompts"]);
+});
+
+test("a command that asks nothing doesn't load the prompts", (t) => {
+  run(t, ["usage", "--json"], ["@clack/prompts"]);
 });
 
 test("the revision hook loads the Anthropic SDK only to call the API", (t) => {

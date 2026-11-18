@@ -3,13 +3,13 @@
 // account, or with --api through the user's API key.
 
 import path from "node:path";
-import * as p from "@clack/prompts";
 import { type LogEntry, type Pending, pendingMessages, reviseSession, windowSpan, disable, enable, isEnabled, keyFile, logFile, readBackend, readKey, readLog, runHook, saveBackend, saveKey } from "../../core/revision.ts";
 import { displayPath, finish, header, interactive, tone } from "../../core/output.ts";
 import { type Session, accountLabels, archiveSession, listSessions } from "../../core/sessions.ts";
 import { state } from "../../core/state.ts";
 import { byIds } from "./sessions.ts";
 import type { Command } from "./shared.ts";
+import { loadPrompts } from "./prompts.ts";
 
 const { bold, muted } = tone;
 const AFTER = "On Linux it takes effect at once; on Windows, run dotagents install to copy the settings.";
@@ -65,6 +65,7 @@ export const revisionOn: Command = {
     header("revision on", args.api ? "API key" : "Claude account");
     if (args.api && !readKey() && !state.dryRun) {
       if (!interactive) throw new Error("There is no API key yet: run dotagents revision on --api in a terminal, which asks for it");
+      const p = await loadPrompts();
       const key = await p.password({ message: "Anthropic API key (console.anthropic.com), kept only on this machine", validate: (v) => (v?.trim().startsWith("sk-ant-") ? undefined : "An API key starts with sk-ant-") });
       if (p.isCancel(key)) throw new Error("Cancelled");
       saveKey(key);
@@ -114,6 +115,7 @@ export const revisionFix: Command = {
     if (state.dryRun) return finish("Nothing was called or written.");
     if (!args.yes) {
       if (!interactive) throw new Error("Pass --yes to revise without asking");
+      const p = await loadPrompts();
       const ok = await p.confirm({ message: "Revise them and rewrite those sessions' archives?", initialValue: false });
       if (p.isCancel(ok) || !ok) return finish("Nothing was revised.");
     }

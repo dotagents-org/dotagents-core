@@ -1,13 +1,14 @@
 import { spawn, spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
-import * as p from "@clack/prompts";
+import type * as Clack from "@clack/prompts";
 import { gitRepoOf, isRepoRoot } from "../../core/git.ts";
 import { brand, displayPath, fancy, finish, header, interactive, line, tone } from "../../core/output.ts";
 import { registerWorkspace, untrackWorkspace } from "../../core/machine-state.ts";
 import { addedByCalls, listSkills, resolveSkills, skillsIn } from "../../core/skills.ts";
 import { state } from "../../core/state.ts";
 import { applyWorkspace, assertWorkspace, wrapRepository } from "../../core/workspace.ts";
+import { loadPrompts } from "./prompts.ts";
 import { plural, type Command, type Context, expandHome, fitHint, workspaceArg } from "./shared.ts";
 
 const { bold, muted: dim } = tone;
@@ -74,11 +75,12 @@ async function afterWrap(ctx: Context, ws: string) {
   say("Past agent sessions are listed under the old path: the move-sessions skill brings them along.");
   const code = spawnSync("code", ["--version"], { stdio: "ignore", shell: process.platform === "win32" }).status === 0;
   if (!interactive || ctx.args.yes || !code) return;
-  const open = await p.confirm({ message: `Open ${bold(displayPath(ws))} in VS Code?` });
+  const open = await (await loadPrompts()).confirm({ message: `Open ${bold(displayPath(ws))} in VS Code?` });
   if (open === true) spawn("code", [ws], { detached: true, stdio: "ignore", shell: process.platform === "win32" }).unref();
 }
 
-export async function askInit(ctx: Context, defaultWs: string, { opened = false } = {}, prompts: typeof p = p) {
+export async function askInit(ctx: Context, defaultWs: string, { opened = false } = {}, fake?: typeof Clack) {
+  const prompts = fake ?? (await loadPrompts());
   const { repo } = ctx;
   const exit = <T,>(value: T): Exclude<T, symbol> => {
     if (prompts.isCancel(value)) {

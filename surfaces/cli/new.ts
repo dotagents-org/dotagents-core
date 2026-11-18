@@ -1,12 +1,12 @@
 import fs from "node:fs";
 import path from "node:path";
-import * as p from "@clack/prompts";
 import { runWithSpinner } from "../../core/common.ts";
 import { brand, displayPath, finish, header, interactive, report, section, tone } from "../../core/output.ts";
 import { state } from "../../core/state.ts";
 import { assertWorkspace, isWorkspaceRepo, listRepoInAgentsMd } from "../../core/workspace.ts";
 import { initWorkspace } from "./init.ts";
 import { type Command, expandHome } from "./shared.ts";
+import { loadPrompts } from "./prompts.ts";
 
 const { bold } = tone;
 
@@ -36,6 +36,7 @@ export const newWorkspace: Command = {
     let folder = ctx.positional[1];
     const asked = folder === undefined && interactive && !args.yes;
     if (asked) {
+      const p = await loadPrompts();
       p.intro(`${brand()}  ${bold("new")}`);
       const answer = await p.text({
         message: "Workspace folder name?",

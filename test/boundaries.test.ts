@@ -16,7 +16,7 @@ function sources(dir: string): string[] {
 }
 
 // Parse source so comments, strings and type-only imports cannot invent dependencies.
-function imports(file: string, runtime = false) {
+function imports(file: string, runtime = false, packages = false) {
   const source = fs.readFileSync(file, "utf8");
   const text = runtime ? ts.transpileModule(source, {
     compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ESNext, verbatimModuleSyntax: true },
@@ -29,6 +29,7 @@ function imports(file: string, runtime = false) {
     ts.forEachChild(node, visit);
   };
   visit(ast);
+  if (packages) return specs.filter((spec) => !spec.startsWith(".") && !spec.startsWith("node:"));
   return specs.filter((spec) => spec.startsWith(".")).map((spec) => path.relative(REPO, path.resolve(path.dirname(file), spec)).split(path.sep).join("/"));
 }
 
@@ -45,6 +46,11 @@ test("a surface never imports another surface", () => {
     const own = surfaceOf(path.relative(REPO, f).split(path.sep).join("/"));
     return imports(f).filter((i) => surfaceOf(i) && surfaceOf(i) !== own).map((i) => `${path.relative(REPO, f)} → ${i}`);
   });
+  assert.deepEqual(wrong, []);
+});
+
+test("core never imports the prompts, which only the command line draws", () => {
+  const wrong = sources(path.join(REPO, "core")).flatMap((f) => imports(f, false, true).filter((i) => i.startsWith("@clack/")).map((i) => `${path.relative(REPO, f)} → ${i}`));
   assert.deepEqual(wrong, []);
 });
 

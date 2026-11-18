@@ -8,7 +8,6 @@
 
 import os from "node:os";
 import path from "node:path";
-import { updateSettings } from "@clack/prompts";
 import { state } from "./state.ts";
 import { SYMBOLS, backgroundOf, badge, colorLevel, painter } from "./theme.ts";
 
@@ -26,9 +25,6 @@ export const ink = painter(level, backgroundOf());
 export const paint = (hex: string) => ink.profile(hex);
 export const tone = { bold: ink.bold, muted: ink.role("muted"), ok: ink.role("ok"), warn: ink.role("warn"), high: ink.role("high") };
 export const brand = () => badge(level);
-
-// The prompts (@clack/prompts) without their rail, like the rest of the output.
-updateSettings({ withGuide: false });
 
 // A section's title waits for its first line, so a section with nothing to say prints nothing.
 let pendingSection: (() => void) | null = null;
