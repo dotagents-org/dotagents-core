@@ -2,7 +2,7 @@
 // uses core/ and never another surface. cli.ts, at the root, is the only place that picks one.
 
 import assert from "node:assert/strict";
-import ts from "typescript";
+import ts from "@typescript/typescript6"; // TypeScript 7 has no stable compiler API until 7.1
 import fs from "node:fs";
 import path from "node:path";
 import { test } from "node:test";
