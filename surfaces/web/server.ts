@@ -6,7 +6,7 @@
 
 import { randomBytes, timingSafeEqual } from "node:crypto";
 import http from "node:http";
-import { logChange } from "../../core/log.ts";
+import { logChange } from "../../core/machine/log.ts";
 const KEEPALIVE_MS = 15_000;
 
 export type ServerOptions = {

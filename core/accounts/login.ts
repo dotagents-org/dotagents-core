@@ -5,8 +5,8 @@
 // back after; Codex in a temporary folder of its own, never ~/.codex. --all is Claude's for now.
 
 import { saveToVault, putInSlot, switchHere } from "./switch.ts";
-import { type Profile, loadProfiles, sideName } from "../machine-state.ts";
-import { report, section } from "../output.ts";
+import { type Profile, loadProfiles, sideName } from "../machine/machine-state.ts";
+import { report, section } from "../output/output.ts";
 import { type Login, type Provider, type SignInContext, type SignInOptions, providerFor, providers } from "./providers.ts";
 
 export type LoginOptions = SignInOptions & { name?: string; all?: boolean };

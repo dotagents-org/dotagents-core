@@ -9,7 +9,7 @@
   },
   "scripts": {
     "typecheck": "tsc",
-    "test": "tsc && node --test \"test/*.test.ts\"",
+    "test": "tsc && node --test \"test/**/*.test.ts\"",
     "media": "node scripts/media.ts"
   },
   "engines": {

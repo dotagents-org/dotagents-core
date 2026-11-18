@@ -3,7 +3,7 @@
 
 import fs from "node:fs";
 import path from "node:path";
-import { stateDir } from "../machine-state.ts";
+import { stateDir } from "../machine/machine-state.ts";
 import { state } from "../state.ts";
 
 export const vaultDir = (name: string) => path.join(stateDir(), "vault", name);

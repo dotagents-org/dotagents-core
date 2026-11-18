@@ -4,16 +4,16 @@
 // chosen one in and checks it. Always manual. Credentials are copied whole and never printed. The
 // steps here are the ones the common coordination (core/accounts/switch.ts, login.ts) calls.
 
-import { CLAUDE_DESKTOP } from "../../desktop.ts";
-import { installGlobal } from "../../global.ts";
+import { CLAUDE_DESKTOP } from "../../machine/desktop.ts";
+import { installGlobal } from "../../machine/global.ts";
 import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { CREDENTIAL_VARIABLES, defaultConfigDir, stateFile } from "../../claude-code.ts";
 import { samePath } from "../../common.ts";
 import { LABELS } from "../provider-labels.ts";
-import { type Peer, peerStateDir, claudeProfiles, loadMachine, sideName } from "../../machine-state.ts";
-import { checkItem, checkWarn, displayPath, report, section } from "../../output.ts";
+import { type Peer, peerStateDir, claudeProfiles, loadMachine, sideName } from "../../machine/machine-state.ts";
+import { checkItem, checkWarn, displayPath, report, section } from "../../output/output.ts";
 import type { Provider } from "../providers.ts";
 import { readClaudeSlots, readClaudeUsage } from "./claude-snapshot.ts";
 import { askClaude, sideProfiles } from "./claude-usage.ts";

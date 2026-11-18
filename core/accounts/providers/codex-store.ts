@@ -7,7 +7,7 @@ import { hashMark } from "../usage-record.ts";
 import fs from "node:fs";
 import path from "node:path";
 import type { Login } from "../providers.ts";
-import { type Profile, loadProfiles, providerOf } from "../../machine-state.ts";
+import { type Profile, loadProfiles, providerOf } from "../../machine/machine-state.ts";
 import { vaultDir } from "../vault.ts";
 import { codexHome } from "./codex-config.ts";
 

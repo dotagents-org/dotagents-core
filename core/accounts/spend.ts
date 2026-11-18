@@ -12,9 +12,9 @@
 
 import fs from "node:fs";
 import path from "node:path";
-import { stateDir } from "../machine-state.ts";
+import { stateDir } from "../machine/machine-state.ts";
 import { costOf, type Tokens } from "./prices.ts";
-import { configDirs, type ConfigDir } from "../sessions.ts";
+import { configDirs, type ConfigDir } from "../sessions/sessions.ts";
 import type { UsageWindow } from "./usage.ts";
 
 export type Point = { at: string; session: number | null; week: number | null; sessionResetsAt: string | null; weekResetsAt: string | null };

@@ -6,9 +6,9 @@
 // never printed.
 
 import { spawnSync } from "node:child_process";
-import { log } from "../log.ts";
-import { type Profile, loadMachine, loadProfiles, sideName } from "../machine-state.ts";
-import { checkWarn, report, section } from "../output.ts";
+import { log } from "../machine/log.ts";
+import { type Profile, loadMachine, loadProfiles, sideName } from "../machine/machine-state.ts";
+import { checkWarn, report, section } from "../output/output.ts";
 import { type Login, type Provider, type SwitchContext, type SwitchOptions, providerFor, providers } from "./providers.ts";
 import { state } from "../state.ts";
 import { vaultDir, withLoginLock } from "./vault.ts";

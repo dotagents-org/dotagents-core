@@ -1,41 +1,41 @@
 // `dotagents`, loaded by cli.ts: reads the arguments, picks the command and prints the help. Each
-// command lives in surfaces/cli/<name>.ts, and uses the modules in core/. Works on Windows, Linux
+// command lives in surfaces/cli/<group>/<name>.ts, and uses the modules in core/. Works on Windows, Linux
 // and macOS with Node 24+, which runs this TypeScript directly (type stripping, no build); the
-// prompts are @clack/prompts and the colors core/theme.ts.
+// prompts are @clack/prompts and the colors core/output/theme.ts.
 
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { profileAdd, profileList, profileRemove } from "./surfaces/cli/profile.ts";
-import { check } from "./surfaces/cli/check.ts";
-import { init } from "./surfaces/cli/init.ts";
-import { install } from "./surfaces/cli/install.ts";
-import { newWorkspace } from "./surfaces/cli/new.ts";
+import { profileAdd, profileList, profileRemove } from "./surfaces/cli/accounts/profile.ts";
+import { check } from "./surfaces/cli/workspace/check.ts";
+import { init } from "./surfaces/cli/workspace/init.ts";
+import { install } from "./surfaces/cli/machine/install.ts";
+import { newWorkspace } from "./surfaces/cli/workspace/new.ts";
 import type { CliArgs, Command } from "./surfaces/cli/shared.ts";
-import { sessions, sessionsRm } from "./surfaces/cli/sessions.ts";
-import { revision, revisionFix, revisionHook, revisionOff, revisionOn } from "./surfaces/cli/revision.ts";
-import { settingsPull } from "./surfaces/cli/settings.ts";
-import { switchCommand } from "./surfaces/cli/switch.ts";
-import { login } from "./surfaces/cli/login.ts";
-import { skills, skillsAdd, skillsRemove } from "./surfaces/cli/skills.ts";
-import { update } from "./surfaces/cli/update.ts";
-import { usage } from "./surfaces/cli/usage.ts";
-import { logs } from "./surfaces/cli/logs.ts";
-import { doctor } from "./surfaces/cli/doctor.ts";
+import { sessions, sessionsRm } from "./surfaces/cli/workspace/sessions.ts";
+import { revision, revisionFix, revisionHook, revisionOff, revisionOn } from "./surfaces/cli/machine/revision.ts";
+import { settingsPull } from "./surfaces/cli/machine/settings.ts";
+import { switchCommand } from "./surfaces/cli/accounts/switch.ts";
+import { login } from "./surfaces/cli/accounts/login.ts";
+import { skills, skillsAdd, skillsRemove } from "./surfaces/cli/workspace/skills.ts";
+import { update } from "./surfaces/cli/machine/update.ts";
+import { usage } from "./surfaces/cli/accounts/usage.ts";
+import { logs } from "./surfaces/cli/machine/logs.ts";
+import { doctor } from "./surfaces/cli/machine/doctor.ts";
 import { startServer, type Action } from "./surfaces/web/server.ts";
 import { startAnswer, watchPeer } from "./core/accounts/snapshot.ts";
-import { openDesktop } from "./core/desktop.ts";
-import { forgetServer, liveServer, loadMachine, loadProfiles, recordServer, sideName, type Profile } from "./core/machine-state.ts";
+import { openDesktop } from "./core/machine/desktop.ts";
+import { forgetServer, liveServer, loadMachine, loadProfiles, recordServer, sideName, type Profile } from "./core/machine/machine-state.ts";
 import { launcherDir } from "./core/accounts/profiles.ts";
 import { peerSwitch, switchProfile } from "./core/accounts/switch.ts";
 import { ASK_EVERY_MS, providerFor } from "./core/accounts/providers.ts";
 import { refreshUsage } from "./core/accounts/usage-refresh.ts";
-import { untrack, workspaces } from "./surfaces/cli/workspaces.ts";
+import { untrack, workspaces } from "./surfaces/cli/workspace/workspaces.ts";
 import { UsageError, parseArgs } from "./core/common.ts";
-import { brand, captureAsync, displayPath, fancy, setStepDrawer, tone } from "./core/output.ts";
+import { brand, captureAsync, displayPath, fancy, setStepDrawer, tone } from "./core/output/output.ts";
 import { spinnerStep } from "./surfaces/cli/prompts.ts";
 import { state } from "./core/state.ts";
-import { log, logChange } from "./core/log.ts";
+import { log, logChange } from "./core/machine/log.ts";
 
 // The local API the dotagents sidebar reads its accounts from. Defined here, at the root, because it
 // joins two surfaces: the command line starts it, surfaces/web/ serves it.

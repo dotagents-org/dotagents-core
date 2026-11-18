@@ -8,8 +8,8 @@
 import fs from "node:fs";
 import { type Activity, signedIn, stateFile } from "../claude-code.ts";
 import { LABELS } from "./provider-labels.ts";
-import type { ProviderId } from "../machine-state.ts";
-import type { Role } from "../theme.ts";
+import type { ProviderId } from "../machine/machine-state.ts";
+import type { Role } from "../output/theme.ts";
 
 export type UsageWindow = {
   kind: "session" | "week" | "model-week";

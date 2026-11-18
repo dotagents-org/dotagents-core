@@ -1,7 +1,7 @@
 // The command line's prompts and spinner (@clack/prompts), loaded the first time a command needs them.
 
 import type * as Clack from "@clack/prompts";
-import { tone, type Step } from "../../core/output.ts";
+import { tone, type Step } from "../../core/output/output.ts";
 
 let loaded: Promise<typeof Clack> | null = null;
 export const loadPrompts = () =>
@@ -10,7 +10,7 @@ export const loadPrompts = () =>
     return clack;
   }));
 
-// The spinner of a slow step, as the core's step drawer (setStepDrawer in core/output.ts).
+// The spinner of a slow step, as the core's step drawer (setStepDrawer in core/output/output.ts).
 export async function spinnerStep(message: string): Promise<Step> {
   const spin = (await loadPrompts()).spinner({ indicator: "dots" });
   spin.start(message);

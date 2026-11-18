@@ -8,7 +8,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { spawn, type SpawnOptions } from "node:child_process";
-import { report, startStep } from "./output.ts";
+import { report, startStep } from "./output/output.ts";
 import { state } from "./state.ts";
 
 export const isWindows = process.platform === "win32";
