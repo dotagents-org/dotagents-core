@@ -5,6 +5,7 @@ import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { test, type TestContext } from "node:test";
+import { removeLink } from "../../core/common.ts";
 import { state } from "../../core/state.ts";
 import { resolveSkills } from "../../core/workspace/skills.ts";
 import { applyWorkspace, listRepoInAgentsMd, verifyWorkspace, wrapRepository } from "../../core/workspace/workspace.ts";
@@ -112,7 +113,7 @@ test("a copied skill instead of a link fails the checklist", async (t) => {
   quiet();
   await applyWorkspace(REPO, ws, resolveSkills(REPO, ["move-sessions"]));
   const link = path.join(ws, ".agents", "skills", "move-sessions");
-  fs.rmSync(link, { recursive: false, force: true });
+  removeLink(link); // as the core does: fs.rmSync on a link to a folder throws in Node 24.0 to 24.2
   fs.cpSync(path.join(REPO, "skills", "move-sessions"), link, { recursive: true });
 
   quiet();

@@ -3,10 +3,10 @@ import { spawn, spawnSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
 import { test } from "node:test";
+import { REPO } from "../helpers.ts";
 
-const cli = fileURLToPath(new URL("../../cli.ts", import.meta.url));
+const cli = path.join(REPO, "cli.ts");
 
 test("start --dry-run previews the listener without creating state", (t) => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "dotagents-start-preview-"));

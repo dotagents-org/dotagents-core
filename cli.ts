@@ -1,12 +1,270 @@
 #!/usr/bin/env node
-// `dotagents`: the entry file. Make it a command with `npm install && npm link` in the clone.
-// It turns on Node's compile cache before main.ts loads the command, which roughly halves the
-// start; main.ts's static imports would load before any line of its own. A dry run writes nothing,
-// so it goes without the cache.
+// `dotagents`: reads the arguments, picks the command and prints the help. Each command lives in
+// surfaces/cli/<group>/<name>.ts, and uses the modules in core/. Works on Windows, Linux and macOS
+// with Node 24+, which runs this TypeScript file directly (type stripping, no build). Make it a
+// command with `npm install && npm link` in the clone; the prompts are @clack/prompts and the
+// colors core/output/theme.ts.
 
-import module from "node:module";
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import { profileAdd, profileList, profileRemove } from "./surfaces/cli/accounts/profile.ts";
+import { check } from "./surfaces/cli/workspace/check.ts";
+import { init } from "./surfaces/cli/workspace/init.ts";
+import { install } from "./surfaces/cli/machine/install.ts";
+import { newWorkspace } from "./surfaces/cli/workspace/new.ts";
+import type { CliArgs, Command } from "./surfaces/cli/shared.ts";
+import { sessions, sessionsRm } from "./surfaces/cli/workspace/sessions.ts";
+import { revision, revisionFix, revisionHook, revisionOff, revisionOn } from "./surfaces/cli/machine/revision.ts";
+import { settingsPull } from "./surfaces/cli/machine/settings.ts";
+import { switchCommand } from "./surfaces/cli/accounts/switch.ts";
+import { login } from "./surfaces/cli/accounts/login.ts";
+import { skills, skillsAdd, skillsRemove } from "./surfaces/cli/workspace/skills.ts";
+import { update } from "./surfaces/cli/machine/update.ts";
+import { usage } from "./surfaces/cli/accounts/usage.ts";
+import { logs } from "./surfaces/cli/machine/logs.ts";
+import { doctor } from "./surfaces/cli/machine/doctor.ts";
+import { startServer, type Action } from "./surfaces/web/server.ts";
+import { startAnswer, watchPeer } from "./core/accounts/snapshot.ts";
+import { openDesktop } from "./core/machine/desktop.ts";
+import { forgetServer, liveServer, loadMachine, loadProfiles, recordServer, sideName, type Profile } from "./core/machine/machine-state.ts";
+import { launcherDir } from "./core/accounts/profiles.ts";
+import { peerSwitch, switchProfile } from "./core/accounts/switch.ts";
+import { ASK_EVERY_MS, providerFor } from "./core/accounts/providers.ts";
+import { refreshUsage } from "./core/accounts/usage-refresh.ts";
+import { untrack, workspaces } from "./surfaces/cli/workspace/workspaces.ts";
+import { UsageError, parseArgs } from "./core/common.ts";
+import { brand, captureAsync, displayPath, fancy, setStepDrawer, tone } from "./core/output/output.ts";
+import { spinnerStep } from "./surfaces/cli/prompts.ts";
+import { state } from "./core/state.ts";
+import { log, logChange } from "./core/machine/log.ts";
 
-// --dry-run or --dry-run=<anything>, as parseArgs (core/common.ts) reads it
-const dryRun = process.argv.some((arg) => arg === "--dry-run" || arg.startsWith("--dry-run="));
-if (!dryRun) module.enableCompileCache();
-await import("./main.ts");
+// The local API the dotagents sidebar reads its accounts from. Defined here, at the root, because it
+// joins two surfaces: the command line starts it, surfaces/web/ serves it.
+const repo = path.dirname(fileURLToPath(import.meta.url));
+if (fancy) setStepDrawer(spinnerStep);
+const version = JSON.parse(fs.readFileSync(path.join(repo, "package.json"), "utf8")).version;
+const { bold, muted, high } = tone;
+
+const known = (body: unknown): Profile | null => {
+  const name = (body as { profile?: unknown } | null)?.profile;
+  return typeof name === "string" ? loadProfiles().find((p) => p.name === name) ?? null : null;
+};
+
+type Serial = <T>(fn: () => Promise<T>) => Promise<T>;
+
+// The sidebar's switch request: validate the profile and side before touching either slot.
+async function switchAction(body: unknown, oneAtATime: Serial): Promise<Action> {
+  const profile = known(body);
+  if (!profile) return { status: 404, body: { ok: false, detail: "no such profile" } };
+  const name = profile.name;
+  const side = (body as { side?: unknown }).side;
+  let peer;
+  try {
+    peer = loadMachine().peer;
+  } catch {
+    peer = undefined;
+  }
+  if (side !== undefined && side !== sideName() && side !== peer?.name) return { status: 404, body: { ok: false, detail: "no such side" } };
+  if (side !== undefined && side === peer?.name) {
+    const other = await oneAtATime(async () => peerSwitch(name));
+    return { status: other?.ok ? 200 : 502, body: other ?? { ok: false, detail: "no other side" } };
+  }
+  try {
+    const events = await oneAtATime(() => captureAsync(() => switchProfile({ name, here: side !== undefined })));
+    const failed = events.filter((e) => e.kind === "result" && e.status === "failed");
+    return { status: failed.length ? 502 : 200, body: { ok: !failed.length, detail: failed.map((e) => ("detail" in e ? e.detail : "")).join("; ") || `now ${name}` } };
+  } catch (err) {
+    log("core", "error", "start switch", err as Error);
+    return { status: 409, body: { ok: false, detail: (err as Error).message } };
+  }
+}
+
+const start: Command = {
+  name: "start",
+  usage: "[--port <n>]",
+  summary: "start the accounts' local API on 127.0.0.1, live, for the dotagents sidebar",
+  more: ["asks Anthropic for the Claude profiles' usage every minute, and OpenAI, through codex app-server, for the ChatGPT ones';", "reads the other side only while it runs, never waking WSL;", "leaves its address and token in start.json, for the sidebar;", "one per side: a second start leaves the running one alone;", "Ctrl+C stops it"],
+  group: "Profiles",
+  async run({ args }) {
+    const port = args.port === undefined ? undefined : Number(args.port);
+    if (port !== undefined && !(Number.isInteger(port) && port >= 0 && port < 65536)) throw new UsageError(`--port takes a number, not ${args.port}`);
+    if (state.dryRun) {
+      const address = port === 0 ? "127.0.0.1 at a free port" : port === undefined ? "127.0.0.1" : `127.0.0.1:${port}`;
+      console.log(`Would start the local API on ${address}.`);
+      return;
+    }
+    // One server per machine side: a second start leaves the running one alone.
+    const running = await liveServer();
+    if (running) {
+      console.log(`${brand()}  ${bold("start")}\n\nAlready running on 127.0.0.1:${running.port} (pid ${running.pid}).`);
+      return;
+    }
+    // The other side: whether it runs, asked every 5 s, and its running sessions, every 15 s.
+    const view = watchPeer();
+    // The refresh and the switch capture their events through one shared sink: one at a time, or
+    // one's failures land in the other's list.
+    let queue: Promise<unknown> = Promise.resolve();
+    const oneAtATime = <T>(fn: () => Promise<T>): Promise<T> => {
+      const run = queue.then(fn, fn);
+      queue = run.catch(() => {});
+      return run;
+    };
+    // The live usage, every minute; a failure is printed when it changes, not on every tick.
+    const said = new Map<string, string>();
+    const tick = async () => {
+      const events = await oneAtATime(() => captureAsync(() => refreshUsage()));
+      for (const e of events) {
+        if (e.kind !== "result" || e.status === "ok") continue;
+        const text = e.status === "failed" ? e.detail : "";
+        if ((said.get(e.target) ?? "") !== text && text) console.error(`${new Date().toLocaleTimeString("en-GB")}  ${e.target}: ${text}`);
+        logChange("core", "error", `usage ${e.target}`, text || null);
+        said.set(e.target, text);
+      }
+      return events;
+    };
+    const server = await startServer({
+      read: () => startAnswer(new Date(), view),
+      port,
+      // The accounts tab's buttons, in the dotagents sidebar.
+      actions: {
+        // On both sides, or on one: { "side": "WSL" } names it.
+        switch: (body) => switchAction(body, oneAtATime),
+        // The accounts tab's refresh: the minute's update, now.
+        refresh: async () => {
+          const failed = (await tick()).flatMap((e) => (e.kind === "result" && e.status === "failed" ? [`${e.target}: ${e.detail}`] : []));
+          return { status: failed.length ? 502 : 200, body: { ok: !failed.length, detail: failed.join("; ") } };
+        },
+        desktop: (body) => {
+          const profile = known(body);
+          if (!profile) return { status: 404, body: { ok: false, detail: "no such profile" } };
+          const name = profile.name;
+          let app;
+          try {
+            app = providerFor(profile).desktop;
+          } catch (err) {
+            return { status: 409, body: { ok: false, detail: (err as Error).message } };
+          }
+          const opened = openDesktop(name, launcherDir(), { app });
+          return { status: opened.ok ? 200 : 409, body: opened };
+        },
+      },
+    });
+    // Where the sidebar finds it, taken away when it stops.
+    recordServer({ port: server.port, token: server.token });
+    // It runs on its own, its output thrown away: what it does and how it ends go to core.log
+    log("core", "info", "start", `on 127.0.0.1:${server.port}, pid ${process.pid}, dotagents ${version}, node ${process.version} (${process.execPath})`);
+    process.on("exit", (code) => {
+      forgetServer();
+      log("core", "info", "start", `stopped, pid ${process.pid}, exit ${code}`);
+    });
+    process.on("uncaughtException", (err) => {
+      log("core", "error", "start", err);
+      process.exit(1);
+    });
+    for (const signal of ["SIGINT", "SIGTERM", "SIGHUP"] as const) process.on(signal, () => process.exit(0));
+    console.log(`${brand()}  ${bold("start")}\n\nThe API is on 127.0.0.1:${server.port}; the dotagents sidebar reads it.\n${muted("Only this machine reaches it, and only with the token in start.json. Ctrl+C stops it.")}`);
+    await tick();
+    setInterval(tick, ASK_EVERY_MS + 5_000).unref();
+  },
+};
+
+// In the order the help lists them.
+const COMMANDS: Command[] = [install, update, settingsPull, revision, revisionOn, revisionOff, revisionFix, revisionHook, logs, doctor, profileAdd, profileList, profileRemove, switchCommand, login, usage, start, newWorkspace, init, check, workspaces, untrack, sessions, sessionsRm, skills, skillsAdd, skillsRemove];
+
+function help() {
+  const cmd = ({ name, usage, summary, more = [] }: Command) => {
+    const left = `${bold(name)}${usage ? ` ${muted(usage)}` : ""}`;
+    const width = name.length + (usage ? usage.length + 1 : 0);
+    const pad = " ".repeat(Math.max(2, 30 - width));
+    return [`  ${left}${pad}${summary}`, ...more.map((text) => `${" ".repeat(32)}${text}`)].join("\n");
+  };
+  const title = (t: string) => bold(t.toUpperCase());
+  const groups = (["Machine", "Profiles", "Workspace", "Skills"] as const).map(
+    (group) => `${title(group)}\n${COMMANDS.filter((c) => c.group === group).map(cmd).join("\n")}`
+  );
+  return `${brand()} ${muted(version)}  Claude Code and Codex configuration
+
+${title("Usage")}
+  dotagents ${muted("<command> [options]")}
+
+${groups.join("\n\n")}
+
+${title("Options")}
+  ${bold("--dry-run")}    show what would be done, change nothing
+  ${bold("--yes")}        (init, sessions rm) don't ask anything
+  ${bold("--wrap")}       (init) move a repository into <name>-workspace/ first
+  ${bold("--default")}    (profile add) the profile the normal Desktop app opens, one per provider
+  ${bold("--color")}      (profile add) the profile's color, #RRGGBB
+  ${bold("--provider")}   (profile add) claude (the default) or codex
+  ${bold("--short")}      (usage) one line, for a prompt or a status line
+  ${bold("--json")}       (usage, sessions) the data, for scripts
+  ${bold("--all")}        (sessions) every project's sessions; (login) every Claude login due for renewal
+  ${bold("--refresh")}    (usage) ask Anthropic and OpenAI for fresh numbers first
+  ${bold("--spend")}      (usage) what 1% of each Claude window costs, and where the spend went
+  ${bold("--no-pull")}    (update) skip git pull, only reapply
+  ${bold("--no-archive")} (sessions rm) delete without archiving
+  ${bold("--from")}       (settings pull) the profile to take the settings from
+  ${bold("--port")}       (start) the server's port; 0 picks a free one
+  ${bold("--here")}       (switch) only this side of the machine
+  ${bold("--side")}       (logs) only that side: wsl or windows
+  ${bold("--save")}       (switch) keep the login in the slot as this profile's
+  ${bold("--help")}       show this help
+  ${bold("--version")}    show the version
+
+${title("Examples")}
+  ${muted("$")} dotagents new git@github.com:me/app.git
+  ${muted("$")} dotagents init
+  ${muted("$")} dotagents init ~/projects/app --skills archive,to-cards
+  ${muted("$")} dotagents check ~/projects/app
+  ${muted("$")} dotagents update --all
+
+${muted("Repository:")} ${displayPath(repo)}
+${muted("Third-party skills:")} npx skills add <owner/repo> ${muted("(at the workspace root)")}`;
+}
+
+// "skills add x" → the two-word command with ["x"]; "check x" → the one-word command.
+function pick(words: string[]) {
+  const two = COMMANDS.find((c) => c.name === `${words[0]} ${words[1]}`);
+  if (two) return { command: two, positional: words.slice(2) };
+  const one = COMMANDS.find((c) => c.name === words[0]);
+  if (one) return { command: one, positional: words.slice(1) };
+  if (words[0] === "account") throw new Error(`'account' is now 'profile': dotagents profile ${words.slice(1).join(" ")}`.trimEnd());
+  throw new UsageError(`Unknown command '${words[0]}'. Run: dotagents --help`);
+}
+
+// One line for an error, never a stack trace; 2 when the command line itself is wrong.
+function fail(err: Error) {
+  // A mistake in the command line is the user's to fix; anything else is written down with its stack
+  if (!(err instanceof UsageError)) log("core", "error", `dotagents ${process.argv.slice(2).join(" ")}`, err);
+  console.error(fancy ? `${high("✗")} ${bold("dotagents:")} ${err.message}` : `dotagents: ${err.message}`);
+  process.exitCode = err instanceof UsageError ? 2 : 1;
+}
+
+let args: CliArgs | null = null;
+try {
+  args = parseArgs<CliArgs>(process.argv.slice(2), {
+    booleans: ["all", "api", "default", "dry-run", "help", "here", "json", "no-archive", "no-pull", "refresh", "running", "short", "spend", "version", "watch", "wrap", "yes"],
+    lists: ["skills"],
+    values: ["color", "from", "port", "provider", "save", "side"],
+  });
+} catch (err) {
+  fail(err as Error);
+}
+
+if (!args) {
+  // The command line was refused above.
+} else if (args.version) {
+  console.log(version);
+} else if (args.help || !args._.length) {
+  console.log(help());
+} else {
+  state.dryRun = Boolean(args["dry-run"]);
+  const parsed = args;
+  Promise.resolve()
+    .then(() => {
+      const { command, positional } = pick(parsed._);
+      return command.run({ repo, args: parsed, positional });
+    })
+    .catch(fail);
+}
