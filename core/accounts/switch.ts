@@ -8,6 +8,7 @@
 import { spawnSync } from "node:child_process";
 import { log } from "../machine/log.ts";
 import { type Profile, loadMachine, loadProfiles, sideName } from "../machine/machine-state.ts";
+import { wslDistroArgs } from "../machine/peer.ts";
 import { checkWarn, report, section } from "../output/output.ts";
 import { type Login, type Provider, type SwitchContext, type SwitchOptions, providerFor, providers } from "./providers.ts";
 import { state } from "../state.ts";
@@ -34,7 +35,7 @@ export const peerSwitch: PeerSwitch = (name, expect) => {
   // distro's own Node may be too old to run dotagents
   const run =
     process.platform === "win32"
-      ? spawnSync("wsl.exe", ["-e", "bash", "-lic", `dotagents switch ${name} --here${check}`], { encoding: "utf8", timeout: 60_000, windowsHide: true })
+      ? spawnSync("wsl.exe", [...wslDistroArgs(), "-e", "bash", "-lic", `dotagents switch ${name} --here${check}`], { encoding: "utf8", timeout: 60_000, windowsHide: true })
       : spawnSync("powershell.exe", ["-NoProfile", "-Command", `dotagents switch ${name} --here${check}`], { encoding: "utf8", timeout: 60_000, cwd: "/mnt/c" });
   const changed = slotChanged(`${run.stdout ?? ""}`);
   if (run.status === 0) return { ok: true, detail: `${peer.name}: ${name}`, changed };

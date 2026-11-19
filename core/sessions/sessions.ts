@@ -20,6 +20,7 @@ import { codexAccount, codexProfiles } from "../accounts/providers/codex-store.t
 import { type ProcessProbe, defaultConfigDir, runningProcess, signedIn } from "../claude-code.ts";
 import { isWindows } from "../common.ts";
 import { type Peer, claudeProfiles, loadMachine } from "../machine/machine-state.ts";
+import { wslDistroArgs } from "../machine/peer.ts";
 import { report } from "../output/output.ts";
 import { state } from "../state.ts";
 import { profileAccount } from "../accounts/providers/claude-store.ts";
@@ -158,7 +159,7 @@ export type PeerRunning = (peer: Peer) => Set<string> | null;
 export const parseRunningIds = (stdout: string) => new Set(stdout.split(/\r?\n/).map((line) => line.trim()).filter((line) => /^[0-9a-f-]{36}$/i.test(line)));
 
 const peerCommand = (): [string, string[], string | undefined] => isWindows
-  ? ["wsl.exe", ["-e", "bash", "-lic", "dotagents sessions --running"], undefined]
+  ? ["wsl.exe", [...wslDistroArgs(), "-e", "bash", "-lic", "dotagents sessions --running"], undefined]
   : ["powershell.exe", ["-NoProfile", "-Command", "dotagents sessions --running"], "/mnt/c"];
 
 // From Windows, bash -lic as in core/accounts/switch.ts: an interactive shell reads ~/.bashrc, where nvm sets Node

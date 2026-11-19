@@ -78,11 +78,18 @@ export function nodeOk(version: string) {
   return Number(version.replace(/^v/, "").split(".")[0]) >= 24;
 }
 
+// From Windows, the WSL distro install found (its home is \\wsl.localhost\<distro>\...), so a
+// command reaches that one even when another became the default since: ["-d", "<distro>"], or none.
+export function wslDistroArgs(home = loadMachine().peer?.home ?? ""): string[] {
+  const distro = /^\\\\wsl(?:\.localhost|\$)\\([^\\]+)/i.exec(home)?.[1];
+  return distro ? ["-d", distro] : [];
+}
+
 // Runs a command in a shell on the other side: from Windows, an interactive login bash in WSL (where
 // nvm puts its Node); from WSL, PowerShell in C:. What doctor and the like need, not the switch.
 export function runOnPeer(line: string) {
   return process.platform === "win32"
-    ? spawnSync("wsl.exe", ["-e", "bash", "-lic", line], { encoding: "utf8", timeout: 60_000, windowsHide: true })
+    ? spawnSync("wsl.exe", [...wslDistroArgs(), "-e", "bash", "-lic", line], { encoding: "utf8", timeout: 60_000, windowsHide: true })
     : spawnSync("powershell.exe", ["-NoProfile", "-Command", line], { encoding: "utf8", timeout: 60_000, cwd: "/mnt/c" });
 }
 

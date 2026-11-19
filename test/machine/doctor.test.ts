@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { agentVersion, nodeOk, pathOnlyEnv, peerAgentLine, peerToolCheck, peerVersionLine } from "../../core/machine/peer.ts";
+import { agentVersion, nodeOk, pathOnlyEnv, peerAgentLine, peerToolCheck, peerVersionLine, wslDistroArgs } from "../../core/machine/peer.ts";
 import { providers } from "../../core/accounts/providers.ts";
 import "../helpers.ts";
 
@@ -41,4 +41,10 @@ test("an agent is asked for its version from the PATH's absolute folders only, n
   assert.equal(win.Path, String.raw`C:\Tools;\\server\share;D:/bin`);
   assert.equal(win.NoDefaultCurrentDirectoryInExePath, "1");
   assert.equal(pathOnlyEnv({ PATH: "/usr/bin:.:bin::/opt/x" }, "linux").PATH, "/usr/bin:/opt/x");
+});
+
+test("from Windows, WSL's commands go to the distro install found, not whichever is the default now", () => {
+  assert.deepEqual(wslDistroArgs("\\\\wsl.localhost\\Ubuntu-24.04\\home\\ana"), ["-d", "Ubuntu-24.04"]);
+  assert.deepEqual(wslDistroArgs("\\\\wsl$\\Debian\\home\\ana"), ["-d", "Debian"]);
+  assert.deepEqual(wslDistroArgs("/mnt/c/Users/ana"), []);
 });
