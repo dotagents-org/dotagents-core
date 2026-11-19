@@ -289,3 +289,24 @@ test("an archive's name is never a path out of .artifacts/sessions/", () => {
   assert.throws(() => archiveFile("/p", { ...s, sessionId: "../../escape" }), /can't name a file/);
   assert.equal(archiveFile("/p", { ...s, sessionId: "abc-1", started: "../x" }), path.join("/p", ".artifacts", "sessions", "undated-abc-1.md"));
 });
+
+test("the archive skill refuses a rollout with a line cut in the middle, and one that isn't the id asked for", (t) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "dotagents-archive-codex-"));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const codexHome = path.join(root, "codex");
+  const file = rollout(codexHome);
+  const run = (...extra: string[]) => spawnSync(process.execPath, [SCRIPT, "--agent", "codex", "--codex-home", codexHome, "--project-root", path.join(root, "p"), ...extra], { encoding: "utf8" });
+  assert.equal(run("--session-id", CODEX_ID).status, 0);
+  // Cut in the middle, with whole lines after: not archived. Half a last line, still being written: archived
+  const lines = fs.readFileSync(file, "utf8").split("\n");
+  fs.writeFileSync(file, [lines[0], '{"timestamp":"2026-11-18T10:00:01Z","type":"respo', ...lines.slice(1)].join("\n"));
+  const cut = run("--session-id", CODEX_ID);
+  assert.equal(cut.status, 1);
+  assert.match(cut.stderr, /line 2 is cut in the middle/);
+  fs.writeFileSync(file, `${lines.slice(0, -1).join("\n")}\n{"timestamp":"2026-11-18T10:00:09Z","type":"respo`);
+  assert.equal(run("--session-id", CODEX_ID).status, 0);
+  // Another conversation inside: only with --transcript, which names the file itself
+  fs.writeFileSync(file, fs.readFileSync(file, "utf8").replace(CODEX_ID, "019a0000-bbbb-7ccc-8ddd-eeeeeeeeeeee"));
+  assert.match(run("--session-id", CODEX_ID).stderr, /isn't the conversation .*pass the rollout with --transcript/);
+  assert.equal(run("--transcript", file).status, 0);
+});

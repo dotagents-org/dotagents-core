@@ -12,6 +12,7 @@
 
 import fs from "node:fs";
 import path from "node:path";
+import zlib from "node:zlib";
 import { costOf, type Tokens } from "./prices.ts";
 import { configDirs, type ConfigDir } from "../sessions/sessions.ts";
 import { codexDirs } from "../sessions/codex-sessions.ts";
@@ -34,9 +35,11 @@ const tokensOf = (u: Record<string, any> | undefined): Tokens => {
   };
 };
 
+// A file's lines; Codex's own archive (`codex archive`) leaves a rollout compressed, .jsonl.zst.
 const lines = (file: string) => {
   try {
-    return fs.readFileSync(file, "utf8").split("\n");
+    const bytes = fs.readFileSync(file);
+    return (file.endsWith(".zst") ? zlib.zstdDecompressSync(bytes) : bytes).toString("utf8").split("\n");
   } catch {
     return [];
   }
@@ -208,7 +211,20 @@ export function readCodexSpend(since: number, homes: string[]): Spend[] {
       }
     }
   };
-  for (const home of homes) walk(path.join(home, "sessions"), 0);
+  for (const home of homes) {
+    walk(path.join(home, "sessions"), 0);
+    // What Codex's /archive moved: the same conversations, whose spend in the window still counts
+    const archived = path.join(home, "archived_sessions");
+    for (const name of readdirOr(archived)) {
+      if (!/^rollout-.*\.jsonl(\.zst)?$/.test(name)) continue;
+      const full = path.join(archived, name);
+      try {
+        if (fs.statSync(full).mtimeMs >= since) out.push(...readRollout(full, since, seen));
+      } catch {
+        // gone meanwhile
+      }
+    }
+  }
   return out.sort((a, b) => a.at - b.at);
 }
 

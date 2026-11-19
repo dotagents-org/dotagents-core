@@ -284,7 +284,7 @@ export const sessionsRm: Command = {
       } else if (s.root) {
         const archived = archiveSession(s, labels);
         if (!archived.ok) {
-          const keep = s.running || !ask_ || !(await ask(`Couldn't archive ${s.id.slice(0, 8)} (${archived.error}). Delete it anyway?`, false));
+          const keep = s.running || alsoRunning.includes(s) || !ask_ || !(await ask(`Couldn't archive ${s.id.slice(0, 8)} (${archived.error}). Delete it anyway?`, false));
           if (keep) {
             report("skipped", s.file, "kept: its archive failed");
             continue;

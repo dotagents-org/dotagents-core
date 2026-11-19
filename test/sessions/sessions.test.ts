@@ -8,7 +8,7 @@ import os from "node:os";
 import path from "node:path";
 import { test, type TestContext } from "node:test";
 import type { Peer } from "../../core/machine/machine-state.ts";
-import { codexRunning } from "../../core/sessions/codex-sessions.ts";
+import { codexRunning, subagentRollouts } from "../../core/sessions/codex-sessions.ts";
 import { type ConfigDir, archiveRoot, archiveSession, deleteSession, fromPeer, listSessions, parseRunningIds, projectSlug, sessionFiles } from "../../core/sessions/sessions.ts";
 
 test("peer running ids ignore non-id lines and CRLF", () => {
@@ -432,4 +432,49 @@ test("a subagent Codex itself archived stops the archive of its parent: codex de
   const result = archiveSession(cart);
   assert.equal(result.ok, false);
   assert.match((result as { error: string }).error, /archived by Codex.*codex unarchive/);
+});
+
+test("a Codex conversation with several rollouts, a child whose header is long, or a file changed since listing is not deleted", (t) => {
+  const { root, ws } = setup(t);
+  const { home, C, S, main } = codexHome(root, ws);
+  const day = path.dirname(main);
+  const old = Date.parse("2026-11-18T12:00:00Z");
+  const age = (f: string) => fs.utimesSync(f, new Date(old), new Date(old));
+  age(main);
+  const codex = [{ side: "Here", home }];
+  const now = old + HOUR;
+  const list = () => listSessions({ dirs: [], codex, now }).find((x) => x.id === C)!;
+  const asked: string[] = [];
+  const fake = (id: string) => (asked.push(id), true);
+  quiet();
+  // A /revert: another rollout of the same conversation, a name of its own
+  const reverted = path.join(day, "rollout-2026-11-18T11-00-00-019a0000-0000-7000-8000-0000000000ff.jsonl");
+  fs.copyFileSync(main, reverted);
+  age(reverted);
+  const twice = list();
+  assert.equal(twice.others?.length, 1);
+  assert.equal(archiveSession(twice).ok, false);
+  assert.equal(deleteSession(twice, { evenRunning: true, codex: fake }), false);
+  fs.rmSync(reverted);
+  // A subagent whose first line passes 64 KiB is still found: archived with its parent, not lost
+  const child = path.join(day, `rollout-2026-11-18T10-00-00-${S}.jsonl`);
+  const meta = JSON.parse(fs.readFileSync(child, "utf8").split("\n")[0]);
+  meta.payload.base_instructions = "x".repeat(100_000);
+  fs.writeFileSync(child, `${JSON.stringify(meta)}\n`);
+  assert.deepEqual(subagentRollouts(home, C).live, [child]);
+  // Written since it was listed: looked at again, kept
+  const listed = list();
+  fs.utimesSync(main, new Date(old + 1000), new Date(old + 1000));
+  assert.equal(deleteSession(listed, { evenRunning: true, codex: fake }), false);
+  // This very command's own conversation, whatever else is known
+  age(main);
+  const saved = process.env.CODEX_THREAD_ID;
+  process.env.CODEX_THREAD_ID = C;
+  try {
+    assert.equal(deleteSession(list(), { evenRunning: true, codex: fake }), false);
+  } finally {
+    if (saved === undefined) delete process.env.CODEX_THREAD_ID;
+    else process.env.CODEX_THREAD_ID = saved;
+  }
+  assert.deepEqual(asked, []);
 });

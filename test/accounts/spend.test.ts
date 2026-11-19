@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
+import zlib from "node:zlib";
 import path from "node:path";
 import { test, type TestContext } from "node:test";
 import { costOf } from "../../core/accounts/prices.ts";
@@ -146,4 +147,18 @@ test("a Codex rollout with only token_count events gives its spend from the runn
   ].join("\n"));
   const spend = readCodexSpend(0, [home]);
   assert.deepEqual(spend.map((x) => [x.account, x.cwd, x.tokens.input, x.tokens.cacheRead, x.tokens.output]), [["user-hopper", "/work/shop", 1000, 4000, 1000], ["user-hopper", "/work/shop", 500, 2500, 500]]);
+});
+
+test("a rollout Codex archived (compressed, in archived_sessions) still counts toward the window's spend", (t) => {
+  const dir = tmp(t);
+  const home = path.join(dir, "codex");
+  fs.mkdirSync(path.join(home, "archived_sessions"), { recursive: true });
+  const text = [
+    JSON.stringify({ timestamp: "2026-11-15T09:00:00Z", type: "session_meta", payload: { id: "c1", cwd: "/work/shop", creator_user_id: "user-hopper" } }),
+    JSON.stringify({ timestamp: "2026-11-15T09:05:00Z", type: "token_usage_record", response_id: "r1", usage: { input_tokens: 5000, cached_input_tokens: 4000, output_tokens: 1000 } }),
+  ].join("\n");
+  fs.writeFileSync(path.join(home, "archived_sessions", "rollout-2026-11-15T09-00-00-c1.jsonl.zst"), zlib.zstdCompressSync(text));
+  fs.writeFileSync(path.join(home, "archived_sessions", "rollout-2026-11-15T09-00-00-c2.jsonl"), text); // the same response, as plain text: counted once
+  const spend = readCodexSpend(0, [home]);
+  assert.deepEqual(spend.map((x) => [x.account, x.tokens.output]), [["user-hopper", 1000]]);
 });

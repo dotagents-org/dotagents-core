@@ -107,7 +107,8 @@ export function peerAgentLine(command: string, args: string, platform: NodeJS.Pl
     const set = Object.entries(vars).map(([k, v]) => `${k}='${v.replace(/'/g, `'\\''`)}' `).join("");
     return `set -f; IFS=:; for d in $PATH; do case $d in /*) [ -f "$d/${command}" ] && [ -x "$d/${command}" ] && ${set}exec "$d/${command}" ${args};; esac; done; exit 127`;
   }
-  const set = Object.entries(vars).map(([k, v]) => `$env:${k} = '${v.replace(/'/g, "''")}'; `).join("");
+  // PowerShell takes ‘ ’ ‚ ‛ for a single quote too (a folder under C:\Users\Ana d’Ávila): each is doubled
+  const set = Object.entries(vars).map(([k, v]) => `$env:${k} = '${v.replace(/['\u2018\u2019\u201A\u201B]/g, "$&$&")}'; `).join("");
   return `${set}$env:PATH = ($env:PATH -split ';' | Where-Object { $_ -match '^([a-zA-Z]:\\\\|\\\\\\\\)' }) -join ';'; $env:NoDefaultCurrentDirectoryInExePath = 1; cmd /d /c ${command} ${args}`;
 }
 

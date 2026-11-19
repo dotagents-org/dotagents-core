@@ -393,6 +393,29 @@ export function knownCodexAccounts(): AccountLabels {
   return labels;
 }
 
+// Why a rollout can't stand for its conversation, or null. A line cut in the middle (not the last,
+// which a running Codex may be writing) would be left out of the archive; with an id asked for, the
+// first session_meta must be that one, or the file would be written under another conversation's name.
+// A reverted conversation has a rollout of its own under the same id: pass that file with --transcript.
+export function rolloutProblem(file: string, asked?: string): string | null {
+  const text = fs.readFileSync(file, "utf8");
+  const all = text.split("\n");
+  const last = text.endsWith("\n") ? -1 : all.length - 1;
+  for (const [n, line] of all.entries()) {
+    if (!line.trim() || n === last) continue;
+    try {
+      JSON.parse(line);
+    } catch {
+      return `line ${n + 1} is cut in the middle`;
+    }
+  }
+  if (asked) {
+    const meta = transcriptLines(file).next().value;
+    if (!(meta?.type === "session_meta" && meta.payload?.id === asked)) return `its first record isn't the conversation ${asked}'s; for a reverted conversation pass the rollout with --transcript`;
+  }
+  return null;
+}
+
 // The rollout of a Codex conversation by its id, or the newest one started in the project.
 function findRollout(codexHome: string, sessionId: string | undefined, projectRoot: string) {
   const files: { file: string; mtime: number }[] = [];
@@ -615,6 +638,13 @@ function main(argv: string[]) {
   if (!transcript || !fs.statSync(transcript, { throwIfNoEntry: false })?.isFile()) {
     console.error("error: transcript not found; pass --session-id or --transcript");
     return 1;
+  }
+  if (agent === "codex") {
+    const problem = rolloutProblem(transcript, args.transcript ? undefined : args["session-id"]);
+    if (problem) {
+      console.error(`error: ${path.basename(transcript)}: ${problem}`);
+      return 1;
+    }
   }
   const titles = agent === "codex" ? codexTitles(codexHome) : {};
   const parse = agent === "codex" ? (file: string) => parseRollout(file, titles) : parseTranscript;

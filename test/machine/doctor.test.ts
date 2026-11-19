@@ -48,3 +48,8 @@ test("from Windows, WSL's commands go to the distro install found, not whichever
   assert.deepEqual(wslDistroArgs("\\\\wsl$\\Debian\\home\\ana"), ["-d", "Debian"]);
   assert.deepEqual(wslDistroArgs("/mnt/c/Users/ana"), []);
 });
+
+test("a variable with PowerShell's typographic single quotes is doubled, as the sidebar does for a path", () => {
+  const line = peerAgentLine("codex", "delete --force x", "linux", { CODEX_HOME: "D:\\Gabriel’s ‘Codex’" });
+  assert.match(line, /^\$env:CODEX_HOME = 'D:\\Gabriel’’s ‘‘Codex’’'; /);
+});

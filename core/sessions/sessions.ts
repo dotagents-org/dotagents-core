@@ -314,7 +314,10 @@ export function archiveSession(s: Session, labels: AccountLabels = new Map()): {
     // A Codex conversation goes with its subagents', which codex delete takes too, each in its own file
     let files = [s.file];
     if (s.agent === "codex") {
+      // A conversation with several rollouts (after a /revert) is deleted whole by Codex, and only one is archived here
+      if (s.others?.length) throw new Error(`it has ${s.others.length + 1} rollouts (a /revert started a new one); archive it with the archive skill's --transcript, one file at a time, and delete it with codex delete yourself`);
       const children = subagentRollouts(s.configDir, s.id);
+      if (children.incomplete) throw new Error("a rollout in its Codex folder couldn't be read whole, so its subagents may be missed; nothing is archived or deleted");
       // codex delete takes these too, and the archive can't keep what Codex compressed away
       if (children.archived.length) throw new Error(`${children.archived.length} of its subagents' conversations are archived by Codex (${path.basename(children.archived[0])}); unarchive them with codex unarchive, or delete the conversation with codex delete yourself`);
       files = [s.file, ...children.live];
@@ -381,8 +384,18 @@ function deleteCodex(s: Session, evenRunning: boolean, codex: CodexDelete) {
     // gone: codex delete says so
   }
   const known = s.checked && !peer;
-  if (known && codexRunning({ ...s, mtime }, true)) {
+  // Written since it was listed and archived: what was archived is no longer all of it
+  if (mtime !== s.mtime) {
+    report("skipped", s.file, "changed since it was listed; list it again, and archive it again");
+    return false;
+  }
+  // The conversation this very command runs in is never one to delete, whatever else is known
+  if (process.env.CODEX_THREAD_ID === s.id || (known && codexRunning({ ...s, mtime }, true))) {
     report("skipped", s.file, "still running; close it first");
+    return false;
+  }
+  if (s.others?.length) {
+    report("skipped", s.file, `it has ${s.others.length + 1} rollouts (a /revert started a new one); codex delete would take them all, and an archive covers one: delete it with codex delete yourself`);
     return false;
   }
   if (!known && !evenRunning) {
