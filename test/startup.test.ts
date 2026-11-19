@@ -56,10 +56,11 @@ test("cli.ts is executable", { skip: process.platform === "win32" }, () => {
 });
 
 // Runs cli.ts with the temporary folder and this user's cache folder each in a folder of the test's own.
-function withFolders(t: TestContext, args: string[], { xdg }: { xdg?: string } = {}) {
+function withFolders(t: TestContext, args: string[], { xdg, localAppData }: { xdg?: string; localAppData?: string } = {}) {
   const tmp = tempDir(t);
   const cache = tempDir(t);
-  const env: NodeJS.ProcessEnv = { ...process.env, TMPDIR: tmp, TEMP: tmp, TMP: tmp, XDG_CACHE_HOME: xdg ?? cache, LOCALAPPDATA: cache, HOME: tempDir(t) };
+  const home = tempDir(t);
+  const env: NodeJS.ProcessEnv = { ...process.env, TMPDIR: tmp, TEMP: tmp, TMP: tmp, XDG_CACHE_HOME: xdg ?? cache, LOCALAPPDATA: localAppData ?? cache, HOME: home, USERPROFILE: home };
   delete env.NODE_COMPILE_CACHE;
   delete env.NODE_DISABLE_COMPILE_CACHE;
   const res = spawnSync(process.execPath, [path.join(REPO, "cli.ts"), ...args], { encoding: "utf8", env, cwd: tmp });
@@ -72,6 +73,16 @@ test("the compile cache lives in this user's cache folder, never the temporary o
   const { tmp, cache } = withFolders(t, ["--help"]);
   assert.deepEqual(fs.readdirSync(tmp), []);
   assert.ok(fs.readdirSync(path.join(cache, "dotagents", "compile-cache")).length);
+});
+
+test("every other test runs the commands without the compile cache", () => {
+  assert.equal(process.env.NODE_DISABLE_COMPILE_CACHE, "1");
+});
+
+test("a relative LOCALAPPDATA is ignored", { skip: process.platform !== "win32" }, (t) => {
+  const { tmp, home } = withFolders(t, ["--help"], { localAppData: "relative-cache" });
+  assert.deepEqual(fs.readdirSync(tmp), []);
+  assert.ok(fs.readdirSync(path.join(home, "AppData", "Local", "dotagents", "compile-cache")).length);
 });
 
 // The XDG spec ignores a relative XDG_CACHE_HOME: it would put the cache in whatever folder the command runs in.

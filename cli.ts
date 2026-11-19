@@ -9,12 +9,16 @@ import os from "node:os";
 import path from "node:path";
 
 // This user's own cache folder: Node's default, the temporary folder, is shared on Linux, and another
-// account could plant code in it. A relative XDG_CACHE_HOME is ignored, as the XDG spec says.
-const xdg = process.env.XDG_CACHE_HOME;
+// account could plant code in it. A relative folder in the environment is ignored (the XDG spec says
+// so): it would put the cache in whatever folder the command runs in.
+const fromEnv = (name: string) => {
+  const value = process.env[name];
+  return value && path.isAbsolute(value) ? value : null;
+};
 const cacheRoot =
   process.platform === "win32"
-    ? process.env.LOCALAPPDATA || path.join(os.homedir(), "AppData", "Local")
-    : xdg && path.isAbsolute(xdg) ? xdg : path.join(os.homedir(), ".cache");
+    ? fromEnv("LOCALAPPDATA") ?? path.join(os.homedir(), "AppData", "Local")
+    : fromEnv("XDG_CACHE_HOME") ?? path.join(os.homedir(), ".cache");
 
 // --dry-run or --dry-run=<anything>, as parseArgs (core/common.ts) reads it
 const dryRun = process.argv.some((arg) => arg === "--dry-run" || arg.startsWith("--dry-run="));
