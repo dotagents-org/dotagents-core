@@ -68,7 +68,7 @@ test("Claude only: no codex entry in current, the plan from the saved credential
   assert.equal(a.current.claude.profile, "turing");
   assert.deepEqual(a.sides, [sideName()]);
   assert.equal("peer" in a, false);
-  assert.equal(a.version, 1);
+  assert.equal(a.version, 2);
   assert.equal(a.generatedAt, NOW.toISOString());
 });
 

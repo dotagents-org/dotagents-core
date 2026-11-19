@@ -23,7 +23,7 @@ Every answer and every event starts with `"apiVersion"` (see [The version rule](
 ```json
 {
   "apiVersion": 3,
-  "version": 1,
+  "version": 2,
   "generatedAt": "2026-11-16T12:00:00.000Z",
   "profiles": [
     { "name": "turing", "provider": "claude", "plan": "team", "color": "#D77655", "default": true,
@@ -46,7 +46,7 @@ Top level:
 | Field | Meaning |
 |---|---|
 | `apiVersion` | The format of this answer; `3`. |
-| `version` | The format of the usage data, the same as `usage --json`'s `version` (`1`). |
+| `version` | The format of the usage data, the same as `usage --json`'s `version` (`2`). |
 | `generatedAt` | When it was read, ISO. |
 | `profiles` | Every profile, Claude's first, then Codex's. Within each provider, the one in this side's slot first, then the one in the other side's slot, then the rest in the order of `profiles.json`. |
 | `sides` | The sides of the machine, this one first; one entry when no other side was found by `install`. |

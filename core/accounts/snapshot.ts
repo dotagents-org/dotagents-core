@@ -72,7 +72,7 @@ const projection = (p: ReturnType<typeof pace>) =>
 // account id. Fields are only added, so scripts that read it keep working.
 export function usageJson(list: ProfileUsage[], now: Date) {
   return {
-    version: 1 as const,
+    version: 2 as const,
     generatedAt: now.toISOString(),
     profiles: list.map(({ accountUuid, ...p }) => ({
       ...p,

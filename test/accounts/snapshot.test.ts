@@ -48,7 +48,7 @@ test("this side alone: each profile's cache, and the JSON wraps the list with a 
   const list = readUsage(NOW);
   assert.deepEqual(list.map((p) => [p.name, p.state]), [["work", "ok"], ["personal", "no-data"]]);
   const json = usageJson(list, NOW);
-  assert.equal(json.version, 1);
+  assert.equal(json.version, 2);
   assert.equal(json.generatedAt, NOW.toISOString());
   assert.equal(json.profiles[0].windows[0].pct, 40);
   assert.ok(!JSON.stringify(json).includes("uuid-a"), "the account id stays out of the JSON");

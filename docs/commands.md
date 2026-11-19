@@ -219,10 +219,10 @@ work      5h ━━━━━━ ─  72% ↻ 3h17m   7d ━━━━ ───  
 personal  5h ━━━━━━ ─  91% ↻ 58m     7d ━━ ─────  30%
 ```
 
-`--json` prints the data in an envelope with a format version, so scripts can rely on it; fields are only ever added:
+`--json` prints the data in an envelope with a format version, so scripts can rely on it; fields are only added within a version, and `version` goes up with a change a script could misread (2: a ChatGPT profile's `provider` is `chatgpt`, where it was `codex`):
 
 ```json
-{ "version": 1, "generatedAt": "2026-10-28T12:00:00.000Z", "profiles": [
+{ "version": 2, "generatedAt": "2026-10-28T12:00:00.000Z", "profiles": [
   { "name": "work", "color": "#D77655", "default": true, "state": "ok", "fetchedAt": "2026-10-28T11:56:00.000Z",
     "source": "live", "activity": { "working": 1, "waiting": 0 },
     "windows": [{ "kind": "session", "pct": 72, "resetsAt": "2026-10-28T15:17:00.000Z", "reset": false, "elapsedPct": 34, "projection": { "atResetPct": 210, "runsOutAt": "2026-10-28T12:40:00.000Z" } }] }
