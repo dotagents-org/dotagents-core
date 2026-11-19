@@ -61,6 +61,7 @@ A profile:
 | `name`, `color` | The profile's name and its `#RRGGBB` color. |
 | `provider` | `claude` or `codex`. |
 | `plan` | The plan, or `null` when unknown. Claude: `subscriptionType` in the credentials Claude Code keeps next to the tokens (the slot's `.credentials.json` when the profile's account is there, else its vault's); only that field is read, and it is `null` where the credentials aren't in a file (the macOS keychain). Codex: the plan the live usage recorded, else `chatgpt_plan_type` in the id_token of the saved login. |
+| `seat` | Claude only, and only when Claude Code keeps it with the login: the seat type of a Team or Enterprise plan (`seatTier` in `.claude.json`, such as `team_standard`), from the same copy as `plan`. Absent otherwise; OpenAI tells none. |
 | `default` | `true` on the profile whose shortcut opens the provider's standard Desktop app on Windows. Absent on other profiles. |
 | `state` | `ok`, `stale` (older than 6 hours), `no-data` (a login is saved, nothing was read yet), `not-signed-in` (no saved login) or `other-account` (the cache is of an earlier sign-in; Claude only). |
 | `fetchedAt` | When the numbers were read, ISO, or `null`. |

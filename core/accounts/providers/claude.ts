@@ -21,7 +21,7 @@ import { ASK_EVERY_MS } from "../usage-record.ts";
 import { state } from "../../state.ts";
 import { readRecord } from "../usage-record.ts";
 import { vaultDir, withLoginLock, writePrivate } from "../vault.ts";
-import { type StoredLogin, credentialsIn, knownLogin, liveLogin, loginMark, loginOf, ownerOf, readJson, realOrSame, slotDir, slotLogin, slotProfile, subscriptionOf, vaultLogin } from "./claude-store.ts";
+import { type StoredLogin, credentialsIn, knownLogin, liveLogin, loginMark, loginOf, ownerOf, readJson, realOrSame, slotDir, slotLogin, slotProfile, profilePlan, vaultLogin } from "./claude-store.ts";
 
 // ── When the saved logins expire ─────────────────────────────────────────────────────────────
 // A login lasts a few weeks; Claude Code renews the access token but not past the refresh token's
@@ -158,8 +158,10 @@ const claude: Provider = {
   account(p) {
     const known = knownLogin(p);
     if (!known) return null;
-    const seat = known.account?.seatTier;
-    return { id: known.id, email: known.email, plan: subscriptionOf(known.text), seat: typeof seat === "string" && seat ? seat : null, shown: known.email || known.id };
+    // The plan and seat from the copy the profile uses now, as usage reads them: the slot's when its
+    // account is there, so profile list and usage never tell two seats
+    const { plan, seat } = profilePlan(p);
+    return { id: known.id, email: known.email, plan, seat, shown: known.email || known.id };
   },
   slot: slotLogin,
   slotProfile,
