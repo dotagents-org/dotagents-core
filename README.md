@@ -44,11 +44,14 @@ dotagents keeps the configuration in your git repository and applies shared inst
 - **Projects stay clean.** A project gets its `AGENTS.md`, skills and documentation in a folder that wraps its repositories, so not a single agent file lands in the project's git history, not even a `.gitignore` rule.
 - **Skills, yours and other people's.** Your own skills are linked, so an edit is live everywhere at once; third-party ones come from a catalog and install through [`npx skills`](https://skills.sh).
 - **A checklist you can run.** `dotagents check` verifies a workspace against the standards and exits non-zero when something is off.
+- **Sessions of both agents.** `dotagents sessions` lists Claude Code's and Codex's conversations on both sides of the machine, with the account of each; `sessions rm` and the `archive` skill write them to `.artifacts/sessions/` before deleting.
 
 **Claude and ChatGPT accounts**
 
 - **Switch in place.** `dotagents switch` puts an account's login in its agent's slot (`~/.claude` for Claude Code, `~/.codex/auth.json` for Codex), on one side of the machine or both, keeping each login in a private vault. History and configuration stay shared.
-- **Usage, live.** Both providers show 5-hour and weekly windows with projections. Claude also shows per-model windows when available and combines Claude Code's cache with readings from Anthropic. ChatGPT usage comes through the Codex app-server.
+- **Usage, live.** Both providers show 5-hour and weekly windows with projections, from either side of the machine, whichever read the account last. Claude also shows per-model windows when available and combines Claude Code's cache with readings from Anthropic. ChatGPT usage comes through the Codex app-server.
+- **What 1% costs.** `usage --spend` relates each window's % to the tokens your sessions spent, from Claude Code's transcripts and Codex's rollouts: in dollars at the API's prices for Claude, in tokens for ChatGPT, by model and by folder.
+- **Logins kept alive.** `login --all` signs in again every Claude login about to run out and every ChatGPT login refused or not saved yet; `doctor` checks Node, Claude Code and Codex, and every login, on both sides.
 - **In VS Code, with the dotagents sidebar (strongly recommended).** `dotagents start` is a local API on 127.0.0.1; the [dotagents sidebar](https://github.com/dotagents-org/dotagents-sidebar) reads it to show every account, with an avatar that says how it is at a glance, the current one in the status bar, and the switch.
 - **A Desktop launcher per profile** on Windows, for Claude Desktop and the ChatGPT app, with a profile icon and taskbar button.
 
@@ -189,11 +192,11 @@ dotagents-config/
 | [`update [--all]`](docs/commands.md#dotagents-update) | Pulls your repository and reinstalls; `--all` also refreshes every workspace. |
 | [`settings pull`](docs/commands.md#dotagents-settings-pull) | Brings a Claude Code settings change made with `/config` back into the configuration repository. |
 | [`revision`](docs/commands.md#dotagents-revision), [`revision on`](docs/commands.md#dotagents-revision), [`revision off`](docs/commands.md#dotagents-revision), [`revision fix`](docs/commands.md#dotagents-revision) | Optionally proofreads Claude Code prompts and keeps the revision in the chat and the session archive. |
-| [`doctor`](docs/commands.md#dotagents-doctor), [`logs`](docs/commands.md#dotagents-logs) | Check Node.js, the other side and profile logins, or read the product logs. |
+| [`doctor`](docs/commands.md#dotagents-doctor), [`logs`](docs/commands.md#dotagents-logs) | Check Node.js, Claude Code and Codex on each side, the other side and every login, or read the product logs. |
 | [`profile add <name>`](docs/commands.md#dotagents-profile-add), [`profile list`](docs/commands.md#dotagents-profile-list), [`profile remove`](docs/commands.md#dotagents-profile-remove) | Manage Claude and ChatGPT profiles. On Windows each profile gets a Desktop launcher. |
 | [`switch <profile>`](docs/commands.md#dotagents-switch) | Puts a profile's login in its agent's slot (`~/.claude` or `~/.codex`) on both sides (`--here` for one), keeping each account's login in a vault. |
-| [`login <profile>`](docs/commands.md#dotagents-login) | Signs a profile in again on this side when its login runs out, keeping the new login in its vault; `--all` for every Claude login running out. |
-| [`usage`](docs/commands.md#dotagents-usage) | How much of each profile's plan is used, with a projection to the reset, asked of Anthropic or OpenAI (`--refresh` asks now). |
+| [`login <profile>`](docs/commands.md#dotagents-login) | Signs a profile in again on this side when its login runs out, keeping the new login in its vault; `--all` for every Claude login running out and every ChatGPT one refused or not saved. |
+| [`usage`](docs/commands.md#dotagents-usage) | How much of each profile's plan is used, with a projection to the reset, asked of Anthropic or OpenAI (`--refresh` asks now); `--spend`, what 1% of each window costs. |
 | [`start`](docs/commands.md#dotagents-start) | Starts the accounts' local API on 127.0.0.1, live, which the dotagents sidebar reads. |
 | [`new [git-url] [folder]`](docs/commands.md#dotagents-new) | Creates a workspace, clones the repository into it and applies the standards; with a folder alone, starts an empty workspace. |
 | [`init [path]`](docs/commands.md#dotagents-init) | Applies the standards to a folder, offering to wrap a repository first. |
@@ -225,7 +228,7 @@ Issues and pull requests are welcome: a bug, an idea, a skill worth sharing, a b
 
 - **dotagents-core**, this repository: the `dotagents` command, the workspace standards, and the local accounts API (`dotagents start`).
 - **dotagents-config**: your configuration, a repository of your own next to dotagents-core; [`templates/config/`](templates/config/) is where it starts.
-- **[dotagents-sidebar](https://github.com/dotagents-org/dotagents-sidebar)**: Claude Code and your Claude accounts in VS Code's secondary sidebar.
+- **[dotagents-sidebar](https://github.com/dotagents-org/dotagents-sidebar)**: Claude Code, Codex and your Claude and ChatGPT accounts in VS Code's secondary sidebar.
 
 ## License
 
