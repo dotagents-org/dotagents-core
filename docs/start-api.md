@@ -69,7 +69,7 @@ A profile:
 | `avatar` | The state for the avatar: the most urgent of `error`, `limit`, `waiting`, `warn`, `ok`, `asleep`. |
 | `working` | A session works on the profile (its avatar hops). Only a Claude profile can have it `true`. |
 | `source` | `cache` (Claude Code's) or `live` (asked of Anthropic, or of `codex app-server`); present with numbers. |
-| `from` | The other side's name, when the numbers came from there (Claude). |
+| `from` | The other side's name, when the numbers came from there (Claude or ChatGPT). |
 | `activity` | `{ working, waiting }`: the profile's running sessions, for a Claude profile whose login Claude Code is using, both sides counted. |
 | `error` | Why the last live ask failed; the numbers shown are older than it. |
 
