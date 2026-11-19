@@ -86,17 +86,25 @@ export function runOnPeer(line: string) {
     : spawnSync("powershell.exe", ["-NoProfile", "-Command", line], { encoding: "utf8", timeout: 60_000, cwd: "/mnt/c" });
 }
 
-// The line that asks the other side for an agent's version. From WSL it goes through cmd: an agent
-// npm installed on Windows has a codex.ps1 next to codex.cmd, and PowerShell, which prefers the
-// .ps1, refuses it where scripts are blocked, so the agent would look missing. cmd looks in the
-// current folder before the PATH unless NoDefaultCurrentDirectoryInExePath is set, so a codex.cmd
-// in whatever folder it runs in would run instead.
+// The line that asks the other side for an agent's version, from the PATH's absolute folders only:
+// a relative entry (".", "bin") would find a file of whatever folder it runs in. From WSL it goes
+// through cmd (/d: without its AutoRun): an agent npm installed on Windows has a codex.ps1 next to
+// codex.cmd, and PowerShell, which prefers the .ps1, refuses it where scripts are blocked. cmd also
+// looks in the current folder first unless NoDefaultCurrentDirectoryInExePath is set.
 export const peerVersionLine = (command: string, platform: NodeJS.Platform = process.platform) =>
-  platform === "win32" ? `${command} --version` : `$env:NoDefaultCurrentDirectoryInExePath = 1; cmd /c ${command} --version`;
+  platform === "win32"
+    ? `PATH=$(printf %s "$PATH" | tr : '\\n' | grep '^/' | paste -sd:) ${command} --version`
+    : `$env:PATH = ($env:PATH -split ';' | Where-Object { $_ -match '^([a-zA-Z]:\\\\|\\\\\\\\)' }) -join ';'; $env:NoDefaultCurrentDirectoryInExePath = 1; cmd /d /c ${command} --version`;
 
-// The environment for running an agent through cmd on this side: only from the PATH, never from the
-// current folder, which may be a repository with a claude.cmd or codex.cmd of its own.
-export const pathOnlyEnv = (env: NodeJS.ProcessEnv = process.env) => ({ ...env, NoDefaultCurrentDirectoryInExePath: "1" });
+// The environment for running an agent on this side: from the PATH's absolute folders only, never
+// the current folder, which may be a repository with a claude.cmd or codex.cmd of its own (Node
+// runs a shell command through cmd /d /s /c, without its AutoRun).
+export function pathOnlyEnv(env: NodeJS.ProcessEnv = process.env, platform: NodeJS.Platform = process.platform) {
+  const key = Object.keys(env).find((k) => k.toUpperCase() === "PATH") ?? "PATH";
+  const absolute = (dir: string) => (platform === "win32" ? /^([a-zA-Z]:[\\/]|\\\\)/.test(dir) : dir.startsWith("/"));
+  const sep = platform === "win32" ? ";" : ":";
+  return { ...env, [key]: (env[key] ?? "").split(sep).filter(absolute).join(sep), NoDefaultCurrentDirectoryInExePath: "1" };
+}
 
 // The version an agent's `<command> --version` printed ("2.1.327 (Claude Code)", "codex-cli
 // 0.170.0"): the line in its own shape, past whatever the shell printed first (the other side's

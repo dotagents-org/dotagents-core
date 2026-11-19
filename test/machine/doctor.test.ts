@@ -29,8 +29,13 @@ test("an agent's version is the line in its shape, past what the shell printed f
   assert.equal(agentVersion({ status: null, error: new Error("spawn claude ENOENT") }, claude), null);
 });
 
-test("from WSL the other side's agent is asked through cmd, which runs an npm .cmd that PowerShell may refuse as a .ps1", () => {
-  assert.equal(peerVersionLine("codex", "linux"), "$env:NoDefaultCurrentDirectoryInExePath = 1; cmd /c codex --version");
-  assert.equal(pathOnlyEnv({ PATH: "/bin" }).NoDefaultCurrentDirectoryInExePath, "1");
-  assert.equal(peerVersionLine("codex", "win32"), "codex --version");
+test("an agent is asked for its version from the PATH's absolute folders only, never the current folder", () => {
+  // From WSL, Windows: cmd without AutoRun, no current folder, no relative PATH entry
+  assert.match(peerVersionLine("codex", "linux"), /^\$env:PATH = .*-match .*\$env:NoDefaultCurrentDirectoryInExePath = 1; cmd \/d \/c codex --version$/);
+  // From Windows, WSL: the PATH's relative entries dropped
+  assert.match(peerVersionLine("codex", "win32"), /grep '\^\/'.* codex --version$/);
+  const win = pathOnlyEnv({ Path: String.raw`C:\Tools;.;bin;\\server\share;\rooted;D:/bin` }, "win32");
+  assert.equal(win.Path, String.raw`C:\Tools;\\server\share;D:/bin`);
+  assert.equal(win.NoDefaultCurrentDirectoryInExePath, "1");
+  assert.equal(pathOnlyEnv({ PATH: "/usr/bin:.:bin::/opt/x" }, "linux").PATH, "/usr/bin:/opt/x");
 });
