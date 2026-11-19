@@ -225,20 +225,26 @@ export const sessionsRm: Command = {
 
     // A running session goes only when the user says so in a terminal, and only archived: its
     // Claude Code is ended first on this side. --yes doesn't answer this one.
-    const running = chosen.filter((s) => s.running);
-    const doomed = chosen.filter((s) => !s.running);
+    // A Codex conversation dotagents can't see the processes of (the other side, Windows) is one it can't
+    // say is stopped: it asks like a running one. One it sees open here is never asked about.
+    const unsure = (s: Session) => s.agent === "codex" && !s.checked;
+    const running = chosen.filter((s) => s.running || unsure(s));
+    const doomed = chosen.filter((s) => !running.includes(s));
     let alsoRunning: Session[] = [];
     if (running.length && ask_ && !args["no-archive"]) {
-      const here = running.filter((s) => s.pid !== null).length;
-      const what = here === running.length ? "its Claude Code is closed first" : here ? "on this side, its Claude Code is closed first; on the other, only its files go" : "only its files go: it runs on the other side, so close it there";
-      const archivable = running.filter((s) => s.root);
-      if (archivable.length && (await ask(`${plural(archivable.length, "session")} ${archivable.length === 1 ? "is" : "are"} still running. Archive and delete ${archivable.length === 1 ? "it" : "them"} anyway? (${what})`, false))) alsoRunning = archivable;
+      const askable = running.filter((s) => s.agent !== "codex" || unsure(s));
+      const here = askable.filter((s) => s.pid !== null).length;
+      const codexOnly = askable.every((s) => s.agent === "codex");
+      const what = codexOnly ? "it is deleted through codex delete; close Codex on it first" : here === askable.length ? "its Claude Code is closed first" : here ? "on this side, its Claude Code is closed first; on the other, only its files go" : "only its files go: it runs on the other side, so close it there";
+      const archivable = askable.filter((s) => s.root);
+      const word = askable.some((s) => s.running) ? "still running" : "possibly still open";
+      if (archivable.length && (await ask(`${plural(archivable.length, "session")} ${archivable.length === 1 ? "is" : "are"} ${word}. Archive and delete ${archivable.length === 1 ? "it" : "them"} anyway? (${what})`, false))) alsoRunning = archivable;
     }
     const kept = running.filter((s) => !alsoRunning.includes(s));
     if (kept.length) section("Plan");
     for (const s of kept) {
       const why = !s.root ? "it can't be archived first" : args["no-archive"] ? "a running session is deleted only archived" : ask_ ? "kept, as answered" : "confirm in a terminal to delete it";
-      report("skipped", s.file, `${s.id.slice(0, 8)} is still running; ${why}`);
+      report("skipped", s.file, `${s.id.slice(0, 8)} ${s.running ? "is still running" : "may still be open"}; ${why}`);
     }
     doomed.push(...alsoRunning);
     if (!doomed.length) return finish();

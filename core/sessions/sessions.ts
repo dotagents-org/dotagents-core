@@ -367,6 +367,34 @@ export const sessionFiles = (s: Pick<Session, "id" | "file" | "configDir">) => [
   path.join(s.configDir, "session-env", s.id),
 ];
 
+// A Codex conversation, through Codex, which deletes its subagents' rollouts and its own records too.
+// Where dotagents can see the processes (Linux, WSL), one that is open is never deleted, and looked
+// at again right before. Where it can't (the other side, Windows), whether Codex still has it open is
+// unknown: only a person's confirmation (evenRunning, which --yes never gives) lets it go, since the
+// delete may reach the thread a running Codex owns.
+function deleteCodex(s: Session, evenRunning: boolean, codex: CodexDelete) {
+  const peer = s.side === thisSide(loadMachine().peer) ? undefined : loadMachine().peer;
+  let mtime = s.mtime;
+  try {
+    mtime = fs.statSync(s.file).mtimeMs;
+  } catch {
+    // gone: codex delete says so
+  }
+  const known = s.checked && !peer;
+  if (known && codexRunning({ ...s, mtime }, true)) {
+    report("skipped", s.file, "still running; close it first");
+    return false;
+  }
+  if (!known && !evenRunning) {
+    report("skipped", s.file, `can't tell whether Codex still has it open on ${s.side}; close it there, then confirm the deletion in a terminal`);
+    return false;
+  }
+  if (state.dryRun) return report("would update", s.file, "would delete it with codex delete"), true;
+  if (codex(s.id, peer)) return report("updated", s.file, "deleted with codex delete"), true;
+  report("failed", s.file, `codex delete ${s.id} failed${peer ? ` on ${peer.name}` : ""}; delete it there with: codex delete ${s.id}`);
+  return false;
+}
+
 // Ends a Claude Code process: asks it to stop, waits up to 5 seconds for it to go (it writes its
 // transcript as it closes), then kills it. False when it was already gone.
 export type ProcessStopper = (pid: number) => boolean;
@@ -396,28 +424,9 @@ export const stopProcess: ProcessStopper = (pid) => {
 // would write its transcript again. One on the other side has only its files deleted. Honors
 // --dry-run; files already gone are left alone, so it can run again.
 export function deleteSession(s: Session, { evenRunning = false, stop = stopProcess, codex = codexDelete }: { evenRunning?: boolean; stop?: ProcessStopper; codex?: CodexDelete } = {}) {
-  // A Codex conversation has no process dotagents can end: one still running is never deleted
-  if (s.running && (!evenRunning || s.agent === "codex")) {
+  if (s.agent === "codex") return deleteCodex(s, evenRunning, codex);
+  if (s.running && !evenRunning) {
     report("skipped", s.file, "still running; close it first");
-    return false;
-  }
-  if (s.agent === "codex") {
-    const peer = s.side === thisSide(loadMachine().peer) ? undefined : loadMachine().peer;
-    // Looked at again right before: it may have been opened, or written to, since it was listed
-    let mtime = s.mtime;
-    try {
-      mtime = fs.statSync(s.file).mtimeMs;
-    } catch {
-      // gone: codex delete says so
-    }
-    if (codexRunning({ ...s, mtime }, !peer)) {
-      report("skipped", s.file, "still running; close it first");
-      return false;
-    }
-    // Through Codex, which deletes its subagents' rollouts and its own records too
-    if (state.dryRun) return report("would update", s.file, "would delete it with codex delete"), true;
-    if (codex(s.id, peer)) return report("updated", s.file, "deleted with codex delete"), true;
-    report("failed", s.file, `codex delete ${s.id} failed${peer ? ` on ${peer.name}` : ""}; delete it there with: codex delete ${s.id}`);
     return false;
   }
   if (s.running && s.pid !== null) {

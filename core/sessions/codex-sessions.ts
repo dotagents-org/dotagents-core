@@ -267,7 +267,8 @@ export function listCodexSessions(dirs: CodexDir[], { under, now = Date.now(), f
         root: archiveRoot(localCwd),
         running: codexRunning({ id: info.id, file, mtime: st.mtimeMs }, !dir.peer, now, open),
         pid: null,
-        checked: false,
+        // Told only on Linux (WSL included), where /proc says which rollouts a process holds open
+        checked: !dir.peer && process.platform === "linux",
       });
     }
   }

@@ -366,7 +366,12 @@ test("Codex's conversations join the list, without subagents', named as Codex na
   const asked: string[] = [];
   const fake = (id: string) => (asked.push(id), true);
   quiet();
-  assert.equal(deleteSession({ ...cart, running: true }, { evenRunning: true, codex: fake }), false);
+  // The file is written now (a conversation that came back to life since it was listed): looked at again, still never deleted
+  fs.utimesSync(main, new Date(), new Date());
+  assert.equal(deleteSession(cart, { evenRunning: true, codex: fake }), false);
+  fs.utimesSync(main, new Date(old), new Date(old));
+  // Where its processes can't be seen, nothing deletes it without a person's confirmation
+  assert.equal(deleteSession({ ...cart, checked: false }, { codex: fake }), false);
   state.dryRun = true;
   quiet({ dryRun: true });
   assert.equal(deleteSession(cart, { codex: fake }), true);
@@ -375,6 +380,8 @@ test("Codex's conversations join the list, without subagents', named as Codex na
   quiet();
   assert.equal(deleteSession(cart, { codex: fake }), true);
   assert.deepEqual(asked, [C]);
+  assert.equal(deleteSession({ ...cart, checked: false }, { evenRunning: true, codex: fake }), true, "confirmed, where it can't be seen");
+  assert.deepEqual(asked, [C, C]);
   // Its archive is the archive skill's Codex one, with its subagent's in a file of its own
   const archived = archiveSession(cart);
   assert.ok(archived.ok && fs.readFileSync(archived.file, "utf8").startsWith("# Cart\n"));
