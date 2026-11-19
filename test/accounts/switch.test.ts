@@ -9,7 +9,7 @@ import path from "node:path";
 import { test, type TestContext } from "node:test";
 import { saveMachine, saveProfile } from "../../core/machine/machine-state.ts";
 import { loginProfile } from "../../core/accounts/login.ts";
-import { type PeerSwitch, peerFailure, switchProfile } from "../../core/accounts/switch.ts";
+import { type PeerSwitch, peerFailure, slotChanged, switchProfile } from "../../core/accounts/switch.ts";
 import { verifyLogins } from "../../core/accounts/profiles.ts";
 import type { ClaudeLogin } from "../../core/accounts/providers/claude.ts";
 import { loginMark, slotProfile } from "../../core/accounts/providers/claude-store.ts";
@@ -330,4 +330,11 @@ test("switch --save keeps a seat that changed with the same tokens, and a switch
   quiet();
   await switchProfile({ name: "work", peer: noPeer });
   assert.equal(slotAccount(home).oauthAccount.seatTier, "team_premium");
+});
+
+test("the other side's switch is told to have changed its slot by its report line, plain or drawn for a terminal", () => {
+  assert.equal(slotChanged("updated      C:/Users/me/.claude  (now work)\n"), true);
+  assert.equal(slotChanged("\x1b[32m  ✓ updated     \x1b[0m C:/Users/me/.claude  \x1b[2mnow work (a@example.com)\x1b[0m\r\n"), true);
+  assert.equal(slotChanged("ok           C:/Users/me/.claude  (work is already in the slot)\n"), false);
+  assert.equal(slotChanged("updated      C:/Users/me/.config/dotagents/vault/work  (work's login)\n"), false);
 });

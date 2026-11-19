@@ -19,8 +19,9 @@ import { vaultDir, withLoginLock } from "./vault.ts";
 // Codex daemon's restart, say), and one that went through may have found it there already.
 export type PeerSwitch = (name: string) => { ok: boolean; detail: string; changed?: boolean } | null;
 
-// The plain report line the other side's switch prints when it wrote its slot.
-export const slotChanged = (output: string) => /^updated\s+\S.*\(now /m.test(output.replace(/\r/g, ""));
+// The report line the other side's switch prints when it wrote its slot: "updated  <slot>  (now x)"
+// plain, or with an icon, colors and no parentheses when that side draws for a terminal.
+export const slotChanged = (output: string) => /^\s*(?:\S\s+)?updated\s+\S.*\s\(?now /m.test(output.replace(/\x1b\[[0-9;]*m/g, "").replace(/\r/g, ""));
 
 export const peerSwitch: PeerSwitch = (name) => {
   const peer = loadMachine().peer;

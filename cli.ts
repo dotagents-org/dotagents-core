@@ -79,7 +79,8 @@ async function switchAction(body: unknown, oneAtATime: Serial): Promise<Action> 
     const failed = events.filter((e) => e.kind === "result" && e.status === "failed");
     // As the switch command: next only when a slot changed, even when the other side then failed,
     // since the sessions on the side that changed still keep the old account
-    const changed = events.some((e) => e.kind === "result" && e.status === "updated") ? { next } : {};
+    // A slot written says "now <profile>"; a vault updated with a renewed login is no switch
+    const changed = events.some((e) => e.kind === "result" && e.status === "updated" && (e.detail.startsWith("now ") || e.target === "switch")) ? { next } : {};
     if (failed.length) return { status: 502, body: { ok: false, detail: failed.map((e) => ("detail" in e ? e.detail : "")).join("; "), ...changed } };
     return { status: 200, body: { ok: true, detail: `now ${name}`, ...changed } };
   } catch (err) {
