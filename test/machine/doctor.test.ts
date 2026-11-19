@@ -33,7 +33,7 @@ test("an agent is asked for its version from the PATH's absolute folders only, n
   // From WSL, Windows: cmd without AutoRun, no current folder, no relative PATH entry
   assert.match(peerVersionLine("codex", "linux"), /^\$env:PATH = .*-match .*\$env:NoDefaultCurrentDirectoryInExePath = 1; cmd \/d \/c codex --version$/);
   // From Windows, WSL: the PATH's relative entries dropped
-  assert.match(peerVersionLine("codex", "win32"), /grep '\^\/'.* codex --version$/);
+  assert.match(peerVersionLine("codex", "win32"), /^IFS=:; for d in \$PATH; do case \$d in \/\*\) .*exec "\$d\/codex" --version;; esac; done; exit 127$/);
   const win = pathOnlyEnv({ Path: String.raw`C:\Tools;.;bin;\\server\share;\rooted;D:/bin` }, "win32");
   assert.equal(win.Path, String.raw`C:\Tools;\\server\share;D:/bin`);
   assert.equal(win.NoDefaultCurrentDirectoryInExePath, "1");

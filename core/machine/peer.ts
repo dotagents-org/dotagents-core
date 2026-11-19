@@ -87,13 +87,14 @@ export function runOnPeer(line: string) {
 }
 
 // The line that asks the other side for an agent's version, from the PATH's absolute folders only:
-// a relative entry (".", "bin") would find a file of whatever folder it runs in. From WSL it goes
+// a relative entry (".", "bin") would find a file of whatever folder it runs in. From Windows, WSL's
+// bash looks through them with its own builtins, and runs the agent by its full path. From WSL it goes
 // through cmd (/d: without its AutoRun): an agent npm installed on Windows has a codex.ps1 next to
 // codex.cmd, and PowerShell, which prefers the .ps1, refuses it where scripts are blocked. cmd also
 // looks in the current folder first unless NoDefaultCurrentDirectoryInExePath is set.
 export const peerVersionLine = (command: string, platform: NodeJS.Platform = process.platform) =>
   platform === "win32"
-    ? `PATH=$(printf %s "$PATH" | tr : '\\n' | grep '^/' | paste -sd:) ${command} --version`
+    ? `IFS=:; for d in $PATH; do case $d in /*) [ -x "$d/${command}" ] && exec "$d/${command}" --version;; esac; done; exit 127`
     : `$env:PATH = ($env:PATH -split ';' | Where-Object { $_ -match '^([a-zA-Z]:\\\\|\\\\\\\\)' }) -join ';'; $env:NoDefaultCurrentDirectoryInExePath = 1; cmd /d /c ${command} --version`;
 
 // The environment for running an agent on this side: from the PATH's absolute folders only, never

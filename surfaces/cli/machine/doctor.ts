@@ -40,7 +40,12 @@ export const doctor: Command = {
     for (const provider of providers()) {
       const { command, version: shape, install } = provider.cli;
       // On Windows an npm-installed agent is a .cmd, which only a shell runs: from the PATH only
-      const sides = [{ name: sideName(), res: spawnSync(command, ["--version"], { encoding: "utf8", timeout: 30_000, windowsHide: true, shell: process.platform === "win32", env: pathOnlyEnv() }) }];
+      // With no absolute folder in the PATH, nothing is run: an empty PATH searches the current folder
+      const env = pathOnlyEnv();
+      const run = Object.entries(env).some(([k, v]) => k.toUpperCase() === "PATH" && v)
+        ? spawnSync(command, ["--version"], { encoding: "utf8", timeout: 30_000, windowsHide: true, shell: process.platform === "win32", env })
+        : { status: null, stdout: "", error: new Error("no absolute folder in the PATH") };
+      const sides = [{ name: sideName(), res: run }];
       if (peer) sides.push({ name: peer.name, res: runOnPeer(peerVersionLine(command)) });
       for (const side of sides) {
         const version = agentVersion(side.res, shape);
