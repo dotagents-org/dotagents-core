@@ -237,7 +237,8 @@ export function verifyGlobal(repo: string, configDirs: string[]) {
       // Not valid JSON: Claude Code reports that itself.
     }
   }
-  const status = spawnSync("git", ["-C", configRoot(repo), "status", "--porcelain", "--", "claude/settings.json", "claude/global-config.json"], { encoding: "utf8" });
+  // Only reads: without optional locks git doesn't refresh the index, so a check (and --dry-run) writes nothing
+  const status = spawnSync("git", ["--no-optional-locks", "-C", configRoot(repo), "status", "--porcelain", "--", "claude/settings.json", "claude/global-config.json"], { encoding: "utf8" });
   if (status.status === 0 && status.stdout.trim())
     checkWarn("config/claude/settings.json or global-config.json changed and not committed", `commit them so your other clones get them: git -C ${displayPath(configRoot(repo))} commit`);
 }
