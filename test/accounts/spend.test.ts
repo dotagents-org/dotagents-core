@@ -86,7 +86,7 @@ test("the report puts the current window's spend by model and folder, and counts
   const saved = process.env.DOTAGENTS_STATE_DIR;
   process.env.DOTAGENTS_STATE_DIR = dir;
   t.after(() => (process.env.DOTAGENTS_STATE_DIR = saved));
-  recordHistory("work", [{ kind: "session", pct: 5, resetsAt: new Date("2026-11-15T12:00:00Z"), reset: false }], new Date("2026-11-15T09:00:00Z"));
+  recordHistory("work", [{ kind: "session", pct: 5, resetsAt: new Date("2026-11-15T12:00:00Z") }], new Date("2026-11-15T09:00:00Z"));
   const usage = { input_tokens: 0, output_tokens: 1000 };
   const dirs = configDir(t, {
     "-work-app/s1.jsonl": [owner(A), message("m1", "2026-11-15T08:00:00Z", usage), message("m2", "2026-11-15T09:30:00Z", usage, "claude-sonnet-5-5", "/work/api")],

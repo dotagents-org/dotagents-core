@@ -11,7 +11,7 @@
 //
 // The network goes through a Fetcher; the tests pass a fake one.
 
-import { recordHistory } from "../spend.ts";
+import { recordHistory } from "../usage-history.ts";
 import fs from "node:fs";
 import { log } from "../../machine/log.ts";
 import { PALETTE, type Profile, claudeProfiles } from "../../machine/machine-state.ts";

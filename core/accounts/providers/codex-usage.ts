@@ -31,6 +31,7 @@ import type { Asked } from "../providers.ts";
 import { maskUsageError, readRecord } from "../usage-record.ts";
 import { type ProfileUsage, STALE_MS, type UsageWindow, usageWindow } from "../usage.ts";
 import { writePrivate } from "../vault.ts";
+import { recordHistory } from "../usage-history.ts";
 
 export type SpawnAppServer = (home: string) => ChildProcessWithoutNullStreams;
 
@@ -234,7 +235,9 @@ export async function askCodex(
   } catch (err) {
     return { ok: false, error: `Codex's answer is not a usage this dotagents reads (${maskUsageError((err as Error).message).slice(0, 160)})`, refusedMark: null };
   }
-  return { ok: true, record: { provider: "codex", fetchedAtMs: at, user: login.id, plan: usage.plan, windows: usage.windows } };
+  // The %'s history, for usage --spend, as Claude's (core/accounts/spend.ts)
+  const history = usage.windows.map((w) => ({ kind: w.kind, pct: w.pct, resetsAt: w.resetsAt === null ? null : new Date(w.resetsAt) }));
+  return { ok: true, record: { provider: "codex", fetchedAtMs: at, user: login.id, plan: usage.plan, windows: usage.windows }, afterWrite: () => recordHistory(p.name, history, new Date(at)) };
 }
 
 // The usage kept for a Codex profile, as the snapshot reads it: its windows as of now, when they
