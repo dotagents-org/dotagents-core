@@ -34,10 +34,6 @@ Nothing else: no analytics, no crash reports, no update check of the tool itself
 
 `dotagents start` serves the accounts to the dotagents sidebar. It listens only on `127.0.0.1`, answers only requests addressed to itself (so a web page can't reach it by DNS rebinding), and nothing without the random token in `start.json`, which a request carries in a header, never in the address. Three actions write (switch, open the Desktop, refresh); the rest only reads. See [`dotagents start`](commands.md#dotagents-start).
 
-## The compile cache
-
-The command keeps Node's compile cache in this user's own cache folder (`~/.cache/dotagents/compile-cache`, `%LOCALAPPDATA%\dotagents\compile-cache` on Windows), never in the temporary folder, Node's default: on Linux that one is shared, and another account could plant code there for dotagents to run. A folder named by the environment (`XDG_CACHE_HOME`) could be shared, so it isn't followed. On Linux and macOS every folder from the home folder down is created for the user alone, and when one belongs to someone else or others can write to it, the command runs without the cache. A dry run leaves the cache off. See [Commands](commands.md).
-
 ## Logs
 
 The logs (`<state>/logs/`) mask every token before writing: `sk-ant-…` keys, `accessToken` and `refreshToken` values, the API's token header and `Bearer` tokens. A test writes each of them and fails if one reaches a file. See [Logs](logs.md).

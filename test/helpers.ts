@@ -8,10 +8,6 @@ import { resetState } from "../core/state.ts";
 import type { Skill } from "../core/workspace/skills.ts";
 import type { Installer } from "../core/workspace/thirdparty.ts";
 
-// The commands the tests run leave Node's compile cache off, so none writes outside its temporary
-// folders; test/startup.test.ts turns it back on where it checks the cache itself.
-process.env.NODE_DISABLE_COMPILE_CACHE = "1";
-
 // The real repository: templates and the skills dotagents brings come from it.
 export const REPO = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 

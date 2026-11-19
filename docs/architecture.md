@@ -10,8 +10,7 @@ dotagents-core/
 ├── templates/config/          a generic configuration: the tests and the CI run against it, and it is where a new one starts
 ├── assets/                    the logo, the avatars and the README's pictures
 ├── docs/                      this documentation
-├── cli.ts                     the dotagents command: turns on Node's compile cache, then loads main.ts
-├── main.ts                    reads the arguments, picks the command, prints the help
+├── cli.ts                     the dotagents command: reads the arguments, picks the command, prints the help
 ├── core/                      the data and the actions, drawing nothing (see below); common.ts, state.ts and claude-code.ts serve them all
 │   ├── accounts/              the accounts: profiles, switch, login, usage; one file per provider in providers/
 │   ├── workspace/             the workspace standard, skills, third-party skills, memory, git exclusions
@@ -31,9 +30,9 @@ The configuration (global instructions, rules, settings, own skills, profile ico
 
 ## Modules
 
-The command is TypeScript run directly by Node (type stripping, no build step) with one dependency: `@clack/prompts`, for the questions and the spinners. The colors come from `core/output/theme.ts`. `main.ts`, loaded by `cli.ts` once Node's compile cache is on, reads the arguments and hands them to one of the commands in `surfaces/cli/`, which asks the questions and calls the modules. Everything that decides what a workspace or a machine should look like lives in `core/`, in a few modules with small interfaces.
+The command is TypeScript run directly by Node (type stripping, no build step) with one dependency: `@clack/prompts`, for the questions and the spinners. The colors come from `core/output/theme.ts`. `cli.ts` reads the arguments and hands them to one of the commands in `surfaces/cli/`, which asks the questions and calls the modules. Everything that decides what a workspace or a machine should look like lives in `core/`, in a few modules with small interfaces.
 
-**Core and surfaces.** `core/` holds the data and the actions and draws nothing. A surface is a way in: the commands (`surfaces/cli/`) and the local API (`surfaces/web/`, which the dotagents sidebar reads over HTTP; the panel, the avatars and everything else drawn live there). Nothing here draws a page. Each surface uses `core/` and never another surface; `main.ts`, at the root, is the one place that picks one, and where `start` joins the command line to the web server. `test/boundaries.test.ts` fails when an import breaks the rule.
+**Core and surfaces.** `core/` holds the data and the actions and draws nothing. A surface is a way in: the commands (`surfaces/cli/`) and the local API (`surfaces/web/`, which the dotagents sidebar reads over HTTP; the panel, the avatars and everything else drawn live there). Nothing here draws a page. Each surface uses `core/` and never another surface; `cli.ts`, at the root, is the one place that picks one, and where `start` joins the command line to the web server. `test/boundaries.test.ts` fails when an import breaks the rule.
 
 The arrows point to what a part uses, and none runs in a circle (`test/boundaries.test.ts`). The accounts go one way: surfaces, then the coordination, then `providers.ts`, then each provider's files, then the storage they share. The table below gives each module's interface.
 
@@ -42,7 +41,7 @@ The arrows point to what a part uses, and none runs in a circle (`test/boundarie
 flowchart TB
     subgraph surfaces["surfaces: the ways in"]
         direction LR
-        cli["main.ts + surfaces/cli/<br/>arguments, questions"]
+        cli["cli.ts + surfaces/cli/<br/>arguments, questions"]
         web["surfaces/web/<br/>the local API"]
     end
 
@@ -165,7 +164,7 @@ uvx --from cairosvg==2.7.1 cairosvg assets/claude-<name>.svg -o /tmp/icon.png -W
 uv run --no-project --with pillow==12.0.0 python -c "from PIL import Image; Image.open('/tmp/icon.png').save('assets/claude-<name>.ico', sizes=[(s, s) for s in (16, 24, 32, 48, 64, 128, 256)])"
 ```
 
-**Adding a command:** write `surfaces/cli/<group>/<name>.ts` (`accounts`, `workspace` or `machine`, its group in the help) exporting a `Command` (name, usage, summary, group, `run`), add it to `COMMANDS` in `main.ts` (the order is the help's order), and describe it in [Commands](commands.md) and in the table of the README.
+**Adding a command:** write `surfaces/cli/<group>/<name>.ts` (`accounts`, `workspace` or `machine`, its group in the help) exporting a `Command` (name, usage, summary, group, `run`), add it to `COMMANDS` in `cli.ts` (the order is the help's order), and describe it in [Commands](commands.md) and in the table of the README.
 
 **Adding a rule to the workspace standard:**
 
