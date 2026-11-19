@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { agentVersion, nodeOk, peerToolCheck, peerVersionLine } from "../../core/machine/peer.ts";
+import { agentVersion, nodeOk, pathOnlyEnv, peerToolCheck, peerVersionLine } from "../../core/machine/peer.ts";
 import { providers } from "../../core/accounts/providers.ts";
 import "../helpers.ts";
 
@@ -30,6 +30,7 @@ test("an agent's version is the line in its shape, past what the shell printed f
 });
 
 test("from WSL the other side's agent is asked through cmd, which runs an npm .cmd that PowerShell may refuse as a .ps1", () => {
-  assert.equal(peerVersionLine("codex", "linux"), "cmd /c codex --version");
+  assert.equal(peerVersionLine("codex", "linux"), "$env:NoDefaultCurrentDirectoryInExePath = 1; cmd /c codex --version");
+  assert.equal(pathOnlyEnv({ PATH: "/bin" }).NoDefaultCurrentDirectoryInExePath, "1");
   assert.equal(peerVersionLine("codex", "win32"), "codex --version");
 });

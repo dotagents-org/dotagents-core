@@ -88,9 +88,15 @@ export function runOnPeer(line: string) {
 
 // The line that asks the other side for an agent's version. From WSL it goes through cmd: an agent
 // npm installed on Windows has a codex.ps1 next to codex.cmd, and PowerShell, which prefers the
-// .ps1, refuses it where scripts are blocked, so the agent would look missing.
+// .ps1, refuses it where scripts are blocked, so the agent would look missing. cmd looks in the
+// current folder before the PATH unless NoDefaultCurrentDirectoryInExePath is set, so a codex.cmd
+// in whatever folder it runs in would run instead.
 export const peerVersionLine = (command: string, platform: NodeJS.Platform = process.platform) =>
-  platform === "win32" ? `${command} --version` : `cmd /c ${command} --version`;
+  platform === "win32" ? `${command} --version` : `$env:NoDefaultCurrentDirectoryInExePath = 1; cmd /c ${command} --version`;
+
+// The environment for running an agent through cmd on this side: only from the PATH, never from the
+// current folder, which may be a repository with a claude.cmd or codex.cmd of its own.
+export const pathOnlyEnv = (env: NodeJS.ProcessEnv = process.env) => ({ ...env, NoDefaultCurrentDirectoryInExePath: "1" });
 
 // The version an agent's `<command> --version` printed ("2.1.327 (Claude Code)", "codex-cli
 // 0.170.0"): the line in its own shape, past whatever the shell printed first (the other side's
