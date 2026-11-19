@@ -10,7 +10,7 @@ import path from "node:path";
 import { test, type TestContext } from "node:test";
 import { saveMachine, saveProfile } from "../../core/machine/machine-state.ts";
 import { loginProfile } from "../../core/accounts/login.ts";
-import { type PeerSwitch, peerFailure, slotChanged, switchProfile } from "../../core/accounts/switch.ts";
+import { type PeerSwitch, peerFailure, peerSwitch, slotChanged, switchProfile } from "../../core/accounts/switch.ts";
 import { verifyLogins } from "../../core/accounts/profiles.ts";
 import type { ClaudeLogin } from "../../core/accounts/providers/claude.ts";
 import { loginMark, slotProfile } from "../../core/accounts/providers/claude-store.ts";
@@ -352,4 +352,14 @@ test("the command line takes --expect, as the other side's switch is run", (t) =
   const run = spawnSync(process.execPath, [path.join(REPO, "cli.ts"), "switch", "nobody", "--here", "--expect", "uuid-x"], { encoding: "utf8", env: { ...process.env, HOME: home, USERPROFILE: home, DOTAGENTS_STATE_DIR: path.join(home, "state") } });
   assert.doesNotMatch(run.stderr, /Unknown option/);
   assert.match(run.stderr, /There is no Claude profile named nobody/);
+});
+
+test("the other side is never switched by name alone: an account to check it by is needed", (t) => {
+  const home = machine(t);
+  saveMachine({ peer: { name: "Windows", home: path.join(home, "peer"), nativeHome: "C:\\Users\\me" } });
+  for (const expect of [undefined, "", "a b", "x;rm"]) {
+    const answer = peerSwitch("work", expect);
+    assert.deepEqual([answer?.ok, answer?.changed], [false, false], String(expect));
+    assert.match(answer!.detail, /can't tell which account work holds here/);
+  }
 });

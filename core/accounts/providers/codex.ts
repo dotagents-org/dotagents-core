@@ -257,7 +257,7 @@ const codex: Provider = {
   readUsage: (now, view) => readCodexUsage(now, view),
   readSlots: (_list, view) => readCodexSlots(view),
   verifyProfile(profile) {
-    checkItem(samePath(profile.configDir, codexHome()), `${profile.name} uses ${displayPath(codexHome())}`, `update it with: dotagents profile add ${profile.name} --provider codex`);
+    checkItem(samePath(profile.configDir, codexHome()), `${profile.name} uses ${displayPath(codexHome())}`, `update it with: dotagents profile add ${profile.name} --provider chatgpt`);
   },
   verifyProfiles: verifyCodexLogins,
   verifyLogins,

@@ -488,3 +488,14 @@ test("the Logins section shows each ChatGPT login on the other side too, refused
   fs.writeFileSync(path.join(peer, ".config", "dotagents", "usage", "hopper.json"), JSON.stringify({ version: 1, provider: "chatgpt", refused: codexLoginMark(login) }));
   assert.match(checked(), new RegExp(`hopper on ${peerName}: OpenAI refused the login`));
 });
+
+test("login --all goes on to ChatGPT when Claude's sign-in fails, and says so at the end", async (t) => {
+  const home = machine(t);
+  quiet();
+  const seen: string[] = [];
+  await assert.rejects(
+    loginProfile({ all: true, run: () => { throw new Error("claude browser failed"); }, codex: { run: fakeSignIn(auth("user-hopper", "hopper1"), seen), daemon: () => null } }),
+    /providers? could not sign in: .*claude browser failed/,
+  );
+  assert.equal(vaultToken(home, "hopper"), "rt-hopper1", "ChatGPT's login was still taken, after Claude's failure");
+});

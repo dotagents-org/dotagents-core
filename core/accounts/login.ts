@@ -38,6 +38,9 @@ export async function loginProfile({ name, all = false, now = new Date(), ...opt
     section("Logins");
     return report("ok", sideName(), "every login lasts more than a week, and none was refused");
   }
+  // One provider's failure (an unknown account in its slot, say) doesn't stop the others': it is told, and
+  // thrown at the end so the exit code says it
+  const failures: Error[] = [];
   for (const { provider, due } of work) {
     const ctx: SignInContext = {
       accept: (p, fresh, who, onMismatch) => accept(provider, p, fresh, who, onMismatch),
@@ -45,6 +48,13 @@ export async function loginProfile({ name, all = false, now = new Date(), ...opt
       put: (n, login) => putInSlot(provider, n, login, { codex: options.codex }),
       switchHere: (n) => switchHere(provider, n, undefined),
     };
-    await provider.signIn(due, { now, ...options }, ctx);
+    try {
+      await provider.signIn(due, { now, ...options }, ctx);
+    } catch (err) {
+      if (!all || work.length === 1) throw err;
+      report("failed", provider.labels.account, (err as Error).message);
+      failures.push(err as Error);
+    }
   }
+  if (failures.length) throw new Error(`${failures.length} provider${failures.length === 1 ? "" : "s"} could not sign in: ${failures.map((f) => f.message).join("; ")}`);
 }

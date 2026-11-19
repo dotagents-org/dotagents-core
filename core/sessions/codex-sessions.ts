@@ -259,8 +259,7 @@ export type CodexDelete = (id: string, peer?: Peer) => boolean;
 export const codexDelete: CodexDelete = (id, peer) => {
   if (!ID.test(id)) return false;
   if (peer) {
-    const native = peerCodexNative(peer);
-    return runOnPeer(peerAgentLine("codex", `delete --force ${id}`, process.platform, native ? { CODEX_HOME: native } : {})).status === 0;
+    return runOnPeer(peerAgentLine("codex", `delete --force ${id}`, process.platform, { CODEX_HOME: peerCodexNative(peer) })).status === 0;
   }
   const env = pathOnlyEnv();
   if (!Object.entries(env).some(([k, v]) => k.toUpperCase() === "PATH" && v)) return false; // an empty PATH searches the current folder

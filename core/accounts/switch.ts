@@ -29,8 +29,11 @@ export const slotChanged = (output: string) => /^\s*(?:\S\s+)?updated\s+\S.*\s\(
 export const peerSwitch: PeerSwitch = (name, expect) => {
   const peer = loadMachine().peer;
   if (!peer) return null;
-  // An account id (a UUID, a ChatGPT user id) goes on the command line only when it is plain
-  const check = expect && /^[A-Za-z0-9_-]+$/.test(expect) ? ` --expect ${expect}` : "";
+  // The account the profile holds here goes on the command line, so the other side can refuse its profile
+  // of that name when it holds another one. An id it can't be checked by (absent, not plain) is no
+  // switch by name alone: refused here, nothing run there.
+  if (!expect || !/^[A-Za-z0-9_-]+$/.test(expect)) return { ok: false, detail: `${peer.name}: can't tell which account ${name} holds here, so its profile there isn't switched`, changed: false };
+  const check = ` --expect ${expect}`;
   // -i too: a login shell alone skips ~/.bashrc, where nvm puts its Node on the PATH, and the
   // distro's own Node may be too old to run dotagents
   const run =
