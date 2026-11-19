@@ -66,8 +66,12 @@ test("start actions reject missing profiles and sides and preserve provider desk
   if (process.platform !== "win32") {
     // A switch that went through says what to do next, as the switch command does
     const next = "Conversations open in VS Code and the terminal go on in the new account; type continue in them.";
-    assert.deepEqual(await ask("switch", { profile: "claude", side: "WSL" }), { status: 200, body: { apiVersion: 2, ok: true, detail: "now claude", next } });
-    assert.equal((await ask("switch", { profile: "claude" })).status, 502, "a local switch reports a failed peer result");
+    // Here the slot changed and the other side failed: the sessions here still need next
+    const partial = await ask("switch", { profile: "claude" });
+    assert.equal(partial.status, 502, "a local switch reports a failed peer result");
+    assert.equal(partial.body.next, next);
+    // Already in the slot: nothing changed, nothing to do
+    assert.deepEqual(await ask("switch", { profile: "claude", side: "WSL" }), { status: 200, body: { apiVersion: 2, ok: true, detail: "now claude" } });
     assert.equal((await ask("switch", { profile: "claude", side: "Windows" })).status, 502);
     // The Windows side's switch runs powershell.exe from /mnt/c, which only WSL has.
     if (fs.existsSync("/mnt/c")) {

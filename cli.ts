@@ -75,8 +75,11 @@ async function switchAction(body: unknown, oneAtATime: Serial): Promise<Action> 
   try {
     const events = await oneAtATime(() => captureAsync(() => switchProfile({ name, here: side !== undefined })));
     const failed = events.filter((e) => e.kind === "result" && e.status === "failed");
-    if (failed.length) return { status: 502, body: { ok: false, detail: failed.map((e) => ("detail" in e ? e.detail : "")).join("; ") } };
-    return { status: 200, body: { ok: true, detail: `now ${name}`, next } };
+    // As the switch command: next only when a slot changed, even when the other side then failed,
+    // since the sessions on the side that changed still keep the old account
+    const changed = events.some((e) => e.kind === "result" && e.status === "updated") ? { next } : {};
+    if (failed.length) return { status: 502, body: { ok: false, detail: failed.map((e) => ("detail" in e ? e.detail : "")).join("; "), ...changed } };
+    return { status: 200, body: { ok: true, detail: `now ${name}`, ...changed } };
   } catch (err) {
     log("core", "error", "start switch", err as Error);
     return { status: 409, body: { ok: false, detail: (err as Error).message } };
