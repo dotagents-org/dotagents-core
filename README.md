@@ -24,55 +24,63 @@
   <img alt="MIT license" src="https://img.shields.io/badge/license-MIT-171717">
 </p>
 
-Claude Code reads its configuration from `~/.claude/` on each machine and from `.claude/`, `CLAUDE.md` or `AGENTS.md` in each project. Use it across a few projects and two machines, and the copies drift apart: the same skill copied into several projects, an instruction fixed on one machine and forgotten on the other, project files leaking into the repository's git. Hold more than one Claude seat and it gets worse: one login per machine at a time, and no single place that says how much of each plan is left.
+Claude Code and Codex read their configuration from your home folder on each machine, and from `CLAUDE.md`, `AGENTS.md` and `.claude/` in each project. Across a few projects and two machines, the copies drift: the same skill pasted into several projects, an instruction fixed on one machine and forgotten on the other, agent files leaking into the project's git. With more than one seat it gets worse: one login per machine at a time, and nowhere that says how much of each plan is left.
 
-dotagents keeps the configuration in your git repository and applies shared instructions, rules and workspace skills to Claude Code and Codex. It switches Claude and ChatGPT logins in place and shows each account's usage in the terminal and in the [dotagents sidebar](https://github.com/dotagents-org/dotagents-sidebar).
+dotagents keeps that configuration in a git repository of your own and applies it everywhere: global instructions, rules and settings on each machine, and the standards and skills in each workspace. It also switches Claude and ChatGPT logins in place and shows each account's usage, in the terminal and in the [dotagents sidebar](https://github.com/dotagents-org/dotagents-sidebar).
 
 > [!TIP]
-> **Strongly recommended: the [dotagents sidebar](https://github.com/dotagents-org/dotagents-sidebar) in VS Code.** dotagents also works from the terminal. The sidebar brings Claude Code and Codex to VS Code's secondary sidebar, in sessions that survive a reload, with your accounts beside it, their usage and state at a glance, the current one in the status bar and the switch a click away.
+> **Recommended: the [dotagents sidebar](https://github.com/dotagents-org/dotagents-sidebar) in VS Code.** It runs Claude Code and Codex in the secondary sidebar, in sessions that survive a reload, with your accounts next to them: their usage and state at a glance, the current one in the status bar, the switch a click away. Everything here also works from the terminal alone.
 
 ## Features
 
 **Configuration**
 
-- **One source of truth.** Global instructions, rules, settings and skills are written once, in your configuration, and reach every machine and workspace.
+- **One source of truth.** Instructions, rules, settings and skills are written once, in your configuration, and reach every machine and workspace.
 - **Machine setup in one command.** `dotagents install` writes the global configuration where Claude Code and Codex look for it, on Windows, Linux (WSL included) and macOS.
-- **Your configuration, in a repository of its own.** `dotagents-config` next to the clone, `config/` inside a fork, or any folder through `DOTAGENTS_CONFIG`.
+- **Your configuration, in its own repository.** `dotagents-config` next to the clone, `config/` inside a fork, or any folder named by `DOTAGENTS_CONFIG`.
 
 **Workspaces**
 
-- **Projects stay clean.** A project gets its `AGENTS.md`, skills and documentation in a folder that wraps its repositories, so not a single agent file lands in the project's git history, not even a `.gitignore` rule.
+- **Projects stay clean.** The `AGENTS.md`, the skills and the documentation go in a folder that wraps the project's repositories, so no agent file lands in the project's git history, not even a `.gitignore` rule.
 - **Skills, yours and other people's.** Your own skills are linked, so an edit is live everywhere at once; third-party ones come from a catalog and install through [`npx skills`](https://skills.sh).
 - **A checklist you can run.** `dotagents check` verifies a workspace against the standards and exits non-zero when something is off.
-- **Sessions of both agents.** `dotagents sessions` lists Claude Code's and Codex's conversations on both sides of the machine, with the account of each; `sessions rm` deletes them, and the `archive` skill, run from inside a session, writes one to `.artifacts/sessions/`.
+- **Sessions of both agents.** `dotagents sessions` lists Claude Code's and Codex's conversations on both sides of the machine, with the account of each, and `sessions rm` deletes them. The `archive` skill, run inside a session, writes it to `.artifacts/sessions/`.
 
 **Claude and ChatGPT accounts**
 
-- **Switch in place.** `dotagents switch` puts an account's login in its agent's slot (`~/.claude` for Claude Code, `~/.codex/auth.json` for Codex), on one side of the machine or both, keeping each login in a private vault. History and configuration stay shared.
-- **Usage, live.** Both providers show 5-hour and weekly windows with projections, from either side of the machine, whichever read the account last. Claude also shows per-model windows when available and combines Claude Code's cache with readings from Anthropic. ChatGPT usage comes through the Codex app-server.
+- **Switch in place.** `dotagents switch` puts an account's login in its agent's slot (`~/.claude` for Claude Code, `~/.codex/auth.json` for Codex), on one side of the machine or both. Each login waits in a private vault; history and configuration stay shared.
+- **Usage, live.** The 5-hour and weekly windows of every account, with a projection to the reset, read from either side of the machine. Claude adds per-model windows when there are any; ChatGPT's usage comes through the Codex app-server.
 - **What 1% costs.** `usage --spend` relates each window's % to the tokens your sessions spent, from Claude Code's transcripts and Codex's rollouts: in dollars at the API's prices for Claude, in tokens for ChatGPT, by model and by folder.
-- **Logins kept alive.** `login --all` signs in again every Claude login about to run out and every ChatGPT login refused or not saved yet; `doctor` checks Node, Claude Code and Codex, and every login, on both sides.
-- **In VS Code, with the dotagents sidebar (strongly recommended).** `dotagents start` is a local API on 127.0.0.1; the [dotagents sidebar](https://github.com/dotagents-org/dotagents-sidebar) reads it to show every account, with an avatar that says how it is at a glance, the current one in the status bar, and the switch.
-- **A Desktop launcher per profile** on Windows, for Claude Desktop and the ChatGPT app, with a profile icon and taskbar button.
+- **Logins kept alive.** `login --all` signs in again every Claude login about to run out and every ChatGPT login refused or not saved yet. `doctor` checks Node, Claude Code, Codex and every login, on both sides.
+- **A Desktop app per profile** on Windows, Claude Desktop or the ChatGPT app, with the profile's icon and its own taskbar button.
 
 **Everywhere**
 
-- **Safe to run again.** Every action is idempotent and has a `--dry-run`; files you wrote are never overwritten without a backup.
+- **Safe to run again.** Every action is idempotent and takes `--dry-run`; a file you wrote is never overwritten without a backup.
 
 ## How it works
 
-Your configuration is the source. `install` applies it to the agent slots on the machine; `new` and `init` apply the standards to a workspace.
+Three repositories, each with one job. Your configuration says what you want. dotagents-core applies it, and keeps the logic of the accounts in `core/`, which two surfaces use: the command line and a local API. The sidebar draws what that API serves.
+
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/readme/family-dark.svg">
+    <img alt="dotagents-core reads your dotagents-config; its core is used by the command line and by the local API of dotagents start, which the dotagents sidebar reads over HTTP" src="assets/readme/family-light.svg" width="840">
+  </picture>
+</p>
+
+`install` applies your configuration to each side of the machine; `new` and `init` apply the standards to a workspace.
 
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="assets/readme/how-it-works-dark.svg">
-    <img alt="Your configuration goes to ~/.claude with dotagents install; the standards and templates go to a workspace with dotagents new or init" src="assets/readme/how-it-works-light.svg" width="760">
+    <img alt="dotagents install writes your configuration to ~/.claude and ~/.codex; dotagents new or init applies the standards to a workspace" src="assets/readme/how-it-works-light.svg" width="760">
   </picture>
 </p>
 
 ### Inside a workspace
 
-Codex reads `.agents/skills`, and Claude Code reaches the same directory through `.claude/skills`. Own skills are linked from the tool or configuration. Third-party skills are installed copies pinned in `skills-lock.json`. Each skill determines which agent it can work with.
+Codex reads `.agents/skills`, and Claude Code reaches the same folder through the `.claude/skills` link. Your own skills are links to your configuration or to the tool; third-party skills are installed copies, pinned in `skills-lock.json`.
 
 <p align="center">
   <picture>
@@ -83,7 +91,7 @@ Codex reads `.agents/skills`, and Claude Code reaches the same directory through
 
 ### Keeping the project's git clean
 
-The agent files live next to the repositories, never inside them. `new` clones straight into that layout, and `init` offers to move a repository that is already on disk:
+The agent files live next to the repositories, never inside them. `new` clones straight into that layout, and `init` offers to move a repository already on disk:
 
 <p align="center">
   <picture>
@@ -94,20 +102,18 @@ The agent files live next to the repositories, never inside them. `new` clones s
 
 ### Several accounts, one view
 
-A profile is one Claude account, for Claude Code, or one ChatGPT account, for Codex. Every Claude profile uses `~/.claude` and every ChatGPT one `~/.codex`, so the history and the configuration are shared; `switch` puts a profile's login there, on one side of the machine or both, and its login waits in a vault while another is in use. `usage` and the dotagents sidebar show what each one has used, asked of Anthropic or OpenAI. On Windows, each profile also gets its own Desktop app: Claude Desktop for a Claude profile, the ChatGPT app for a ChatGPT one.
+A profile is one Claude account, for Claude Code, or one ChatGPT account, for Codex. All Claude profiles share `~/.claude` and all ChatGPT ones share `~/.codex`, so history and configuration are the same whichever is in use. `switch` puts a profile's login in that slot, on one side of the machine or both, and the others wait in their vaults. `usage` and the sidebar show what each account has used, asked of Anthropic or OpenAI. On Windows, each profile also gets its own Desktop app.
 
-One account is enough: everything else works the same with a single profile, and a second one is your choice. More than one is for a person who holds several seats in their own name, under each provider's terms; see [Several accounts and the providers' terms](docs/security.md#several-accounts-and-the-providers-terms).
+One account is enough: everything works the same with a single profile. More than one is for a person who holds several seats in their own name, under each provider's terms; see [Several accounts and the providers' terms](docs/security.md#several-accounts-and-the-providers-terms).
 
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="assets/readme/accounts-dark.svg">
-    <img alt="Profiles work and personal, each with a vault; switch puts one in the WSL or Windows slot; the live usage shows in dotagents usage and, through dotagents start, in the dotagents sidebar" src="assets/readme/accounts-light.svg" width="840">
+    <img alt="Profiles work (Claude) and work-gpt (ChatGPT), each with a vault; switch puts one in its agent's slot on WSL and Windows; the live usage shows in dotagents usage and, through dotagents start, in the dotagents sidebar" src="assets/readme/accounts-light.svg" width="840">
   </picture>
 </p>
 
-In VS Code, each account has an avatar, in its color and shape, whose eyes and corner dot say how it is: that is the [dotagents sidebar](https://github.com/dotagents-org/dotagents-sidebar#the-accounts).
-
-In the terminal, the same numbers:
+In VS Code, each account has an avatar whose eyes and corner dot show its state: see the [dotagents sidebar](https://github.com/dotagents-org/dotagents-sidebar#the-accounts). In the terminal, the same numbers:
 
 <p align="center">
   <picture>
@@ -118,7 +124,7 @@ In the terminal, the same numbers:
 
 ### Two machines, one setup
 
-The command runs from your clone, so an edit there is live at once on that machine. The other machine catches up with one command.
+The command runs from your clone, so an edit there is live at once on that machine; the other machine catches up with one command.
 
 <p align="center">
   <picture>
@@ -167,7 +173,7 @@ dotagents usage --refresh # every account's usage, asked of Anthropic
 dotagents start # the local API the dotagents sidebar reads
 ```
 
-For ChatGPT, run `dotagents profile add work-gpt --provider chatgpt` and `dotagents login work-gpt` on each side. In VS Code, the [dotagents sidebar](https://github.com/dotagents-org/dotagents-sidebar) hosts Claude Code and Codex sessions, the accounts tab and the status bar. ChatGPT accounts require a sidebar build compatible with API 3.
+For ChatGPT, run `dotagents profile add work-gpt --provider chatgpt`, then `dotagents login work-gpt` on each side. The [dotagents sidebar](https://github.com/dotagents-org/dotagents-sidebar) shows ChatGPT accounts from its builds that speak API 3.
 
 More in [Getting started](docs/getting-started.md), including WSL and npm without `sudo`. What changed in each version is in the [CHANGELOG](CHANGELOG.md).
 
@@ -224,6 +230,8 @@ Every command that changes something takes `--dry-run`.
 Issues and pull requests are welcome: a bug, an idea, a skill worth sharing, a better default. Keep in mind that dotagents follows one person's way of working, so a change that fits everyone goes in the tool, and one that fits your way goes in your own configuration. Before a pull request, run `npm test` (the type check and the unit tests); commits are one line in English, gitmoji plus [Conventional Commits](https://www.conventionalcommits.org/) (`✨ feat(usage): …`).
 
 ## The family
+
+The diagram is in [How it works](#how-it-works).
 
 - **dotagents-core**, this repository: the `dotagents` command, the workspace standards, and the local accounts API (`dotagents start`).
 - **dotagents-config**: your configuration, a repository of your own next to dotagents-core; [`templates/config/`](templates/config/) is where it starts.

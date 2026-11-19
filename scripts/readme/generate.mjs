@@ -94,14 +94,30 @@ function write(name, make) {
 
 // --- How it works ------------------------------------------------------------------------------
 write("how-it-works", (t) => {
-  let b = group(t, { x: 0, y: 0, w: 330, h: 300, label: "your dotagents clone" });
-  b += card(t, { x: 20, y: 40, w: 290, h: 110, title: "config/", lines: ["your configuration:", "instructions, rules, settings,", "skills, the Desktop icons"], accent: t.work });
-  b += card(t, { x: 20, y: 170, w: 290, h: 110, title: "standards/ + templates/", lines: ["how a workspace looks:", "AGENTS.md, .agents/,", ".artifacts/"], accent: t.personal });
-  b += card(t, { x: 560, y: 40, w: 300, h: 110, title: "~/.claude", lines: ["every profile on the machine:", "CLAUDE.md, rules/,", "settings.json"] });
+  let b = group(t, { x: 0, y: 0, w: 330, h: 300, label: "your dotagents/ folder" });
+  b += card(t, { x: 20, y: 40, w: 290, h: 110, title: "dotagents-config", lines: ["your configuration:", "instructions, rules,", "settings, skills, icons"], accent: t.work });
+  b += card(t, { x: 20, y: 170, w: 290, h: 110, title: "dotagents-core", lines: ["the standards:", "AGENTS.md, .agents/,", ".artifacts/"], accent: t.personal });
+  b += card(t, { x: 560, y: 40, w: 300, h: 110, title: "~/.claude, ~/.codex", lines: ["each side of the machine:", "instructions and rules,", "Claude's settings.json"] });
   b += card(t, { x: 560, y: 170, w: 300, h: 110, title: "app-workspace/", lines: ["AGENTS.md, .agents/skills/,", ".artifacts/, and app/:", "the project's clone, untouched"] });
   b += arrow(t, 310, 95, 556, 95) + pill(t, 433, 95, "dotagents install");
   b += arrow(t, 310, 225, 556, 225) + pill(t, 433, 225, "dotagents new, init");
-  return frame(860, 300, t, b, "How it works: your clone's config goes to ~/.claude with dotagents install, and to a workspace with dotagents new or init");
+  return frame(860, 300, t, b, "How it works: your configuration goes to ~/.claude and ~/.codex with dotagents install, and the standards to a workspace with dotagents new or init");
+});
+
+// --- The family: who reads what ----------------------------------------------------------------
+write("family", (t) => {
+  let b = card(t, { x: 0, y: 95, w: 220, h: 110, title: "dotagents-config", lines: ["your repository:", "what you want on", "every machine"], accent: t.work });
+  b += group(t, { x: 300, y: 0, w: 330, h: 300, label: "dotagents-core" });
+  b += card(t, { x: 320, y: 40, w: 150, h: 240, title: "core/", lines: ["the data and", "the actions:", "workspaces,", "accounts,", "sessions"] });
+  b += card(t, { x: 500, y: 40, w: 110, h: 110, title: "cli", lines: ["the", "dotagents", "command"] });
+  b += card(t, { x: 500, y: 170, w: 110, h: 110, title: "web", lines: ["dotagents", "start, on", "127.0.0.1"] });
+  b += arrow(t, 500, 95, 474, 95) + arrow(t, 500, 225, 474, 225);
+  b += card(t, { x: 720, y: 40, w: 260, h: 110, title: "the terminal", lines: ["usage, switch,", "sessions, check,", "doctor"] });
+  b += card(t, { x: 720, y: 170, w: 260, h: 110, title: "dotagents-sidebar", lines: ["VS Code: the sessions,", "the accounts tab and", "the status bar"], accent: t.personal });
+  b += arrow(t, 220, 150, 316, 150) + note(t, 268, 140, "reads");
+  b += arrow(t, 610, 95, 716, 95);
+  b += arrow(t, 716, 225, 614, 225) + note(t, 665, 215, "HTTP");
+  return frame(980, 300, t, b, "The family: dotagents-core reads your dotagents-config; its core is used by the command line and by the local API that the dotagents sidebar reads");
 });
 
 // --- Inside a workspace ------------------------------------------------------------------------
@@ -136,23 +152,22 @@ write("git-clean", (t) => {
 // --- Several accounts, one view ----------------------------------------------------------------
 write("accounts", (t) => {
   // Each account as a plain square in its color; its avatar lives in the dotagents sidebar.
-  const tile = (color) => `<rect x="12" y="12" width="76" height="76" rx="18" fill="${color}"/>`;
-  const tu = tile(t.work), lo = tile(t.personal);
+  const tile = (color, round) => (round ? `<circle cx="50" cy="50" r="40" fill="${color}"/>` : `<rect x="12" y="12" width="76" height="76" rx="18" fill="${color}"/>`);
   let b = group(t, { x: 0, y: 0, w: 300, h: 300, label: "profiles" });
-  b += card(t, { x: 20, y: 40, w: 260, h: 110, title: "work", lines: ["a claude.ai account,", "its login in a vault", "per side"], icon: tu, accent: t.work });
-  b += card(t, { x: 20, y: 170, w: 260, h: 110, title: "personal", lines: ["another account,", "its own vault and", "its own Desktop app"], icon: lo, accent: t.personal });
-  b += group(t, { x: 400, y: 0, w: 230, h: 300, label: "the slot" });
-  b += card(t, { x: 420, y: 40, w: 190, h: 110, title: "WSL", lines: ["~/.claude", "one login at a", "time, shared history"] });
-  b += card(t, { x: 420, y: 170, w: 190, h: 110, title: "Windows", lines: ["~/.claude", "the same, on", "the other side"] });
-  b += arrow(t, 280, 95, 416, 95) + arrow(t, 280, 225, 416, 225, { dashed: true });
+  b += card(t, { x: 20, y: 40, w: 260, h: 110, title: "work", lines: ["a Claude account,", "its login in a vault", "per side"], icon: tile(t.work), accent: t.work });
+  b += card(t, { x: 20, y: 170, w: 260, h: 110, title: "work-gpt", lines: ["a ChatGPT account,", "its own vault and", "its own Desktop app"], icon: tile(t.personal, true), accent: t.personal });
+  b += group(t, { x: 400, y: 0, w: 230, h: 300, label: "the slots, per side" });
+  b += card(t, { x: 420, y: 40, w: 190, h: 110, title: "Claude Code", lines: ["~/.claude", "one login at a", "time, shared history"] });
+  b += card(t, { x: 420, y: 170, w: 190, h: 110, title: "Codex", lines: ["~/.codex/auth.json", "the same, for", "ChatGPT"] });
+  b += arrow(t, 280, 95, 416, 95) + arrow(t, 280, 225, 416, 225);
   b += pill(t, 348, 160, "switch");
-  b += note(t, 348, 186, "on both sides");
+  b += note(t, 348, 186, "WSL and Windows");
   b += group(t, { x: 730, y: 0, w: 260, h: 300, label: "live usage" });
-  b += card(t, { x: 750, y: 40, w: 220, h: 66, title: "dotagents usage", lines: ["and the status line"] });
+  b += card(t, { x: 750, y: 40, w: 220, h: 66, title: "dotagents usage", lines: ["in the terminal"] });
   b += card(t, { x: 750, y: 116, w: 220, h: 66, title: "dotagents start", lines: ["the local API"] });
   b += card(t, { x: 750, y: 192, w: 220, h: 88, title: "dotagents-sidebar", lines: ["the accounts tab and", "the status bar"] });
-  b += arrow(t, 610, 150, 726, 150) + note(t, 668, 140, "asks Anthropic");
-  return frame(990, 300, t, b, "Several accounts, one view: switch puts a profile's login in each side's slot, and the usage of every account shows in the terminal and, through dotagents start, in the dotagents sidebar");
+  b += arrow(t, 610, 150, 726, 150) + note(t, 668, 126, "asks Anthropic") + note(t, 668, 140, "or OpenAI");
+  return frame(990, 300, t, b, "Several accounts, one view: switch puts a profile's login in its agent's slot on each side, and the usage of every account shows in the terminal and, through dotagents start, in the dotagents sidebar");
 });
 
 // --- Two machines, one setup -------------------------------------------------------------------
