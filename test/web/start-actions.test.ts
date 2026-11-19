@@ -53,7 +53,7 @@ test("start actions reject missing profiles and sides and preserve provider desk
   assert.ok(address, "start.json was written");
   const ask = async (action: string, body: object) => {
     const res = await fetch(`http://127.0.0.1:${address.port}/api/${action}`, { method: "POST", headers: { "x-dotagents-token": address.token, "content-type": "application/json" }, body: JSON.stringify(body) });
-    return { status: res.status, body: await res.json() as { ok: boolean; detail: string } };
+    return { status: res.status, body: await res.json() as { ok: boolean; detail: string; next?: string } };
   };
   assert.deepEqual(await ask("switch", { profile: "missing" }), { status: 404, body: { apiVersion: 2, ok: false, detail: "no such profile" } });
   assert.deepEqual(await ask("switch", { profile: "claude", side: "nowhere" }), { status: 404, body: { apiVersion: 2, ok: false, detail: "no such side" } });
@@ -64,14 +64,16 @@ test("start actions reject missing profiles and sides and preserve provider desk
   fs.writeFileSync(path.join(vault, "account.json"), JSON.stringify({ accountUuid: "fake-account", emailAddress: "fake@example.invalid" }));
   // The sides are WSL here and Windows there, as machine.json says: not so on Windows itself.
   if (process.platform !== "win32") {
-    assert.equal((await ask("switch", { profile: "claude", side: "WSL" })).status, 200);
+    // A switch that went through says what to do next, as the switch command does
+    const next = "Conversations open in VS Code and the terminal go on in the new account; type continue in them.";
+    assert.deepEqual(await ask("switch", { profile: "claude", side: "WSL" }), { status: 200, body: { apiVersion: 2, ok: true, detail: "now claude", next } });
     assert.equal((await ask("switch", { profile: "claude" })).status, 502, "a local switch reports a failed peer result");
     assert.equal((await ask("switch", { profile: "claude", side: "Windows" })).status, 502);
     // The Windows side's switch runs powershell.exe from /mnt/c, which only WSL has.
     if (fs.existsSync("/mnt/c")) {
       const powershell = path.join(bin, "powershell.exe");
       fs.writeFileSync(powershell, "#!/bin/sh\nexit 0\n", { mode: 0o755 });
-      assert.deepEqual(await ask("switch", { profile: "claude", side: "Windows" }), { status: 200, body: { apiVersion: 2, ok: true, detail: "Windows: claude" } });
+      assert.deepEqual(await ask("switch", { profile: "claude", side: "Windows" }), { status: 200, body: { apiVersion: 2, ok: true, detail: "Windows: claude", next } });
     }
   }
   assert.deepEqual(await ask("desktop", { profile: "missing" }), { status: 404, body: { apiVersion: 2, ok: false, detail: "no such profile" } });
