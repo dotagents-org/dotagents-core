@@ -53,7 +53,9 @@ const renewHint = (name: string) => `renew it, on ${sideName()}: dotagents login
 export function saveToVault(provider: Provider, name: string, login: Login) {
   const dir = vaultDir(name);
   const known = provider.vaultLogin(name);
-  if (known && known.text === login.text && known.id === login.id) return report("ok", dir, `${name}'s login`);
+  // The account too: Claude keeps the seat (seatTier) there, which may change with the same tokens
+  const same = known && known.text === login.text && known.id === login.id && JSON.stringify(known.account ?? null) === JSON.stringify(login.account ?? null);
+  if (same) return report("ok", dir, `${name}'s login`);
   if (state.dryRun) return report("would update", dir, `${name}'s login`);
   provider.writeVault(name, login);
   report(known ? "updated" : "created", dir, `${name}'s login`);

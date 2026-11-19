@@ -311,3 +311,23 @@ test("login --all signs in only the profiles whose login runs out within a week;
   assert.deepEqual(calls, ["uuid-personal"], "only personal, which runs out in 3 days");
   assert.equal(slotProfile()?.name, "work");
 });
+
+test("switch --save keeps a seat that changed with the same tokens, and a switch away and back brings it", async (t) => {
+  const home = machine(t);
+  const slotState = path.join(home, ".claude.json");
+  login(path.join(home, ".claude"), slotState, "uuid-work", "work1");
+  login(path.join(home, ".claude-personal"), path.join(home, ".claude-personal", ".claude.json"), "uuid-personal", "personal1");
+  quiet();
+  await switchProfile({ save: "work", peer: noPeer });
+  // Only the seat changes in the slot: the same tokens, a new seatTier
+  const now = JSON.parse(fs.readFileSync(slotState, "utf8"));
+  fs.writeFileSync(slotState, JSON.stringify({ ...now, oauthAccount: { ...now.oauthAccount, seatTier: "team_premium" } }));
+  quiet();
+  await switchProfile({ save: "work", peer: noPeer });
+  assert.equal(vault(home, "work", "account.json").seatTier, "team_premium");
+  quiet();
+  await switchProfile({ name: "personal", peer: noPeer });
+  quiet();
+  await switchProfile({ name: "work", peer: noPeer });
+  assert.equal(slotAccount(home).oauthAccount.seatTier, "team_premium");
+});
