@@ -10,13 +10,19 @@ dotagents-core/
 ├── templates/config/          a generic configuration: the tests and the CI run against it, and it is where a new one starts
 ├── assets/                    the logo, the avatars and the README's pictures
 ├── docs/                      this documentation
-├── cli.ts                     the dotagents command: reads the arguments, picks the command, prints the help
-├── core/                      the data and the actions, drawing nothing (see below)
-│   └── accounts/              the accounts: profiles, switch, login, usage; one file per provider in providers/
+├── cli.ts                     the dotagents command: turns on Node's compile cache, then loads main.ts
+├── main.ts                    reads the arguments, picks the command, prints the help
+├── core/                      the data and the actions, drawing nothing (see below); common.ts, state.ts and claude-code.ts serve them all
+│   ├── accounts/              the accounts: profiles, switch, login, usage; one file per provider in providers/
+│   ├── workspace/             the workspace standard, skills, third-party skills, memory, git exclusions
+│   ├── sessions/              Claude Code's sessions and the prompt revision
+│   ├── machine/               this machine: the global install, its state, the other side, Desktop and taskbar, logs
+│   └── output/                what the commands print, and the theme every surface draws with
 ├── surfaces/                  the ways in, each using core/ only
-│   ├── cli/                   one file per command: its help, its questions, its run
+│   ├── cli/                   one file per command (its help, its questions, its run), in the help's groups:
+│   │                          accounts/, workspace/, machine/; shared.ts and prompts.ts serve them all
 │   └── web/                   server.ts: the local API of dotagents start (127.0.0.1, token, live events, apiVersion)
-├── test/                      unit tests (node:test)
+├── test/                      unit tests (node:test), in the same folders as core/
 ├── .github/workflows/         CI: skill validation and command tests on three systems
 └── package.json
 ```
@@ -25,9 +31,9 @@ The configuration (global instructions, rules, settings, own skills, profile ico
 
 ## Modules
 
-The command is TypeScript run directly by Node (type stripping, no build step) with one dependency: `@clack/prompts`, for the questions and the spinners. The colors come from `core/theme.ts`. `cli.ts` reads the arguments and hands them to one of the commands in `surfaces/cli/`, which asks the questions and calls the modules. Everything that decides what a workspace or a machine should look like lives in `core/`, in a few modules with small interfaces.
+The command is TypeScript run directly by Node (type stripping, no build step) with one dependency: `@clack/prompts`, for the questions and the spinners. The colors come from `core/output/theme.ts`. `main.ts`, loaded by `cli.ts` once Node's compile cache is on, reads the arguments and hands them to one of the commands in `surfaces/cli/`, which asks the questions and calls the modules. Everything that decides what a workspace or a machine should look like lives in `core/`, in a few modules with small interfaces.
 
-**Core and surfaces.** `core/` holds the data and the actions and draws nothing. A surface is a way in: the commands (`surfaces/cli/`) and the local API (`surfaces/web/`, which the dotagents sidebar reads over HTTP; the panel, the avatars and everything else drawn live there). Nothing here draws a page. Each surface uses `core/` and never another surface; `cli.ts`, at the root, is the one place that picks one, and where `start` joins the command line to the web server. `test/boundaries.test.ts` fails when an import breaks the rule.
+**Core and surfaces.** `core/` holds the data and the actions and draws nothing. A surface is a way in: the commands (`surfaces/cli/`) and the local API (`surfaces/web/`, which the dotagents sidebar reads over HTTP; the panel, the avatars and everything else drawn live there). Nothing here draws a page. Each surface uses `core/` and never another surface; `main.ts`, at the root, is the one place that picks one, and where `start` joins the command line to the web server. `test/boundaries.test.ts` fails when an import breaks the rule.
 
 The arrows point to what a part uses, and none runs in a circle (`test/boundaries.test.ts`). The accounts go one way: surfaces, then the coordination, then `providers.ts`, then each provider's files, then the storage they share. The table below gives each module's interface.
 
@@ -36,7 +42,7 @@ The arrows point to what a part uses, and none runs in a circle (`test/boundarie
 flowchart TB
     subgraph surfaces["surfaces: the ways in"]
         direction LR
-        cli["cli.ts + surfaces/cli/<br/>arguments, questions"]
+        cli["main.ts + surfaces/cli/<br/>arguments, questions"]
         web["surfaces/web/<br/>the local API"]
     end
 
@@ -72,18 +78,18 @@ flowchart TB
 
 | Module | Interface | Behind it |
 |---|---|---|
-| `core/workspace.ts` | `applyWorkspace(repo, ws, skills)`, `verifyWorkspace(repo, ws)`, `wrapRepository(dir)`, `listRepoInAgentsMd`, `assertWorkspace`, `childRepos`, `workspaceName` | The standard as one ordered list of items, each with how to apply it and how to verify it, side by side. `init`, `new` and `update --all` apply the list; `check` verifies it. |
-| `core/skills.ts` | `listSkills(repo)`, `resolveSkills(repo, names)`, `skillsIn(repo, ws)`, `applySkills(ws, skills, { installer })`, `verifySkills(repo, ws)` | Own skills and third-party ones as one list (`name`, `kind`, `source`, `description`). Linking, installing (and in which order), and the skill checks. |
-| `core/thirdparty.ts` | `loadCatalog`, `saveCatalog`, `discoverSkills`, `parseSkill`, `npxInstaller` | The catalog file, reading `SKILL.md`, and the installer adapter that runs `npx skills add`. |
-| `core/git.ts` | `ensureExcluded`, `removeExcluded`, `gitRepoOf`, `isRepoRoot`, `trackedAgentFiles`, `untrackedAgentFiles` | Keeping agent files out of a project's git through `.git/info/exclude`. |
-| `core/memory.ts` | `applyMemory(ws, configDirs)`, `verifyMemory(ws, configDirs)`, `projectSlug(dir)` | Workspace memory: `autoMemoryDirectory` in the workspace's `.claude/settings.local.json` pointing at `.artifacts/memory/`, the copy of each profile's earlier memory of the workspace, and its checklist. |
-| `core/global.ts` | `installGlobal(repo, configDir?)`, `renderInstructions(repo)` | The machine level: instructions, rules and settings, applied to one Claude Code config folder (`~/.claude` by default). |
+| `core/workspace/workspace.ts` | `applyWorkspace(repo, ws, skills)`, `verifyWorkspace(repo, ws)`, `wrapRepository(dir)`, `listRepoInAgentsMd`, `assertWorkspace`, `childRepos`, `workspaceName` | The standard as one ordered list of items, each with how to apply it and how to verify it, side by side. `init`, `new` and `update --all` apply the list; `check` verifies it. |
+| `core/workspace/skills.ts` | `listSkills(repo)`, `resolveSkills(repo, names)`, `skillsIn(repo, ws)`, `applySkills(ws, skills, { installer })`, `verifySkills(repo, ws)` | Own skills and third-party ones as one list (`name`, `kind`, `source`, `description`). Linking, installing (and in which order), and the skill checks. |
+| `core/workspace/thirdparty.ts` | `loadCatalog`, `saveCatalog`, `discoverSkills`, `parseSkill`, `npxInstaller` | The catalog file, reading `SKILL.md`, and the installer adapter that runs `npx skills add`. |
+| `core/workspace/git.ts` | `ensureExcluded`, `removeExcluded`, `gitRepoOf`, `isRepoRoot`, `trackedAgentFiles`, `untrackedAgentFiles` | Keeping agent files out of a project's git through `.git/info/exclude`. |
+| `core/workspace/memory.ts` | `applyMemory(ws, configDirs)`, `verifyMemory(ws, configDirs)`, `projectSlug(dir)` | Workspace memory: `autoMemoryDirectory` in the workspace's `.claude/settings.local.json` pointing at `.artifacts/memory/`, the copy of each profile's earlier memory of the workspace, and its checklist. |
+| `core/machine/global.ts` | `installGlobal(repo, configDir?)`, `renderInstructions(repo)` | The machine level: instructions, rules and settings, applied to one Claude Code config folder (`~/.claude` by default). |
 | `core/claude-code.ts` | `defaultConfigDir`, `userFiles(configDir)`, `projectFiles(ws)`, `sessionActivity(configDir)` | Where Claude Code reads its configuration, at the user level and in a workspace, and its running sessions (`sessions/<pid>.json`, working or waiting, counted while the process runs). No other module spells these paths out. |
-| `core/desktop.ts` | `applyDesktop`, `removeDesktop`, `verifyDesktop`, `openDesktop`, `powershellShortcuts` | A Desktop app per profile on Windows, Claude Desktop or the ChatGPT app (`CLAUDE_DESKTOP`, `CHATGPT_DESKTOP`, named by each provider): data folder, `.vbs` launcher and Start menu shortcut. Shortcuts go through an adapter: PowerShell for real, a fake one in the tests. |
-| `core/taskbar.ts` | `taskbarWatcher`, `appIdFor`, `SHORTCUT_APP_ID_CS` | One taskbar button per profile: the PowerShell watcher (with its C#) that tags an instance's windows with the profile's AppUserModelID, icon and name, and the C# that writes that ID into a shortcut. |
-| `core/peer.ts` | `applyPeer(find)`, `findPeer`, `peerUp`, `runOnPeer`, `peerToolCheck` | Finds the other side of the machine (Windows from WSL, WSL from Windows) once, at install, and records it. Finding it runs a command there, so it goes through an adapter; the tests pass a fake one. |
-| `core/sessions.ts` | `listSessions({ dirs, under })`, `configDirs()`, `fromPeer(path, peer)`, `archiveRoot(dir)`, `archiveSession(session, labels)`, `deleteSession(session)`, `accountLabels()` | Claude Code's sessions in every config folder, this side's and the other side's: a quick summary of each transcript (title, accounts, last activity), the workspace its archive goes to, whether it still runs, the archive written with the `archive` skill's parser (imported, so the two write the same file), and the deletion of everything Claude Code keeps for a session. |
-| `core/revision.ts` | `runHook`, `revise`, `reviseSession`, `enable`, `disable`, `isEnabled`, `readBackend`, `saveBackend` | Prompt revision (ADR 0006): the opt-in `UserPromptSubmit` hook that proofreads each message with Sonnet, through the signed-in account or an API key, and its log. |
+| `core/machine/desktop.ts` | `applyDesktop`, `removeDesktop`, `verifyDesktop`, `openDesktop`, `powershellShortcuts` | A Desktop app per profile on Windows, Claude Desktop or the ChatGPT app (`CLAUDE_DESKTOP`, `CHATGPT_DESKTOP`, named by each provider): data folder, `.vbs` launcher and Start menu shortcut. Shortcuts go through an adapter: PowerShell for real, a fake one in the tests. |
+| `core/machine/taskbar.ts` | `taskbarWatcher`, `appIdFor`, `SHORTCUT_APP_ID_CS` | One taskbar button per profile: the PowerShell watcher (with its C#) that tags an instance's windows with the profile's AppUserModelID, icon and name, and the C# that writes that ID into a shortcut. |
+| `core/machine/peer.ts` | `applyPeer(find)`, `findPeer`, `peerUp`, `runOnPeer`, `peerToolCheck` | Finds the other side of the machine (Windows from WSL, WSL from Windows) once, at install, and records it. Finding it runs a command there, so it goes through an adapter; the tests pass a fake one. |
+| `core/sessions/sessions.ts` | `listSessions({ dirs, under })`, `configDirs()`, `fromPeer(path, peer)`, `archiveRoot(dir)`, `archiveSession(session, labels)`, `deleteSession(session)`, `accountLabels()` | Claude Code's sessions in every config folder, this side's and the other side's: a quick summary of each transcript (title, accounts, last activity), the workspace its archive goes to, whether it still runs, the archive written with the `archive` skill's parser (imported, so the two write the same file), and the deletion of everything Claude Code keeps for a session. |
+| `core/sessions/revision.ts` | `runHook`, `revise`, `reviseSession`, `enable`, `disable`, `isEnabled`, `readBackend`, `saveBackend` | Prompt revision (ADR 0006): the opt-in `UserPromptSubmit` hook that proofreads each message with Sonnet, through the signed-in account or an API key, and its log. |
 | `core/accounts/providers.ts` | `providers()`, `providerFor(profile)`, `providerById`, `activeProfiles`, `installProviders`, `verifyProviderConfigs`, the `Provider` type | The one shape of what differs between Claude and ChatGPT (slot, vault, sign-in, usage, checks), and the list of providers: a provider left out of it is off everywhere. Nothing outside `core/accounts/` imports a provider's own files, and nothing outside `providers/` branches on which provider a profile has; `test/boundaries.test.ts` checks both. |
 | `core/accounts/provider-labels.ts` | `LABELS` | What each provider is called in messages. A leaf: it imports no adapter. |
 | `core/accounts/profiles.ts` | `setUpProfile`, `dropProfile`, `installProfiles`, `verifyProfiles`, `verifyLogins`, `launcherDir` | The profiles of the machine, one per account the person holds, all sharing one config folder per side: the configuration applied there and each Claude profile's Desktop app on Windows. |
@@ -104,16 +110,16 @@ flowchart TB
 | `core/accounts/providers/codex-store.ts` | `slotLogin`, `vaultLogin`, `codexSlotProfile`, `codexAccount`, `codexLoginMark` | Where a ChatGPT profile's login is and whose it is. |
 | `core/accounts/providers/codex-usage.ts` | `askCodex`, `askRateLimits`, `normalizeRateLimits`, `codexLiveUsage`, `readCodexUsage`, `readCodexSlots` | Live usage of the ChatGPT profiles through `codex app-server` (`account/rateLimits/read`), in a temporary `CODEX_HOME` for the profiles outside the slot. The app-server is a `SpawnAppServer`; the tests pass a fake script. |
 | `core/accounts/providers/codex-config.ts` | `installCodex`, `verifyCodexConfig`, `codexHome`, `codexOnPath` | What `install` puts in Codex's configuration: the instructions with the rules at the end. |
-| `core/machine-state.ts` | `loadWorkspaces`, `registerWorkspace`, `untrackWorkspace`, `loadProfiles`, `saveProfile`, `removeProfile`, `stateDir` | What dotagents remembers about this machine, outside the repository. Every file has a format version and is checked when read: a broken file, or one from a newer dotagents, stops the command instead of being overwritten. |
-| `core/log.ts` | `log`, `logChange`, `logFile`, `mask` | The logs of what runs on its own, one text file each in `<state>/logs/`, with credentials and email addresses masked ([Logs](logs.md)). |
+| `core/machine/machine-state.ts` | `loadWorkspaces`, `registerWorkspace`, `untrackWorkspace`, `loadProfiles`, `saveProfile`, `removeProfile`, `stateDir` | What dotagents remembers about this machine, outside the repository. Every file has a format version and is checked when read: a broken file, or one from a newer dotagents, stops the command instead of being overwritten. |
+| `core/machine/log.ts` | `log`, `logChange`, `logFile`, `mask` | The logs of what runs on its own, one text file each in `<state>/logs/`, with credentials and email addresses masked ([Logs](logs.md)). |
 | `core/common.ts` | file actions (`ensureDirLink`, `ensureFile`, `writeGenerated`, `ensureJsonKey`…), `runWithSpinner`, `parseArgs` | Junctions on Windows and symlinks elsewhere, backups, dry run. |
-| `core/output.ts` | `report`, `checkItem`, `checkWarn`, `section`, `header`, `finish`, `setRenderer`, `displayPath` | Every result becomes an event for the current renderer: the rail in a terminal, plain lines when piped, a list in the tests. The modules never print. |
-| `core/theme.ts` | `colorLevel(env, isTTY)`, `backgroundOf(env)`, `painter(level, background)`, `ROLES`, `readableOn(hex, background)`, `badge(level)` | How dotagents looks, for every surface: the color level from the environment (`NO_COLOR`, `FORCE_COLOR`, `TERM`, the terminal), the background (`DOTAGENTS_THEME`, `COLORFGBG`, dark by default), the roles in Geist's palette (one hex per background, a basic color at 16 colors), a profile color's readable variant and the badge. |
+| `core/output/output.ts` | `report`, `checkItem`, `checkWarn`, `section`, `header`, `finish`, `setRenderer`, `displayPath` | Every result becomes an event for the current renderer: the rail in a terminal, plain lines when piped, a list in the tests. The modules never print. |
+| `core/output/theme.ts` | `colorLevel(env, isTTY)`, `backgroundOf(env)`, `painter(level, background)`, `ROLES`, `readableOn(hex, background)`, `badge(level)` | How dotagents looks, for every surface: the color level from the environment (`NO_COLOR`, `FORCE_COLOR`, `TERM`, the terminal), the background (`DOTAGENTS_THEME`, `COLORFGBG`, dark by default), the roles in Geist's palette (one hex per background, a basic color at 16 colors), a profile color's readable variant and the badge. |
 | `core/state.ts` | `state`, `resetState` | The run: `--dry-run`, the counters behind the summary and the exit code, and the folder paths are shown relative to. |
 
 Three decisions shape the modules:
 
-- **A rule of the standard is written once.** Adding one means adding an item to the list in `core/workspace.ts`, with its `apply` and its `verify` next to each other.
+- **A rule of the standard is written once.** Adding one means adding an item to the list in `core/workspace/workspace.ts`, with its `apply` and its `verify` next to each other.
 - **Output is an event stream.** A module reports what happened (`report`, `checkItem`…) and never formats it; the renderer decides how it looks. A new output (`--json`, a full-screen view) is one more renderer, not a change in the modules.
 - **Third-party installation is an adapter.** `applySkills` receives an `installer`: `npxInstaller` by default, a fake one in the tests. The order that matters (link `.claude/skills` first, install after) stays inside the skills module.
 
@@ -159,12 +165,12 @@ uvx --from cairosvg==2.7.1 cairosvg assets/claude-<name>.svg -o /tmp/icon.png -W
 uv run --no-project --with pillow==12.0.0 python -c "from PIL import Image; Image.open('/tmp/icon.png').save('assets/claude-<name>.ico', sizes=[(s, s) for s in (16, 24, 32, 48, 64, 128, 256)])"
 ```
 
-**Adding a command:** write `surfaces/cli/<name>.ts` exporting a `Command` (name, usage, summary, group, `run`), add it to `COMMANDS` in `cli.ts` (the order is the help's order), and describe it in [Commands](commands.md) and in the table of the README.
+**Adding a command:** write `surfaces/cli/<group>/<name>.ts` (`accounts`, `workspace` or `machine`, its group in the help) exporting a `Command` (name, usage, summary, group, `run`), add it to `COMMANDS` in `main.ts` (the order is the help's order), and describe it in [Commands](commands.md) and in the table of the README.
 
 **Adding a rule to the workspace standard:**
 
-1. Add an item to `STANDARD` in `core/workspace.ts` with `apply` and `verify`.
-2. Add a test in `test/workspace.test.ts`.
+1. Add an item to `STANDARD` in `core/workspace/workspace.ts` with `apply` and `verify`.
+2. Add a test in `test/workspace/workspace.test.ts`.
 3. Describe the rule in `standards/` and in [What init creates](workspaces.md#what-init-creates) and [What check verifies](workspaces.md#what-check-verifies).
 
 **After changing a command,** update [commands.md](commands.md), and the summary table in the [README](../README.md#commands-at-a-glance) when the command list changes.

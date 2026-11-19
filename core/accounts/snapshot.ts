@@ -2,10 +2,10 @@
 // start API): each provider reads its own (core/accounts/providers/), in the providers' order, and this
 // module puts them together, with the current account of each and the sides.
 
-import { type Peer, sideName, sidePeer } from "../machine-state.ts";
-import { peerUp } from "../peer.ts";
+import { type Peer, sideName, sidePeer } from "../machine/machine-state.ts";
+import { peerUp } from "../machine/peer.ts";
 import { providers } from "./providers.ts";
-import { peerRunningLater } from "../sessions.ts";
+import { peerRunningLater } from "../sessions/sessions.ts";
 import { AVATAR_STATES, type AvatarState, type ProfileUsage, avatarState, avatarWorking, elapsedPct, pace } from "./usage.ts";
 
 // How a reader that runs for a long time (the start server, every 2 s) looks at the other side:

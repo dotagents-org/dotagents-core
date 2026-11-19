@@ -1,8 +1,8 @@
 // The layers: core/ holds the data and the actions and draws nothing; each folder under surfaces/
-// uses core/ and never another surface. cli.ts, at the root, is the only place that picks one.
+// uses core/ and never another surface. main.ts, at the root, is the only place that picks one.
 
 import assert from "node:assert/strict";
-import ts from "typescript";
+import ts from "@typescript/typescript6"; // TypeScript 7 has no stable compiler API until 7.1
 import fs from "node:fs";
 import path from "node:path";
 import { test } from "node:test";
@@ -16,7 +16,7 @@ function sources(dir: string): string[] {
 }
 
 // Parse source so comments, strings and type-only imports cannot invent dependencies.
-function imports(file: string, runtime = false) {
+function imports(file: string, runtime = false, packages = false) {
   const source = fs.readFileSync(file, "utf8");
   const text = runtime ? ts.transpileModule(source, {
     compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ESNext, verbatimModuleSyntax: true },
@@ -29,10 +29,11 @@ function imports(file: string, runtime = false) {
     ts.forEachChild(node, visit);
   };
   visit(ast);
+  if (packages) return specs.filter((spec) => !spec.startsWith(".") && !spec.startsWith("node:"));
   return specs.filter((spec) => spec.startsWith(".")).map((spec) => path.relative(REPO, path.resolve(path.dirname(file), spec)).split(path.sep).join("/"));
 }
 
-// "surfaces/cli/usage.ts" → "cli"; null outside surfaces/.
+// "surfaces/cli/accounts/usage.ts" → "cli"; null outside surfaces/.
 const surfaceOf = (rel: string) => (rel.startsWith("surfaces/") ? rel.split("/")[1] : null);
 
 test("core never imports a surface", () => {
@@ -48,14 +49,19 @@ test("a surface never imports another surface", () => {
   assert.deepEqual(wrong, []);
 });
 
+test("core never imports the prompts, which only the command line draws", () => {
+  const wrong = sources(path.join(REPO, "core")).flatMap((f) => imports(f, false, true).filter((i) => i.startsWith("@clack/")).map((i) => `${path.relative(REPO, f)} → ${i}`));
+  assert.deepEqual(wrong, []);
+});
+
 // Outside core/accounts/, a provider is reached through core/accounts/providers.ts, never its own files.
-// core/sessions.ts reads Claude Code's transcripts and sits under the spend, below providers.ts, so it reads
+// core/sessions/sessions.ts reads Claude Code's transcripts and sits under the spend, below providers.ts, so it reads
 // Claude's store directly: going through providers.ts would close a cycle.
 test("only core/accounts imports a provider's files", () => {
-  const wrong = [path.join(REPO, "cli.ts"), ...sources(path.join(REPO, "core")), ...sources(path.join(REPO, "surfaces"))].flatMap((f) => {
+  const wrong = [path.join(REPO, "cli.ts"), path.join(REPO, "main.ts"), ...sources(path.join(REPO, "core")), ...sources(path.join(REPO, "surfaces"))].flatMap((f) => {
     const rel = path.relative(REPO, f).split(path.sep).join("/");
     if (rel.startsWith("core/accounts/")) return [];
-    return imports(f).filter((i) => i.startsWith("core/accounts/providers/") && !(rel === "core/sessions.ts" && i === "core/accounts/providers/claude-store.ts")).map((i) => `${rel} → ${i}`);
+    return imports(f).filter((i) => i.startsWith("core/accounts/providers/") && !(rel === "core/sessions/sessions.ts" && i === "core/accounts/providers/claude-store.ts")).map((i) => `${rel} → ${i}`);
   });
   assert.deepEqual(wrong, []);
 });
@@ -82,9 +88,9 @@ test("core has no runtime import cycles", () => {
 // IDs in state validation and Claude-only features are contracts, not account dispatch.
 test("account behavior is selected through provider adapters", () => {
   const wrong: string[] = [];
-  for (const file of [path.join(REPO, "cli.ts"), ...sources(path.join(REPO, "core")), ...sources(path.join(REPO, "surfaces"))]) {
+  for (const file of [path.join(REPO, "cli.ts"), path.join(REPO, "main.ts"), ...sources(path.join(REPO, "core")), ...sources(path.join(REPO, "surfaces"))]) {
     const rel = path.relative(REPO, file).split(path.sep).join("/");
-    if (rel.startsWith("core/accounts/providers/") || rel === "core/accounts/providers.ts" || rel === "core/machine-state.ts") continue;
+    if (rel.startsWith("core/accounts/providers/") || rel === "core/accounts/providers.ts" || rel === "core/machine/machine-state.ts") continue;
     const ast = ts.createSourceFile(file, fs.readFileSync(file, "utf8"), ts.ScriptTarget.Latest, true);
     const visit = (node: ts.Node) => {
       if (ts.isBinaryExpression(node) && [ts.SyntaxKind.EqualsEqualsEqualsToken, ts.SyntaxKind.ExclamationEqualsEqualsToken, ts.SyntaxKind.EqualsEqualsToken, ts.SyntaxKind.ExclamationEqualsToken].includes(node.operatorToken.kind)) {

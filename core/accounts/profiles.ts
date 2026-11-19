@@ -1,7 +1,7 @@
 // The Claude profiles of this machine: one per Claude account the person holds. Every profile
 // uses the same config folder, ~/.claude, the slot (ADR 0004): the history, settings
 // and skills are shared, and `dotagents switch` puts a profile's login in it from the profile's
-// vault. On Windows each profile also gets a Claude Desktop app of its own (core/desktop.ts), so
+// vault. On Windows each profile also gets a Claude Desktop app of its own (core/machine/desktop.ts), so
 // the accounts can be open at the same time there.
 //
 // Profiles used to have a folder each (~/.claude-<name>) and a launcher, claude-<name>: install
@@ -11,10 +11,10 @@ import os from "node:os";
 import path from "node:path";
 import { defaultConfigDir } from "../claude-code.ts";
 import { isWindows, lstat, removeGenerated, samePath } from "../common.ts";
-import { type Shortcuts, applyDesktop, powershellShortcuts, removeDesktop, removeTray, verifyDesktop } from "../desktop.ts";
-import { installGlobal } from "../global.ts";
-import { PALETTE, type Profile, loadProfiles, migrateLegacyProfiles, profilesFile, removeProfile, saveProfile } from "../machine-state.ts";
-import { checkItem, checkWarn, displayPath, report, section } from "../output.ts";
+import { type Shortcuts, applyDesktop, powershellShortcuts, removeDesktop, removeTray, verifyDesktop } from "../machine/desktop.ts";
+import { installGlobal } from "../machine/global.ts";
+import { PALETTE, type Profile, loadProfiles, migrateLegacyProfiles, profilesFile, removeProfile, saveProfile } from "../machine/machine-state.ts";
+import { checkItem, checkWarn, displayPath, report, section } from "../output/output.ts";
 import { state } from "../state.ts";
 import { providerById, providerFor, providers } from "./providers.ts";
 
@@ -25,7 +25,7 @@ const HEX = /^#[0-9a-fA-F]{6}$/;
 export const launcherDir = () => path.join(os.homedir(), ".local", "bin");
 export const launcherFile = (name: string) => path.join(launcherDir(), isWindows ? `claude-${name}.cmd` : `claude-${name}`);
 
-// The Desktop apps (core/desktop.ts): on Windows by default; the tests pass a fake one everywhere.
+// The Desktop apps (core/machine/desktop.ts): on Windows by default; the tests pass a fake one everywhere.
 export type DesktopOption = { desktop?: { shortcuts: Shortcuts } | null };
 const desktopDefault = () => (isWindows ? { shortcuts: powershellShortcuts } : null);
 

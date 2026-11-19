@@ -8,8 +8,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { spawn, type SpawnOptions } from "node:child_process";
-import { spinner } from "@clack/prompts";
-import { fancy, flushSection, report, spinnerAllowed, tone } from "./output.ts";
+import { report, startStep } from "./output/output.ts";
 import { state } from "./state.ts";
 
 export const isWindows = process.platform === "win32";
@@ -41,15 +40,13 @@ function marked(content: string, comment?: string) {
 
 // Runs a command without blocking, so the spinner keeps turning. Returns the exit code and the
 // last line of output (without colors).
-export function runWithSpinner(
+export async function runWithSpinner(
   message: string,
   command: string,
   commandArgs: string[],
   options: SpawnOptions = {},
 ): Promise<{ code: number; last: string }> {
-  if (fancy && spinnerAllowed()) flushSection();
-  const spin = fancy && spinnerAllowed() ? spinner({ indicator: "dots" }) : null;
-  spin?.start(message);
+  const step = await startStep(message);
   return new Promise((resolve) => {
     const child = spawn(command, commandArgs, { ...options, stdio: ["ignore", "pipe", "pipe"] });
     let output = "";
@@ -57,7 +54,7 @@ export function runWithSpinner(
     child.stderr.on("data", (d) => (output += d));
     const done = (code: number | null) => {
       const last = output.replace(/\x1b\[[0-9;?]*[A-Za-z]/g, "").trim().split(/\r?\n/).pop() ?? "";
-      if (spin) code === 0 ? spin.stop(tone.muted(message)) : spin.error(message);
+      step?.done(code === 0);
       resolve({ code: code ?? 1, last });
     };
     child.on("error", (err) => {

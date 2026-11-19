@@ -5,8 +5,8 @@
 import { createHash } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
-import { mask } from "../log.ts";
-import { stateDir } from "../machine-state.ts";
+import { mask } from "../machine/log.ts";
+import { stateDir } from "../machine/machine-state.ts";
 import { writePrivate } from "./vault.ts";
 
 // Each profile of every provider is asked at most once in this time, from any number of dotagents

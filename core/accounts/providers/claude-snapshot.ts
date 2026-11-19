@@ -7,7 +7,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { type Activity, sessionActivity } from "../../claude-code.ts";
-import { PALETTE, type Peer, peerStateDir, type Profile, sideName, sidePeer } from "../../machine-state.ts";
+import { PALETTE, type Peer, peerStateDir, type Profile, sideName, sidePeer } from "../../machine/machine-state.ts";
 import type { PeerView } from "../snapshot.ts";
 import { type ProfileUsage, STALE_MS, normalize, profileUsage } from "../usage.ts";
 import { liveUsage, sideProfiles } from "./claude-usage.ts";

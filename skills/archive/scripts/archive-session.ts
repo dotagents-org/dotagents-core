@@ -39,9 +39,9 @@ const SYSTEM_REMINDER = /<system-reminder>[\s\S]*?<\/system-reminder>/g;
 const COMMAND_NAME = /<command-name>([\s\S]*?)<\/command-name>/;
 const COMMAND_ARGS = /<command-args>([\s\S]*?)<\/command-args>/;
 const LOCAL_STDOUT = /<local-command-stdout>[\s\S]*?<\/local-command-stdout>/g;
-// The mark dotagents' prompt revision puts before the revised message (core/revision.ts).
+// The mark dotagents' prompt revision puts before the revised message (core/sessions/revision.ts).
 const REVISED_MARK = "✎";
-// How it hands the revised message to Claude (core/revision.ts): this first line, then the text,
+// How it hands the revised message to Claude (core/sessions/revision.ts): this first line, then the text,
 // then a paragraph of instructions.
 const REVISED_HEAD = "The user's message above, proofread (spelling, punctuation, grammar):\n\n";
 const REVISED_TAIL = "\n\nFollow it;";

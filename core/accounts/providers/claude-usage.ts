@@ -13,8 +13,8 @@
 
 import { recordHistory } from "../spend.ts";
 import fs from "node:fs";
-import { log } from "../../log.ts";
-import { PALETTE, type Profile, claudeProfiles } from "../../machine-state.ts";
+import { log } from "../../machine/log.ts";
+import { PALETTE, type Profile, claudeProfiles } from "../../machine/machine-state.ts";
 import { maskUsageError, readRecord } from "../usage-record.ts";
 import { defaultConfigDir } from "../../claude-code.ts";
 import { liveLogin, loginMark } from "./claude-store.ts";

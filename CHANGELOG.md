@@ -14,7 +14,7 @@ What changed for someone who updates a clone. The format follows [Keep a Changel
 - **No more full-screen view.** dotagents is a plain command line, for people and for agents; the visual side moves to a separate app, still to come. `dotagents` with no command prints the help, `usage --watch` stops with a message, and Ink and React are no longer dependencies.
 - **`usage --json` prints an envelope:** `{ "version": 1, "generatedAt": …, "profiles": [ … ] }` instead of a bare list, so new fields never break a script again.
 - **`usage --short` changed format** for status lines: one line per profile, `5h` and `7d` with 8-cell bars (`work  5h ━━━━━━ ─  72% ↻ 3h17m   7d …`).
-- **Node 22.18 or later.** The sources are TypeScript, run directly through Node's type stripping, with no build.
+- **Node 24 or later.** The sources are TypeScript, run directly through Node's type stripping, with no build.
 - **The command's entry file is `cli.ts`, no longer `cli.mjs`.** Run `npm link` again in the clone once; from now on `dotagents update` does it when the entry file changes.
 - **Codex and OpenCode are gone.** `install` no longer writes their global configuration, and the standards, skills and docs cover Claude Code only. `move-sessions` lost its `--tools` option.
 - **Accounts are now profiles.** `dotagents account add/list/remove` became `dotagents profile add/list/remove`, and `accounts.json` became `profiles.json`; `install` and `update` move the file. A profile is the local folder; the account is the Claude sign-in it holds.
@@ -67,6 +67,7 @@ What changed for someone who updates a clone. The format follows [Keep a Changel
 
 ### Changed
 
+- **Faster start:** the command turns on Node's compile cache, loads the prompts only in the commands that ask, and `revision` loads the Anthropic SDK only when it calls the API. `dotagents --help` and the revision hook start in about 0.09 s instead of 0.24 s, and `usage --json` in 0.16 s instead of 0.30 s, with about a quarter less memory.
 - **One shape for a good login, Claude's and ChatGPT's.** The checklist says `login good, until Nov 27` for a Claude profile and `login good, renewed Nov 16` for a ChatGPT one (OpenAI tells no end date); Claude's said `login good until Nov 27`.
 - **Claude and ChatGPT read the same in the terminal.** `profile list` groups the profiles under Claude and ChatGPT, as `usage` does, checks that each ChatGPT profile uses `~/.codex`, and lists the ChatGPT logins in the Logins section on both sides, with when each was last renewed (OpenAI gives no end date); `doctor` shows them too. A profile with no saved login says `dotagents login <name>` for both providers, the checks say "a different Claude account", the section of Claude Code's configuration is named so, next to Codex's, and the help names both agents and both companies.
 - The start API keeps its switch and desktop responses while sharing profile lookup and isolating the switch action.

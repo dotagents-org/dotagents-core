@@ -10,7 +10,7 @@ import fs from "node:fs";
 import path from "node:path";
 import type { Login } from "../providers.ts";
 import { defaultConfigDir, stateFile } from "../../claude-code.ts";
-import { type Profile, claudeProfiles } from "../../machine-state.ts";
+import { type Profile, claudeProfiles } from "../../machine/machine-state.ts";
 import { vaultDir } from "../vault.ts";
 
 // A Claude login: the .credentials.json as Claude Code wrote it, and the oauthAccount block.

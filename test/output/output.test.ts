@@ -1,0 +1,135 @@
+// The output module: every result is counted and handed to the renderer as one event.
+
+import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
+import os from "node:os";
+import path from "node:path";
+import { test } from "node:test";
+import { capture, captureAsync, checkItem, checkWarn, finish, flushSection, line, plainRenderer, report, section, setRenderer, setStepDrawer, terminalRenderer } from "../../core/output/output.ts";
+import { runWithSpinner } from "../../core/common.ts";
+import { state } from "../../core/state.ts";
+import { quiet } from "../helpers.ts";
+
+test("displayPath shortens names beginning with two dots inside the workspace and home", () => {
+  const home = os.homedir();
+  const source = `import { displayPath } from "./core/output/output.ts";
+import { state } from "./core/state.ts";
+state.base = ${JSON.stringify(path.join(home, "work"))};
+console.log(JSON.stringify([displayPath(${JSON.stringify(path.join(home, "work", "..x"))}), displayPath(${JSON.stringify(path.join(home, "..x"))}), displayPath(${JSON.stringify(home)})]));`;
+  const result = execFileSync(process.execPath, ["--input-type=module", "--eval", source], {
+    cwd: path.resolve(import.meta.dirname, "..", ".."),
+    env: { ...process.env, FORCE_COLOR: "1" },
+    encoding: "utf8",
+  });
+  assert.deepEqual(JSON.parse(result.trim()), ["..x", "~/..x", "~"]);
+});
+
+test("results, checks and warnings become events and counters", () => {
+  const events = quiet();
+  section("Files");
+  report("created", "/tmp/a");
+  report("skipped", "/tmp/b", "already exists");
+  checkItem(false, "b is a link", "a copy");
+  checkWarn("c looks odd");
+  assert.deepEqual(
+    events.map((e) => e.kind),
+    ["section", "result", "result", "check", "warning"]
+  );
+  assert.deepEqual(events[2], { kind: "result", status: "skipped", target: "/tmp/b", detail: "already exists" });
+  assert.equal(state.counts.created, 1);
+  assert.equal(state.counts.warnings, 1);
+  assert.equal(state.problems, 2);
+});
+
+test("finish sets the exit code from the problems counted", (t) => {
+  t.after(() => (process.exitCode = 0));
+  quiet();
+  report("ok", "/tmp/a");
+  finish();
+  assert.equal(process.exitCode, 0);
+  report("failed", "/tmp/b", "no access");
+  finish();
+  assert.equal(process.exitCode, 1);
+});
+
+test("capture keeps a run's events and leaves the counters as they were", () => {
+  const outer = quiet();
+  report("created", "/tmp/a");
+  const inner = capture(() => {
+    report("failed", "/tmp/b");
+    checkItem(true, "ok");
+  });
+  assert.deepEqual(inner.map((e) => e.kind), ["result", "check"]);
+  assert.equal(outer.length, 1);
+  assert.equal(state.problems, 0);
+  assert.equal(state.counts.created, 1);
+  assert.equal(state.counts.failed, undefined);
+});
+
+test("capture can run a preview or the real thing, whatever --dry-run said, and restores it", async () => {
+  quiet({ dryRun: false });
+  const seen: boolean[] = [];
+  capture(() => void seen.push(state.dryRun), { dryRun: true });
+  await captureAsync(async () => void seen.push(state.dryRun), { dryRun: false });
+  assert.deepEqual(seen, [true, false]);
+  assert.equal(state.dryRun, false);
+});
+
+// What a renderer prints, with console.log caught; colors stripped.
+function printed(t: import("node:test").TestContext, fn: () => void) {
+  const out: string[] = [];
+  const log = console.log;
+  console.log = (text = "") => void out.push(String(text).replace(/\x1b\[[0-9;]*m/g, ""));
+  t.after(() => {
+    console.log = log;
+    process.exitCode = 0;
+  });
+  try {
+    fn();
+  } finally {
+    console.log = log;
+  }
+  return out.join("\n");
+}
+
+for (const [name, renderer] of [["terminal", terminalRenderer], ["plain", plainRenderer]] as const) {
+  test(`${name} output: a section's title waits for its first line, and an empty section prints nothing`, (t) => {
+    quiet();
+    const out = printed(t, () => {
+      setRenderer(renderer);
+      section("Empty");
+      section("Files");
+      report("created", "/tmp/a");
+      section("Drawn by the command");
+      line("a list line");
+      section("Before a spinner");
+      flushSection();
+      section("Left empty at the end");
+      finish();
+    });
+    assert.doesNotMatch(out, /Empty|Left empty/);
+    assert.match(out, /Files\n.*\/tmp\/a/);
+    assert.match(out, /Drawn by the command\na list line/);
+    assert.match(out, /Before a spinner/);
+  });
+}
+
+// The core only says when a slow step starts and ends; the command line draws the spinner.
+test("a slow step goes to the step drawer, under the terminal renderer only", async (t) => {
+  quiet();
+  const steps: string[] = [];
+  setStepDrawer(async (message) => {
+    steps.push(`start ${message}`);
+    return { done: (ok) => steps.push(`done ${message} ${ok}`) };
+  });
+  t.after(() => {
+    setStepDrawer(null);
+    quiet();
+  });
+  setRenderer(terminalRenderer);
+  assert.equal((await runWithSpinner("Passing", process.execPath, ["-e", "console.log('last line')"])).last, "last line");
+  assert.equal((await runWithSpinner("Failing", process.execPath, ["-e", "process.exit(3)"])).code, 3);
+  setRenderer(plainRenderer);
+  await runWithSpinner("Plain", process.execPath, ["-e", ""]);
+  assert.deepEqual(steps, ["start Passing", "done Passing true", "start Failing", "done Failing false"]);
+});

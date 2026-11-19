@@ -1,0 +1,125 @@
+// Catalog of third-party skills: skills you use but don't maintain, registered once in
+// config/skills/third-party-skills.json (versioned with the configuration) and offered by `init` and `new` next to
+// your own skills. They are installed with `npx skills add`, so the workspace's skills-lock.json
+// and `npx skills update` keep working as usual.
+
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import { configRoot, runWithSpinner } from "../common.ts";
+
+// A registered third-party skill, as config/skills/third-party-skills.json stores it.
+// requires: the skills it calls (see findRequires), read when it was registered.
+export type CatalogEntry = { name: string; source: string; description?: string; requires?: string[] };
+// What an installer needs, and what it answers. Tests pass a fake with the same shape.
+export type Installer = (ws: string, skill: { name: string; source: string; description: string }) => Promise<{ ok: boolean; detail: string }>;
+
+// The catalog sits next to my own skills.
+export const catalogFile = (repo: string) => path.join(configRoot(repo), "skills", "third-party-skills.json");
+// The agent `npx skills add` installs for. The copy lands in .agents/skills, and .claude/skills
+// already links there.
+const AGENTS = "claude-code";
+
+export function loadCatalog(repo: string): CatalogEntry[] {
+  try {
+    return JSON.parse(fs.readFileSync(catalogFile(repo), "utf8")).skills ?? [];
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return [];
+    throw new Error(`Cannot read ${catalogFile(repo)}: ${(error as Error).message}`, { cause: error });
+  }
+}
+
+export function saveCatalog(repo: string, skills: CatalogEntry[]) {
+  const sorted = [...skills].sort((a, b) => a.name.localeCompare(b.name));
+  fs.writeFileSync(catalogFile(repo), `${JSON.stringify({ skills: sorted }, null, 2)}\n`);
+}
+
+// name and description from a SKILL.md frontmatter.
+export function parseSkill(text: string) {
+  const front = text.replace(/\r\n/g, "\n").match(/^---\n([\s\S]*?)\n---/)?.[1] ?? "";
+  const name = front.match(/^name:\s*["']?([^"'\n]+)["']?\s*$/m)?.[1].trim();
+  const m = front.match(/^description:\s*(?:[|>]-?\s*\n((?:[ \t]+.*\n?)+)|(.+))/m);
+  const description = (m?.[1] ?? m?.[2] ?? "").replace(/\s+/g, " ").replace(/^["']|["']$/g, "").trim();
+  return { name, description };
+}
+
+// The skills a skill calls, read from every Markdown file in its folder. Two forms count: a line
+// about the Skill tool with the name in quotes (`call the Skill tool with "grilling"`), and a
+// relative link into the other skill's folder (`[pixijs-assets](../pixijs-assets/SKILL.md)`, as
+// router skills do). Only names in known count, never the skill itself. A `/name` doesn't count:
+// it is a label in a router's list or something the user is told to run, not a call.
+export function findRequires(folder: string, known: Iterable<string>, self: string): string[] {
+  const names = new Set(known);
+  const found = new Set<string>();
+  const NAME = "[a-z0-9]+(?:-[a-z0-9]+)*";
+  const walk = (dir: string, depth: number) => {
+    if (depth > 4) return;
+    for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+      if (e.name === ".git" || e.name === "node_modules") continue;
+      const full = path.join(dir, e.name);
+      // A subfolder with its own SKILL.md is another skill, not part of this one.
+      if (e.isDirectory()) {
+        if (!fs.existsSync(path.join(full, "SKILL.md"))) walk(full, depth + 1);
+      } else if (e.name.endsWith(".md")) {
+        const text = fs.readFileSync(full, "utf8");
+        for (const line of text.split(/\r?\n/)) {
+          if (/skill tool/i.test(line)) for (const m of line.matchAll(new RegExp(`"(${NAME})"`, "g"))) found.add(m[1]);
+        }
+        for (const m of text.matchAll(new RegExp(`\\]\\((?:\\.\\./)+(${NAME})/(?:SKILL\\.md)?\\)`, "g"))) found.add(m[1]);
+      }
+    }
+  };
+  walk(folder, 0);
+  return [...found].filter((n) => n !== self && names.has(n)).sort();
+}
+
+// owner/repo → GitHub URL; URLs and local paths are used as given.
+function cloneUrl(source: string) {
+  if (/^[\w.-]+\/[\w.-]+$/.test(source) && !fs.existsSync(source)) return `https://github.com/${source}.git`;
+  return source;
+}
+
+// Skills a source provides: a shallow clone into a temporary folder, then every SKILL.md in it.
+// known: names outside the source that a skill may call (your own and the catalog's).
+export async function discoverSkills(source: string, known: string[] = []) {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "dotagents-"));
+  try {
+    const res = await runWithSpinner(`Reading ${source}`, "git", ["clone", "--depth", "1", "--quiet", cloneUrl(source), tmp]);
+    if (res.code !== 0) throw new Error(`Couldn't clone ${source}: ${res.last}`);
+    const found: { name: string; description: string; folder: string }[] = [];
+    const walk = (dir: string, depth: number) => {
+      if (depth > 4) return;
+      for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+        if (e.name === ".git" || e.name === "node_modules") continue;
+        const full = path.join(dir, e.name);
+        if (e.isDirectory()) walk(full, depth + 1);
+        else if (e.name === "SKILL.md") {
+          const { name, description } = parseSkill(fs.readFileSync(full, "utf8"));
+          if (name && !found.some((s) => s.name === name)) found.push({ name, description, folder: dir });
+        }
+      }
+    };
+    walk(tmp, 0);
+    const names = [...known, ...found.map((s) => s.name)];
+    return found.map(({ name, description, folder }) => ({ name, description, requires: findRequires(folder, names, name) }));
+  } finally {
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+}
+
+// The installer adapter for third-party skills: `npx skills add`, run from the workspace root, so
+// the skill lands in .agents/skills/ and in skills-lock.json. Returns { ok, detail }. Tests use a
+// fake adapter with the same shape.
+export const npxInstaller: Installer = async (ws, skill) => {
+  // A single command string with shell: true, so Windows finds npx.cmd. The values come from
+  // the catalog, which only holds names and sources checked by register (no shell characters).
+  const cmd = `npx -y skills add ${skill.source} -s ${skill.name} -y -a ${AGENTS}`;
+  const res = await runWithSpinner(`Installing ${skill.name}`, cmd, [], { cwd: ws, shell: true });
+  const ok = res.code === 0 && fs.existsSync(path.join(ws, ".agents", "skills", skill.name, "SKILL.md"));
+  return { ok, detail: ok ? `from ${skill.source}` : res.last };
+};
+
+// Only letters, digits and the punctuation of owner/repo, git URLs and paths: the source goes
+// into a shell command.
+export const SAFE_SOURCE = /^[\w@:./~\\-]+$/;
+export const SAFE_NAME = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;

@@ -2,9 +2,9 @@ name: Test scripts
 
 on:
   push:
-    paths: ["cli.ts", "core/**", "surfaces/**", "tsconfig.json", "package.json", "package-lock.json", "test/**", "templates/**", "skills/**", ".github/workflows/test-scripts.yml"]
+    paths: ["cli.ts", "main.ts", "core/**", "surfaces/**", "tsconfig.json", "package.json", "package-lock.json", "test/**", "templates/**", "skills/**", ".github/workflows/test-scripts.yml"]
   pull_request:
-    paths: ["cli.ts", "core/**", "surfaces/**", "tsconfig.json", "package.json", "package-lock.json", "test/**", "templates/**", "skills/**", ".github/workflows/test-scripts.yml"]
+    paths: ["cli.ts", "main.ts", "core/**", "surfaces/**", "tsconfig.json", "package.json", "package-lock.json", "test/**", "templates/**", "skills/**", ".github/workflows/test-scripts.yml"]
 
 jobs:
   test:
@@ -20,7 +20,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 24
 
       - name: npm install + npm link make the dotagents command
         run: |

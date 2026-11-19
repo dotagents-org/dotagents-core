@@ -9,8 +9,8 @@ import fs from "node:fs";
 import path from "node:path";
 import os from "node:os";
 import { configRoot, writeGenerated } from "../../common.ts";
-import { renderInstructions } from "../../global.ts";
-import { checkItem, checkWarn, displayPath, section } from "../../output.ts";
+import { renderInstructions } from "../../machine/global.ts";
+import { checkItem, checkWarn, displayPath, section } from "../../output/output.ts";
 
 // Codex's own folder: CODEX_HOME, or ~/.codex.
 export const codexHome = () => process.env.CODEX_HOME || path.join(os.homedir(), ".codex");

@@ -88,7 +88,7 @@ Prompt revision is off until you turn it on. With it on, each message you send t
 dotagents doctor
 ```
 
-Checks that dotagents can work on this machine and says what to do, in plain words, when it can't: whether this side's Node is new enough (22.18 or newer); in WSL and on Windows, whether this side sees the other one and whether dotagents runs there, with a Node new enough (the system Node of a WSL distro often isn't); and every profile's login on both sides, Claude's and ChatGPT's, with how long it lasts (or, for ChatGPT, when it was last renewed) and how to sign in again. It only reads. Exit code 1 when a check fails.
+Checks that dotagents can work on this machine and says what to do, in plain words, when it can't: whether this side's Node is new enough (24 or newer); in WSL and on Windows, whether this side sees the other one and whether dotagents runs there, with a Node new enough (the system Node of a WSL distro often isn't); and every profile's login on both sides, Claude's and ChatGPT's, with how long it lasts (or, for ChatGPT, when it was last renewed) and how to sign in again. It only reads. Exit code 1 when a check fails.
 
 ## dotagents logs
 

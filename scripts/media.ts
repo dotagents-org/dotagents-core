@@ -8,7 +8,7 @@ process.env.TZ = "UTC";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { type Background, ROLES, readableOn } from "../core/theme.ts";
+import { type Background, ROLES, readableOn } from "../core/output/theme.ts";
 import { type Line, type ProfileUsage, shortLines, usageLines } from "../core/accounts/usage.ts";
 
 const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");

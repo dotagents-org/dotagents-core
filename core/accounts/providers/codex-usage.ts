@@ -24,7 +24,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import readline from "node:readline";
-import { type Profile, sideName, sidePeer } from "../../machine-state.ts";
+import { type Profile, sideName, sidePeer } from "../../machine/machine-state.ts";
 import type { PeerView } from "../snapshot.ts";
 import { codexAccount, codexLoginMark, codexProfiles, codexSlotProfile, readLogin, slotFile, vaultFile, vaultLogin } from "./codex-store.ts";
 import type { Asked } from "../providers.ts";

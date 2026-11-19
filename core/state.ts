@@ -1,7 +1,7 @@
 // The state of one run: --dry-run, the counters the summary prints, and the folder paths are
-// shown relative to. Every module reads it; only core/output.ts updates the counters.
+// shown relative to. Every module reads it; only core/output/output.ts updates the counters.
 
-import type { Status } from "./output.ts";
+import type { Status } from "./output/output.ts";
 
 export type Counts = Partial<Record<Status | "passed" | "warnings", number>>;
 

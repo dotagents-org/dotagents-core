@@ -5,15 +5,15 @@
 // tell whose login it is: never printed, never renewed here (the refresh token is single-use). The
 // steps here are the ones the common coordination (core/accounts/switch.ts, login.ts) calls.
 
-import { CHATGPT_DESKTOP } from "../../desktop.ts";
+import { CHATGPT_DESKTOP } from "../../machine/desktop.ts";
 import { spawnSync } from "node:child_process";
 import { samePath } from "../../common.ts";
 import { createHash } from "node:crypto";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { type Profile, loadMachine, peerStateDir, sideName, stateDir } from "../../machine-state.ts";
-import { checkItem, checkWarn, displayPath, report, section } from "../../output.ts";
+import { type Profile, loadMachine, peerStateDir, sideName, stateDir } from "../../machine/machine-state.ts";
+import { checkItem, checkWarn, displayPath, report, section } from "../../output/output.ts";
 import { LABELS } from "../provider-labels.ts";
 import type { Login, Provider, SwitchOptions } from "../providers.ts";
 import { state } from "../../state.ts";

@@ -2,7 +2,7 @@
 
 ## Requirements
 
-- **Node.js 22.18 or newer**, with npm.
+- **Node.js 24 or newer**, with npm.
 - **git**, on the PATH.
 - **npx**, which comes with npm, for third-party skills (`npx skills`).
 - One npm dependency, installed by `npm install`: [@clack/prompts](https://github.com/bombshell-dev/clack), for the questions and the spinners.
