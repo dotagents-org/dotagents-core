@@ -24,7 +24,8 @@ function spendView(json: boolean) {
   const { profiles: report, unattributedUsd } = spendReport(profiles, { folder: (cwd) => displayPath(cwd) });
   const since = Math.min(...report.flatMap((p) => (p.week ? [Date.parse(p.week.from)] : [])), Date.now());
   const revisionUsd = readLog().filter((e) => Date.parse(e.at) >= since).reduce((sum, e) => sum + (e.costUsd ?? 0), 0);
-  if (json) return console.log(JSON.stringify({ version: 1, profiles: report, unattributedUsd, revisionUsd }, null, 2));
+  // version 2: ChatGPT's profiles, a window's totalTokens, models and workspaces as [name, dollars, tokens]
+  if (json) return console.log(JSON.stringify({ version: 2, profiles: report, unattributedUsd, revisionUsd }, null, 2));
   const { bold, muted } = { bold: ink.bold, muted: ink.role("muted") };
   const label = { session: "5h", week: "7d" } as const;
   const ratioLine = (r: Ratio) => {

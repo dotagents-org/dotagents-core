@@ -183,7 +183,8 @@ export const peerRunningLater = (): Promise<Set<string> | null> =>
 
 // peerRunning: how to ask the other side; without it, its sessions count as running only by RECENT_MS.
 // codex: the Codex folders to read; by default both sides', unless dirs names the Claude ones (a test).
-export type ListOptions = { dirs?: ConfigDir[]; codex?: CodexDir[]; under?: string; now?: number; running?: ProcessProbe; peerRunning?: PeerRunning };
+// agent: only that agent's sessions, the other's files never read.
+export type ListOptions = { dirs?: ConfigDir[]; codex?: CodexDir[]; agent?: Session["agent"]; under?: string; now?: number; running?: ProcessProbe; peerRunning?: PeerRunning };
 
 const inside = (child: string, parent: string) => {
   const rel = path.relative(parent, child);
@@ -195,9 +196,9 @@ const inside = (child: string, parent: string) => {
 export const projectSlug = (dir: string) => path.resolve(dir).replace(/[^A-Za-z0-9]/g, "-");
 
 // Every session of the config folders, newest first; under: only those started inside that folder.
-export function listSessions({ dirs, codex, under, now = Date.now(), running = runningProcess, peerRunning: askPeer }: ListOptions = {}): Session[] {
-  const list: Session[] = listCodexSessions(codex ?? (dirs ? [] : codexDirs(thisSide)), { under, now, fromPeer });
-  dirs ??= configDirs();
+export function listSessions({ dirs, codex, agent, under, now = Date.now(), running = runningProcess, peerRunning: askPeer }: ListOptions = {}): Session[] {
+  const list: Session[] = agent === "claude" ? [] : listCodexSessions(codex ?? (dirs ? [] : codexDirs(thisSide)), { under, now, fromPeer });
+  dirs = agent === "codex" ? [] : (dirs ?? configDirs());
   for (const cd of dirs) {
     // The other side is asked once, and only when it has a session to ask about.
     let asked = false;

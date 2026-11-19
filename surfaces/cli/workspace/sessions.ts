@@ -81,11 +81,10 @@ function json(list: Session[], labels: AccountLabels) {
 const scope = (ctx: Context) => (ctx.args.all ? undefined : workspaceArg(ctx));
 
 // --agent claude|codex: only that agent's sessions
-function ofAgent(ctx: Context, list: Session[]) {
+function agentArg(ctx: Context): Session["agent"] | undefined {
   const agent = ctx.args.agent;
-  if (agent === undefined) return list;
-  if (agent !== "claude" && agent !== "codex") throw new UsageError(`--agent is claude or codex, not ${agent}`);
-  return list.filter((s) => s.agent === agent);
+  if (agent !== undefined && agent !== "claude" && agent !== "codex") throw new UsageError(`--agent is claude or codex, not ${agent}`);
+  return agent;
 }
 
 export const sessions: Command = {
@@ -98,7 +97,7 @@ export const sessions: Command = {
     // For the other side's `sessions rm`: the ids of the sessions this side's Claude Code runs.
     if (ctx.args.running) return void [...runningIds()].forEach((id) => console.log(id));
     const under = scope(ctx);
-    const list = ofAgent(ctx, listSessions({ under }));
+    const list = listSessions({ under, agent: agentArg(ctx) });
     const labels = accountLabels();
     if (ctx.args.json) return console.log(JSON.stringify(json(list, labels), null, 2));
     if (!fancy) {
@@ -193,7 +192,7 @@ export const sessionsRm: Command = {
     } else {
       if (!interactive) throw new UsageError("Pass the ids to delete (dotagents sessions lists them), or run it in a terminal to pick them");
       const under = scope(ctx);
-      const pool = ofAgent(ctx, listSessions({ under, peerRunning }));
+      const pool = listSessions({ under, peerRunning, agent: agentArg(ctx) });
       const labels = accountLabels();
       header("sessions rm", under ?? "every project");
       warnUnchecked(pool);

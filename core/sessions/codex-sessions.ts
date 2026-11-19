@@ -68,11 +68,26 @@ function titles(home: string) {
 
 // What the list needs from a rollout, from its head and its last timestamp; null for a subagent's
 // or a file that isn't a conversation's.
+// Only the head and the tail are read: a long rollout is never read whole to be listed.
+function ends(file: string) {
+  const fd = fs.openSync(file, "r");
+  try {
+    const size = fs.fstatSync(fd).size;
+    const head = Buffer.alloc(Math.min(size, HEAD_BYTES));
+    fs.readSync(fd, head, 0, head.length, 0);
+    const tail = Buffer.alloc(Math.min(size, 64 * 1024));
+    fs.readSync(fd, tail, 0, tail.length, size - tail.length);
+    return { head, tail };
+  } finally {
+    fs.closeSync(fd);
+  }
+}
+
 function summary(file: string) {
-  const buf = fs.readFileSync(file);
+  const { head, tail } = ends(file);
   let meta: Record<string, any> | null = null;
   let prompt: string | null = null;
-  for (const line of buf.subarray(0, HEAD_BYTES).toString("utf8").split("\n")) {
+  for (const line of head.toString("utf8").split("\n")) {
     const o = parse(line);
     if (!o) continue;
     if (!meta && o.type === "session_meta") meta = o;
@@ -86,9 +101,15 @@ function summary(file: string) {
   const p = meta?.payload;
   if (!p || typeof p.id !== "string" || !ID.test(p.id)) return null;
   if (p.parent_thread_id || (p.source && typeof p.source === "object" && "subagent" in p.source)) return null;
-  const key = Buffer.from('"timestamp":"');
-  const tail = buf.lastIndexOf(key);
-  const ended = tail >= 0 ? buf.subarray(tail + key.length, buf.indexOf(0x22, tail + key.length)).toString("utf8") : null;
+  // The last activity: the timestamp of the last whole line
+  let ended: string | null = null;
+  for (const line of tail.toString("utf8").split("\n").reverse()) {
+    const o = parse(line);
+    if (o && typeof o.timestamp === "string") {
+      ended = o.timestamp;
+      break;
+    }
+  }
   return {
     id: p.id as string,
     cwd: typeof p.cwd === "string" ? p.cwd : null,
