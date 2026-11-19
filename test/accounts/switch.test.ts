@@ -3,6 +3,7 @@
 // vault and writes the chosen one in. Fake credentials only.
 
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -14,7 +15,7 @@ import { verifyLogins } from "../../core/accounts/profiles.ts";
 import type { ClaudeLogin } from "../../core/accounts/providers/claude.ts";
 import { loginMark, slotProfile } from "../../core/accounts/providers/claude-store.ts";
 import { state } from "../../core/state.ts";
-import { quiet } from "../helpers.ts";
+import { REPO, quiet } from "../helpers.ts";
 
 function machine(t: TestContext) {
   const home = fs.mkdtempSync(path.join(os.tmpdir(), "dotagents-switch-"));
@@ -344,4 +345,11 @@ test("the other side's switch is told to have changed its slot by its report lin
   assert.equal(slotChanged("\x1b[32m  ✓ updated     \x1b[0m C:/Users/me/.claude  \x1b[2mnow work (a@example.com)\x1b[0m\r\n"), true);
   assert.equal(slotChanged("ok           C:/Users/me/.claude  (work is already in the slot)\n"), false);
   assert.equal(slotChanged("updated      C:/Users/me/.config/dotagents/vault/work  (work's login)\n"), false);
+});
+
+test("the command line takes --expect, as the other side's switch is run", (t) => {
+  const home = machine(t);
+  const run = spawnSync(process.execPath, [path.join(REPO, "cli.ts"), "switch", "nobody", "--here", "--expect", "uuid-x"], { encoding: "utf8", env: { ...process.env, HOME: home, USERPROFILE: home, DOTAGENTS_STATE_DIR: path.join(home, "state") } });
+  assert.doesNotMatch(run.stderr, /Unknown option/);
+  assert.match(run.stderr, /There is no Claude profile named nobody/);
 });

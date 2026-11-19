@@ -69,7 +69,10 @@ async function switchAction(body: unknown, oneAtATime: Serial): Promise<Action> 
   // What to do after a switch, as the switch command says it: the open sessions' account
   const next = providerFor(profile).switched;
   if (side !== undefined && side === peer?.name) {
-    const other = await oneAtATime(async () => peerSwitch(name));
+    // The account the profile holds here: the other side refuses its profile of that name holding another
+    const expect = providerFor(profile).saved(profile)?.id;
+    if (!expect) return { status: 409, body: { ok: false, detail: `${name} has no login saved here to check the other side's against` } };
+    const other = await oneAtATime(async () => peerSwitch(name, expect));
     if (!other) return { status: 502, body: { ok: false, detail: "no other side" } };
     // next as on this side: only when that side's slot changed, even if its switch then failed
     return { status: other.ok ? 200 : 502, body: { ok: other.ok, detail: other.detail, ...(other.changed ? { next } : {}) } };
@@ -255,7 +258,7 @@ try {
   args = parseArgs<CliArgs>(process.argv.slice(2), {
     booleans: ["all", "api", "default", "dry-run", "help", "here", "json", "no-archive", "no-pull", "refresh", "running", "short", "spend", "version", "watch", "wrap", "yes"],
     lists: ["skills"],
-    values: ["agent", "color", "from", "port", "provider", "save", "side"],
+    values: ["agent", "color", "expect", "from", "port", "provider", "save", "side"],
   });
 } catch (err) {
   fail(err as Error);
