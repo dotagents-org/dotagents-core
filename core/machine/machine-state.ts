@@ -184,6 +184,28 @@ export function recordCopy(dest: string, digest: string) {
 // (C:\Users\me, /home/me), to translate the paths in its profiles.json.
 export type Peer = { name: string; home: string; nativeHome: string };
 export const peerStateDir = (peer: Peer) => path.join(peer.home, ".config", "dotagents");
+
+// A path the other side wrote (C:\Users\me\.claude-x), as this side reaches it
+// (/mnt/c/Users/me/.claude-x); null when it isn't under that side's home.
+export function peerPath(native: string, peer: Peer) {
+  const norm = (p: string) => p.replace(/[\\/]+$/, "");
+  const home = norm(peer.nativeHome);
+  const windowsLike = /^[a-z]:\\/i.test(home);
+  const inside = windowsLike ? native.toLowerCase().startsWith(home.toLowerCase()) : native.startsWith(home);
+  if (!inside) return null;
+  const rest = native.slice(home.length).split(/[\\/]+/).filter(Boolean);
+  return path.join(peer.home, ...rest);
+}
+
+// The other side's profiles.json, as it wrote it; empty when it can't be read (no dotagents there).
+export function peerProfiles(peer: Peer): Profile[] {
+  try {
+    const data = JSON.parse(fs.readFileSync(path.join(peerStateDir(peer), "profiles.json"), "utf8"));
+    return Array.isArray(data?.profiles) ? data.profiles.filter((p: Profile) => typeof p?.name === "string") : [];
+  } catch {
+    return [];
+  }
+}
 export type Machine = { peer?: Peer };
 
 const MACHINE = { name: "machine.json", version: 1 };

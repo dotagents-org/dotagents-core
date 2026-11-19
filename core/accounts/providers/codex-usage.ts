@@ -24,7 +24,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import readline from "node:readline";
-import { type Profile, sideName, sidePeer } from "../../machine/machine-state.ts";
+import { type Profile, peerPath, peerProfiles, peerStateDir, sideName, sidePeer } from "../../machine/machine-state.ts";
 import type { PeerView } from "../snapshot.ts";
 import { codexAccount, codexLoginMark, codexProfiles, codexSlotProfile, readLogin, slotFile, vaultFile, vaultLogin } from "./codex-store.ts";
 import type { Asked } from "../providers.ts";
@@ -240,8 +240,8 @@ export async function askCodex(
 // The usage kept for a Codex profile, as the snapshot reads it: its windows as of now, when they
 // were read, the plan, and the last error. Null windows when it was never read, or was read for
 // another account than the one saved now.
-export function codexLiveUsage(name: string, user: string, now: Date) {
-  const r: Record<string, unknown> = readRecord(name);
+export function codexLiveUsage(name: string, user: string, now: Date, dir?: string) {
+  const r: Record<string, unknown> = readRecord(name, dir);
   const error = typeof r.error === "string" ? r.error : null;
   const rows = Array.isArray(r.windows) ? r.windows : [];
   if (r.user !== user || typeof r.fetchedAtMs !== "number" || !rows.length) return { fetchedAt: null, windows: [] as UsageWindow[], plan: null, error };
@@ -256,30 +256,43 @@ export function codexLiveUsage(name: string, user: string, now: Date) {
 // The Codex profiles, for the start API (ADR 0007): who they are, and what dotagents last asked of
 // codex app-server for their usage (core/accounts/providers/codex-usage.ts), with the plan Codex reports. `no-data` is
 // a saved login with nothing read yet; windows are never made up.
-export function readCodexUsage(now = new Date()): ProfileUsage[] {
+// As Claude's: when the other side read the same ChatGPT account later, its numbers win, with where
+// they came from. That side's profile may have another name, so its records are matched by user.
+// view: as for Claude, the other side only while it is up; without it, whenever it is known.
+export function readCodexUsage(now = new Date(), view?: PeerView): ProfileUsage[] {
+  const peer = sidePeer();
+  const there = peer && !(view && !view.up(peer)) ? peerProfiles(peer).filter((p) => p.provider === "codex") : [];
   return codexProfiles().map((p) => {
     const account = codexAccount(p);
     // The plan the live usage recorded, else the one the saved login says.
     const base = { name: p.name, color: p.color, provider: "codex" as const, fetchedAt: null, windows: [], ...(p.default ? { default: true } : {}), ...(account?.plan ? { plan: account.plan } : {}) };
     if (!account) return { ...base, state: "not-signed-in" };
-    const live = codexLiveUsage(p.name, account.user, now);
+    let live = codexLiveUsage(p.name, account.user, now);
+    let from: string | undefined;
+    for (const other of there) {
+      const twin = codexLiveUsage(other.name, account.user, now, peerStateDir(peer!));
+      if (twin.fetchedAt && !(live.fetchedAt && live.fetchedAt >= twin.fetchedAt)) [live, from] = [{ ...twin, error: live.error }, peer!.name];
+    }
     const error = live.error ? { error: live.error } : {};
     if (!live.fetchedAt) return { ...base, ...error, state: "no-data" };
     const stale = now.getTime() - live.fetchedAt.getTime() > STALE_MS;
-    return { ...base, ...error, state: stale ? "stale" : "ok", fetchedAt: live.fetchedAt, windows: live.windows, source: "live" as const, ...(live.plan ? { plan: live.plan } : {}) };
+    return { ...base, ...error, state: stale ? "stale" : "ok", fetchedAt: live.fetchedAt, windows: live.windows, source: "live" as const, ...(live.plan ? { plan: live.plan } : {}), ...(from ? { from } : {}) };
   });
 }
 
 // Which Codex profile is in each side's slot. The other side's slot is told apart by the ChatGPT
 // user in its auth.json, matched against this side's vault (the same account on both sides); only
-// while that side is up.
+// while that side is up. Its slot is the folder its ChatGPT profiles use (its CODEX_HOME when they
+// were added), else its ~/.codex.
 export function readCodexSlots(view?: PeerView): Record<string, string> {
   const slots: Record<string, string> = {};
   const here = codexSlotProfile()?.name;
   if (here) slots[sideName()] = here;
   const peer = sidePeer();
   if (!peer || (view && !view.up(peer))) return slots;
-  const user = readLogin(path.join(peer.home, ".codex", "auth.json"))?.id;
+  const configured = peerProfiles(peer).find((p) => p.provider === "codex" && typeof p.configDir === "string");
+  const home = (configured && peerPath(configured.configDir, peer)) || path.join(peer.home, ".codex");
+  const user = readLogin(path.join(home, "auth.json"))?.id;
   const there = user ? codexProfiles().find((p) => codexAccount(p)?.user === user)?.name : undefined;
   if (there) slots[peer.name] = there;
   return slots;

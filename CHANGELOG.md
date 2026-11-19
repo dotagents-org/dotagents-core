@@ -67,6 +67,7 @@ What changed for someone who updates a clone. The format follows [Keep a Changel
 
 ### Changed
 
+- **ChatGPT's usage from the other side too, as Claude's.** `usage`, `start` and the sidebar show the other side's reading of a ChatGPT account when it is newer, matched by the ChatGPT user even when the profile is named otherwise there, and find the other side's slot in the folder its ChatGPT profiles use (its `CODEX_HOME`), not always `~/.codex`.
 - **Plans by the product's name in `usage` and `profile list`.** Each profile shows its plan as the product calls it: `Team Standard` for a Claude Team seat (the plan Claude Code keeps with the login, and the seat in its account), `Business` for ChatGPT Business, which OpenAI's API still calls `team`. The sidebar's panel already said so.
 - **`start`'s switch says what comes next.** A switch the sidebar asks for answers with `next` besides `detail`: the line `dotagents switch` ends with, per provider (Claude's open conversations go on after `continue`; Codex sessions already open keep the old account until restarted), so the sidebar shows the same words.
 - **Faster start:** the command loads the prompts only in the commands that ask, and `revision` loads the Anthropic SDK only when it calls the API. `dotagents --help` and the revision hook start in about 0.16 s instead of 0.24 s, and `usage --json` in 0.24 s instead of 0.30 s, with less memory.

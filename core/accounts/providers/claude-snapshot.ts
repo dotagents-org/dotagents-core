@@ -7,7 +7,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { type Activity, sessionActivity } from "../../claude-code.ts";
-import { PALETTE, type Peer, peerStateDir, type Profile, sideName, sidePeer } from "../../machine/machine-state.ts";
+import { PALETTE, type Peer, peerPath, peerStateDir, type Profile, sideName, sidePeer } from "../../machine/machine-state.ts";
 import type { PeerView } from "../snapshot.ts";
 import { type ProfileUsage, STALE_MS, normalize, profileUsage } from "../usage.ts";
 import { liveUsage, sideProfiles } from "./claude-usage.ts";
@@ -40,18 +40,6 @@ function localUsage(p: Profile, now: Date): ProfileUsage {
   return login?.configDir ? { ...mine, activity: sessionActivity(login.configDir) } : mine;
 }
 
-// A path the other side wrote (C:\Users\me\.claude-x), as this side reaches it
-// (/mnt/c/Users/me/.claude-x); null when it isn't under that side's home.
-function translate(native: string, peer: Peer) {
-  const norm = (p: string) => p.replace(/[\\/]+$/, "");
-  const home = norm(peer.nativeHome);
-  const windowsLike = /^[a-z]:\\/i.test(home);
-  const inside = windowsLike ? native.toLowerCase().startsWith(home.toLowerCase()) : native.startsWith(home);
-  if (!inside) return null;
-  const rest = native.slice(home.length).split(/[\\/]+/).filter(Boolean);
-  return path.join(peer.home, ...rest);
-}
-
 // The other side's profiles, as this side reaches their folders; nothing when they can't be read.
 function peerUsage(peer: Peer, now: Date): ProfileUsage[] {
   let profiles: Profile[] = [{ name: "claude", color: PALETTE[0], default: true, configDir: path.join(peer.nativeHome, ".claude") }];
@@ -63,7 +51,7 @@ function peerUsage(peer: Peer, now: Date): ProfileUsage[] {
     // No dotagents there yet, or nothing to read: only its default folder.
   }
   return profiles.flatMap((p) => {
-    const local = typeof p?.configDir === "string" ? translate(p.configDir, peer) : null;
+    const local = typeof p?.configDir === "string" ? peerPath(p.configDir, peer) : null;
     if (!local) return [];
     const mine = profileUsage({ ...p, configDir: local }, now, peer.home);
     const live = typeof p?.name === "string" ? liveUsage(p.name, peerStateDir(peer)) : { cache: null, error: null };

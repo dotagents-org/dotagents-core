@@ -11,8 +11,8 @@ import { codexLoginMark } from "../../core/accounts/providers/codex-store.ts";
 import { type SpawnAppServer } from "../../core/accounts/providers/codex-usage.ts";
 import { ASK_EVERY_MS } from "../../core/accounts/usage-record.ts";
 import { fetchUsage, refreshUsage } from "../../core/accounts/usage-refresh.ts";
-import { loadProfiles, saveProfile } from "../../core/machine/machine-state.ts";
-import { readCodexUsage as codexUsage } from "../../core/accounts/providers/codex-usage.ts";
+import { loadProfiles, saveMachine, saveProfile } from "../../core/machine/machine-state.ts";
+import { readCodexSlots, readCodexUsage as codexUsage } from "../../core/accounts/providers/codex-usage.ts";
 import { state } from "../../core/state.ts";
 import { type PeerSwitch, switchProfile } from "../../core/accounts/switch.ts";
 import { type ProfileUsage, usageLines } from "../../core/accounts/usage.ts";
@@ -457,4 +457,40 @@ test("Windows closes an app-server tree before removing its temporary login", as
   assert.throws(() => process.kill(wrapper!.pid!, 0), "the shell's equivalent process is gone");
   assert.throws(() => process.kill(start.pid, 0), "the nested app-server is gone too");
   assert.equal(fs.existsSync(start.home), false);
+});
+
+test("the other side's newer reading of the same ChatGPT account wins, matched by user, and its slot is found in its CODEX_HOME", async (t) => {
+  const { home } = await machine(t);
+  const peer = path.join(home, "peer");
+  const peerName = process.platform === "win32" ? "WSL" : "Windows";
+  saveMachine({ peer: { name: peerName, home: peer, nativeHome: peer } });
+  const usage = (dir: string, name: string, user: string, at: number, pct: number) => {
+    fs.mkdirSync(path.join(dir, "usage"), { recursive: true });
+    fs.writeFileSync(path.join(dir, "usage", `${name}.json`), JSON.stringify({ version: 1, provider: "codex", user, fetchedAtMs: at, windows: [{ kind: "session", pct, resetsAt: new Date(NOW + 3_600_000).toISOString() }] }));
+  };
+  const peerState = path.join(peer, ".config", "dotagents");
+  // There, hopper's account is a profile named otherwise, in a CODEX_HOME of its own
+  const codexThere = path.join(peer, "codex-home");
+  fs.mkdirSync(peerState, { recursive: true });
+  fs.mkdirSync(codexThere, { recursive: true });
+  fs.writeFileSync(path.join(peerState, "profiles.json"), JSON.stringify({ version: 2, profiles: [{ name: "work-gpt", configDir: codexThere, color: "#7B61A8", provider: "codex" }] }));
+  usage(path.join(home, "state"), "hopper", "user-hopper", NOW - 600_000, 10);
+  usage(peerState, "work-gpt", "user-hopper", NOW - 60_000, 70);
+  usage(peerState, "stranger", "user-hopper", NOW, 99); // no profile there by that name: not read
+  const hopper = read("hopper");
+  assert.deepEqual([hopper.windows[0].pct, hopper.from], [70, peerName]);
+  // This side's newer reading stays
+  usage(path.join(home, "state"), "hopper", "user-hopper", NOW - 1_000, 20);
+  assert.deepEqual([read("hopper").windows[0].pct, read("hopper").from], [20, undefined]);
+  // Another account's reading there is never taken
+  usage(peerState, "work-gpt", "user-someone-else", NOW, 90);
+  assert.equal(read("dijkstra").windows.length, 0);
+  // A side that is down isn't read
+  usage(peerState, "work-gpt", "user-hopper", NOW, 80);
+  assert.equal(codexUsage(new Date(NOW), { up: () => false }).find((p) => p.name === "hopper")!.from, undefined);
+  // The slot there: the folder its profiles use, not ~/.codex
+  fs.mkdirSync(path.join(peer, ".codex"), { recursive: true });
+  fs.writeFileSync(path.join(peer, ".codex", "auth.json"), auth("user-hopper", "hopper-there"));
+  fs.writeFileSync(path.join(codexThere, "auth.json"), auth("user-dijkstra", "dijkstra-there"));
+  assert.equal(readCodexSlots()[peerName], "dijkstra");
 });
