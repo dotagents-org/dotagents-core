@@ -7,7 +7,6 @@ import { captureAsync, fancy, ink } from "../../../core/output/output.ts";
 import { refreshUsage } from "../../../core/accounts/usage-refresh.ts";
 import { type Line, type ProfileUsage, shortLines, usageLines } from "../../../core/accounts/usage.ts";
 import { badge, colorLevel } from "../../../core/output/theme.ts";
-import { readLog } from "../../../core/sessions/revision.ts";
 import { type Ratio, type WindowSpend, spendReport } from "../../../core/accounts/spend.ts";
 import { activeProfiles, providerFor } from "../../../core/accounts/providers.ts";
 import { displayPath } from "../../../core/output/output.ts";
@@ -22,10 +21,8 @@ function spendView(json: boolean) {
   // Claude's and ChatGPT's: the account each profile's saved login is (a Claude account, a ChatGPT user)
   const profiles = activeProfiles().map((p) => ({ name: p.name, accountUuid: providerFor(p).account(p)?.id ?? null, tokensOnly: providerFor(p).id === "chatgpt" }));
   const { profiles: report, unattributedUsd } = spendReport(profiles, { folder: (cwd) => displayPath(cwd), warn: console.error });
-  const since = Math.min(...report.flatMap((p) => (p.week ? [Date.parse(p.week.from)] : [])), Date.now());
-  const revisionUsd = readLog().filter((e) => Date.parse(e.at) >= since).reduce((sum, e) => sum + (e.costUsd ?? 0), 0);
   // version 2: ChatGPT's profiles, a window's totalTokens, models and workspaces as [name, dollars, tokens]
-  if (json) return console.log(JSON.stringify({ version: 2, profiles: report, unattributedUsd, revisionUsd }, null, 2));
+  if (json) return console.log(JSON.stringify({ version: 2, profiles: report, unattributedUsd }, null, 2));
   const { bold, muted } = { bold: ink.bold, muted: ink.role("muted") };
   const label = { session: "5h", week: "7d" } as const;
   const ratioLine = (r: Ratio) => {
@@ -49,7 +46,6 @@ function spendView(json: boolean) {
     for (const line of [...windowLines("session", p.session), ...windowLines("week", p.week)]) console.log(line);
   }
   console.log("");
-  if (revisionUsd) console.log(muted(`prompt revision since the oldest week shown: ${usd(revisionUsd)}`));
   if (unattributedUsd) console.log(muted(`spend under an account that is no profile: ${usd(unattributedUsd)}`));
   console.log(muted("At the API's prices, for Claude; ChatGPT's in tokens, since OpenAI's prices aren't kept here. For a subscription the dollar is only a unit to compare with. The % comes in whole numbers, so the relation is rough until there are days of readings; dotagents start keeps them, one per minute."));
 }

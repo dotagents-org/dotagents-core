@@ -1,5 +1,5 @@
-// The API's prices, in dollars per million tokens, for what dotagents puts a cost on: a revision
-// through the API, and the spend against the plan's % (core/accounts/spend.ts). Writing to the cache costs
+// The API's prices, in dollars per million tokens, for what dotagents puts a cost on: the spend
+// against the plan's % (core/accounts/spend.ts). Writing to the cache costs
 // 1.25 times the input for 5 minutes and twice for an hour. For a subscription the dollar is a unit
 // to compare with, not a charge.
 

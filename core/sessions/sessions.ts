@@ -1,12 +1,9 @@
-// Claude Code's sessions on both sides of the machine: list them, archive one into its project's
-// .artifacts/sessions/ (the archive skill's parser, so the archive is the same
-// file the skill writes), and delete one with everything Claude Code keeps for it. Every config
-// folder is read: this side's ~/.claude and the other side's (core/machine/peer.ts), since a profile's
-// sessions live in the slot of the side that ran them.
+// Claude Code's sessions on both sides of the machine: list them, and delete one with everything
+// Claude Code keeps for it. Every config folder is read: this side's ~/.claude and the other side's
+// (core/machine/peer.ts), since a profile's sessions live in the slot of the side that ran them.
 //
-// A session still running is deleted only when the caller asks (the user confirmed, and it is
-// archived first), ending its Claude Code on this side first. Running means: on this side, its
-// sessions/<pid>.json names it while the process lives; on the other side, whose processes can't be probed from here, dotagents asks
+// A session still running is deleted only when the caller asks (the user confirmed), ending its
+// Claude Code on this side first. Running means: on this side, its sessions/<pid>.json names it while the process lives; on the other side, whose processes can't be probed from here, dotagents asks
 // that side's dotagents (`sessions --running`), when the caller passes that adapter. Either way a
 // transcript written in the last RECENT_MS counts as running too.
 
@@ -14,7 +11,7 @@ import { execFile, spawnSync } from "node:child_process";
 import { logChange } from "../machine/log.ts";
 import fs from "node:fs";
 import path from "node:path";
-import { type AccountLabels, archiveFile, parseTranscript, promptText, readRevisions, renderArchive, revise } from "../../skills/archive/scripts/archive-session.ts";
+import { type AccountLabels, promptText } from "../../skills/archive/scripts/archive-session.ts";
 import { type CodexDelete, type CodexDir, type RolloutProbe, codexDelete, codexDirs, codexNow, listCodexSessions } from "./codex-sessions.ts";
 import { codexAccount, codexProfiles } from "../accounts/providers/codex-store.ts";
 import { type ProcessProbe, defaultConfigDir, runningProcess, signedIn } from "../claude-code.ts";
@@ -24,9 +21,9 @@ import { wslDistroArgs } from "../machine/peer.ts";
 import { report } from "../output/output.ts";
 import { state } from "../state.ts";
 import { profileAccount } from "../accounts/providers/claude-store.ts";
-import { RECENT_MS, type Session, archiveRoot } from "./session.ts";
+import { RECENT_MS, type Session } from "./session.ts";
 
-export { RECENT_MS, type Session, archiveRoot };
+export { RECENT_MS, type Session };
 
 // A config folder and the side it belongs to. peer: set for the other side's, whose paths have to
 // be translated to be reached from here.
@@ -257,7 +254,6 @@ export function listSessions({ dirs, codex, agent, under, now = Date.now(), runn
           bytes: st.size,
           mtime: st.mtimeMs,
           accounts: info.accounts,
-          root: archiveRoot(localCwd),
           running: Boolean(known?.has(id)) || now - st.mtimeMs < RECENT_MS,
           pid: pids?.get(id) ?? null,
           checked: known !== null,
@@ -305,27 +301,6 @@ export function accountColors(): Map<string, string> {
     if (account && !colors.has(account.user)) colors.set(account.user, profile.color);
   }
   return colors;
-}
-
-// Writes a session's archive into its project; the file, or why it couldn't. Honors --dry-run.
-export function archiveSession(s: Session, labels: AccountLabels = new Map()): { ok: true; file: string } | { ok: false; error: string } {
-  if (!s.root) return { ok: false, error: "no .artifacts/sessions/ in its project" };
-  try {
-    const session = parseTranscript(s.file);
-    const file = archiveFile(s.root, session);
-    const existed = fs.existsSync(file);
-    const text = renderArchive(revise(session, readRevisions(file)), labels);
-    if (!state.dryRun) {
-      fs.mkdirSync(path.dirname(file), { recursive: true });
-      fs.writeFileSync(file, text);
-    }
-    report(state.dryRun ? (existed ? "would update" : "would create") : existed ? "updated" : "created", file, `archive of ${s.id}`);
-    return { ok: true, file };
-  } catch (err) {
-    const error = (err as Error).message;
-    report("failed", s.file, `couldn't archive: ${error}`);
-    return { ok: false, error };
-  }
 }
 
 // What Claude Code keeps for a session: the transcript, its folder (subagents, tool results), its

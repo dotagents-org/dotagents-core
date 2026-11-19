@@ -7,8 +7,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { test, type TestContext } from "node:test";
-import { accountsText, archiveFile, parseRollout, parseTranscript, readRevisions, renderArchive, revise } from "../../skills/archive/scripts/archive-session.ts";
-import { CONTEXT_HEAD, CONTEXT_TAIL } from "../../core/sessions/revision.ts";
+import { accountsText, archiveFile, parseRollout, parseTranscript, renderArchive } from "../../skills/archive/scripts/archive-session.ts";
 import { REPO } from "../helpers.ts";
 
 const SCRIPT = path.join(REPO, "skills", "archive", "scripts", "archive-session.ts");
@@ -126,61 +125,6 @@ test("without a session id, the newest transcript started inside the project roo
   fs.writeFileSync(s.transcript, fs.readFileSync(s.transcript, "utf8").replaceAll('"cwd":"/w"', `"cwd":${JSON.stringify(path.join(root, "sub"))}`));
   assert.equal(s.run(SCRIPT, "--project-root", root).status, 0);
   assert.ok(fs.existsSync(path.join(root, ".artifacts", "sessions", `2026-01-02-${ID}.md`)));
-});
-
-test("revised user messages replace the verbatim ones, are kept next to the archive and survive a rewrite", (t) => {
-  const s = setup(t);
-  const root = path.join(s.root, "proj");
-  const out = path.join(root, ".artifacts", "sessions", `2026-01-02-${ID}.md`);
-  const prompts = (args: string[] = []) => {
-    const res = s.run(SCRIPT, "--session-id", ID, "--project-root", root, "--prompts", ...args);
-    assert.equal(res.status, 0, res.stderr);
-    return JSON.parse(res.stdout) as { id: string; text: string }[];
-  };
-  const pending = prompts();
-  assert.deepEqual(pending.map((p) => p.text), ["Fix the parser please", "`/model opus`"]);
-  assert.ok(!fs.existsSync(out), "--prompts writes nothing");
-
-  const revisions = path.join(s.root, "revised.json");
-  fs.writeFileSync(revisions, JSON.stringify({ [pending[0].id]: "Fix the parser, please." }));
-  assert.equal(s.run(SCRIPT, "--session-id", ID, "--project-root", root, "--revise", revisions).status, 0);
-  let md = fs.readFileSync(out, "utf8");
-  assert.ok(md.includes("UTC\n\nFix the parser, please.\n"), md);
-  assert.ok(!md.includes("Fix the parser please"));
-  assert.ok(md.includes("| **User messages** | 1 of 2 proofread, same meaning |"));
-  assert.deepEqual(prompts().map((p) => p.text), ["`/model opus`"], "only the messages not revised yet");
-
-  // A plain run, and dotagents' own archive (sessions rm), keep the revision.
-  assert.equal(s.run(SCRIPT, "--session-id", ID, "--project-root", root).status, 0);
-  assert.ok(fs.readFileSync(out, "utf8").includes("Fix the parser, please."));
-  md = renderArchive(revise(parseTranscript(s.transcript), readRevisions(out)));
-  assert.ok(md.includes("Fix the parser, please."));
-
-  fs.writeFileSync(revisions, "[1]");
-  assert.equal(s.run(SCRIPT, "--session-id", ID, "--project-root", root, "--revise", revisions).status, 1);
-});
-
-test("a message revised by the prompt revision hook is archived in its revised form, and --prompts skips it", (t) => {
-  const s = setup(t);
-  const hookMessage = (content: string) => ({ type: "attachment", attachment: { type: "hook_system_message", content, hookName: "UserPromptSubmit" } });
-  const hookContext = (content: string) => ({ type: "attachment", attachment: { type: "hook_additional_context", content: [content], hookEvent: "UserPromptSubmit" } });
-  const context = `${CONTEXT_HEAD}Fix the parser, please.${CONTEXT_TAIL}`;
-  const lines = fs.readFileSync(s.transcript, "utf8").split("\n");
-  // The chat line, then the context, as Claude Code writes them; and another hook's.
-  lines.splice(2, 0, JSON.stringify(hookMessage("Fix the parser, please.")), JSON.stringify(hookContext(context)), JSON.stringify(hookContext("not ours")));
-  fs.writeFileSync(s.transcript, lines.join("\n"));
-  const md = renderArchive(parseTranscript(s.transcript));
-  assert.ok(md.includes("UTC\n\nFix the parser, please.\n"), md);
-  assert.ok(!md.includes("Fix the parser please"));
-  assert.ok(md.includes("| **User messages** | 1 of 2 proofread, same meaning |"));
-  const res = s.run(SCRIPT, "--session-id", ID, "--project-root", path.join(s.root, "proj"), "--prompts");
-  assert.deepEqual(JSON.parse(res.stdout).map((p: { text: string }) => p.text), ["`/model opus`"]);
-
-  // A transcript from before 2026-11-14 marks the chat line with ✎ instead.
-  const old = fs.readFileSync(s.transcript, "utf8").split("\n").filter((l) => !l.includes("hook_"));
-  old.splice(2, 0, JSON.stringify(hookMessage("✎  Fix the parser, please.")));
-  fs.writeFileSync(s.transcript, old.join("\n"));
-  assert.ok(renderArchive(parseTranscript(s.transcript)).includes("UTC\n\nFix the parser, please.\n"));
 });
 
 // ── Accounts ──────────────────────────────────────────────────────────────────────────────────

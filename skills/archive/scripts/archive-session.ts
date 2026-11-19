@@ -11,9 +11,7 @@
 //
 //   <project-root>/.artifacts/sessions/<date>-<session-id>.md
 //
-// The replies are verbatim. A user message is verbatim too, unless the agent running the skill
-// revised it (spelling, clarity): the revisions live next to the archive, in
-// <date>-<session-id>.revisions.json, keyed by message id, so every later write keeps them.
+// The messages are verbatim.
 //
 // Re-running overwrites the file, so it is safe to checkpoint mid-session.
 //
@@ -26,15 +24,13 @@
 //   node archive-session.ts --agent codex --session-id <uuid>
 //   node archive-session.ts --transcript /path/to/session.jsonl
 //   node archive-session.ts                         # newest session for this project
-//   node archive-session.ts --session-id <uuid> --prompts         # user messages not revised yet, as JSON
-//   node archive-session.ts --session-id <uuid> --revise <file>   # add revisions ({ id: text }), then write
 //
 //   --project-root   override the detected project root
 //   --claude-home    override the Claude Code data folder (CLAUDE_CONFIG_DIR, else ~/.claude)
 //   --codex-home     override the Codex data folder (inferred for --transcript under sessions/,
 //                    required for a loose --transcript, otherwise CODEX_HOME or ~/.codex)
 //
-// dotagents imports this file too (`dotagents sessions rm` archives before it deletes), so the
+// dotagents imports this file too (`dotagents sessions` reads titles and accounts with it), so the
 // parser lives in one place: keep the exports below stable.
 
 import fs from "node:fs";
@@ -46,13 +42,6 @@ const SYSTEM_REMINDER = /<system-reminder>[\s\S]*?<\/system-reminder>/g;
 const COMMAND_NAME = /<command-name>([\s\S]*?)<\/command-name>/;
 const COMMAND_ARGS = /<command-args>([\s\S]*?)<\/command-args>/;
 const LOCAL_STDOUT = /<local-command-stdout>[\s\S]*?<\/local-command-stdout>/g;
-// The mark dotagents' prompt revision puts before the revised message (core/sessions/revision.ts).
-const REVISED_MARK = "✎";
-// How it hands the revised message to Claude (core/sessions/revision.ts): this first line, then the text,
-// then a paragraph of instructions.
-const REVISED_HEAD = "The user's message above, proofread (spelling, punctuation, grammar):\n\n";
-const REVISED_TAIL = "\n\nFollow it;";
-
 type Json = Record<string, any>;
 
 // What the parser collects; renderArchive() lays it out.
@@ -77,10 +66,6 @@ export type ArchivedSession = {
   // the login changed (a `dotagents switch`, then "continue"). Empty when no line records it, as
   // in transcripts from older versions.
   accounts: string[];
-  // Each user message: its id (the transcript line's uuid, else its timestamp), its text and its
-  // line in `out`, so a revision can replace it.
-  prompts: { id: string; text: string; at: number }[];
-  revised: number;
 };
 
 // How an account is shown: "work (me@example.com)". Unknown ids show their first 8 characters.
@@ -160,8 +145,6 @@ export function parseTranscript(file: string): ArchivedSession {
     userEdited: [],
     cost: null,
     accounts: [],
-    prompts: [],
-    revised: 0,
   };
   const seenMsgs = new Set<string>();
   const toolLines = new Map<string, number>(); // tool_use id → index of its line in s.out
@@ -179,24 +162,6 @@ export function parseTranscript(file: string): ArchivedSession {
     if (t === "cost-state") s.cost = obj;
     if (t === "session-owner" && str(obj.accountUuid)) addOnce(s.accounts, obj.accountUuid);
     if (t === "attachment" && isObject(obj.attachment) && obj.attachment.type === "edited_text_file") addOnce(s.userEdited, str(obj.attachment.filename) ?? "?");
-    // dotagents' prompt revision (dotagents revision on) hands Claude the revised message right
-    // after it, as hook context starting with a fixed line: the archive shows that version. Before
-    // 2026-11-14 it was found by the ✎ that started the chat line, with any spacing.
-    if (t === "attachment" && isObject(obj.attachment) && (obj.attachment.hookEvent ?? obj.attachment.hookName) === "UserPromptSubmit") {
-      const a = obj.attachment;
-      const last = s.prompts.at(-1);
-      let revised: string | null = null;
-      if (a.type === "hook_additional_context") {
-        const text = (Array.isArray(a.content) ? a.content : [a.content]).find((c: unknown) => typeof c === "string" && c.startsWith(REVISED_HEAD));
-        if (text) revised = text.slice(REVISED_HEAD.length).split(REVISED_TAIL)[0];
-      } else if (a.type === "hook_system_message" && str(a.content)?.trimStart().startsWith(REVISED_MARK)) {
-        revised = str(a.content)!.trimStart().slice(REVISED_MARK.length);
-      }
-      if (revised?.trim() && last && s.out[last.at] === last.text) {
-        s.out[last.at] = revised.trim();
-        s.revised++;
-      }
-    }
     if (obj.isSidechain || obj.isMeta) continue;
     const msg = isObject(obj.message) ? obj.message : {};
     const content = msg.content;
@@ -212,7 +177,6 @@ export function parseTranscript(file: string): ArchivedSession {
           s.out.splice(idx + 1, 0, ...answers.map(([q, a]) => `  - **${q}** ${a}`));
           // Later indexes move past the inserted answer lines.
           for (const [k, v] of toolLines) if (v > idx) toolLines.set(k, v + answers.length);
-          for (const p of s.prompts) if (p.at > idx) p.at += answers.length;
         }
       }
     } else if (t === "user") {
@@ -220,7 +184,6 @@ export function parseTranscript(file: string): ArchivedSession {
       if (text) {
         s.userTurns++;
         s.out.push("", `## 👤 User - ${(ts ?? "").slice(0, 16).replace("T", " ")} UTC`, "", text, "");
-        s.prompts.push({ id: str(obj.uuid) ?? ts ?? String(s.userTurns), text, at: s.out.length - 2 });
       }
     } else if (t === "assistant") {
       s.model = str(msg.model) ?? s.model;
@@ -302,8 +265,6 @@ export function parseRollout(file: string, titles: Record<string, string> = {}):
     userEdited: [],
     cost: null,
     accounts: [],
-    prompts: [],
-    revised: 0,
   };
   const toolLines = new Map<string, number>(); // call_id → index of its line in s.out
   let usage: Json | null = null;
@@ -340,7 +301,6 @@ export function parseRollout(file: string, titles: Record<string, string> = {}):
         s.userTurns++;
         firstPrompt ??= text;
         s.out.push("", `## 👤 User - ${(ts ?? "").slice(0, 16).replace("T", " ")} UTC`, "", text, "");
-        s.prompts.push({ id: str(p.id) ?? ts ?? String(s.userTurns), text, at: s.out.length - 2 });
       } else if (p.role === "assistant") {
         s.assistantMsgs++;
         s.out.push("", `**🤖 ${s.agent}:**`, "", text, "");
@@ -544,7 +504,6 @@ export function renderArchive(s: ArchivedSession, labels: AccountLabels = new Ma
     `| **Tokens** | ${[...s.tokens].map(([k, v]) => `${k} ${short(v)}`).join(", ") || "unknown"} |`,
   ];
   if (s.cost) header.push(`| **Cost** | US$ ${(Number(s.cost.totalCostUSD) || 0).toFixed(2)} |`);
-  if (s.revised) header.push(`| **User messages** | ${s.revised} of ${s.userTurns} proofread, same meaning |`);
 
   const edited = s.changed.filter(keep);
   const outside = s.userEdited.filter((p) => keep(p) && !s.changed.includes(p));
@@ -567,37 +526,13 @@ export const archiveFile = (projectRoot: string, s: ArchivedSession) => {
   return path.join(projectRoot, ".artifacts", "sessions", `${/^\d{4}-\d{2}-\d{2}$/.test(day) ? day : "undated"}-${s.sessionId}.md`);
 };
 
-// The revised user messages of an archive ({ id: text }), kept next to it.
-export const revisionsFile = (archive: string) => archive.replace(/\.md$/, ".revisions.json");
-
-export function readRevisions(archive: string): Record<string, string> {
-  try {
-    const data = JSON.parse(fs.readFileSync(revisionsFile(archive), "utf8"));
-    return isObject(data) ? Object.fromEntries(Object.entries(data).filter(([, v]) => typeof v === "string" && v.trim())) : {};
-  } catch {
-    return {};
-  }
-}
-
-// Puts each revised user message in place of the verbatim one.
-export function revise(s: ArchivedSession, revisions: Record<string, string>) {
-  for (const p of s.prompts) {
-    const text = revisions[p.id]?.trim();
-    if (!text) continue;
-    if (s.out[p.at] === p.text) s.revised++;
-    s.out[p.at] = text;
-  }
-  return s;
-}
-
-// Parses a transcript and writes its archive, with the revisions saved next to it; returns the
-// file written.
+// Parses a transcript and writes its archive; returns the file written.
 // parse: parseTranscript for Claude Code, or a parseRollout for Codex.
 export function writeArchive(transcript: string, projectRoot: string, labels: AccountLabels = new Map(), parse: (file: string) => ArchivedSession = parseTranscript) {
   const session = parse(transcript);
   const out = archiveFile(projectRoot, session);
   fs.mkdirSync(path.dirname(out), { recursive: true });
-  fs.writeFileSync(out, renderArchive(revise(session, readRevisions(out)), labels));
+  fs.writeFileSync(out, renderArchive(session, labels));
   return out;
 }
 
@@ -672,11 +607,10 @@ function findTranscript(claudeHome: string, sessionId: string | undefined, proje
 function main(argv: string[]) {
   const args: Record<string, string> = {};
   for (let i = 0; i < argv.length; i++) {
-    const m = /^--(session-id|transcript|project-root|claude-home|codex-home|agent|revise)$/.exec(argv[i]);
+    const m = /^--(session-id|transcript|project-root|claude-home|codex-home|agent)$/.exec(argv[i]);
     if (m && argv[i + 1] !== undefined) args[m[1]] = argv[++i];
-    else if (argv[i] === "--prompts") args.prompts = "yes";
     else if (argv[i] === "-h" || argv[i] === "--help") {
-      console.log("Usage: node archive-session.ts [--agent claude|codex] [--session-id <uuid> | --transcript <file>] [--project-root <dir>] [--claude-home <dir>] [--codex-home <dir>] [--prompts | --revise <file>]");
+      console.log("Usage: node archive-session.ts [--agent claude|codex] [--session-id <uuid> | --transcript <file>] [--project-root <dir>] [--claude-home <dir>] [--codex-home <dir>]");
       return 0;
     } else {
       console.error(`error: unexpected argument ${argv[i]}`);
@@ -727,30 +661,6 @@ function main(argv: string[]) {
   }
   const titles = agent === "codex" ? codexTitles(codexHome) : {};
   const parse = agent === "codex" ? (file: string) => parseRollout(file, titles) : parseTranscript;
-  const archive = archiveFile(projectRoot, parse(transcript));
-  if (args.prompts) {
-    // The user messages with no revision yet, for the agent to revise
-    // Not those revised already: by an earlier --revise, or by the prompt revision hook.
-    const done = readRevisions(archive);
-    const s = parse(transcript);
-    console.log(JSON.stringify(s.prompts.filter((p) => !done[p.id] && s.out[p.at] === p.text).map(({ id, text }) => ({ id, text })), null, 2));
-    return 0;
-  }
-  if (args.revise) {
-    let added: unknown;
-    try {
-      added = JSON.parse(fs.readFileSync(args.revise, "utf8"));
-    } catch (err) {
-      console.error(`error: ${args.revise} is not a JSON file: ${(err as Error).message}`);
-      return 1;
-    }
-    if (!isObject(added) || !Object.values(added).every((v) => typeof v === "string")) {
-      console.error(`error: ${args.revise} must be an object of message id to revised text`);
-      return 1;
-    }
-    fs.mkdirSync(path.dirname(archive), { recursive: true });
-    fs.writeFileSync(revisionsFile(archive), `${JSON.stringify({ ...readRevisions(archive), ...added }, null, 2)}\n`);
-  }
   const labels = agent === "codex" ? knownCodexAccounts() : knownAccounts(claudeHome);
   console.log(`${agent === "codex" ? "Codex" : "Claude"} transcript written -> ${writeArchive(transcript, projectRoot, labels, parse)}`);
   return 0;

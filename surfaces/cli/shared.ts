@@ -6,7 +6,6 @@ import path from "node:path";
 export type CliArgs = {
   _: string[];
   all?: boolean;
-  api?: boolean;
   from?: string;
   port?: string;
   side?: string;

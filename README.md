@@ -191,7 +191,6 @@ dotagents-config/
 | [`install`](docs/commands.md#dotagents-install) | Applies the global configuration to this machine. |
 | [`update [--all]`](docs/commands.md#dotagents-update) | Pulls your repository and reinstalls; `--all` also refreshes every workspace. |
 | [`settings pull`](docs/commands.md#dotagents-settings-pull) | Brings a Claude Code settings change made with `/config` back into the configuration repository. |
-| [`revision`](docs/commands.md#dotagents-revision), [`revision on`](docs/commands.md#dotagents-revision), [`revision off`](docs/commands.md#dotagents-revision), [`revision fix`](docs/commands.md#dotagents-revision) | Optionally proofreads Claude Code prompts and keeps the revision in the chat and the session archive. |
 | [`doctor`](docs/commands.md#dotagents-doctor), [`logs`](docs/commands.md#dotagents-logs) | Check Node.js, Claude Code and Codex on each side, the other side and every login, or read the product logs. |
 | [`profile add <name>`](docs/commands.md#dotagents-profile-add), [`profile list`](docs/commands.md#dotagents-profile-list), [`profile remove`](docs/commands.md#dotagents-profile-remove) | Manage Claude and ChatGPT profiles. On Windows each profile gets a Desktop launcher. |
 | [`switch <profile>`](docs/commands.md#dotagents-switch) | Puts a profile's login in its agent's slot (`~/.claude` or `~/.codex`) on both sides (`--here` for one), keeping each account's login in a vault. |

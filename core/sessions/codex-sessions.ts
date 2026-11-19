@@ -17,7 +17,7 @@ import { peerCodexFolders } from "../accounts/providers/codex-usage.ts";
 import { isWindows } from "../common.ts";
 import { type Peer, loadMachine, sidePeer } from "../machine/machine-state.ts";
 import { pathOnlyEnv, peerAgentLine, runOnPeer } from "../machine/peer.ts";
-import { type Session, RECENT_MS, archiveRoot } from "./session.ts";
+import { type Session, RECENT_MS } from "./session.ts";
 
 // A remote Codex folder carries both the peer and the origin used to revalidate it.
 export type CodexDir = { side: string; home: string } & ({ peer?: never; origin?: never } | { peer: Peer; origin: NonNullable<Session["origin"]> });
@@ -302,7 +302,6 @@ function scanCodexSessions(dirs: CodexDir[], { under, now = Date.now(), fromPeer
         bytes: group.reduce((sum, g) => sum + g.st.size, 0),
         mtime: st.mtimeMs,
         accounts: info.accounts,
-        root: archiveRoot(localCwd),
         running: openIds.has(info.id) || codexRunning({ id: info.id, file, mtime: st.mtimeMs }, !dir.peer, now, null),
         rolloutOpen: openIds.has(info.id),
         pid: null,

@@ -9,7 +9,7 @@ import path from "node:path";
 import { test, type TestContext } from "node:test";
 import { type Peer, machineFile, saveMachine } from "../../core/machine/machine-state.ts";
 import { codexRunning, openRollouts } from "../../core/sessions/codex-sessions.ts";
-import { type ConfigDir, archiveRoot, archiveSession, deleteSession, fromPeer, listSessions, parseRunningIds, projectSlug, sessionFiles } from "../../core/sessions/sessions.ts";
+import { type ConfigDir, deleteSession, fromPeer, listSessions, parseRunningIds, projectSlug, sessionFiles } from "../../core/sessions/sessions.ts";
 
 test("peer running ids ignore non-id lines and CRLF", () => {
   assert.deepEqual([...parseRunningIds("noise\r\nAAAAAAAA-0000-0000-0000-000000000001\r\n bbbbbbbb-0000-0000-0000-000000000002 \r\n")], ["AAAAAAAA-0000-0000-0000-000000000001", "bbbbbbbb-0000-0000-0000-000000000002"]);
@@ -63,15 +63,7 @@ test("a path from the other side is reached through /mnt from WSL and through th
   assert.equal(fromPeer("C:\\x", wsl, "win32"), null);
 });
 
-test("the archive root is the nearest folder with .artifacts/sessions/, from any folder inside it", (t) => {
-  const s = setup(t);
-  assert.equal(archiveRoot(path.join(s.ws, "repo", "src")), s.ws);
-  assert.equal(archiveRoot(s.ws), s.ws);
-  assert.equal(archiveRoot(s.root), null);
-  assert.equal(archiveRoot(null), null);
-});
-
-test("sessions are listed from every config folder, newest first, with title, accounts and archive root", (t) => {
+test("sessions are listed from every config folder, newest first, with title and accounts", (t) => {
   const s = setup(t);
   const peer: ConfigDir = { side: "There", dir: path.join(s.root, "peer-claude"), peer: { name: "There", home: path.join(s.root, "peer"), nativeHome: "C:\\Users\\me" } };
   session(s.here, "one", [...lines(path.join(s.ws, "repo"), "one"), { type: "ai-title", aiTitle: "First title" }, { type: "ai-title", aiTitle: "Release plan" }, { type: "session-owner", accountUuid: A }, { type: "session-owner", accountUuid: B }, { type: "session-owner", accountUuid: A }]);
@@ -85,8 +77,6 @@ test("sessions are listed from every config folder, newest first, with title, ac
   assert.equal(two.title, "Plan the release", "else the first prompt, without injected context");
   assert.deepEqual(one.accounts, [A, B]);
   assert.deepEqual(two.accounts, []);
-  assert.equal(one.root, s.ws);
-  assert.equal(two.root, null);
   assert.equal(one.ended, "2026-01-02T10:05:00.000Z");
   assert.equal(three.side, "There");
   assert.equal(three.cwd, "C:\\Users\\me\\app");
@@ -114,7 +104,6 @@ test("a title-only stub, with no folder recorded, is listed under the folder its
   session(s.here, "other", lines(s.ws, "other"));
 
   assert.deepEqual(listSessions({ dirs: [s.here], under: s.ws }).map((x) => x.id).sort(), ["other", "stub"]);
-  assert.equal(listSessions({ dirs: [s.here], under: s.ws }).find((x) => x.id === "stub")!.root, s.ws);
   assert.deepEqual(listSessions({ dirs: [s.here], under: path.join(s.root, "elsewhere") }), [], "not under another folder");
 });
 
@@ -131,45 +120,21 @@ test("a session counts as running while its process lives on this side, or when 
   assert.deepEqual(running, { live: true, dead: false, fresh: true });
 });
 
-test("a session is archived into its project, then deleted with everything Claude Code kept for it", (t) => {
+test("a session is deleted with everything Claude Code kept for it", (t) => {
   quiet();
   const s = setup(t);
   const file = session(s.here, "one", [...lines(path.join(s.ws, "repo"), "one"), { type: "session-owner", accountUuid: A }]);
   const [one] = listSessions({ dirs: [s.here] });
-
-  const archived = archiveSession(one, new Map([[A, "work (a@example.com)"]]));
-  assert.ok(archived.ok);
-  assert.equal(archived.file, path.join(s.ws, ".artifacts", "sessions", "2026-01-02-one.md"));
-  const md = fs.readFileSync(archived.file, "utf8");
-  assert.match(md, /\| \*\*Account\*\* \| work \(a@example\.com\) \|/);
-  assert.match(md, /Plan the release/);
 
   assert.ok(deleteSession(one));
   for (const target of [file, path.join(path.dirname(file), "one"), path.join(s.here.dir, "file-history", "one"), path.join(s.here.dir, "session-env", "one")]) {
     assert.ok(!fs.existsSync(target), `${target} is gone`);
   }
   assert.ok(!fs.existsSync(path.dirname(file)), "the project folder, now empty, is gone too");
-  assert.ok(fs.existsSync(archived.file), "the archive stays");
 
   const events = quiet();
   assert.ok(deleteSession(one), "deleting it again changes nothing");
   assert.deepEqual(events, []);
-});
-
-test("a session outside a standard workspace, or whose archive can't be written, is not archived", (t) => {
-  quiet();
-  const s = setup(t);
-  session(s.here, "out", lines(s.root, "out"));
-  session(s.here, "bad", lines(s.ws, "bad"));
-  const byId = Object.fromEntries(listSessions({ dirs: [s.here] }).map((x) => [x.id, x]));
-
-  const out = archiveSession(byId.out);
-  assert.equal(out.ok, false);
-
-  fs.mkdirSync(path.join(s.ws, ".artifacts", "sessions", "2026-01-02-bad.md")); // a folder where the file goes
-  const bad = archiveSession(byId.bad);
-  assert.equal(bad.ok, false);
-  assert.ok(fs.existsSync(byId.bad.file), "archiving never deletes");
 });
 
 test("a running session is never deleted, and a dry run touches nothing", (t) => {
@@ -184,11 +149,9 @@ test("a running session is never deleted, and a dry run touches nothing", (t) =>
   assert.ok(fs.existsSync(byId.fresh.file));
 
   quiet({ dryRun: true });
-  assert.ok(archiveSession(byId.old).ok);
   assert.ok(deleteSession(byId.old));
   state.dryRun = false;
   for (const target of sessionFiles(byId.old)) assert.ok(fs.existsSync(target), `${target} is kept`);
-  assert.deepEqual(fs.readdirSync(path.join(s.ws, ".artifacts", "sessions")), []);
 });
 
 test("a running session, once confirmed, has its Claude Code ended and then its files deleted; a dry run ends nothing", (t) => {

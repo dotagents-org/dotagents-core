@@ -15,7 +15,6 @@ import { install } from "./surfaces/cli/machine/install.ts";
 import { newWorkspace } from "./surfaces/cli/workspace/new.ts";
 import type { CliArgs, Command } from "./surfaces/cli/shared.ts";
 import { sessions, sessionsRm } from "./surfaces/cli/workspace/sessions.ts";
-import { revision, revisionFix, revisionHook, revisionOff, revisionOn } from "./surfaces/cli/machine/revision.ts";
 import { settingsPull } from "./surfaces/cli/machine/settings.ts";
 import { switchCommand } from "./surfaces/cli/accounts/switch.ts";
 import { login } from "./surfaces/cli/accounts/login.ts";
@@ -184,7 +183,7 @@ const start: Command = {
 };
 
 // In the order the help lists them.
-const COMMANDS: Command[] = [install, update, settingsPull, revision, revisionOn, revisionOff, revisionFix, revisionHook, logs, doctor, profileAdd, profileList, profileRemove, switchCommand, login, usage, start, newWorkspace, init, check, workspaces, untrack, sessions, sessionsRm, skills, skillsAdd, skillsRemove];
+const COMMANDS: Command[] = [install, update, settingsPull, logs, doctor, profileAdd, profileList, profileRemove, switchCommand, login, usage, start, newWorkspace, init, check, workspaces, untrack, sessions, sessionsRm, skills, skillsAdd, skillsRemove];
 
 function help() {
   const cmd = ({ name, usage, summary, more = [] }: Command) => {
@@ -257,7 +256,7 @@ function fail(err: Error) {
 let args: CliArgs | null = null;
 try {
   args = parseArgs<CliArgs>(process.argv.slice(2), {
-    booleans: ["all", "api", "default", "dry-run", "help", "here", "json", "no-pull", "refresh", "running", "short", "spend", "version", "watch", "wrap", "yes"],
+    booleans: ["all", "default", "dry-run", "help", "here", "json", "no-pull", "refresh", "running", "short", "spend", "version", "watch", "wrap", "yes"],
     lists: ["skills"],
     values: ["agent", "color", "expect", "from", "port", "provider", "save", "side"],
   });

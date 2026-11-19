@@ -61,9 +61,7 @@ repeat the logs, loaded whole in every session.
   the `archive` skill. A session from another origin (claude.ai, Claude Desktop)
   uses `<origin>-<slug>`, as in `2026-10-12-claude-ai-agent-orchestration.md`.
 - Attachments go in a folder with the same name as the `.md`, without the extension.
-- The user's messages are revised for spelling and clarity, with the same meaning, and the
-  revisions are kept next to the transcript in `<name>.revisions.json`; the replies stay
-  verbatim.
+- The messages are verbatim.
 - A transcript is a dated record: **immutable** once the session ends. It is a snapshot of
   that date, so check it against the code before trusting it. Corrections go to the
   document that describes the current state, not to the transcript.

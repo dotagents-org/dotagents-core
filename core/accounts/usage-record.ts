@@ -1,6 +1,6 @@
 // What dotagents keeps per profile of its last usage reading, <state>/usage/<profile>.json: written
 // by core/accounts/providers/claude-usage.ts for Claude and core/accounts/providers/codex-usage.ts for Codex, each in its own shape, and read by
-// the snapshot, the checks and the prompt revision.
+// the snapshot and the checks.
 
 import { createHash } from "node:crypto";
 import fs from "node:fs";
