@@ -85,6 +85,21 @@ test("a relative LOCALAPPDATA is ignored", { skip: process.platform !== "win32" 
   assert.ok(fs.readdirSync(path.join(home, "AppData", "Local", "dotagents", "compile-cache")).length);
 });
 
+// A cache folder others can write to could hand dotagents their code: then it runs without the cache.
+test("the compile cache stays off in a folder others can write to", { skip: process.platform === "win32" }, (t) => {
+  const shared = tempDir(t);
+  const dir = path.join(shared, "dotagents", "compile-cache");
+  fs.mkdirSync(dir, { recursive: true });
+  fs.chmodSync(dir, 0o777);
+  withFolders(t, ["--help"], { xdg: shared });
+  assert.deepEqual(fs.readdirSync(dir), []);
+});
+
+test("a new compile cache folder is the user's alone", { skip: process.platform === "win32" }, (t) => {
+  const { cache } = withFolders(t, ["--help"]);
+  assert.equal(fs.statSync(path.join(cache, "dotagents", "compile-cache")).mode & 0o077, 0);
+});
+
 // The XDG spec ignores a relative XDG_CACHE_HOME: it would put the cache in whatever folder the command runs in.
 test("a relative XDG_CACHE_HOME is ignored", { skip: process.platform === "win32" }, (t) => {
   const { tmp, home } = withFolders(t, ["--help"], { xdg: "relative-cache" });
