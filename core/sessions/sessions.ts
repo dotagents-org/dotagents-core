@@ -312,7 +312,13 @@ export function archiveSession(s: Session, labels: AccountLabels = new Map()): {
   if (!s.root) return { ok: false, error: "no .artifacts/sessions/ in its project" };
   try {
     // A Codex conversation goes with its subagents', which codex delete takes too, each in its own file
-    const files = s.agent === "codex" ? [s.file, ...subagentRollouts(s.configDir, s.id)] : [s.file];
+    let files = [s.file];
+    if (s.agent === "codex") {
+      const children = subagentRollouts(s.configDir, s.id);
+      // codex delete takes these too, and the archive can't keep what Codex compressed away
+      if (children.archived.length) throw new Error(`${children.archived.length} of its subagents' conversations are archived by Codex (${path.basename(children.archived[0])}); unarchive them with codex unarchive, or delete the conversation with codex delete yourself`);
+      files = [s.file, ...children.live];
+    }
     const titles = s.agent === "codex" ? codexTitles(s.configDir) : {};
     let first = "";
     for (const source of files) {

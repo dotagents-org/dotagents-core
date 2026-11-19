@@ -9,6 +9,7 @@
 // here or on the other side; that runs a command, so it goes through an adapter the tests replace.
 
 import { spawnSync } from "node:child_process";
+import zlib from "node:zlib";
 import fs from "node:fs";
 import path from "node:path";
 import { CODEX_INJECTED } from "../../skills/archive/scripts/archive-session.ts";
@@ -163,32 +164,53 @@ const inside = (child: string, parent: string) => {
 };
 
 // The rollouts of a conversation's subagents, and of theirs, in a Codex folder: each names its
-// parent in its first line.
-export function subagentRollouts(home: string, parent: string): string[] {
-  const children = new Map<string, { id: string; file: string }[]>();
+// parent in its first line. live: in sessions/, which the archive can read; archived: those Codex
+// itself archived (archived_sessions/*.jsonl.zst), which codex delete takes all the same.
+export function subagentRollouts(home: string, parent: string): { live: string[]; archived: string[] } {
+  const children = new Map<string, { id: string; file: string; archived: boolean }[]>();
+  const add = (file: string, first: string, archived: boolean) => {
+    const meta = parse(first);
+    const p = meta?.type === "session_meta" ? meta.payload : null;
+    if (p && typeof p.parent_thread_id === "string" && typeof p.id === "string") children.set(p.parent_thread_id, [...(children.get(p.parent_thread_id) ?? []), { id: p.id, file, archived }]);
+  };
   for (const file of rolloutFiles(home)) {
     try {
       const fd = fs.openSync(file, "r");
       const buf = Buffer.alloc(64 * 1024);
       const n = fs.readSync(fd, buf, 0, buf.length, 0);
       fs.closeSync(fd);
-      const meta = parse(buf.subarray(0, n).toString("utf8").split("\n")[0]);
-      const p = meta?.type === "session_meta" ? meta.payload : null;
-      if (p && typeof p.parent_thread_id === "string" && typeof p.id === "string") children.set(p.parent_thread_id, [...(children.get(p.parent_thread_id) ?? []), { id: p.id, file }]);
+      add(file, buf.subarray(0, n).toString("utf8").split("\n")[0], false);
     } catch {
       // unreadable: not one
     }
   }
-  const out: string[] = [];
+  const dir = path.join(home, "archived_sessions");
+  let names: string[] = [];
+  try {
+    names = fs.readdirSync(dir);
+  } catch {
+    // none archived
+  }
+  for (const name of names) {
+    const file = path.join(dir, name);
+    try {
+      const bytes = fs.readFileSync(file);
+      const text = (name.endsWith(".zst") ? zlib.zstdDecompressSync(bytes) : bytes).toString("utf8");
+      add(file, text.split("\n")[0], true);
+    } catch {
+      // not a rollout, or not readable
+    }
+  }
+  const out: { file: string; archived: boolean }[] = [];
   const visit = (id: string) => {
     for (const child of children.get(id) ?? []) {
-      if (out.includes(child.file)) continue;
-      out.push(child.file);
+      if (out.some((o) => o.file === child.file)) continue;
+      out.push(child);
       visit(child.id);
     }
   };
   visit(parent);
-  return out;
+  return { live: out.filter((o) => !o.archived).map((o) => o.file), archived: out.filter((o) => o.archived).map((o) => o.file) };
 }
 
 // Every rollout file of a Codex folder: sessions/YYYY/MM/DD/rollout-*.jsonl.

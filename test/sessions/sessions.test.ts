@@ -409,3 +409,20 @@ test("a Codex conversation runs while a process here holds its rollout open, or 
     else process.env.CODEX_THREAD_ID = saved;
   }
 });
+
+test("a subagent Codex itself archived stops the archive of its parent: codex delete would take it, the archive can't keep it", async (t) => {
+  const { root, ws } = setup(t);
+  const { home, C, S } = codexHome(root, ws);
+  const zlib = await import("node:zlib");
+  // The subagent moves to archived_sessions, compressed, as codex archive leaves it
+  const live = path.join(home, "sessions", "2026", "11", "18", `rollout-2026-11-18T10-00-00-${S}.jsonl`);
+  fs.mkdirSync(path.join(home, "archived_sessions"), { recursive: true });
+  fs.writeFileSync(path.join(home, "archived_sessions", `rollout-2026-11-18T10-00-00-${S}.jsonl.zst`), zlib.zstdCompressSync(fs.readFileSync(live)));
+  fs.rmSync(live);
+  const cart = listSessions({ dirs: [], codex: [{ side: "Here", home }], now: Date.parse("2026-11-18T13:00:00Z") }).find((x) => x.id === C)!;
+  fs.utimesSync(cart.file, new Date(0), new Date(0));
+  quiet();
+  const result = archiveSession(cart);
+  assert.equal(result.ok, false);
+  assert.match((result as { error: string }).error, /archived by Codex.*codex unarchive/);
+});
