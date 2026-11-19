@@ -183,7 +183,7 @@ The login lock is held only around the slot changes, not while the browser waits
 
 ### ChatGPT profiles
 
-`dotagents login <name>` for a ChatGPT profile runs `codex login` in a temporary folder of its own (`CODEX_HOME`, readable only by you, with `cli_auth_credentials_store = "file"`), never in `~/.codex`: a sign-in there revokes the login before it, which may be another profile's saved one. Then it checks the account signed in is the profile's (a profile's first sign-in takes any account no other profile holds), keeps the new login in the profile's vault, and, when that account is in the slot, puts it there too and restarts Codex's daemon, as [`switch`](#chatgpt-profiles) does. The folder is deleted at the end, also after a failure. `--all` covers only Claude profiles for now.
+`dotagents login <name>` for a ChatGPT profile runs `codex login` in a temporary folder of its own (`CODEX_HOME`, readable only by you, with `cli_auth_credentials_store = "file"`), never in `~/.codex`: a sign-in there revokes the login before it, which may be another profile's saved one. Then it checks the account signed in is the profile's (a profile's first sign-in takes any account no other profile holds), keeps the new login in the profile's vault, and, when that account is in the slot, puts it there too and restarts Codex's daemon, as [`switch`](#chatgpt-profiles) does. The folder is deleted at the end, also after a failure. `--all` takes the ChatGPT profiles whose login OpenAI refused or that has none saved yet, after Claude's; if one provider's sign-in fails, the other's goes on, and the failure is told at the end with a non-zero exit.
 ## dotagents usage
 
 ```bash
