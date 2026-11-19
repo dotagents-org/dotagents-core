@@ -109,7 +109,7 @@ export function readAll(now: Date, view?: PeerView): ProfileUsage[] {
   return each.slice(1).some((e) => e.list.length) ? list : list.map(({ provider, ...u }) => u);
 }
 
-// What the start API answers (docs/start-api.md, apiVersion 2), all in one place so a test reads it
+// What the start API answers (docs/start-api.md, apiVersion 3), all in one place so a test reads it
 // whole: the usage JSON of every profile, in the providers' order, the profile in each side's slot
 // per provider, and the current one of each provider that has profiles.
 export function startAnswer(now: Date, view?: PeerView) {

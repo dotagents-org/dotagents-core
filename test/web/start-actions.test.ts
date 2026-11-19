@@ -55,8 +55,8 @@ test("start actions reject missing profiles and sides and preserve provider desk
     const res = await fetch(`http://127.0.0.1:${address.port}/api/${action}`, { method: "POST", headers: { "x-dotagents-token": address.token, "content-type": "application/json" }, body: JSON.stringify(body) });
     return { status: res.status, body: await res.json() as { ok: boolean; detail: string; next?: string } };
   };
-  assert.deepEqual(await ask("switch", { profile: "missing" }), { status: 404, body: { apiVersion: 2, ok: false, detail: "no such profile" } });
-  assert.deepEqual(await ask("switch", { profile: "claude", side: "nowhere" }), { status: 404, body: { apiVersion: 2, ok: false, detail: "no such side" } });
+  assert.deepEqual(await ask("switch", { profile: "missing" }), { status: 404, body: { apiVersion: 3, ok: false, detail: "no such profile" } });
+  assert.deepEqual(await ask("switch", { profile: "claude", side: "nowhere" }), { status: 404, body: { apiVersion: 3, ok: false, detail: "no such side" } });
   assert.equal((await ask("switch", { profile: "claude" })).status, 409);
   const vault = path.join(state, "vault", "claude");
   fs.mkdirSync(vault, { recursive: true });
@@ -71,23 +71,23 @@ test("start actions reject missing profiles and sides and preserve provider desk
     assert.equal(partial.status, 502, "a local switch reports a failed peer result");
     assert.equal(partial.body.next, next);
     // Already in the slot: nothing changed, nothing to do
-    assert.deepEqual(await ask("switch", { profile: "claude", side: "WSL" }), { status: 200, body: { apiVersion: 2, ok: true, detail: "now claude" } });
+    assert.deepEqual(await ask("switch", { profile: "claude", side: "WSL" }), { status: 200, body: { apiVersion: 3, ok: true, detail: "now claude" } });
     assert.equal((await ask("switch", { profile: "claude", side: "Windows" })).status, 502);
     // The Windows side's switch runs powershell.exe from /mnt/c, which only WSL has.
     if (fs.existsSync("/mnt/c")) {
       const powershell = path.join(bin, "powershell.exe");
       // Already in the slot there: no next
       fs.writeFileSync(powershell, "#!/bin/sh\necho 'ok           C:/Users/me/.claude  (claude is already in the slot)'\nexit 0\n", { mode: 0o755 });
-      assert.deepEqual(await ask("switch", { profile: "claude", side: "Windows" }), { status: 200, body: { apiVersion: 2, ok: true, detail: "Windows: claude" } });
+      assert.deepEqual(await ask("switch", { profile: "claude", side: "Windows" }), { status: 200, body: { apiVersion: 3, ok: true, detail: "Windows: claude" } });
       // Its slot changed: next, also when the switch there failed after it (a daemon's restart, say)
       fs.writeFileSync(powershell, "#!/bin/sh\necho 'updated      C:/Users/me/.claude  (now claude)'\nexit 0\n", { mode: 0o755 });
-      assert.deepEqual(await ask("switch", { profile: "claude", side: "Windows" }), { status: 200, body: { apiVersion: 2, ok: true, detail: "Windows: claude", next } });
+      assert.deepEqual(await ask("switch", { profile: "claude", side: "Windows" }), { status: 200, body: { apiVersion: 3, ok: true, detail: "Windows: claude", next } });
       fs.writeFileSync(powershell, "#!/bin/sh\necho 'updated      C:/Users/me/.codex/auth.json  (now claude)'\necho 'dotagents: the daemon did not restart' >&2\nexit 1\n", { mode: 0o755 });
       const failed = await ask("switch", { profile: "claude", side: "Windows" });
       assert.deepEqual([failed.status, failed.body.next], [502, next]);
     }
   }
-  assert.deepEqual(await ask("desktop", { profile: "missing" }), { status: 404, body: { apiVersion: 2, ok: false, detail: "no such profile" } });
+  assert.deepEqual(await ask("desktop", { profile: "missing" }), { status: 404, body: { apiVersion: 3, ok: false, detail: "no such profile" } });
   assert.equal((await ask("desktop", { profile: "chatgpt" })).status, 409);
   const claudeDesktop = await ask("desktop", { profile: "claude" });
   assert.doesNotMatch(claudeDesktop.body.detail, /has no Claude Desktop/);

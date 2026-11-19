@@ -16,13 +16,13 @@
 | `GET /api/usage` | The data below, as JSON. |
 | `GET /api/events` | A `text/event-stream` of the same data. It sends `retry: 3000`, then one `event: usage` with `data:` the JSON at once, then another whenever something other than `generatedAt` changes (checked every 2 seconds), and a `: keepalive` comment every 15 seconds. |
 
-Every answer and every event starts with `"apiVersion"` (see [The version rule](#the-version-rule)). When the data can't be read (a state file being written, a bad one), the answer is `{ "apiVersion": 2, "error": "<why>" }` and the server keeps running; the next read tries again.
+Every answer and every event starts with `"apiVersion"` (see [The version rule](#the-version-rule)). When the data can't be read (a state file being written, a bad one), the answer is `{ "apiVersion": 3, "error": "<why>" }` and the server keeps running; the next read tries again.
 
-## The data (apiVersion 2)
+## The data (apiVersion 3)
 
 ```json
 {
-  "apiVersion": 2,
+  "apiVersion": 3,
   "version": 1,
   "generatedAt": "2026-11-16T12:00:00.000Z",
   "profiles": [
@@ -79,7 +79,7 @@ Nothing in the answer carries a token, an account id or the ChatGPT user id.
 
 ## Actions
 
-`POST /api/<action>`, the token in the header, `content-type: application/json`, a JSON body of at most 4096 bytes. A GET on an action answers 405. Each answers `{ "apiVersion": 2, "ok": <bool>, "detail": "<text>" }` with the status below; a refusal before the action (401 token, 400 not JSON, 413 too big, 415 not JSON content type) is plain text. Only one switch or refresh runs at a time; the others wait.
+`POST /api/<action>`, the token in the header, `content-type: application/json`, a JSON body of at most 4096 bytes. A GET on an action answers 405. Each answers `{ "apiVersion": 3, "ok": <bool>, "detail": "<text>" }` with the status below; a refusal before the action (401 token, 400 not JSON, 413 too big, 415 not JSON content type) is plain text. Only one switch or refresh runs at a time; the others wait.
 
 | Action | Body | Does | Answers |
 |---|---|---|---|
@@ -91,4 +91,4 @@ The other side's switch needs a dotagents there that knows the profile: a ChatGP
 
 ## The version rule
 
-`apiVersion` is the format of what the server says, apart from `version` of the usage data inside it. A client that doesn't know the version it gets refuses it instead of misreading it. The number goes up only with a change an older client would misread; adding a field doesn't. Version 2 added the ChatGPT profiles, `plan`, and `slots` and `current` per provider: a client of version 1 would take a ChatGPT profile for a Claude one.
+`apiVersion` is the format of what the server says, apart from `version` of the usage data inside it. A client that doesn't know the version it gets refuses it instead of misreading it. The number goes up only with a change an older client would misread; adding a field doesn't. Version 2 added the ChatGPT profiles, `plan`, and `slots` and `current` per provider: a client of version 1 would take a ChatGPT profile for a Claude one. Version 3 named the ChatGPT provider `chatgpt`, where it was `codex`, in `provider` and in the keys of `slots` and `current`: a client of version 2 would not find those profiles.
