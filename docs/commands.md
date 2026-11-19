@@ -18,7 +18,7 @@ dotagents <command> [options]
 | [`start [--port <n>]`](#dotagents-start) | Starts the accounts' local API on 127.0.0.1, live, which the dotagents sidebar reads. |
 | [`switch [<profile>] [--here] [--save <profile>]`](#dotagents-switch) | Puts a profile's login in its agent's slot, on both sides of the machine. |
 | [`login <profile> \| --all`](#dotagents-login) | Signs a profile in again on this side, keeping the new login in its vault. |
-| [`usage [--refresh] [--short] [--json] [--spend]`](#dotagents-usage) | Shows Claude and ChatGPT usage. `--spend` estimates Claude costs from local transcripts. |
+| [`usage [--refresh] [--short] [--json] [--spend]`](#dotagents-usage) | Shows Claude and ChatGPT usage. `--spend` estimates what 1% costs from local transcripts, Claude's and Codex's. |
 | [`new [git-url] [folder]`](#dotagents-new) | Creates a workspace folder (any name; `<name>-workspace` by default), clones the repository into it and applies the standards; with a folder alone, starts an empty workspace. |
 | [`init [path]`](#dotagents-init) | Applies the standards to a folder and puts the chosen skills in it. |
 | [`check [path]`](#dotagents-check) | Runs the standards checklist on a workspace, changing nothing. |
@@ -191,7 +191,7 @@ dotagents usage            # every profile: the 5-hour window, the week, per-mod
 dotagents usage --refresh # ask Anthropic and OpenAI for fresh numbers first
 dotagents usage --short    # one line per profile, for a status line
 dotagents usage --json     # the data, for scripts
-dotagents usage --spend    # what 1% of each Claude window costs, and where the spend went
+dotagents usage --spend    # what 1% of each window costs, and where the spend went
 ```
 
 For Claude, shows the newer of Claude Code's cache (`cachedUsageUtilization` in `~/.claude.json`, or `<folder>/.claude.json`) and the last reading from Anthropic. For ChatGPT, shows the last reading from the Codex app-server. Live readings are kept in `<state>/usage/<profile>.json`. Without `--refresh` it makes no network call. Without profiles, it shows the Claude login in `~/.claude`.
@@ -243,7 +243,7 @@ On a Windows machine with WSL, `install` finds the other side (Windows from WSL,
 
 ### What 1% costs
 
-`usage --spend` estimates the cost of each Claude window's %, per profile. Every live reading that changes a window's % (`start`, every minute, or `--refresh`) adds a line to `<state>/usage/<profile>.history.jsonl`, so it asks Anthropic nothing more. The spend is the tokens of every assistant message in Claude Code's transcripts on both sides of the machine (`~/.claude/projects/`, subagents included), each one under the account its session ran as, at the API's prices. Between two readings of the same window where the % rose, the spend over the % gives `1% ≈ US$ X ≈ N tokens`; a rise with no spend here (claude.ai, the Desktop outside Code, another machine) is counted as unexplained, and the line says how much of the rise that was. Under it, the current 5-hour and weekly windows' spend, by model and by folder, and the prompt revisions' cost. `--json` gives the same data.
+`usage --spend` estimates the cost of each window's %, per profile, Claude's and ChatGPT's. Every live reading that changes a window's % (`start`, every minute, or `--refresh`) adds a line to `<state>/usage/<profile>.history.jsonl`, so it asks Anthropic and OpenAI nothing more. The spend is the tokens of every assistant message in Claude Code's transcripts on both sides of the machine (`~/.claude/projects/`, subagents included), each one under the account its session ran as, at the API's prices. Between two readings of the same window where the % rose, the spend over the % gives `1% ≈ US$ X ≈ N tokens`; a rise with no spend here (claude.ai, the Desktop outside Code, another machine) is counted as unexplained, and the line says how much of the rise that was. Under it, the current 5-hour and weekly windows' spend, by model and by folder, and the prompt revisions' cost. A ChatGPT profile gets the same, from the tokens of each response in Codex's rollouts (`token_usage_record`, `~/.codex/sessions/` on both sides, subagents included), under the ChatGPT user that started the conversation; OpenAI's prices aren't kept here, so its lines say tokens, not dollars (`1% ≈ N tokens`). `--json` gives the same data: each window's `totalUsd` (`null` without a price) and `totalTokens`, and its `models` and `workspaces` as `[name, dollars, tokens]`.
 
 The dollar is the API's price, a unit to compare with: a subscription isn't charged per token. The % comes in whole numbers, so the relation is rough until days of readings pile up.
 

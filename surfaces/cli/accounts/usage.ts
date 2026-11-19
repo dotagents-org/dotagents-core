@@ -7,10 +7,9 @@ import { captureAsync, fancy, ink } from "../../../core/output/output.ts";
 import { refreshUsage } from "../../../core/accounts/usage-refresh.ts";
 import { type Line, type ProfileUsage, shortLines, usageLines } from "../../../core/accounts/usage.ts";
 import { badge, colorLevel } from "../../../core/output/theme.ts";
-import { claudeProfiles } from "../../../core/machine/machine-state.ts";
 import { readLog } from "../../../core/sessions/revision.ts";
 import { type Ratio, type WindowSpend, spendReport } from "../../../core/accounts/spend.ts";
-import { profileAccount } from "../../../core/accounts/providers.ts";
+import { activeProfiles, providerFor } from "../../../core/accounts/providers.ts";
 import { displayPath } from "../../../core/output/output.ts";
 import { plural, type Command } from "../shared.ts";
 
@@ -20,7 +19,8 @@ const hhmm = (iso: string) => new Date(iso).toLocaleString("en-GB", { weekday: "
 
 // usage --spend: what 1% of each window cost, and where the current window's spend went
 function spendView(json: boolean) {
-  const profiles = claudeProfiles().map((p) => ({ name: p.name, accountUuid: profileAccount(p)?.accountUuid ?? null }));
+  // Claude's and ChatGPT's: the account each profile's saved login is (a Claude account, a ChatGPT user)
+  const profiles = activeProfiles().map((p) => ({ name: p.name, accountUuid: providerFor(p).account(p)?.id ?? null }));
   const { profiles: report, unattributedUsd } = spendReport(profiles, { folder: (cwd) => displayPath(cwd) });
   const since = Math.min(...report.flatMap((p) => (p.week ? [Date.parse(p.week.from)] : [])), Date.now());
   const revisionUsd = readLog().filter((e) => Date.parse(e.at) >= since).reduce((sum, e) => sum + (e.costUsd ?? 0), 0);
@@ -29,14 +29,17 @@ function spendView(json: boolean) {
   const label = { session: "5h", week: "7d" } as const;
   const ratioLine = (r: Ratio) => {
     const head = `  ${label[r.window]}  `;
-    if (r.usdPerPct === null) return `${head}${muted(`no rise of the % with spend to measure yet${r.unexplainedPct ? `; ${r.unexplainedPct}% rose with no spend here` : ""}`)}`;
+    if (r.tokensPerPct === null) return `${head}${muted(`no rise of the % with spend to measure yet${r.unexplainedPct ? `; ${r.unexplainedPct}% rose with no spend here` : ""}`)}`;
     const share = r.unexplainedPct ? `; ${Math.round((100 * r.unexplainedPct) / (r.unexplainedPct + r.explainedPct))}% of the rise had no spend here` : "";
-    return `${head}1% ≈ ${bold(usd(r.usdPerPct))} ≈ ${count(r.tokensPerPct ?? 0)} tokens  ${muted(`${r.pairs} reading${r.pairs === 1 ? "" : "s"}${share}`)}`;
+    // ChatGPT's spend has no price here: tokens only
+    const cost = r.usdPerPct === null ? bold(`${count(r.tokensPerPct)} tokens`) : `${bold(usd(r.usdPerPct))} ≈ ${count(r.tokensPerPct)} tokens`;
+    return `${head}1% ≈ ${cost}  ${muted(`${r.pairs} reading${r.pairs === 1 ? "" : "s"}${share}`)}`;
   };
   const windowLines = (kind: "session" | "week", w: WindowSpend | null) => {
     if (!w) return [];
-    const top = (list: [string, number][]) => list.slice(0, 4).map(([k, v]) => `${k} ${usd(v)}`).join("  ");
-    return [`  this ${label[kind]} window, since ${hhmm(w.from)}  ${bold(usd(w.totalUsd))}`, ...(w.models.length ? [`    ${muted("models")}  ${top(w.models)}`] : []), ...(w.workspaces.length ? [`    ${muted("folders")}  ${top(w.workspaces)}`] : [])];
+    const priced = w.totalUsd !== null;
+    const top = (list: [string, number, number][]) => list.slice(0, 4).map(([k, v, t]) => `${k} ${priced ? usd(v) : `${count(t)} tokens`}`).join("  ");
+    return [`  this ${label[kind]} window, since ${hhmm(w.from)}  ${bold(priced ? usd(w.totalUsd!) : `${count(w.totalTokens)} tokens`)}`, ...(w.models.length ? [`    ${muted("models")}  ${top(w.models)}`] : []), ...(w.workspaces.length ? [`    ${muted("folders")}  ${top(w.workspaces)}`] : [])];
   };
   console.log(`${badge(colorLevel())}  ${bold("usage --spend")}`);
   for (const p of report) {
@@ -47,7 +50,7 @@ function spendView(json: boolean) {
   console.log("");
   if (revisionUsd) console.log(muted(`prompt revision since the oldest week shown: ${usd(revisionUsd)}`));
   if (unattributedUsd) console.log(muted(`spend under an account that is no profile: ${usd(unattributedUsd)}`));
-  console.log(muted("At the API's prices: for a subscription the dollar is only a unit to compare with. The % comes in whole numbers, so the relation is rough until there are days of readings; dotagents start keeps them, one per minute."));
+  console.log(muted("At the API's prices, for Claude; ChatGPT's in tokens, since OpenAI's prices aren't kept here. For a subscription the dollar is only a unit to compare with. The % comes in whole numbers, so the relation is rough until there are days of readings; dotagents start keeps them, one per minute."));
 }
 
 // The segments of a line, painted with the roles; a profile's name in its readable color.
@@ -87,7 +90,7 @@ export const usage: Command = {
   name: "usage",
   usage: "[--refresh] [--short] [--json] [--spend]",
   summary: "show how much of each profile's plan is used",
-  more: ["from each account's last live ask, and Claude Code's cache;", "--refresh: ask Anthropic and OpenAI for fresh numbers first;", "--spend: for the Claude profiles, what 1% costs, and where the window's spend went"],
+  more: ["from each account's last live ask, and Claude Code's cache;", "--refresh: ask Anthropic and OpenAI for fresh numbers first;", "--spend: what 1% of each window costs (Claude in dollars, ChatGPT in tokens), and where its spend went"],
   group: "Profiles",
   async run({ args }) {
     if (args.watch) throw new Error("usage --watch was removed with the full-screen view; run usage --refresh, or usage again");

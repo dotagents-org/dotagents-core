@@ -100,3 +100,33 @@ test("the report puts the current window's spend by model and folder, and counts
   assert.ok(Math.abs((w?.totalUsd ?? 0) - (1000 * 20 + 1000 * 10) / 1e6) < 1e-12);
   assert.ok(Math.abs(unattributedUsd - (1000 * 20) / 1e6) < 1e-12);
 });
+
+test("ChatGPT's spend comes from Codex's rollouts, on the user that started each, in tokens with no price", (t) => {
+  const dir = tmp(t);
+  const saved = process.env.DOTAGENTS_STATE_DIR;
+  process.env.DOTAGENTS_STATE_DIR = dir;
+  t.after(() => (process.env.DOTAGENTS_STATE_DIR = saved));
+  const resets = new Date("2026-11-15T12:00:00Z");
+  recordHistory("hopper", [{ kind: "session", pct: 10, resetsAt: resets }], new Date("2026-11-15T09:00:00Z"));
+  recordHistory("hopper", [{ kind: "session", pct: 12, resetsAt: resets }], new Date("2026-11-15T09:20:00Z"));
+  const home = path.join(dir, "codex");
+  const day = path.join(home, "sessions", "2026", "11", "15");
+  fs.mkdirSync(day, { recursive: true });
+  const usage = { input_tokens: 5000, cached_input_tokens: 4000, output_tokens: 1000 };
+  const record = (at: string, id: string) => JSON.stringify({ timestamp: at, type: "token_usage_record", response_id: id, usage });
+  fs.writeFileSync(path.join(day, "rollout-a.jsonl"), [
+    JSON.stringify({ timestamp: "2026-11-15T09:00:00Z", type: "session_meta", payload: { id: "c1", cwd: "/work/shop", creator_user_id: "user-hopper" } }),
+    JSON.stringify({ timestamp: "2026-11-15T09:00:01Z", type: "turn_context", payload: { model: "gpt-test-1" } }),
+    record("2026-11-15T09:05:00Z", "r1"),
+    record("2026-11-15T09:10:00Z", "r2"),
+    record("2026-11-15T09:10:00Z", "r2"), // the same response twice: counted once
+    record("2026-11-15T08:00:00Z", "r0"), // before the first reading: not in this rise
+  ].join("\n"));
+  const { profiles } = spendReport([{ name: "hopper", accountUuid: "user-hopper" }], { now: Date.parse("2026-11-15T09:30:00Z"), dirs: [], codex: [home] });
+  const [session] = profiles[0].ratios;
+  assert.deepEqual([session.usdPerPct, session.tokensPerPct, session.explainedPct], [null, 6000, 2]);
+  assert.equal(profiles[0].session!.totalUsd, null);
+  assert.equal(profiles[0].session!.totalTokens, 18000);
+  assert.deepEqual(profiles[0].session!.models, [["gpt-test-1", 0, 18000]]);
+  assert.deepEqual(profiles[0].session!.workspaces, [["/work/shop", 0, 18000]]);
+});

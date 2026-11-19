@@ -14,6 +14,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { costOf, type Tokens } from "./prices.ts";
 import { configDirs, type ConfigDir } from "../sessions/sessions.ts";
+import { codexDirs } from "../sessions/codex-sessions.ts";
 import type { UsageWindow } from "./usage.ts";
 
 export { type Point, historyFile, readHistory, recordHistory } from "./usage-history.ts";
@@ -135,6 +136,63 @@ export function readSpend(since: number, dirs: ConfigDir[] = configDirs()): Spen
   return out.sort((a, b) => a.at - b.at);
 }
 
+// Codex's spend: each response's tokens, from the token_usage_record lines of its rollouts
+// (<CODEX_HOME>/sessions/YYYY/MM/DD/rollout-*.jsonl), on the ChatGPT user that started the
+// conversation, a subagent's included. OpenAI's prices aren't kept here: no dollars, only tokens.
+function readRollout(file: string, since: number, seen: Set<string>): Spend[] {
+  const out: Spend[] = [];
+  let account: string | null = null;
+  let model = "";
+  let cwd = "";
+  for (const line of lines(file)) {
+    if (!line.includes('"type":"session_meta"') && !line.includes('"type":"turn_context"') && !line.includes('"type":"token_usage_record"')) continue;
+    let o;
+    try {
+      o = JSON.parse(line);
+    } catch {
+      continue;
+    }
+    const p = o.payload ?? {};
+    if (o.type === "session_meta") {
+      account = typeof p.creator_user_id === "string" ? p.creator_user_id : account;
+      cwd = typeof p.cwd === "string" ? p.cwd : cwd;
+    } else if (o.type === "turn_context") {
+      model = typeof p.model === "string" ? p.model : model;
+    } else if (o.type === "token_usage_record") {
+      const u = o.usage ?? p.usage;
+      const id = o.response_id ?? p.response_id;
+      const at = Date.parse(o.timestamp);
+      if (!u || !(at >= since) || (id && seen.has(id))) continue;
+      if (id) seen.add(id);
+      const cached = Number(u.cached_input_tokens) || 0;
+      const tokens = { input: Math.max(0, (Number(u.input_tokens) || 0) - cached), cacheRead: cached, cacheWrite: Number(u.cache_write_input_tokens) || 0, output: Number(u.output_tokens) || 0 };
+      out.push({ at, account, model, cwd, tokens, costUsd: costOf(model, tokens) });
+    }
+  }
+  return out;
+}
+
+export function readCodexSpend(since: number, homes: string[]): Spend[] {
+  const seen = new Set<string>();
+  const out: Spend[] = [];
+  const walk = (dir: string, depth: number) => {
+    for (const name of readdirOr(dir)) {
+      const full = path.join(dir, name);
+      if (depth < 3) walk(full, depth + 1);
+      else if (/^rollout-.*\.jsonl$/.test(name)) {
+        try {
+          if (fs.statSync(full).mtimeMs >= since) out.push(...readRollout(full, since, seen));
+        } catch {
+          // gone meanwhile
+        }
+      }
+    }
+  };
+  for (const home of homes) walk(path.join(home, "sessions"), 0);
+  return out.sort((a, b) => a.at - b.at);
+}
+
+// usdPerPct: null when the spend has no price (Codex's), tokensPerPct still told.
 export type Ratio = { window: "session" | "week"; usdPerPct: number | null; tokensPerPct: number | null; pairs: number; explainedPct: number; unexplainedPct: number };
 
 const allTokens = (t: Tokens) => t.input + t.cacheRead + t.cacheWrite + (t.cacheWrite1h ?? 0) + t.output;
@@ -145,6 +203,7 @@ export function ratios(points: Point[], spend: Spend[]): Ratio[] {
   return (["session", "week"] as const).map((window) => {
     const resets = window === "session" ? "sessionResetsAt" : "weekResetsAt";
     let usd = 0;
+    let priced = true;
     let tokens = 0;
     let explainedPct = 0;
     let unexplainedPct = 0;
@@ -160,33 +219,41 @@ export function ratios(points: Point[], spend: Spend[]): Ratio[] {
         continue;
       }
       usd += cost;
+      if (between.some((s) => s.costUsd === null)) priced = false;
       tokens += between.reduce((sum, s) => sum + allTokens(s.tokens), 0);
       explainedPct += to - from;
       pairs++;
     }
-    return { window, usdPerPct: explainedPct ? usd / explainedPct : null, tokensPerPct: explainedPct ? tokens / explainedPct : null, pairs, explainedPct, unexplainedPct };
+    return { window, usdPerPct: explainedPct && priced ? usd / explainedPct : null, tokensPerPct: explainedPct ? tokens / explainedPct : null, pairs, explainedPct, unexplainedPct };
   });
 }
 
-// The spend of a list, totaled by a key (the model, the folder).
-export function totals(spend: Spend[], key: (s: Spend) => string) {
-  const map = new Map<string, number>();
-  for (const s of spend) map.set(key(s), (map.get(key(s)) ?? 0) + (s.costUsd ?? 0));
-  return [...map].sort((a, b) => b[1] - a[1]);
+// The spend of a list, totaled by a key (the model, the folder): [key, dollars, tokens], the most
+// first (by dollars, else by tokens when there is no price).
+export function totals(spend: Spend[], key: (s: Spend) => string): [string, number, number][] {
+  const map = new Map<string, [number, number]>();
+  for (const s of spend) {
+    const [usd, tokens] = map.get(key(s)) ?? [0, 0];
+    map.set(key(s), [usd + (s.costUsd ?? 0), tokens + allTokens(s.tokens)]);
+  }
+  return [...map].map(([k, [usd, tokens]]): [string, number, number] => [k, usd, tokens]).sort((a, b) => b[1] - a[1] || b[2] - a[2]);
 }
 
 const HOUR = 3_600_000;
 const SPAN = { session: 5 * HOUR, week: 7 * 24 * HOUR };
 
-export type WindowSpend = { from: string; totalUsd: number; models: [string, number][]; workspaces: [string, number][] };
+// totalUsd: null when the spend has no price (Codex's); totalTokens always.
+export type WindowSpend = { from: string; totalUsd: number | null; totalTokens: number; models: [string, number, number][]; workspaces: [string, number, number][] };
 export type ProfileSpend = { name: string; ratios: Ratio[]; session: WindowSpend | null; week: WindowSpend | null };
 
 // The report of usage --spend, for profiles and the account each one is (null: no saved login).
 // folder: how a session's folder is shown.
-export function spendReport(profiles: { name: string; accountUuid: string | null }[], { now = Date.now(), dirs, folder = (cwd: string) => cwd }: { now?: number; dirs?: ConfigDir[]; folder?: (cwd: string) => string } = {}) {
+// codex: Codex's folders, both sides' by default unless dirs names the Claude ones (a test).
+export function spendReport(profiles: { name: string; accountUuid: string | null }[], { now = Date.now(), dirs, codex, folder = (cwd: string) => cwd }: { now?: number; dirs?: ConfigDir[]; codex?: string[]; folder?: (cwd: string) => string } = {}) {
   const histories = new Map(profiles.map((p) => [p.name, readHistory(p.name)]));
   const earliest = Math.min(now - SPAN.week, ...[...histories.values()].flat().map((pt) => Date.parse(pt.at)));
-  const spend = readSpend(earliest, dirs);
+  const homes = codex ?? (dirs ? [] : codexDirs(() => "").map((d) => d.home));
+  const spend = [...readSpend(earliest, dirs), ...readCodexSpend(earliest, homes)].sort((a, b) => a.at - b.at);
   const report: ProfileSpend[] = profiles.map((p) => {
     const points = histories.get(p.name) ?? [];
     const mine = spend.filter((s) => s.account !== null && s.account === p.accountUuid);
@@ -196,7 +263,8 @@ export function spendReport(profiles: { name: string; accountUuid: string | null
       if (!resets) return null;
       const from = Date.parse(resets) - SPAN[kind];
       const inside = mine.filter((s) => s.at >= from && s.at <= now);
-      return { from: new Date(from).toISOString(), totalUsd: sumUsd(inside), models: totals(inside, (s) => s.model), workspaces: totals(inside, (s) => folder(s.cwd)) };
+      const priced = inside.every((s) => s.costUsd !== null);
+      return { from: new Date(from).toISOString(), totalUsd: priced ? sumUsd(inside) : null, totalTokens: inside.reduce((sum, s) => sum + allTokens(s.tokens), 0), models: totals(inside, (s) => s.model), workspaces: totals(inside, (s) => folder(s.cwd)) };
     };
     return { name: p.name, ratios: ratios(points, mine), session: windowOf("session"), week: windowOf("week") };
   });
