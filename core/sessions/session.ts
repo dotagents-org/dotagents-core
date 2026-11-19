@@ -26,6 +26,8 @@ export type Session = {
   // .artifacts/sessions/. Null outside a workspace that follows the standard.
   root: string | null;
   running: boolean;
+  // A Codex rollout held open on this side, even when the process probe was incomplete.
+  rolloutOpen?: boolean;
   // The Claude Code process running it, on this side; null on the other side or with none.
   pid: number | null;
   // Whether `running` comes from the process records: always on this side; on the other side only

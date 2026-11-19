@@ -15,7 +15,7 @@ import { logChange } from "../machine/log.ts";
 import fs from "node:fs";
 import path from "node:path";
 import { type AccountLabels, archiveFile, parseTranscript, promptText, readRevisions, renderArchive, revise } from "../../skills/archive/scripts/archive-session.ts";
-import { type CodexDelete, type CodexDir, codexDelete, codexDirs, codexNow, listCodexSessions } from "./codex-sessions.ts";
+import { type CodexDelete, type CodexDir, type RolloutProbe, codexDelete, codexDirs, codexNow, listCodexSessions } from "./codex-sessions.ts";
 import { codexAccount, codexProfiles } from "../accounts/providers/codex-store.ts";
 import { type ProcessProbe, defaultConfigDir, runningProcess, signedIn } from "../claude-code.ts";
 import { isWindows } from "../common.ts";
@@ -185,7 +185,7 @@ export const peerRunningLater = (): Promise<Set<string> | null> =>
 // peerRunning: how to ask the other side; without it, its sessions count as running only by RECENT_MS.
 // codex: the Codex folders to read; by default both sides', unless dirs names the Claude ones (a test).
 // agent: only that agent's sessions, the other's files never read.
-export type ListOptions = { dirs?: ConfigDir[]; codex?: CodexDir[]; agent?: Session["agent"]; under?: string; now?: number; running?: ProcessProbe; peerRunning?: PeerRunning };
+export type ListOptions = { dirs?: ConfigDir[]; codex?: CodexDir[]; agent?: Session["agent"]; under?: string; now?: number; running?: ProcessProbe; peerRunning?: PeerRunning; warn?: (message: string) => void };
 
 const inside = (child: string, parent: string) => {
   const rel = path.relative(parent, child);
@@ -197,8 +197,8 @@ const inside = (child: string, parent: string) => {
 export const projectSlug = (dir: string) => path.resolve(dir).replace(/[^A-Za-z0-9]/g, "-");
 
 // Every session of the config folders, newest first; under: only those started inside that folder.
-export function listSessions({ dirs, codex, agent, under, now = Date.now(), running = runningProcess, peerRunning: askPeer }: ListOptions = {}): Session[] {
-  const list: Session[] = agent === "claude" ? [] : listCodexSessions(codex ?? (dirs ? [] : codexDirs(thisSide)), { under, now, fromPeer });
+export function listSessions({ dirs, codex, agent, under, now = Date.now(), running = runningProcess, peerRunning: askPeer, warn }: ListOptions = {}): Session[] {
+  const list: Session[] = agent === "claude" ? [] : listCodexSessions(codex ?? (dirs ? [] : codexDirs(thisSide, warn)), { under, now, fromPeer });
   dirs = agent === "codex" ? [] : (dirs ?? configDirs());
   for (const cd of dirs) {
     // The other side is asked once, and only when it has a session to ask about.
@@ -342,30 +342,33 @@ export const sessionFiles = (s: Pick<Session, "id" | "file" | "configDir">) => [
 // at again right before. Where it can't (the other side, Windows), whether Codex still has it open is
 // unknown: only a person's confirmation (evenRunning, which --yes never gives) lets it go, since the
 // delete may reach the thread a running Codex owns.
-function deleteCodex(s: Session, evenRunning: boolean, codex: CodexDelete, probe?: () => Set<string> | null) {
-  const peer = s.origin ? loadMachine().peer : undefined;
+function deleteCodex(s: Session, evenRunning: boolean, codex: CodexDelete, probe?: RolloutProbe) {
   // Looked at again, every rollout of it, from where it was listed
-  const now = codexNow(s, probe);
-  if (!now) {
+  const current = codexNow(s, probe);
+  if (!current) {
     report("skipped", s.file, s.origin ? `${s.side} or its Codex folder isn't what was listed, or the conversation is gone; list it again` : "it is gone; list the sessions again");
     return false;
   }
+  if ("error" in current) {
+    report("skipped", s.file, current.error);
+    return false;
+  }
+  const { session: now, peer } = current;
   if (now.mtime !== s.mtime || now.bytes !== s.bytes) {
     report("skipped", s.file, "changed since it was listed (written, or a rollout added); list it again");
     return false;
   }
-  const known = now.checked && !peer;
   // The conversation this very command runs in is never one to delete, whatever else is known
-  if (process.env.CODEX_THREAD_ID === s.id || (known && now.running)) {
+  if (process.env.CODEX_THREAD_ID === s.id || now.rolloutOpen || (now.checked && now.running)) {
     report("skipped", s.file, "still running; close it first");
     return false;
   }
-  if (!known && !evenRunning) {
+  if (!now.checked && !evenRunning) {
     report("skipped", s.file, `can't tell whether Codex still has it open on ${s.side}; close it there, then confirm the deletion in a terminal`);
     return false;
   }
   if (state.dryRun) return report("would update", s.file, "would delete it with codex delete"), true;
-  if (codex(s.id, peer, s.origin)) return report("updated", s.file, "deleted with codex delete"), true;
+  if (codex(s.id, peer, now.origin)) return report("updated", s.file, "deleted with codex delete"), true;
   report("failed", s.file, `codex delete ${s.id} failed${peer ? ` on ${peer.name}` : ""}; delete it there with: codex delete ${s.id}`);
   return false;
 }
@@ -398,7 +401,7 @@ export const stopProcess: ProcessStopper = (pid) => {
 // session is archived: then its Claude Code process on this side is ended first, or the session
 // would write its transcript again. One on the other side has only its files deleted. Honors
 // --dry-run; files already gone are left alone, so it can run again.
-export function deleteSession(s: Session, { evenRunning = false, stop = stopProcess, codex = codexDelete, probe }: { evenRunning?: boolean; stop?: ProcessStopper; codex?: CodexDelete; probe?: () => Set<string> | null } = {}) {
+export function deleteSession(s: Session, { evenRunning = false, stop = stopProcess, codex = codexDelete, probe }: { evenRunning?: boolean; stop?: ProcessStopper; codex?: CodexDelete; probe?: RolloutProbe } = {}) {
   if (s.agent === "codex") return deleteCodex(s, evenRunning, codex, probe);
   if (s.running && !evenRunning) {
     report("skipped", s.file, "still running; close it first");

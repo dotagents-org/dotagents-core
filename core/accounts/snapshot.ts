@@ -12,7 +12,7 @@ import { AVATAR_STATES, type AvatarState, type ProfileUsage, avatarState, avatar
 // whether it is up, and which of its sessions run. Both run a command there and may answer later
 // (a promise): the last answer stands until the new one comes, so a read never waits. The tests
 // pass fakes.
-export type PeerView = { up: (peer: Peer) => boolean; running?: (peer: Peer) => Set<string> | null };
+export type PeerView = { up: (peer: Peer) => boolean; running?: (peer: Peer) => Set<string> | null; warn?: (message: string) => void };
 
 // Short, since a side that stopped meanwhile would be read, and started, until the next answer.
 const UP_EVERY_MS = 5_000;

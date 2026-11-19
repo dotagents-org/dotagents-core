@@ -19,7 +19,7 @@ import { codexDirs } from "../sessions/codex-sessions.ts";
 import type { UsageWindow } from "./usage.ts";
 
 export { type Point, historyFile, readHistory, recordHistory } from "./usage-history.ts";
-import { type Point, readHistory } from "./usage-history.ts";
+import { type Point, hasAccountChange, readHistory } from "./usage-history.ts";
 
 // One assistant message: when, under which account, which model, in which folder, and its tokens.
 export type Spend = { at: number; account: string | null; model: string; cwd: string; tokens: Tokens; costUsd: number | null };
@@ -293,12 +293,16 @@ export type ProfileSpend = { name: string; ratios: Ratio[]; session: WindowSpend
 // The report of usage --spend, for profiles and the account each one is (null: no saved login).
 // folder: how a session's folder is shown.
 // codex: Codex's folders, both sides' by default unless dirs names the Claude ones (a test).
-export function spendReport(profiles: { name: string; accountUuid: string | null; tokensOnly?: boolean }[], { now = Date.now(), dirs, codex, folder = (cwd: string) => cwd }: { now?: number; dirs?: ConfigDir[]; codex?: string[]; folder?: (cwd: string) => string } = {}) {
+export function spendReport(profiles: { name: string; accountUuid: string | null; tokensOnly?: boolean }[], { now = Date.now(), dirs, codex, folder = (cwd: string) => cwd, warn }: { now?: number; dirs?: ConfigDir[]; codex?: string[]; folder?: (cwd: string) => string; warn?: (message: string) => void } = {}) {
   // Only the readings of the account the profile holds now: after a switch --save to another account, the
   // old account's rises are not the new one's
-  const histories = new Map(profiles.map((p) => [p.name, readHistory(p.name).filter((pt) => !pt.account || pt.account === p.accountUuid)]));
+  const histories = new Map(profiles.map((p) => {
+    const points = readHistory(p.name);
+    const legacy = p.accountUuid && !hasAccountChange(p.name) && !points.some((pt) => pt.account && pt.account !== p.accountUuid);
+    return [p.name, points.filter((pt) => pt.account === p.accountUuid || (legacy && !pt.account))];
+  }));
   const earliest = Math.min(now - SPAN.week, ...[...histories.values()].flat().map((pt) => Date.parse(pt.at)));
-  const homes = codex ?? (dirs ? [] : codexDirs(() => "").map((d) => d.home));
+  const homes = codex ?? (dirs ? [] : codexDirs(() => "", warn).map((d) => d.home));
   const spend = [...readSpend(earliest, dirs), ...readCodexSpend(earliest, homes)].sort((a, b) => a.at - b.at);
   const report: ProfileSpend[] = profiles.map((p) => {
     const points = histories.get(p.name) ?? [];

@@ -46,7 +46,7 @@ export async function loginProfile({ name, all = false, now = new Date(), ...opt
       accept: (p, fresh, who, onMismatch) => accept(provider, p, fresh, who, onMismatch),
       save: (n, login) => saveToVault(provider, n, login),
       put: (n, login) => putInSlot(provider, n, login, { codex: options.codex }),
-      switchHere: (n) => switchHere(provider, n, undefined),
+      switchHere: (n) => switchHere(provider, n, undefined)?.name ?? null,
     };
     try {
       await provider.signIn(due, { now, ...options }, ctx);

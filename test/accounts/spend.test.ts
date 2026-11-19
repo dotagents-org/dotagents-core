@@ -199,6 +199,8 @@ test("after a switch --save to another account, a profile's history of the old o
   process.env.DOTAGENTS_STATE_DIR = dir;
   t.after(() => (process.env.DOTAGENTS_STATE_DIR = saved));
   const resets = new Date("2026-11-15T12:00:00Z");
+  recordHistory("hopper", [{ kind: "session", pct: 10, resetsAt: resets }], new Date("2026-11-15T08:00:00Z"));
+  recordHistory("hopper", [{ kind: "session", pct: 25, resetsAt: resets }], new Date("2026-11-15T08:20:00Z"));
   recordHistory("hopper", [{ kind: "session", pct: 10, resetsAt: resets }], new Date("2026-11-15T09:00:00Z"), undefined, "user-old");
   recordHistory("hopper", [{ kind: "session", pct: 40, resetsAt: resets }], new Date("2026-11-15T09:20:00Z"), undefined, "user-old");
   recordHistory("hopper", [{ kind: "session", pct: 5, resetsAt: resets }], new Date("2026-11-15T09:30:00Z"), undefined, "user-new");

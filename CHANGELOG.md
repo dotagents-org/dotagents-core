@@ -91,6 +91,12 @@ What changed for someone who updates a clone. The format follows [Keep a Changel
 
 ### Fixed
 
+- **Codex session removal rechecks the selected side and its rollout inventory.** Deletion keeps the validated remote destination, refuses incomplete inventories, reads metadata up to 32 MiB, and keeps rollouts known to be open even when the process probe is incomplete.
+- **Remote Codex reads require a valid profile configuration.** The default folder is used only when no ChatGPT profile configures another one. The CLI reports unreadable or incompatible remote profiles.
+- **Bilateral switches use the account selected under the login lock.** Saving another login concurrently cannot change the account passed to the other side's check.
+- **Codex archives resolve the rollout's data folder through symlinks.** The archive checks for related rollouts in that folder, requires `--codex-home` for a loose rollout, and refuses targets in `archived_sessions`.
+- **Spend history follows the account.** Reassigning a profile leaves its older, unlabelled usage readings on disk and excludes them from spend estimates.
+
 - **The other side switches only to the same account.** `switch` tells the other side which account the profile holds here, and that side refuses when its profile of that name holds another one, instead of switching to it.
 - `start --dry-run` previews the local API without starting a listener or writing state.
 - A successful Claude login renewal writes a log entry after saving the renewed login, without account details or credentials.

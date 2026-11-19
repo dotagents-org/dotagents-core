@@ -91,7 +91,7 @@ export const sessions: Command = {
     // For the other side's `sessions rm`: the ids of the sessions this side's Claude Code runs.
     if (ctx.args.running) return void [...runningIds()].forEach((id) => console.log(id));
     const under = scope(ctx);
-    const list = listSessions({ under, agent: agentArg(ctx) });
+    const list = listSessions({ under, agent: agentArg(ctx), warn: console.error });
     const labels = accountLabels();
     if (ctx.args.json) return console.log(JSON.stringify(json(list, labels), null, 2));
     if (!fancy) {
@@ -158,13 +158,13 @@ export const sessionsRm: Command = {
     if (!interactive && !args.yes && !state.dryRun) throw new UsageError("Add --yes to delete without a terminal to confirm in, or --dry-run to see what would go");
     let chosen: Session[];
     if (positional.length) {
-      chosen = byIds(positional, listSessions({ peerRunning, agent: agentArg(ctx) }));
+      chosen = byIds(positional, listSessions({ peerRunning, agent: agentArg(ctx), warn: console.error }));
       header("sessions rm");
       warnUnchecked(chosen);
     } else {
       if (!interactive) throw new UsageError("Pass the ids to delete (dotagents sessions lists them), or run it in a terminal to pick them");
       const under = scope(ctx);
-      const pool = listSessions({ under, peerRunning, agent: agentArg(ctx) });
+      const pool = listSessions({ under, peerRunning, agent: agentArg(ctx), warn: console.error });
       const labels = accountLabels();
       header("sessions rm", under ?? "every project");
       warnUnchecked(pool);
@@ -206,7 +206,7 @@ export const sessionsRm: Command = {
     const doomed = chosen.filter((s) => !running.includes(s));
     let alsoRunning: Session[] = [];
     if (running.length && ask_) {
-      const askable = running.filter((s) => s.agent !== "codex" || unsure(s));
+      const askable = running.filter((s) => s.agent !== "codex" || (unsure(s) && !s.rolloutOpen));
       // What happens to each agent's: Claude Code's process is closed first on this side; Codex's can't be
       // closed by dotagents, and its delete may reach a conversation a running Codex owns
       const claude = askable.filter((s) => s.agent === "claude");
@@ -222,7 +222,7 @@ export const sessionsRm: Command = {
     const kept = running.filter((s) => !alsoRunning.includes(s));
     if (kept.length) section("Plan");
     for (const s of kept) {
-      const why = ask_ ? (s.agent === "codex" && s.checked ? "close it first" : "kept, as answered") : "confirm in a terminal to delete it";
+      const why = s.agent === "codex" && (s.checked || s.rolloutOpen) ? "close it first" : ask_ ? "kept, as answered" : "confirm in a terminal to delete it";
       report("skipped", s.file, `${s.id.slice(0, 8)} ${s.running ? "is still running" : "may still be open"}; ${why}`);
     }
     doomed.push(...alsoRunning);

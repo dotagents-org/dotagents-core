@@ -264,7 +264,8 @@ export function codexLiveUsage(name: string, user: string, now: Date, dir?: stri
 // view: as for Claude, the other side only while it is up; without it, whenever it is known.
 export function readCodexUsage(now = new Date(), view?: PeerView): ProfileUsage[] {
   const peer = sidePeer();
-  const there = peer && !(view && !view.up(peer)) ? peerProfiles(peer).filter((p) => p.provider === "chatgpt") : [];
+  const remote = peer && !(view && !view.up(peer)) ? peerProfiles(peer) : null;
+  const there = remote && "profiles" in remote ? remote.profiles.filter((p) => p.provider === "chatgpt") : [];
   return codexProfiles().map((p) => {
     const account = codexAccount(p);
     // The plan the live usage recorded, else the one the saved login says.
@@ -284,21 +285,22 @@ export function readCodexUsage(now = new Date(), view?: PeerView): ProfileUsage[
 }
 
 // The other side's Codex folder from ONE reading of its profiles: visible, as this side reaches it (the one
-// its ChatGPT profiles use, else its ~/.codex; null when the configured one can't be reached from here: never
+// its ChatGPT profiles use, else its ~/.codex; an error when the configured one can't be reached from here: never
 // another folder's login in its place), and native, as that side names it (its default written out, so the
 // shell's own CODEX_HOME can't point elsewhere than what was listed). Both come from the same read, so a
 // profile re-pointed meanwhile can't give one from before and one from after.
-export function peerCodexFolders(peer: Peer): { visible: string | null; native: string } {
-  const configured = peerProfiles(peer).find((p) => p.provider === "chatgpt" && typeof p.configDir === "string");
+export function peerCodexFolders(peer: Peer): { visible: string; native: string } | { error: string } {
+  const remote = peerProfiles(peer);
+  if ("error" in remote) return remote;
+  const configured = remote.profiles.find((p) => p.provider === "chatgpt");
   if (!configured) {
     const native = `${peer.nativeHome.replace(/[\\/]+$/, "")}${/^[a-z]:/i.test(peer.nativeHome) ? "\\" : "/"}.codex`;
     return { visible: path.join(peer.home, ".codex"), native };
   }
   const home = peerPath(configured.configDir, peer);
-  return { visible: home && fs.existsSync(home) ? home : null, native: configured.configDir };
+  if (!home || !fs.existsSync(home)) return { error: `can't reach the configured CODEX_HOME (${configured.configDir})` };
+  return { visible: home, native: configured.configDir };
 }
-export const peerCodexNative = (peer: Peer) => peerCodexFolders(peer).native;
-export const peerCodexHome = (peer: Peer) => peerCodexFolders(peer).visible;
 
 // Which Codex profile is in each side's slot. The other side's slot is told apart by the ChatGPT
 // user in its auth.json, matched against this side's vault (the same account on both sides); only
@@ -310,8 +312,12 @@ export function readCodexSlots(view?: PeerView): Record<string, string> {
   if (here) slots[sideName()] = here;
   const peer = sidePeer();
   if (!peer || (view && !view.up(peer))) return slots;
-  const home = peerCodexHome(peer);
-  const user = home ? readLogin(path.join(home, "auth.json"))?.id : undefined;
+  const folders = peerCodexFolders(peer);
+  if ("error" in folders) {
+    view?.warn?.(`can't read Codex on ${peer.name}: ${folders.error}`);
+    return slots;
+  }
+  const user = readLogin(path.join(folders.visible, "auth.json"))?.id;
   const there = user ? codexProfiles().find((p) => codexAccount(p)?.user === user)?.name : undefined;
   if (there) slots[peer.name] = there;
   return slots;

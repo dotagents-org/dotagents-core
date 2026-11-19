@@ -31,7 +31,8 @@
 //
 //   --project-root   override the detected project root
 //   --claude-home    override the Claude Code data folder (CLAUDE_CONFIG_DIR, else ~/.claude)
-//   --codex-home     override the Codex data folder (CODEX_HOME, else ~/.codex)
+//   --codex-home     override the Codex data folder (inferred for --transcript under sessions/,
+//                    required for a loose --transcript, otherwise CODEX_HOME or ~/.codex)
 //
 // dotagents imports this file too (`dotagents sessions rm` archives before it deletes), so the
 // parser lives in one place: keep the exports below stable.
@@ -399,22 +400,30 @@ export function knownCodexAccounts(): AccountLabels {
   return labels;
 }
 
-// The first record of a file, without reading it whole: session_meta carries the instructions and tool
-// schemas, so its line may be long (read up to 32 MiB).
+// session_meta carries the instructions and tool schemas, so its line may be long.
+// A record beyond 32 MiB cannot be read. Allow one extra byte to find the newline.
+export function firstRolloutLine(fd: number, head: Buffer = Buffer.alloc(0)): Buffer | null {
+  const limit = 32 * 1024 * 1024;
+  const end = head.indexOf(0x0a);
+  if (end >= 0) return head.subarray(0, end);
+  const chunks = [head];
+  let at = head.length;
+  while (at <= limit) {
+    const buf = Buffer.alloc(Math.min(64 * 1024, limit + 1 - at));
+    const n = fs.readSync(fd, buf, 0, buf.length, at);
+    const nl = buf.subarray(0, n).indexOf(0x0a);
+    chunks.push(buf.subarray(0, nl >= 0 ? nl : n));
+    if (n === 0 || nl >= 0) return Buffer.concat(chunks);
+    at += n;
+  }
+  return null;
+}
+
 function firstRecord(file: string): Json | null {
   const fd = fs.openSync(file, "r");
   try {
-    const chunks: Buffer[] = [];
-    let at = 0;
-    for (;;) {
-      const buf = Buffer.alloc(64 * 1024);
-      const n = fs.readSync(fd, buf, 0, buf.length, at);
-      const nl = buf.subarray(0, n).indexOf(0x0a);
-      chunks.push(buf.subarray(0, nl >= 0 ? nl : n));
-      at += n;
-      if (n === 0 || nl >= 0 || at > 32 << 20) break;
-    }
-    const obj = JSON.parse(Buffer.concat(chunks).toString("utf8"));
+    const line = firstRolloutLine(fd);
+    const obj = line && JSON.parse(line.toString("utf8"));
     return isObject(obj) ? obj : null;
   } catch {
     return null;
@@ -681,17 +690,27 @@ function main(argv: string[]) {
   }
   const projectRoot = path.resolve(args["project-root"] ?? findProjectRoot(path.resolve(process.argv[1])));
   const claudeHome = args["claude-home"] ?? process.env.CLAUDE_CONFIG_DIR ?? path.join(os.homedir(), ".claude");
-  const codexHome = args["codex-home"] ?? process.env.CODEX_HOME ?? path.join(os.homedir(), ".codex");
-  const transcript = args.transcript ?? (agent === "codex" ? findRollout(codexHome, args["session-id"], projectRoot) : findTranscript(claudeHome, args["session-id"], projectRoot));
+  let codexHome = args["codex-home"] ?? process.env.CODEX_HOME ?? path.join(os.homedir(), ".codex");
+  let transcript = args.transcript ?? (agent === "codex" ? findRollout(codexHome, args["session-id"], projectRoot) : findTranscript(claudeHome, args["session-id"], projectRoot));
   if (!transcript || !fs.statSync(transcript, { throwIfNoEntry: false })?.isFile()) {
     console.error("error: transcript not found; pass --session-id or --transcript");
     return 1;
   }
   if (agent === "codex") {
+    transcript = fs.realpathSync(transcript);
     // One Codex archived itself (compressed or not, in archived_sessions): its lineage can't be checked here
-    if (transcript.split(path.sep).includes("archived_sessions")) {
+    if (path.dirname(transcript).split(path.sep).includes("archived_sessions")) {
       console.error("error: this rollout is in archived_sessions, archived by Codex; `codex unarchive` it first, so the other rollouts of its conversation can be looked at");
       return 1;
+    }
+    if (args["codex-home"] === undefined) {
+      let folder = path.dirname(transcript);
+      while (path.basename(folder) !== "sessions" && folder !== path.dirname(folder)) folder = path.dirname(folder);
+      if (path.basename(folder) === "sessions") codexHome = path.dirname(folder);
+      else if (args.transcript) {
+        console.error("error: can't tell this rollout's Codex folder; pass --codex-home to check for related rollouts");
+        return 1;
+      }
     }
     // The rollouts of this conversation: more than one means a /revert, whose history no one file holds
     const id = (args.transcript ? undefined : args["session-id"]) ?? (firstRecord(transcript)?.payload?.id as string | undefined);

@@ -209,14 +209,34 @@ export function peerPath(native: string, peer: Peer) {
   return null;
 }
 
-// The other side's profiles.json, as it wrote it; empty when it can't be read (no dotagents there).
-export function peerProfiles(peer: Peer): Profile[] {
+// The default Codex folder is safe to use only when no profile configures one.
+export function peerProfiles(peer: Peer): { profiles: Profile[] } | { error: string } {
+  const file = path.join(peerStateDir(peer), PROFILES.name);
+  let text: string;
   try {
-    const data = JSON.parse(fs.readFileSync(path.join(peerStateDir(peer), "profiles.json"), "utf8"));
-    return Array.isArray(data?.profiles) ? data.profiles.filter((p: Profile) => typeof p?.name === "string") : [];
-  } catch {
-    return [];
+    text = fs.readFileSync(file, "utf8");
+  } catch (err) {
+    const code = (err as NodeJS.ErrnoException).code;
+    if (code === "ENOENT") {
+      try {
+        // A dangling link is still a configured profiles file.
+        if (!fs.lstatSync(file, { throwIfNoEntry: false })) return { profiles: [] };
+      } catch {
+        // The file's absence could not be confirmed.
+      }
+    }
+    return { error: `couldn't read ${file}${code ? ` (${code})` : ""}` };
   }
+  let data: { version?: number; profiles?: unknown };
+  try {
+    data = JSON.parse(text);
+  } catch {
+    return { error: `${file} is not valid JSON` };
+  }
+  if (![1, 2, PROFILES.version].includes(data?.version ?? 0)) return { error: `${file} has an unsupported format version; check dotagents on both sides` };
+  if (Array.isArray(data.profiles) && data.profiles.some((p) => p?.provider === "codex")) return { error: `${file} uses the legacy codex provider; migrate it to chatgpt on ${peer.name}` };
+  if (!Array.isArray(data.profiles) || !data.profiles.every(isProfile)) return { error: `${file} has an invalid profile list` };
+  return { profiles: data.profiles };
 }
 export type Machine = { peer?: Peer };
 

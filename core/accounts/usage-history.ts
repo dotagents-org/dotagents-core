@@ -10,6 +10,27 @@ import type { UsageWindow } from "./usage.ts";
 export type Point = { account?: string; at: string; session: number | null; week: number | null; sessionResetsAt: string | null; weekResetsAt: string | null };
 
 export const historyFile = (name: string, dir = stateDir()) => path.join(dir, "usage", `${name}.history.jsonl`);
+const accountChangedFile = (name: string) => path.join(stateDir(), "usage", `${name}.account-changed`);
+
+// Keep unlabelled readings on disk, but stop assigning them after a profile takes another login.
+export function recordAccountChange(name: string) {
+  const file = accountChangedFile(name);
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  try {
+    fs.writeFileSync(file, "", { flag: "wx", mode: 0o600 });
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code !== "EEXIST") throw err;
+  }
+}
+
+export function hasAccountChange(name: string) {
+  try {
+    fs.statSync(accountChangedFile(name));
+    return true;
+  } catch (err) {
+    return (err as NodeJS.ErrnoException).code !== "ENOENT";
+  }
+}
 
 export function readHistory(name: string, dir?: string): Point[] {
   try {

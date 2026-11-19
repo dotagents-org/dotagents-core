@@ -19,7 +19,7 @@ import type { Login, Provider, SwitchOptions } from "../providers.ts";
 import { state } from "../../state.ts";
 import { vaultDir, withLoginLock, writePrivate } from "../vault.ts";
 import { readRecord } from "../usage-record.ts";
-import { askCodex, readCodexSlots, readCodexUsage } from "./codex-usage.ts";
+import { askCodex, peerCodexFolders, readCodexSlots, readCodexUsage } from "./codex-usage.ts";
 import { ASK_EVERY_MS } from "../usage-record.ts";
 import { codexHome, installCodex, verifyCodexConfig } from "./codex-config.ts";
 import { codexAccount, codexLoginMark, codexProfiles, codexSlotProfile, ownerOf, readLogin, slotFile, slotLogin, vaultFile, vaultLogin } from "./codex-store.ts";
@@ -305,8 +305,10 @@ function verifyLogins() {
   checkLogins(sideName(), vaultLogin, slotLogin());
   const peer = loadMachine().peer;
   if (!peer) return;
+  const folders = peerCodexFolders(peer);
+  if ("error" in folders) return checkWarn(`can't read Codex on ${peer.name}`, folders.error);
   const home = peerStateDir(peer);
-  checkLogins(peer.name, (name) => readLogin(path.join(home, "vault", name, "auth.json")), readLogin(path.join(peer.home, ".codex", "auth.json")), home);
+  checkLogins(peer.name, (name) => readLogin(path.join(home, "vault", name, "auth.json")), readLogin(path.join(folders.visible, "auth.json")), home);
 }
 
 // Which profile and ChatGPT user the last switch or login put in this side's slot: no token.

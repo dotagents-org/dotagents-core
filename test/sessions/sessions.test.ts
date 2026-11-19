@@ -7,8 +7,8 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { test, type TestContext } from "node:test";
-import type { Peer } from "../../core/machine/machine-state.ts";
-import { codexRunning } from "../../core/sessions/codex-sessions.ts";
+import { type Peer, machineFile, saveMachine } from "../../core/machine/machine-state.ts";
+import { codexRunning, openRollouts } from "../../core/sessions/codex-sessions.ts";
 import { type ConfigDir, archiveRoot, archiveSession, deleteSession, fromPeer, listSessions, parseRunningIds, projectSlug, sessionFiles } from "../../core/sessions/sessions.ts";
 
 test("peer running ids ignore non-id lines and CRLF", () => {
@@ -365,8 +365,8 @@ test("Codex's conversations join the list, without subagents', named as Codex na
   const asked: string[] = [];
   const fake = (id: string) => (asked.push(id), true);
   // What a process listing says: nothing open here (known), or nothing to look at (unknown), on any system
-  const seen = { probe: () => new Set<string>() };
-  const blind = { probe: () => null };
+  const seen = { probe: () => ({ open: new Set<string>(), complete: true }) };
+  const blind = { probe: () => ({ open: new Set<string>(), complete: false }) };
   quiet();
   // The file is written now (a conversation that came back to life since it was listed): looked at again, never deleted
   fs.utimesSync(main, new Date(), new Date());
@@ -374,12 +374,25 @@ test("Codex's conversations join the list, without subagents', named as Codex na
   fs.utimesSync(main, new Date(old), new Date(old));
   // A rollout added since the list (a /revert): the whole conversation looked at again, so it is seen
   const added = path.join(path.dirname(main), "rollout-2026-11-18T11-00-00-019a0000-0000-7000-8000-0000000000ff.jsonl");
-  fs.copyFileSync(main, added);
+  const [first, ...rest] = fs.readFileSync(main, "utf8").split("\n");
+  const meta = JSON.parse(first);
+  meta.payload.history_base = { rollout: path.basename(main), line: 2 };
+  meta.payload.instructions = "x".repeat(270 * 1024);
+  fs.writeFileSync(added, [JSON.stringify(meta), ...rest].join("\n"));
   fs.utimesSync(added, new Date(old), new Date(old));
+  assert.equal(listSessions({ dirs: [], codex }).find((s) => s.id === C)!.bytes, cart.bytes + fs.statSync(added).size);
   assert.equal(deleteSession(cart, { evenRunning: true, codex: fake, ...seen }), false);
+  // A first record over the reader's limit leaves the inventory unknown, even with confirmation.
+  meta.payload.instructions = "x".repeat(32 * 1024 * 1024);
+  fs.writeFileSync(added, `${JSON.stringify(meta)}\n`);
+  const events = quiet();
+  assert.equal(deleteSession(cart, { evenRunning: true, codex: fake, ...seen }), false);
+  assert.ok(events.some((event) => event.kind === "result" && /inventory is incomplete/.test(event.detail)));
   fs.rmSync(added);
   // A process holds it open: never, whatever is confirmed
-  assert.equal(deleteSession(cart, { evenRunning: true, codex: fake, probe: () => new Set([main]) }), false);
+  assert.equal(deleteSession(cart, { evenRunning: true, codex: fake, probe: () => ({ open: new Set([main]), complete: false }) }), false);
+  const subagent = path.join(path.dirname(main), path.basename(main).replace(C, S));
+  assert.equal(deleteSession(cart, { evenRunning: true, codex: fake, probe: () => ({ open: new Set([subagent]), complete: false }) }), false);
   // Where its processes can't be seen, nothing deletes it without a person's confirmation
   assert.equal(deleteSession(cart, { codex: fake, ...blind }), false);
   state.dryRun = true;
@@ -401,6 +414,74 @@ test("Codex's conversations join the list, without subagents', named as Codex na
     else process.env.CODEX_THREAD_ID = saved;
   }
   assert.deepEqual(asked, [C, C]);
+});
+
+test("a remote Codex deletion uses the verified peer from a single machine read", (t) => {
+  const { root, ws } = setup(t);
+  const remote = codexHome(path.join(root, "peer"), ws);
+  const local = codexHome(path.join(root, "local"), ws);
+  const peer = { name: "There", home: path.dirname(remote.home), nativeHome: path.dirname(remote.home) };
+  fs.renameSync(remote.home, path.join(peer.home, ".codex"));
+  saveMachine({ peer });
+  t.after(() => saveMachine({}));
+  const origin = { home: peer.home, native: path.join(peer.nativeHome, ".codex") };
+  const [listed] = listSessions({ dirs: [], codex: [{ side: peer.name, home: origin.native, peer, origin }] }).filter((s) => s.id === remote.C);
+  const read = fs.readFileSync;
+  let missingFirst = true;
+  let reads = 0;
+  const machine = machineFile();
+  const mock = t.mock.method(fs, "readFileSync", (file: Parameters<typeof read>[0], options?: Parameters<typeof read>[1]) => {
+    if (file === machine && ++reads === 1 && missingFirst) return '{"version":1}';
+    return options === undefined ? read(file) : read(file, options);
+  });
+  const calls: unknown[] = [];
+  const codex = (...args: unknown[]) => (calls.push(args), true);
+  quiet();
+  assert.equal(deleteSession(listed, { evenRunning: true, codex }), false, "an unconfirmed peer cannot fall back to the local executor");
+  assert.equal(reads, 1);
+  missingFirst = false;
+  reads = 0;
+  assert.equal(deleteSession(listed, { evenRunning: true, codex }), true);
+  assert.equal(reads, 1);
+  assert.deepEqual(calls, [[local.C, peer, origin]]);
+  mock.mock.restore();
+});
+
+test("a partial /proc probe keeps open rollouts and flags unreadable process names", { skip: process.platform !== "linux" }, (t) => {
+  const { root, ws } = setup(t);
+  const { main } = codexHome(root, ws);
+  const proc = path.join(root, "proc");
+  fs.mkdirSync(path.join(proc, "101", "fd"), { recursive: true });
+  fs.mkdirSync(path.join(proc, "102"), { recursive: true });
+  fs.mkdirSync(path.join(proc, "103", "fd"), { recursive: true });
+  const last = path.join(root, "rollout-last.jsonl");
+  fs.writeFileSync(last, "");
+  fs.symlinkSync(main, path.join(proc, "101", "fd", "4"));
+  fs.symlinkSync(last, path.join(proc, "103", "fd", "4"));
+  const denied = () => Object.assign(new Error("denied"), { code: "EACCES" });
+  const readDir = fs.readdirSync;
+  const readFile = fs.readFileSync;
+  const readLink = fs.readlinkSync;
+  let comm: string | null = null;
+  t.mock.method(fs, "readdirSync", (file: string, options?: Parameters<typeof readDir>[1]) => {
+    if (file === "/proc/102/fd") throw denied();
+    const target = file.replace(/^\/proc(?=\/|$)/, proc);
+    return options === undefined ? readDir(target) : readDir(target, options);
+  });
+  t.mock.method(fs, "readFileSync", (file: string, options?: Parameters<typeof readFile>[1]) => {
+    if (file === "/proc/102/comm") {
+      if (comm === null) throw denied();
+      return comm;
+    }
+    return options === undefined ? readFile(file) : readFile(file, options);
+  });
+  t.mock.method(fs, "readlinkSync", (file: string) => readLink(file.replace(/^\/proc(?=\/|$)/, proc)));
+  const open = new Set([main, last]);
+  assert.deepEqual(openRollouts(), { open, complete: false });
+  comm = "codex";
+  assert.deepEqual(openRollouts(), { open, complete: false });
+  comm = "bash";
+  assert.deepEqual(openRollouts(), { open, complete: true });
 });
 
 test("a Codex conversation runs while a process here holds its rollout open, or it is the one a command runs in", () => {

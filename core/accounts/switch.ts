@@ -12,6 +12,7 @@ import { wslDistroArgs } from "../machine/peer.ts";
 import { checkWarn, report, section } from "../output/output.ts";
 import { type Login, type Provider, type SwitchContext, type SwitchOptions, providerFor, providers } from "./providers.ts";
 import { state } from "../state.ts";
+import { recordAccountChange } from "./usage-history.ts";
 import { vaultDir, withLoginLock } from "./vault.ts";
 
 // Runs the switch on the other side of the machine, with --here so it doesn't come back.
@@ -91,16 +92,16 @@ export async function switchProfile({ name, save, here = false, expect, peer = p
   const switched = await withLoginLock(() => switchHere(provider, name, save, options, expect));
   if (!switched || here || state.dryRun) return;
   // The same name may be another account's profile there: it checks the account
-  const other = peer(switched, profile && provider.saved(profile)?.id);
+  const other = peer(switched.name, switched.account);
   if (!other) return;
   section("Other side");
   report(other.ok ? (other.changed === false ? "ok" : "updated") : "failed", "switch", other.detail);
   // Its slot changed before it failed: the sessions there keep the old account all the same
-  if (!other.ok && other.changed) report("updated", "switch", `the other side's slot holds ${switched}`);
+  if (!other.ok && other.changed) report("updated", "switch", `the other side's slot holds ${switched.name}`);
 }
 
-// The switch on this side, under the lock: the profile switched to, or null after a --save.
-export function switchHere(provider: Provider, name: string | undefined, save: string | undefined, options: SwitchOptions = {}, expect?: string): string | null {
+// The switch on this side, under the lock: the profile and login selected, or null after a --save.
+export function switchHere(provider: Provider, name: string | undefined, save: string | undefined, options: SwitchOptions = {}, expect?: string): { name: string; account: string } | null {
   options = provider.switchOptions?.(options) ?? options;
   const find = (n: string): Profile => {
     const p = provider.profiles().find((x) => x.name === n);
@@ -111,10 +112,12 @@ export function switchHere(provider: Provider, name: string | undefined, save: s
 
   // --save: the login now in the slot (after a sign-in) belongs to this profile.
   if (save) {
-    find(save);
+    const profile = find(save);
     const slot = provider.slot();
     if (!slot) throw new Error(provider.noSlotLogin());
     provider.checkSave?.(slot, save);
+    const previous = provider.saved(profile);
+    if (!state.dryRun && previous && previous.id !== slot.id) recordAccountChange(save);
     section("Vault");
     saveToVault(provider, save, slot);
     return null;
@@ -136,5 +139,5 @@ export function switchHere(provider: Provider, name: string | undefined, save: s
     putInSlot(provider, name, wanted, options);
   }
   if (provider.refused(target)) checkWarn(`${name}'s login was refused by ${provider.labels.company}`, renewHint(name));
-  return name;
+  return { name, account: wanted.id };
 }

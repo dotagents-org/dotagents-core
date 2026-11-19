@@ -12,13 +12,17 @@ import { type SpawnAppServer } from "../../core/accounts/providers/codex-usage.t
 import { ASK_EVERY_MS } from "../../core/accounts/usage-record.ts";
 import { fetchUsage, refreshUsage } from "../../core/accounts/usage-refresh.ts";
 import { loadProfiles, saveMachine, saveProfile } from "../../core/machine/machine-state.ts";
-import { readCodexSlots, readCodexUsage as codexUsage } from "../../core/accounts/providers/codex-usage.ts";
+import { peerCodexFolders, readCodexSlots, readCodexUsage as codexUsage } from "../../core/accounts/providers/codex-usage.ts";
 import { state } from "../../core/state.ts";
 import { type PeerSwitch, switchProfile } from "../../core/accounts/switch.ts";
 import { type ProfileUsage, usageLines } from "../../core/accounts/usage.ts";
 import { pathToFileURL } from "node:url";
 import { withLoginLock } from "../../core/accounts/vault.ts";
 import { stopAppServer } from "../../core/accounts/providers/codex-usage.ts";
+import { verifyLogins } from "../../core/accounts/profiles.ts";
+import { listSessions } from "../../core/sessions/sessions.ts";
+import { sessions as sessionsCommand } from "../../surfaces/cli/workspace/sessions.ts";
+import { usage as usageCommand } from "../../surfaces/cli/accounts/usage.ts";
 import { REPO, quiet } from "../helpers.ts";
 
 const FAKE = path.join(REPO, "test", "fixtures", "fake-app-server.mjs");
@@ -496,4 +500,60 @@ test("the other side's newer reading of the same ChatGPT account wins, matched b
   // A configured folder that can't be reached from here: no slot there, never ~/.codex's login
   fs.writeFileSync(path.join(peerState, "profiles.json"), JSON.stringify({ version: 2, profiles: [{ name: "work-gpt", configDir: path.join(peer, "gone"), color: "#7B61A8", provider: "chatgpt" }] }));
   assert.equal(readCodexSlots()[peerName], undefined);
+});
+
+test("the peer's default Codex folder is used only when no profile configures it", async (t) => {
+  const { home } = await machine(t);
+  const otherHome = path.join(home, "peer");
+  const peer = { name: "Peer", home: otherHome, nativeHome: otherHome };
+  saveMachine({ peer });
+  const fallback = path.join(otherHome, ".codex");
+  const day = path.join(fallback, "sessions", "2026", "11", "18");
+  const file = path.join(otherHome, ".config", "dotagents", "profiles.json");
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  fs.mkdirSync(day, { recursive: true });
+  fs.writeFileSync(path.join(fallback, "auth.json"), auth("user-hopper", "hopper-there"));
+  const id = "019a0000-0000-7000-8000-000000000001";
+  fs.writeFileSync(path.join(day, `rollout-2026-11-18T10-00-00-${id}.jsonl`), `${JSON.stringify({ type: "session_meta", payload: { id } })}\n`);
+  const warnings: string[] = [];
+  const warn = (msg: string) => warnings.push(msg);
+  const slots = () => readCodexSlots({ up: () => true, warn });
+  const sessions = () => listSessions({ agent: "codex", warn });
+  assert.equal(slots()[peer.name], "hopper");
+  assert.deepEqual(sessions().map((s) => s.id), [id]);
+  assert.deepEqual(warnings, []);
+  fs.writeFileSync(file, JSON.stringify({ version: 1, profiles: [] }));
+  assert.equal(slots()[peer.name], "hopper", "a supported file without a ChatGPT profile also uses the default");
+
+  const check = (reason: RegExp) => {
+    warnings.length = 0;
+    assert.equal(slots()[peer.name], undefined);
+    assert.deepEqual(sessions(), []);
+    assert.equal(warnings.length, 2);
+    for (const warning of warnings) assert.match(warning, reason);
+    assert.ok("error" in peerCodexFolders(peer));
+  };
+  fs.writeFileSync(file, JSON.stringify({ version: 2, profiles: [{ name: "old", provider: "codex", configDir: path.join(otherHome, "custom"), color: "#D77655" }] }));
+  check(/legacy codex provider/);
+  const errors = t.mock.method(console, "error", () => {});
+  const output = t.mock.method(console, "log", () => {});
+  const ctx = { repo: REPO, args: { _: [], all: true, json: true, agent: "codex" }, positional: [] };
+  await sessionsCommand.run(ctx);
+  await usageCommand.run(ctx);
+  errors.mock.restore();
+  output.mock.restore();
+  assert.equal(errors.mock.calls.length, 2);
+  for (const call of errors.mock.calls) assert.match(String(call.arguments[0]), /legacy codex provider/);
+  assert.equal(output.mock.calls.length, 2);
+  for (const call of output.mock.calls) assert.doesNotThrow(() => JSON.parse(String(call.arguments[0])));
+  const checks = quiet();
+  verifyLogins();
+  assert.ok(checks.some((event) => event.kind === "warning" && /legacy codex provider/.test(event.detail)));
+  fs.writeFileSync(file, JSON.stringify({ version: 99, profiles: [] }));
+  check(/unsupported format version/);
+  fs.writeFileSync(file, "{");
+  check(/invalid JSON|not valid JSON/);
+  fs.rmSync(file);
+  fs.mkdirSync(file);
+  check(/couldn't read .*profiles\.json/);
 });

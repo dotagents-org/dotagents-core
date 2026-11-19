@@ -21,7 +21,7 @@ const hhmm = (iso: string) => new Date(iso).toLocaleString("en-GB", { weekday: "
 function spendView(json: boolean) {
   // Claude's and ChatGPT's: the account each profile's saved login is (a Claude account, a ChatGPT user)
   const profiles = activeProfiles().map((p) => ({ name: p.name, accountUuid: providerFor(p).account(p)?.id ?? null, tokensOnly: providerFor(p).id === "chatgpt" }));
-  const { profiles: report, unattributedUsd } = spendReport(profiles, { folder: (cwd) => displayPath(cwd) });
+  const { profiles: report, unattributedUsd } = spendReport(profiles, { folder: (cwd) => displayPath(cwd), warn: console.error });
   const since = Math.min(...report.flatMap((p) => (p.week ? [Date.parse(p.week.from)] : [])), Date.now());
   const revisionUsd = readLog().filter((e) => Date.parse(e.at) >= since).reduce((sum, e) => sum + (e.costUsd ?? 0), 0);
   // version 2: ChatGPT's profiles, a window's totalTokens, models and workspaces as [name, dollars, tokens]
@@ -103,7 +103,7 @@ export const usage: Command = {
     if (args.spend) return spendView(Boolean(args.json));
     const now = new Date();
     // Every provider's profiles, as the start API lists them.
-    const list = readAll(now);
+    const list = readAll(now, { up: () => true, warn: console.error });
     if (args.json) return console.log(JSON.stringify(usageJson(list, now), null, 2));
     if (args.short) return console.log(shortLines(list, now).map(paintLine).join("\n"));
     if (!fancy) return plainView(list);

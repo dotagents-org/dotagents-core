@@ -21,4 +21,6 @@ In Codex, the conversation's id is in `$CODEX_THREAD_ID`:
 node .agents/skills/archive/scripts/archive-session.ts --agent codex --session-id "$CODEX_THREAD_ID"
 ```
 
+With Codex and `--transcript`, the script follows symlinks and looks for related rollouts in the data folder that contains the target's `sessions/` directory. Use `--codex-home` to set the search folder explicitly or to supply it for a rollout outside `sessions/`. A target in `archived_sessions/` must be unarchived in Codex first.
+
 Re-running overwrites the file. The transcript is unredacted, secrets included. Options and the format of the output: the header of `scripts/archive-session.ts`.

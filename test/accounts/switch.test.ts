@@ -10,6 +10,7 @@ import path from "node:path";
 import { test, type TestContext } from "node:test";
 import { saveMachine, saveProfile } from "../../core/machine/machine-state.ts";
 import { loginProfile } from "../../core/accounts/login.ts";
+import { recordHistory, spendReport } from "../../core/accounts/spend.ts";
 import { type PeerSwitch, peerFailure, peerSwitch, slotChanged, switchProfile } from "../../core/accounts/switch.ts";
 import { verifyLogins } from "../../core/accounts/profiles.ts";
 import type { ClaudeLogin } from "../../core/accounts/providers/claude.ts";
@@ -144,6 +145,43 @@ test("the switch reaches the other side too, unless --here", async (t) => {
   quiet();
   await switchProfile({ name: "personal", here: true, expect: "uuid-personal" });
   assert.equal(slotToken(home), "rt-personal1");
+});
+
+test("the peer checks the login selected before the local switch released its lock", async (t) => {
+  const home = machine(t);
+  login(path.join(home, ".claude-personal"), path.join(home, ".claude-personal", ".claude.json"), "uuid-personal", "personal1");
+  const lock = path.join(home, "state", "logins.lock");
+  const accountFile = path.join(home, "state", "vault", "personal", "account.json");
+  const remove = fs.rmSync;
+  const mock = t.mock.method(fs, "rmSync", (file: Parameters<typeof remove>[0], options?: Parameters<typeof remove>[1]) => {
+    remove(file, options);
+    if (file === lock) fs.writeFileSync(accountFile, JSON.stringify(account("uuid-replacement")));
+  });
+  const calls: unknown[] = [];
+  await switchProfile({ name: "personal", peer: (...args) => (calls.push(args), null) });
+  mock.mock.restore();
+  assert.equal(slotAccount(home).oauthAccount.accountUuid, "uuid-personal");
+  assert.equal(vault(home, "personal", "account.json").accountUuid, "uuid-replacement");
+  assert.deepEqual(calls, [["personal", "uuid-personal"]]);
+});
+
+test("saving a different account retires unlabelled usage history even before the next reading", async (t) => {
+  const home = machine(t);
+  const save = async (id: string) => {
+    login(path.join(home, ".claude"), path.join(home, ".claude.json"), id, id);
+    await switchProfile({ save: "work", here: true });
+  };
+  await save("uuid-work");
+  const resetsAt = new Date("2026-11-15T12:00:00Z");
+  recordHistory("work", [{ kind: "session", pct: 10, resetsAt }], new Date("2026-11-15T09:00:00Z"));
+  recordHistory("work", [{ kind: "session", pct: 25, resetsAt }], new Date("2026-11-15T09:30:00Z"));
+  const spend = (id: string) => spendReport([{ name: "work", accountUuid: id }], { now: Date.parse("2026-11-15T10:00:00Z"), dirs: [] }).profiles[0];
+  assert.equal(spend("uuid-work").ratios[0].unexplainedPct, 15, "the account that never changed still uses its old readings");
+  await save("uuid-new");
+  assert.equal(spend("uuid-new").session, null);
+  assert.equal(spend("uuid-new").ratios[0].unexplainedPct, 0);
+  await save("uuid-work");
+  assert.equal(spend("uuid-work").session, null, "returning to the old login does not reactivate unlabelled points");
 });
 
 test("a failure on the other side reads as one line: an older dotagents says how to update it", () => {

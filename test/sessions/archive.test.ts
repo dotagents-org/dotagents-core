@@ -355,3 +355,47 @@ test("Codex's own tool calls (a web search) are in the archive, and a rollout Co
   assert.equal(run.status, 1);
   assert.match(run.stderr, /archived by Codex; `codex unarchive`/);
 });
+
+test("a Codex archive by path checks the canonical rollout home and refuses archived targets", (t) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "dotagents-archive-codex-"));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const home = path.join(root, "codex");
+  const file = rollout(home);
+  const newer = path.join(path.dirname(file), "rollout-2026-11-18T11-00-00-019a0000-aaaa-7bbb-8ccc-0000000000ff.jsonl");
+  fs.copyFileSync(file, newer);
+  const archived = path.join(home, "archived_sessions", path.basename(file));
+  fs.mkdirSync(path.dirname(archived));
+  fs.copyFileSync(file, archived);
+  const env = { ...process.env, CODEX_HOME: path.join(root, "different-home"), DOTAGENTS_STATE_DIR: path.join(root, "state") };
+  const project = path.join(root, "p");
+  const stderr = path.join(root, "stderr");
+  const run = (transcript: string, ...extra: string[]) => {
+    const fd = fs.openSync(stderr, "w");
+    try {
+      const result = spawnSync(process.execPath, [SCRIPT, "--agent", "codex", "--transcript", transcript, "--project-root", project, ...extra], { env, stdio: ["ignore", "ignore", fd] });
+      assert.ifError(result.error);
+      return { status: result.status, stderr: fs.readFileSync(stderr, "utf8") };
+    } finally {
+      fs.closeSync(fd);
+    }
+  };
+  const inferred = run(file);
+  assert.equal(inferred.status, 1, "the rollout's home takes precedence over the shell's");
+  assert.match(inferred.stderr, /2 rollouts carry the conversation/);
+  assert.equal(fs.existsSync(project), false);
+  if (process.platform !== "win32") {
+    const linked = path.join(root, "linked.jsonl");
+    fs.symlinkSync(file, linked);
+    assert.match(run(linked).stderr, /2 rollouts carry the conversation/);
+    const archivedLink = path.join(root, "linked-archive.jsonl");
+    fs.symlinkSync(archived, archivedLink);
+    assert.match(run(archivedLink, "--codex-home", env.CODEX_HOME).stderr, /archived by Codex/);
+  }
+  assert.match(run(archived, "--codex-home", env.CODEX_HOME).stderr, /archived by Codex/);
+  const loose = path.join(root, "copied.jsonl");
+  fs.copyFileSync(file, loose);
+  assert.match(run(loose).stderr, /pass --codex-home to check for related rollouts/);
+  assert.match(run(loose, "--codex-home", home).stderr, /2 rollouts carry the conversation/);
+  assert.equal(run(file, "--codex-home", env.CODEX_HOME).status, 0, "an explicit home takes precedence");
+  assert.ok(fs.existsSync(path.join(project, ".artifacts", "sessions", `2026-11-18-${CODEX_ID}.md`)));
+});
