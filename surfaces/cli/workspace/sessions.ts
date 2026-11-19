@@ -152,7 +152,7 @@ export const sessionsRm: Command = {
     if (!interactive && !args.yes && !state.dryRun) throw new UsageError("Add --yes to delete without a terminal to confirm in, or --dry-run to see what would go");
     let chosen: Session[];
     if (positional.length) {
-      chosen = byIds(positional, listSessions({ peerRunning }));
+      chosen = byIds(positional, listSessions({ peerRunning, agent: agentArg(ctx) }));
       header("sessions rm");
       warnUnchecked(chosen);
     } else {
@@ -170,7 +170,9 @@ export const sessionsRm: Command = {
         return;
       }
       // Searched by everything a row shows: title, folder, side, account, archive folder.
-      const searchable = new Map(free.map((s) => [s.id, `${when(s)} ${s.title} ${details(s, labels, true)}`.toLowerCase()]));
+      // One key per row, not the id: the same conversation may be on both sides, and marking one is not marking both
+      const keyOf = (s: Session) => `${s.side}\u0000${s.file}`;
+      const searchable = new Map(free.map((s) => [keyOf(s), `${when(s)} ${s.title} ${details(s, labels, true)}`.toLowerCase()]));
       const p = await loadPrompts();
       const picked = await p.autocompleteMultiselect({
         message: "Which sessions should be deleted?",
@@ -178,7 +180,7 @@ export const sessionsRm: Command = {
         maxItems: 8,
         options: free.map((s) => {
           const label = `${when(s)}  ${s.title}`;
-          return { value: s.id, label, hint: fitHint(details(s, labels, !under), label) };
+          return { value: keyOf(s), label, hint: fitHint(details(s, labels, !under), label) };
         }),
         filter: (search, option) => searchable.get(option.value)!.includes(search.trim().toLowerCase()),
       });
@@ -186,7 +188,7 @@ export const sessionsRm: Command = {
         p.cancel("Nothing was deleted.");
         process.exit(0);
       }
-      chosen = free.filter((s) => picked.includes(s.id));
+      chosen = free.filter((s) => picked.includes(keyOf(s)));
     }
 
     // A running session goes only when the user says so in a terminal, its Claude Code ended first on
@@ -199,9 +201,15 @@ export const sessionsRm: Command = {
     let alsoRunning: Session[] = [];
     if (running.length && ask_) {
       const askable = running.filter((s) => s.agent !== "codex" || unsure(s));
-      const here = askable.filter((s) => s.pid !== null).length;
-      const codexOnly = askable.every((s) => s.agent === "codex");
-      const what = codexOnly ? "it is deleted through codex delete; close Codex on it first" : here === askable.length ? "its Claude Code is closed first" : here ? "on this side, its Claude Code is closed first; on the other, only its files go" : "only its files go: it runs on the other side, so close it there";
+      // What happens to each agent's: Claude Code's process is closed first on this side; Codex's can't be
+      // closed by dotagents, and its delete may reach a conversation a running Codex owns
+      const claude = askable.filter((s) => s.agent === "claude");
+      const codex = askable.filter((s) => s.agent === "codex");
+      const here = claude.filter((s) => s.pid !== null).length;
+      const what = [
+        claude.length ? (here === claude.length ? "Claude Code is closed first" : here ? "Claude Code is closed first on this side, and on the other only its files go" : "Claude Code on the other side can't be closed from here: only its files go, close it there") : "",
+        codex.length ? "Codex is not closed: codex delete may reach a conversation it still has open, so close it first" : "",
+      ].filter(Boolean).join("; ");
       const word = askable.some((s) => s.running) ? "still running" : "possibly still open";
       if (askable.length && (await ask(`${plural(askable.length, "session")} ${askable.length === 1 ? "is" : "are"} ${word}. Delete ${askable.length === 1 ? "it" : "them"} anyway? (${what})`, false))) alsoRunning = askable;
     }

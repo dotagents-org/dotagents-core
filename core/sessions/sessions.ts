@@ -15,7 +15,7 @@ import { logChange } from "../machine/log.ts";
 import fs from "node:fs";
 import path from "node:path";
 import { type AccountLabels, archiveFile, parseTranscript, promptText, readRevisions, renderArchive, revise } from "../../skills/archive/scripts/archive-session.ts";
-import { type CodexDelete, type CodexDir, codexDelete, codexDirs, codexRunning, listCodexSessions } from "./codex-sessions.ts";
+import { type CodexDelete, type CodexDir, codexDelete, codexDirs, codexNow, listCodexSessions } from "./codex-sessions.ts";
 import { codexAccount, codexProfiles } from "../accounts/providers/codex-store.ts";
 import { type ProcessProbe, defaultConfigDir, runningProcess, signedIn } from "../claude-code.ts";
 import { isWindows } from "../common.ts";
@@ -342,22 +342,21 @@ export const sessionFiles = (s: Pick<Session, "id" | "file" | "configDir">) => [
 // at again right before. Where it can't (the other side, Windows), whether Codex still has it open is
 // unknown: only a person's confirmation (evenRunning, which --yes never gives) lets it go, since the
 // delete may reach the thread a running Codex owns.
-function deleteCodex(s: Session, evenRunning: boolean, codex: CodexDelete) {
-  const peer = s.side === thisSide(loadMachine().peer) ? undefined : loadMachine().peer;
-  let mtime = s.mtime;
-  try {
-    mtime = fs.statSync(s.file).mtimeMs;
-  } catch {
-    // gone: codex delete says so
-  }
-  const known = s.checked && !peer;
-  // Written since it was listed and archived: what was archived is no longer all of it
-  if (mtime !== s.mtime) {
-    report("skipped", s.file, "changed since it was listed; list it again, and archive it again");
+function deleteCodex(s: Session, evenRunning: boolean, codex: CodexDelete, probe?: () => Set<string> | null) {
+  const peer = s.origin ? loadMachine().peer : undefined;
+  // Looked at again, every rollout of it, from where it was listed
+  const now = codexNow(s, probe);
+  if (!now) {
+    report("skipped", s.file, s.origin ? `${s.side} or its Codex folder isn't what was listed, or the conversation is gone; list it again` : "it is gone; list the sessions again");
     return false;
   }
+  if (now.mtime !== s.mtime || now.bytes !== s.bytes) {
+    report("skipped", s.file, "changed since it was listed (written, or a rollout added); list it again");
+    return false;
+  }
+  const known = now.checked && !peer;
   // The conversation this very command runs in is never one to delete, whatever else is known
-  if (process.env.CODEX_THREAD_ID === s.id || (known && codexRunning({ ...s, mtime }, true))) {
+  if (process.env.CODEX_THREAD_ID === s.id || (known && now.running)) {
     report("skipped", s.file, "still running; close it first");
     return false;
   }
@@ -399,8 +398,8 @@ export const stopProcess: ProcessStopper = (pid) => {
 // session is archived: then its Claude Code process on this side is ended first, or the session
 // would write its transcript again. One on the other side has only its files deleted. Honors
 // --dry-run; files already gone are left alone, so it can run again.
-export function deleteSession(s: Session, { evenRunning = false, stop = stopProcess, codex = codexDelete }: { evenRunning?: boolean; stop?: ProcessStopper; codex?: CodexDelete } = {}) {
-  if (s.agent === "codex") return deleteCodex(s, evenRunning, codex);
+export function deleteSession(s: Session, { evenRunning = false, stop = stopProcess, codex = codexDelete, probe }: { evenRunning?: boolean; stop?: ProcessStopper; codex?: CodexDelete; probe?: () => Set<string> | null } = {}) {
+  if (s.agent === "codex") return deleteCodex(s, evenRunning, codex, probe);
   if (s.running && !evenRunning) {
     report("skipped", s.file, "still running; close it first");
     return false;

@@ -273,6 +273,10 @@ test("sessions rm deletes what is picked, with no archive written, and an unknow
   // Without a terminal, --yes or --dry-run is needed
   assert.notEqual(rm("11111111").status, 0);
   assert.ok(fs.existsSync(gone));
+  // --agent narrows what ids can name, and a wrong one is refused: nothing is deleted by naming it
+  assert.notEqual(rm("11111111", "--agent", "codex", "--yes").status, 0);
+  assert.notEqual(rm("11111111", "--agent", "nope", "--yes").status, 0);
+  assert.ok(fs.existsSync(gone));
   const dry = rm("11111111", "--dry-run");
   assert.equal(dry.status, 0, dry.stderr + dry.stdout);
   assert.ok(fs.existsSync(gone), "a dry run deletes nothing");
@@ -360,27 +364,38 @@ test("Codex's conversations join the list, without subagents', named as Codex na
   assert.equal(listSessions({ dirs: [], codex, now: old + 60_000 }).find((s) => s.id === C)!.running, true);
   const asked: string[] = [];
   const fake = (id: string) => (asked.push(id), true);
+  // What a process listing says: nothing open here (known), or nothing to look at (unknown), on any system
+  const seen = { probe: () => new Set<string>() };
+  const blind = { probe: () => null };
   quiet();
   // The file is written now (a conversation that came back to life since it was listed): looked at again, never deleted
   fs.utimesSync(main, new Date(), new Date());
-  assert.equal(deleteSession(cart, { evenRunning: true, codex: fake }), false);
+  assert.equal(deleteSession(cart, { evenRunning: true, codex: fake, ...seen }), false);
   fs.utimesSync(main, new Date(old), new Date(old));
+  // A rollout added since the list (a /revert): the whole conversation looked at again, so it is seen
+  const added = path.join(path.dirname(main), "rollout-2026-11-18T11-00-00-019a0000-0000-7000-8000-0000000000ff.jsonl");
+  fs.copyFileSync(main, added);
+  fs.utimesSync(added, new Date(old), new Date(old));
+  assert.equal(deleteSession(cart, { evenRunning: true, codex: fake, ...seen }), false);
+  fs.rmSync(added);
+  // A process holds it open: never, whatever is confirmed
+  assert.equal(deleteSession(cart, { evenRunning: true, codex: fake, probe: () => new Set([main]) }), false);
   // Where its processes can't be seen, nothing deletes it without a person's confirmation
-  assert.equal(deleteSession({ ...cart, checked: false }, { codex: fake }), false);
+  assert.equal(deleteSession(cart, { codex: fake, ...blind }), false);
   state.dryRun = true;
   quiet({ dryRun: true });
-  assert.equal(deleteSession(cart, { codex: fake }), true);
+  assert.equal(deleteSession(cart, { codex: fake, ...seen }), true);
   state.dryRun = false;
   assert.deepEqual(asked, [], "neither a refused one nor --dry-run asks Codex");
   quiet();
-  assert.equal(deleteSession(cart, { codex: fake }), true);
-  assert.equal(deleteSession({ ...cart, checked: false }, { evenRunning: true, codex: fake }), true, "confirmed, where it can't be seen");
+  assert.equal(deleteSession(cart, { codex: fake, ...seen }), true);
+  assert.equal(deleteSession(cart, { evenRunning: true, codex: fake, ...blind }), true, "confirmed, where it can't be seen");
   assert.deepEqual(asked, [C, C]);
   // This very command's own conversation, whatever else is known
   const saved = process.env.CODEX_THREAD_ID;
   process.env.CODEX_THREAD_ID = C;
   try {
-    assert.equal(deleteSession(cart, { evenRunning: true, codex: fake }), false);
+    assert.equal(deleteSession(cart, { evenRunning: true, codex: fake, ...seen }), false);
   } finally {
     if (saved === undefined) delete process.env.CODEX_THREAD_ID;
     else process.env.CODEX_THREAD_ID = saved;

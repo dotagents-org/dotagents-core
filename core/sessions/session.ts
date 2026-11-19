@@ -31,6 +31,9 @@ export type Session = {
   // Whether `running` comes from the process records: always on this side; on the other side only
   // when its dotagents answered. When false, a session idle there for RECENT_MS counts as stopped.
   checked: boolean;
+  // For a Codex conversation on the other side: what it was listed from (that side's home, and its CODEX_HOME
+  // as that side names it), so a deletion goes where the list looked, or not at all.
+  origin?: { home: string; native: string };
 };
 
 // The nearest folder at or above dir with .artifacts/sessions/.

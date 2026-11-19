@@ -194,10 +194,23 @@ function rolloutFiles(home: string) {
   return files;
 }
 
+// What the list of the other side was made from: its home, and its CODEX_HOME as it names it.
+const originOf = (peer: Peer) => ({ home: peer.home, native: peerCodexNative(peer) });
+
+// The conversation as it is now, looked at again from where it was listed: null when the other side or
+// its CODEX_HOME is not the one listed (a profile re-pointed, another distro), or the conversation is gone.
+// Every rollout of it is looked at, so one a /revert added since is seen.
+export function codexNow(s: Session, probe?: () => Set<string> | null): Session | null {
+  const peer = s.origin ? loadMachine().peer : undefined;
+  if (s.origin && (!peer || peer.home !== s.origin.home || peerCodexNative(peer) !== s.origin.native)) return null;
+  const dirs: CodexDir[] = [{ side: s.side, home: s.configDir, ...(peer ? { peer } : {}) }];
+  return listCodexSessions(dirs, { fromPeer: () => null, ...(probe ? { probe } : {}) }).find((x) => x.id === s.id) ?? null;
+}
+
 // Every Codex conversation of the folders; under: only those started inside that folder.
-export function listCodexSessions(dirs: CodexDir[], { under, now = Date.now(), fromPeer }: { under?: string; now?: number; fromPeer: (p: string, peer: Peer) => string | null }): Session[] {
+export function listCodexSessions(dirs: CodexDir[], { under, now = Date.now(), fromPeer, probe = openRollouts }: { under?: string; now?: number; fromPeer: (p: string, peer: Peer) => string | null; probe?: () => Set<string> | null }): Session[] {
   const list: Session[] = [];
-  const open = dirs.some((d) => !d.peer) ? openRollouts() : null;
+  const open = dirs.some((d) => !d.peer) ? probe() : null;
   for (const dir of dirs) {
     const names = titles(dir.home);
     // A conversation with more than one rollout (a /revert starts a new one, same id inside) is one
@@ -236,8 +249,9 @@ export function listCodexSessions(dirs: CodexDir[], { under, now = Date.now(), f
         root: archiveRoot(localCwd),
         running: group.some((g) => codexRunning({ id: info.id, file: g.file, mtime: g.st.mtimeMs }, !dir.peer, now, open)),
         pid: null,
-        // Told only on Linux (WSL included), where /proc says which rollouts a process holds open
+        // Told only where the processes can be seen (Linux, WSL: /proc), and on this side
         checked: !dir.peer && open !== null,
+        ...(dir.peer ? { origin: originOf(dir.peer) } : {}),
       });
     }
   }
