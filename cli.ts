@@ -208,12 +208,12 @@ ${title("Options")}
   ${bold("--wrap")}       (init) move a repository into <name>-workspace/ first
   ${bold("--default")}    (profile add) the profile the normal Desktop app opens, one per provider
   ${bold("--color")}      (profile add) the profile's color, #RRGGBB
-  ${bold("--provider")}   (profile add) claude (the default) or codex
+  ${bold("--provider")}   (profile add) claude (the default) or chatgpt
   ${bold("--short")}      (usage) one line, for a prompt or a status line
   ${bold("--json")}       (usage, sessions) the data, for scripts
-  ${bold("--all")}        (sessions) every project's sessions; (login) every Claude login due for renewal
+  ${bold("--all")}        (sessions) every project's sessions; (login) every Claude or ChatGPT login due for renewal
   ${bold("--refresh")}    (usage) ask Anthropic and OpenAI for fresh numbers first
-  ${bold("--spend")}      (usage) what 1% of each Claude window costs, and where the spend went
+  ${bold("--spend")}      (usage) what 1% of each window costs (Claude in dollars, ChatGPT in tokens), and where the spend went
   ${bold("--no-pull")}    (update) skip git pull, only reapply
   ${bold("--from")}       (settings pull) the profile to take the settings from
   ${bold("--port")}       (start) the server's port; 0 picks a free one

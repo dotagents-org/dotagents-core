@@ -393,6 +393,30 @@ export function knownCodexAccounts(): AccountLabels {
   return labels;
 }
 
+// The first record of a file, without reading it whole: session_meta carries the instructions and tool
+// schemas, so its line may be long (read up to 32 MiB).
+function firstRecord(file: string): Json | null {
+  const fd = fs.openSync(file, "r");
+  try {
+    const chunks: Buffer[] = [];
+    let at = 0;
+    for (;;) {
+      const buf = Buffer.alloc(64 * 1024);
+      const n = fs.readSync(fd, buf, 0, buf.length, at);
+      const nl = buf.subarray(0, n).indexOf(0x0a);
+      chunks.push(buf.subarray(0, nl >= 0 ? nl : n));
+      at += n;
+      if (n === 0 || nl >= 0 || at > 32 << 20) break;
+    }
+    const obj = JSON.parse(Buffer.concat(chunks).toString("utf8"));
+    return isObject(obj) ? obj : null;
+  } catch {
+    return null;
+  } finally {
+    fs.closeSync(fd);
+  }
+}
+
 // Why a rollout can't stand for its conversation, or null. A line cut in the middle (not the last,
 // which a running Codex may be writing) would be left out of the archive; with an id asked for, the
 // first session_meta must be that one, or the file would be written under another conversation's name.
@@ -409,11 +433,29 @@ export function rolloutProblem(file: string, asked?: string): string | null {
       return `line ${n + 1} is cut in the middle`;
     }
   }
+  // A reverted conversation's new rollout starts from a base in another one (history_base): this file alone
+  // would miss that history, and the old file misses what came after
+  const first = firstRecord(file);
+  if (first?.type === "session_meta" && first.payload?.history_base != null) return "its history starts in another rollout (after a /revert), which an archive of this file alone would leave out";
   if (asked) {
-    const meta = transcriptLines(file).next().value;
+    const meta = first;
     if (!(meta?.type === "session_meta" && meta.payload?.id === asked)) return `its first record isn't the conversation ${asked}'s; for a reverted conversation pass the rollout with --transcript`;
   }
   return null;
+}
+
+// Every rollout in a Codex folder whose first record is that conversation's.
+function rolloutsOf(codexHome: string, id: string) {
+  const out: string[] = [];
+  const walk = (dir: string, depth: number) => {
+    for (const name of fs.existsSync(dir) ? fs.readdirSync(dir) : []) {
+      const full = path.join(dir, name);
+      if (depth < 3) walk(full, depth + 1);
+      else if (/^rollout-.*\.jsonl$/.test(name) && firstRecord(full)?.payload?.id === id) out.push(full);
+    }
+  };
+  walk(path.join(codexHome, "sessions"), 0);
+  return out;
 }
 
 // The rollout of a Codex conversation by its id, or the newest one started in the project.
@@ -432,7 +474,7 @@ function findRollout(codexHome: string, sessionId: string | undefined, projectRo
   const root = projectRoot.toLowerCase();
   return (
     files.find((f) => {
-      const meta = transcriptLines(f.file).next().value;
+      const meta = firstRecord(f.file);
       const p = isObject(meta?.payload) ? meta.payload : {};
       return meta?.type === "session_meta" && !p.parent_thread_id && inProject(str(p.cwd), root);
     })?.file ?? null
@@ -640,6 +682,13 @@ function main(argv: string[]) {
     return 1;
   }
   if (agent === "codex") {
+    // The rollouts of this conversation: more than one means a /revert, whose history no one file holds
+    const id = (args.transcript ? undefined : args["session-id"]) ?? (firstRecord(transcript)?.payload?.id as string | undefined);
+    const same = id ? rolloutsOf(codexHome, id) : [];
+    if (same.length > 1) {
+      console.error(`error: ${same.length} rollouts carry the conversation ${id} (a /revert starts a new one): no archive of one file would hold it`);
+      return 1;
+    }
     const problem = rolloutProblem(transcript, args.transcript ? undefined : args["session-id"]);
     if (problem) {
       console.error(`error: ${path.basename(transcript)}: ${problem}`);

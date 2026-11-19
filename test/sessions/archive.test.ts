@@ -310,3 +310,26 @@ test("the archive skill refuses a rollout with a line cut in the middle, and one
   assert.match(run("--session-id", CODEX_ID).stderr, /isn't the conversation .*pass the rollout with --transcript/);
   assert.equal(run("--transcript", file).status, 0);
 });
+
+test("the archive skill refuses a reverted conversation: its rollouts together hold the history, no one file does", (t) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "dotagents-archive-codex-"));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const codexHome = path.join(root, "codex");
+  const file = rollout(codexHome);
+  const run = (...extra: string[]) => spawnSync(process.execPath, [SCRIPT, "--agent", "codex", "--codex-home", codexHome, "--project-root", path.join(root, "p"), ...extra], { encoding: "utf8" });
+  // A /revert: a new rollout of the same conversation, its meta pointing at a base in the first
+  const lines = fs.readFileSync(file, "utf8").split("\n");
+  const meta = JSON.parse(lines[0]);
+  meta.payload.history_base = { rollout: path.basename(file), line: 5 };
+  const next = path.join(path.dirname(file), "rollout-2026-11-18T11-00-00-019a0000-aaaa-7bbb-8ccc-0000000000ff.jsonl");
+  fs.writeFileSync(next, [JSON.stringify(meta), ...lines.slice(1)].join("\n"));
+  const byId = run("--session-id", CODEX_ID);
+  assert.equal(byId.status, 1);
+  assert.match(byId.stderr, /2 rollouts carry the conversation/);
+  assert.equal(run("--transcript", next).status, 1, "naming the file doesn't get around it");
+  // The old rollout gone, the new one alone: its history still starts in another
+  fs.rmSync(file);
+  const alone = run("--transcript", next);
+  assert.equal(alone.status, 1);
+  assert.match(alone.stderr, /history starts in another rollout/);
+});
