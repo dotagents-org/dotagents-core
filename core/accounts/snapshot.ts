@@ -45,7 +45,8 @@ const runningIfUp: Later<Set<string> | null> = async (peer) => ((await peerUp(pe
 
 export function watchPeer({ up = peerUp, running = runningIfUp, now = Date.now }: { up?: Later<boolean>; running?: Later<Set<string> | null>; now?: () => number } = {}): PeerView {
   return {
-    up: lastAnswer(up, UP_EVERY_MS, false, now),
+    // Taken as up until the first answer: only an answer says the side is off.
+    up: lastAnswer(up, UP_EVERY_MS, true, now),
     // A side that couldn't answer keeps its last known sessions.
     running: lastAnswer(running, RUNNING_EVERY_MS, null, now, (v) => v !== null),
   };

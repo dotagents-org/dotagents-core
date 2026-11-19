@@ -191,6 +191,16 @@ test("watchPeer never waits for the other side: the last answer stands until the
   assert.deepEqual([...view.running!(peer)!], ["s1"]);
 });
 
+test("watchPeer takes the other side as up until its first answer, then says what the answer says", async () => {
+  let resolve: (v: boolean) => void = () => {};
+  const view = watchPeer({ up: () => new Promise((r) => (resolve = r)), running: () => null, now: () => 0 });
+  const peer = { name: "WSL", home: "\\\\wsl.localhost\\Ubuntu\\home\\me", nativeHome: "/home/me" };
+  assert.equal(view.up(peer), true, "no answer yet: not said to be off");
+  resolve(false);
+  await new Promise((r) => setImmediate(r));
+  assert.equal(view.up(peer), false);
+});
+
 test("the account in this side's slot comes first, the others after in their order", (t) => {
   const { home } = machine(t);
   // personal's login is in the slot (~/.claude) and in its own folder.
