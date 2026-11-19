@@ -36,7 +36,7 @@ Nothing else: no analytics, no crash reports, no update check of the tool itself
 
 ## The compile cache
 
-The command keeps Node's compile cache in this user's own cache folder (`~/.cache/dotagents/compile-cache`, `%LOCALAPPDATA%\dotagents\compile-cache` on Windows), never in the temporary folder, Node's default: on Linux that one is shared, and another account could plant code there for dotagents to run. The folder is created for the user alone, and when it belongs to someone else or others can write to it, the command runs without the cache. A dry run leaves the cache off. See [Commands](commands.md).
+The command keeps Node's compile cache in this user's own cache folder (`~/.cache/dotagents/compile-cache`, `%LOCALAPPDATA%\dotagents\compile-cache` on Windows), never in the temporary folder, Node's default: on Linux that one is shared, and another account could plant code there for dotagents to run. A folder named by the environment (`XDG_CACHE_HOME`) could be shared, so it isn't followed. On Linux and macOS every folder from the home folder down is created for the user alone, and when one belongs to someone else or others can write to it, the command runs without the cache. A dry run leaves the cache off. See [Commands](commands.md).
 
 ## Logs
 

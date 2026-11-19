@@ -4,7 +4,7 @@
 dotagents <command> [options]
 ```
 
-Every command but a dry run keeps Node's compile cache, which roughly halves the start, in this user's own cache folder: `~/.cache/dotagents/compile-cache` (or under `$XDG_CACHE_HOME`), `%LOCALAPPDATA%\dotagents\compile-cache` on Windows. It holds only compiled code, never anything of yours, and deleting it is safe. A command that "only reads" reads everything but that cache.
+Every command but a dry run keeps Node's compile cache, which roughly halves the start, in this user's own cache folder: `~/.cache/dotagents/compile-cache`, `%LOCALAPPDATA%\dotagents\compile-cache` on Windows. It holds only compiled code, never anything of yours, and deleting it is safe. A command that "only reads" reads everything but that cache.
 
 | Command | What it does |
 |---|---|

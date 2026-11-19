@@ -55,61 +55,74 @@ test("cli.ts is executable", { skip: process.platform === "win32" }, () => {
   assert.ok(fs.statSync(path.join(REPO, "cli.ts")).mode & 0o111);
 });
 
-// Runs cli.ts with the temporary folder and this user's cache folder each in a folder of the test's own.
-function withFolders(t: TestContext, args: string[], { xdg, localAppData }: { xdg?: string; localAppData?: string } = {}) {
+// Runs cli.ts with a home, a temporary folder and a shared folder of the test's own; the cache, when
+// on, is <home>/.cache/dotagents/compile-cache (LOCALAPPDATA's on Windows, here the shared folder).
+function withFolders(t: TestContext, args: string[], { env: extra = {} }: { env?: NodeJS.ProcessEnv } = {}) {
   const tmp = tempDir(t);
-  const cache = tempDir(t);
   const home = tempDir(t);
-  const env: NodeJS.ProcessEnv = { ...process.env, TMPDIR: tmp, TEMP: tmp, TMP: tmp, XDG_CACHE_HOME: xdg ?? cache, LOCALAPPDATA: localAppData ?? cache, HOME: home, USERPROFILE: home };
+  const shared = tempDir(t);
+  const env: NodeJS.ProcessEnv = { ...process.env, TMPDIR: tmp, TEMP: tmp, TMP: tmp, HOME: home, USERPROFILE: home, XDG_CACHE_HOME: shared, LOCALAPPDATA: shared, ...extra };
   delete env.NODE_COMPILE_CACHE;
-  delete env.NODE_DISABLE_COMPILE_CACHE;
+  if (!("NODE_DISABLE_COMPILE_CACHE" in extra)) delete env.NODE_DISABLE_COMPILE_CACHE;
   const res = spawnSync(process.execPath, [path.join(REPO, "cli.ts"), ...args], { encoding: "utf8", env, cwd: tmp });
   assert.equal(res.status, 0, res.stderr);
-  return { tmp, cache, home: env.HOME! };
+  const cache = process.platform === "win32" ? path.join(shared, "dotagents", "compile-cache") : path.join(home, ".cache", "dotagents", "compile-cache");
+  return { tmp, home, shared, cache };
 }
-
-// The shared temporary folder (Node's default) would let another account plant code in the cache.
-test("the compile cache lives in this user's cache folder, never the temporary one", (t) => {
-  const { tmp, cache } = withFolders(t, ["--help"]);
-  assert.deepEqual(fs.readdirSync(tmp), []);
-  assert.ok(fs.readdirSync(path.join(cache, "dotagents", "compile-cache")).length);
-});
 
 test("every other test runs the commands without the compile cache", () => {
   assert.equal(process.env.NODE_DISABLE_COMPILE_CACHE, "1");
 });
 
+// The shared temporary folder (Node's default) would let another account plant code in the cache.
+test("the compile cache lives in this user's cache folder, never the temporary one", (t) => {
+  const { tmp, cache } = withFolders(t, ["--help"]);
+  assert.deepEqual(fs.readdirSync(tmp), []);
+  assert.ok(fs.readdirSync(cache).length);
+});
+
+// A folder named by the environment could be shared, so XDG_CACHE_HOME is not followed.
+test("XDG_CACHE_HOME is not followed", { skip: process.platform === "win32" }, (t) => {
+  const { shared, cache } = withFolders(t, ["--help"]);
+  assert.deepEqual(fs.readdirSync(shared), []);
+  assert.ok(fs.readdirSync(cache).length);
+});
+
 test("a relative LOCALAPPDATA is ignored", { skip: process.platform !== "win32" }, (t) => {
-  const { tmp, home } = withFolders(t, ["--help"], { localAppData: "relative-cache" });
+  const { tmp, home } = withFolders(t, ["--help"], { env: { LOCALAPPDATA: "relative-cache" } });
   assert.deepEqual(fs.readdirSync(tmp), []);
   assert.ok(fs.readdirSync(path.join(home, "AppData", "Local", "dotagents", "compile-cache")).length);
 });
 
-// A cache folder others can write to could hand dotagents their code: then it runs without the cache.
-test("the compile cache stays off in a folder others can write to", { skip: process.platform === "win32" }, (t) => {
-  const shared = tempDir(t);
-  const dir = path.join(shared, "dotagents", "compile-cache");
-  fs.mkdirSync(dir, { recursive: true });
-  fs.chmodSync(dir, 0o777);
-  withFolders(t, ["--help"], { xdg: shared });
-  assert.deepEqual(fs.readdirSync(dir), []);
-});
-
 test("a new compile cache folder is the user's alone", { skip: process.platform === "win32" }, (t) => {
-  const { cache } = withFolders(t, ["--help"]);
-  assert.equal(fs.statSync(path.join(cache, "dotagents", "compile-cache")).mode & 0o077, 0);
+  const { home, cache } = withFolders(t, ["--help"]);
+  for (const dir of [path.join(home, ".cache"), path.dirname(cache), cache]) assert.equal(fs.statSync(dir).mode & 0o077, 0, dir);
 });
 
-// The XDG spec ignores a relative XDG_CACHE_HOME: it would put the cache in whatever folder the command runs in.
-test("a relative XDG_CACHE_HOME is ignored", { skip: process.platform === "win32" }, (t) => {
-  const { tmp, home } = withFolders(t, ["--help"], { xdg: "relative-cache" });
-  assert.deepEqual(fs.readdirSync(tmp), []);
-  assert.ok(fs.readdirSync(path.join(home, ".cache", "dotagents", "compile-cache")).length);
+// A folder on the way that others can write to could hand dotagents their code: then it runs without the cache.
+for (const loose of [".cache", ".cache/dotagents", ".cache/dotagents/compile-cache"]) {
+  test(`the compile cache stays off when others can write to ~/${loose}`, { skip: process.platform === "win32" }, (t) => {
+    const home = tempDir(t);
+    const cache = path.join(home, ".cache", "dotagents", "compile-cache");
+    fs.mkdirSync(cache, { recursive: true });
+    fs.chmodSync(path.join(home, loose), 0o777);
+    const env: NodeJS.ProcessEnv = { ...process.env, HOME: home };
+    delete env.NODE_COMPILE_CACHE;
+    delete env.NODE_DISABLE_COMPILE_CACHE;
+    const res = spawnSync(process.execPath, [path.join(REPO, "cli.ts"), "--help"], { encoding: "utf8", env });
+    assert.equal(res.status, 0, res.stderr);
+    assert.deepEqual(fs.readdirSync(cache), []);
+  });
+}
+
+test("NODE_DISABLE_COMPILE_CACHE creates no cache folder", (t) => {
+  const { home, shared } = withFolders(t, ["--help"], { env: { NODE_DISABLE_COMPILE_CACHE: "1" } });
+  assert.deepEqual([...fs.readdirSync(home), ...fs.readdirSync(shared)], []);
 });
 
 test("--dry-run leaves the compile cache off, in either form the parser takes", (t) => {
   for (const flag of ["--dry-run", "--dry-run=true"]) {
-    const { tmp, cache } = withFolders(t, ["--help", flag]);
-    assert.deepEqual([...fs.readdirSync(tmp), ...fs.readdirSync(cache)], [], flag);
+    const { tmp, home, shared } = withFolders(t, ["--help", flag]);
+    assert.deepEqual([...fs.readdirSync(tmp), ...fs.readdirSync(home), ...fs.readdirSync(shared)], [], flag);
   }
 });
