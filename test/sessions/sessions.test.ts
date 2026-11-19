@@ -383,6 +383,14 @@ test("Codex's conversations join the list, without subagents', named as Codex na
   // Half a line at the end: not archived, so not deleted
   fs.appendFileSync(main, '{"timestamp":"2026-11-18T10:06:00Z","type":"response_item","payload":{"type":"mess');
   assert.equal(archiveSession(cart).ok, false);
+  // A cut line in the middle, a whole one after it: no more an archive
+  const text = fs.readFileSync(main, "utf8").replace(/\{"timestamp":"2026-11-18T10:06:00Z"[^\n]*$/, '{"timestamp":"2026-11-18T10:06:00Z","type":"respo\n{"timestamp":"2026-11-18T10:07:00Z","type":"event_msg","payload":{}}\n');
+  fs.writeFileSync(main, text);
+  assert.equal(archiveSession(cart).ok, false, "a line cut in the middle");
+  // A rollout whose own id isn't the one in its name never takes that id's archive
+  const other = path.join(path.dirname(main), `rollout-2026-11-18T10-00-00-${D}.jsonl`);
+  fs.writeFileSync(other, fs.readFileSync(other, "utf8").replace(D, C));
+  assert.equal(archiveSession({ ...cart, id: D, file: other }).ok, false);
 });
 
 test("a Codex conversation runs while a process here holds its rollout open, or it is the one a command runs in", () => {

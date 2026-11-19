@@ -317,8 +317,10 @@ export function archiveSession(s: Session, labels: AccountLabels = new Map()): {
     let first = "";
     for (const source of files) {
       // A rollout still being written ends in half a line: an archive of it would miss the end
-      if (s.agent === "codex" && !wholeFile(source)) throw new Error(`${path.basename(source)} ends in a partial line; is it still running?`);
+      if (s.agent === "codex" && !wholeFile(source)) throw new Error(`${path.basename(source)} has a line that isn't whole; is it still running?`);
       const session = s.agent === "codex" ? parseRollout(source, titles) : parseTranscript(source);
+      // The file is the one asked for: the id in its own record must be its name's, or it would take another's place
+      if (s.agent === "codex" && !path.basename(source).endsWith(`-${session.sessionId}.jsonl`)) throw new Error(`${path.basename(source)} names ${session.sessionId} inside, not the id in its name`);
       const file = archiveFile(s.root, session);
       first ||= file;
       const existed = fs.existsSync(file);
@@ -337,23 +339,16 @@ export function archiveSession(s: Session, labels: AccountLabels = new Map()): {
   }
 }
 
-// Whether a file ends with a whole line: its last line read as JSON.
+// Whether every line of a file is a whole JSON record: a rollout with one cut in the middle (a write
+// that was interrupted) would be archived without it, and the deletion after would lose it.
 function wholeFile(file: string) {
-  const fd = fs.openSync(file, "r");
   try {
-    const size = fs.fstatSync(fd).size;
-    const length = Math.min(size, 1 << 20);
-    const buf = Buffer.alloc(length);
-    fs.readSync(fd, buf, 0, length, size - length);
-    const text = buf.toString("utf8");
+    const text = fs.readFileSync(file, "utf8");
     if (!text.endsWith("\n")) return false;
-    const last = text.trimEnd().split("\n").at(-1) ?? "";
-    JSON.parse(last);
+    for (const line of text.split("\n")) if (line.trim()) JSON.parse(line);
     return true;
   } catch {
     return false;
-  } finally {
-    fs.closeSync(fd);
   }
 }
 

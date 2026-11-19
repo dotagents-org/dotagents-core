@@ -4,7 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { test, type TestContext } from "node:test";
 import { costOf } from "../../core/accounts/prices.ts";
-import { type Point, readHistory, readSpend, ratios, recordHistory, spendReport } from "../../core/accounts/spend.ts";
+import { type Point, readCodexSpend, readHistory, readSpend, ratios, recordHistory, spendReport } from "../../core/accounts/spend.ts";
 import "../helpers.ts";
 
 const A = "acct-work";
@@ -129,4 +129,21 @@ test("ChatGPT's spend comes from Codex's rollouts, on the user that started each
   assert.equal(profiles[0].session!.totalTokens, 18000);
   assert.deepEqual(profiles[0].session!.models, [["gpt-test-1", 0, 18000]]);
   assert.deepEqual(profiles[0].session!.workspaces, [["/work/shop", 0, 18000]]);
+});
+
+test("a Codex rollout with only token_count events gives its spend from the running total's steps", (t) => {
+  const dir = tmp(t);
+  const home = path.join(dir, "codex");
+  const day = path.join(home, "sessions", "2026", "11", "15");
+  fs.mkdirSync(day, { recursive: true });
+  const count = (at: string, input: number, cached: number, output: number) => JSON.stringify({ timestamp: at, type: "event_msg", payload: { type: "token_count", info: { total_token_usage: { input_tokens: input, cached_input_tokens: cached, output_tokens: output } } } });
+  fs.writeFileSync(path.join(day, "rollout-old.jsonl"), [
+    JSON.stringify({ timestamp: "2026-11-15T09:00:00Z", type: "session_meta", payload: { id: "c1", cwd: "/work/shop", creator_user_id: "user-hopper" } }),
+    JSON.stringify({ timestamp: "2026-11-15T09:00:00Z", type: "session_meta", payload: { id: "c2", cwd: "/elsewhere", creator_user_id: "user-other" } }), // a later one: not the conversation's
+    count("2026-11-15T09:05:00Z", 5000, 4000, 1000),
+    count("2026-11-15T09:05:00Z", 5000, 4000, 1000), // the same total again: no step
+    count("2026-11-15T09:10:00Z", 8000, 6500, 1500),
+  ].join("\n"));
+  const spend = readCodexSpend(0, [home]);
+  assert.deepEqual(spend.map((x) => [x.account, x.cwd, x.tokens.input, x.tokens.cacheRead, x.tokens.output]), [["user-hopper", "/work/shop", 1000, 4000, 1000], ["user-hopper", "/work/shop", 500, 2500, 500]]);
 });

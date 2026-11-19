@@ -306,6 +306,7 @@ export function parseRollout(file: string, titles: Record<string, string> = {}):
   };
   const toolLines = new Map<string, number>(); // call_id → index of its line in s.out
   let usage: Json | null = null;
+  let metas = 0;
   let recorded = false;
   let firstPrompt: string | null = null;
   for (const obj of transcriptLines(file)) {
@@ -316,6 +317,8 @@ export function parseRollout(file: string, titles: Record<string, string> = {}):
     }
     const p = isObject(obj.payload) ? obj.payload : {};
     if (obj.type === "session_meta") {
+      // The first one is the conversation's; a later one (a reverted history) names another
+      if (metas++ > 0) continue;
       s.sessionId = str(p.id) ?? s.sessionId;
       if (str(p.creator_user_id)) addOnce(s.accounts, p.creator_user_id);
     } else if (obj.type === "turn_context") {

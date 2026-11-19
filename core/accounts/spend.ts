@@ -141,11 +141,17 @@ export function readSpend(since: number, dirs: ConfigDir[] = configDirs()): Spen
 // conversation, a subagent's included. OpenAI's prices aren't kept here: no dollars, only tokens.
 function readRollout(file: string, since: number, seen: Set<string>): Spend[] {
   const out: Spend[] = [];
+  // An older Codex has no token_usage_record, only token_count events with the thread's running total:
+  // its deltas stand in, and only when the file has no record at all (they would count twice)
+  const fallback: Spend[] = [];
+  let recorded = false;
+  let total = 0;
   let account: string | null = null;
   let model = "";
   let cwd = "";
+  const lastTotal: Record<string, number> = { input: 0, cached: 0, output: 0 };
   for (const line of lines(file)) {
-    if (!line.includes('"type":"session_meta"') && !line.includes('"type":"turn_context"') && !line.includes('"type":"token_usage_record"')) continue;
+    if (!line.includes('"type":"session_meta"') && !line.includes('"type":"turn_context"') && !line.includes('"type":"token_usage_record"') && !line.includes('"token_count"')) continue;
     let o;
     try {
       o = JSON.parse(line);
@@ -154,11 +160,15 @@ function readRollout(file: string, since: number, seen: Set<string>): Spend[] {
     }
     const p = o.payload ?? {};
     if (o.type === "session_meta") {
-      account = typeof p.creator_user_id === "string" ? p.creator_user_id : account;
-      cwd = typeof p.cwd === "string" ? p.cwd : cwd;
+      // The first one is the conversation's: a later one (a reverted history) names another
+      if (total++ === 0) {
+        account = typeof p.creator_user_id === "string" ? p.creator_user_id : account;
+        cwd = typeof p.cwd === "string" ? p.cwd : cwd;
+      }
     } else if (o.type === "turn_context") {
       model = typeof p.model === "string" ? p.model : model;
     } else if (o.type === "token_usage_record") {
+      recorded = true;
       const u = o.usage ?? p.usage;
       const id = o.response_id ?? p.response_id;
       const at = Date.parse(o.timestamp);
@@ -167,9 +177,19 @@ function readRollout(file: string, since: number, seen: Set<string>): Spend[] {
       const cached = Number(u.cached_input_tokens) || 0;
       const tokens = { input: Math.max(0, (Number(u.input_tokens) || 0) - cached), cacheRead: cached, cacheWrite: Number(u.cache_write_input_tokens) || 0, output: Number(u.output_tokens) || 0 };
       out.push({ at, account, model, cwd, tokens, costUsd: costOf(model, tokens) });
+    } else if (o.type === "event_msg" && p.type === "token_count" && p.info?.total_token_usage) {
+      const u = p.info.total_token_usage;
+      const now = { input: Number(u.input_tokens) || 0, cached: Number(u.cached_input_tokens) || 0, output: Number(u.output_tokens) || 0 };
+      const at = Date.parse(o.timestamp);
+      const delta = { input: now.input - lastTotal.input, cached: now.cached - lastTotal.cached, output: now.output - lastTotal.output };
+      Object.assign(lastTotal, now);
+      // A total that went down (a new thread's counter) is no spend
+      if (!(at >= since) || delta.input < 0 || delta.cached < 0 || delta.output < 0 || !(delta.input || delta.output)) continue;
+      const tokens = { input: Math.max(0, delta.input - delta.cached), cacheRead: delta.cached, cacheWrite: 0, output: delta.output };
+      fallback.push({ at, account, model, cwd, tokens, costUsd: costOf(model, tokens) });
     }
   }
-  return out;
+  return recorded ? out : fallback;
 }
 
 export function readCodexSpend(since: number, homes: string[]): Spend[] {
