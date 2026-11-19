@@ -378,7 +378,7 @@ export function knownCodexAccounts(): AccountLabels {
   for (const name of fs.existsSync(usage) ? fs.readdirSync(usage).filter((n) => n.endsWith(".json")).sort() : []) {
     try {
       const data = JSON.parse(fs.readFileSync(path.join(usage, name), "utf8"));
-      if (isObject(data) && data.provider === "codex" && str(data.user) && !labels.has(data.user)) labels.set(data.user, name.slice(0, -5));
+      if (isObject(data) && data.provider === "chatgpt" && str(data.user) && !labels.has(data.user)) labels.set(data.user, name.slice(0, -5));
     } catch {
       // Being written, or not a record
     }

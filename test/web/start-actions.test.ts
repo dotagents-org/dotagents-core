@@ -29,7 +29,7 @@ test("start actions reject missing profiles and sides and preserve provider desk
   fs.mkdirSync(state);
   fs.writeFileSync(path.join(state, "profiles.json"), JSON.stringify({ version: 2, profiles: [
     { name: "claude", configDir: path.join(root, "claude-profile"), color: "#D77655", default: true },
-    { name: "chatgpt", provider: "codex", configDir: path.join(root, "codex-profile"), color: "#376B80" },
+    { name: "chatgpt", provider: "chatgpt", configDir: path.join(root, "codex-profile"), color: "#376B80" },
   ] }));
   fs.writeFileSync(path.join(state, "machine.json"), JSON.stringify({ version: 1, peer: { name: "Windows", home: path.join(root, "peer"), nativeHome: "C:\\Users\\test" } }));
   const bin = path.join(root, "bin");

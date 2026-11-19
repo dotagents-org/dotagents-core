@@ -57,7 +57,7 @@ export function codexLoginMark(text: string): string | null {
   }
 }
 
-export const codexProfiles = () => loadProfiles().filter((p) => providerOf(p) === "codex");
+export const codexProfiles = () => loadProfiles().filter((p) => providerOf(p) === "chatgpt");
 export const slotLogin = () => readLogin(slotFile());
 export const vaultLogin = (name: string) => readLogin(vaultFile(name));
 export const ownerOf = (user: string) => codexProfiles().find((p) => vaultLogin(p.name)?.id === user) ?? null;

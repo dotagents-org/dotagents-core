@@ -154,8 +154,8 @@ export const codexSignIn: CodexSignIn = (home) => {
 
 
 const codex: Provider = {
-  id: "codex",
-  labels: LABELS.codex,
+  id: "chatgpt",
+  labels: LABELS.chatgpt,
   cli: { command: "codex", version: /^codex-cli \d+\.\d+/, install: "install Codex: npm install -g @openai/codex" },
   configDir: codexHome,
   desktop: CHATGPT_DESKTOP,
@@ -164,7 +164,7 @@ const codex: Provider = {
     const otherDefault = all.find((a) => a.default && a.name !== name);
     // The default profile is the one the normal ChatGPT app opens, as Claude's: one per provider.
     if (isDefault && otherDefault) throw new Error(`${otherDefault.name} is already the default ChatGPT profile`);
-    return { name, configDir: codexHome(), color, provider: "codex", ...(isDefault || prior?.default ? { default: true } : {}) };
+    return { name, configDir: codexHome(), color, provider: "chatgpt", ...(isDefault || prior?.default ? { default: true } : {}) };
   },
 
   account(p) {

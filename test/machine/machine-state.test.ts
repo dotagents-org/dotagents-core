@@ -138,12 +138,12 @@ test("a Codex profile raises the profiles file to version 2, and the Claude part
   saveProfile({ name: "work", configDir: "/home/me/.claude", color: "#D77655", provider: "claude" });
   assert.equal(JSON.parse(fs.readFileSync(profilesFile(), "utf8")).version, 1);
   assert.equal("provider" in loadProfiles()[0], false);
-  saveProfile({ name: "codex-work", configDir: "/home/me/.codex", color: "#7B61A8", provider: "codex" });
+  saveProfile({ name: "codex-work", configDir: "/home/me/.codex", color: "#7B61A8", provider: "chatgpt" });
   const file = JSON.parse(fs.readFileSync(profilesFile(), "utf8"));
   assert.equal(file.version, 2);
-  assert.deepEqual(file.profiles[1], { name: "codex-work", configDir: "/home/me/.codex", color: "#7B61A8", provider: "codex" });
+  assert.deepEqual(file.profiles[1], { name: "codex-work", configDir: "/home/me/.codex", color: "#7B61A8", provider: "chatgpt" });
   assert.deepEqual(claudeProfiles().map((p) => p.name), ["work"]);
-  assert.deepEqual(loadProfiles().map(providerOf), ["claude", "codex"]);
+  assert.deepEqual(loadProfiles().map(providerOf), ["claude", "chatgpt"]);
   removeProfile("codex-work");
   assert.equal(JSON.parse(fs.readFileSync(profilesFile(), "utf8")).version, 1);
 });

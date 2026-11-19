@@ -31,8 +31,8 @@ function machine(t: TestContext) {
   });
   quiet();
   saveProfile({ name: "work", configDir: path.join(home, ".claude"), color: "#D77655", default: true });
-  saveProfile({ name: "hopper", configDir: path.join(home, ".codex"), color: "#7B61A8", provider: "codex" });
-  saveProfile({ name: "dijkstra", configDir: path.join(home, ".codex"), color: "#B8862B", provider: "codex" });
+  saveProfile({ name: "hopper", configDir: path.join(home, ".codex"), color: "#7B61A8", provider: "chatgpt" });
+  saveProfile({ name: "dijkstra", configDir: path.join(home, ".codex"), color: "#B8862B", provider: "chatgpt" });
   return home;
 }
 
@@ -65,14 +65,14 @@ async function twoSaved(home: string) {
   return { codex, restarts };
 }
 
-test("profile add --provider codex records the profile on ~/.codex, without touching Claude's files", (t) => {
+test("profile add --provider chatgpt records the profile on ~/.codex, without touching Claude's files", (t) => {
   const home = machine(t);
   quiet();
-  setUpProfile(REPO, { name: "lovelace", provider: "codex", desktop: null });
+  setUpProfile(REPO, { name: "lovelace", provider: "chatgpt", desktop: null });
   const profile = loadProfiles().find((p) => p.name === "lovelace");
-  assert.deepEqual(profile && { provider: profile.provider, configDir: profile.configDir }, { provider: "codex", configDir: path.join(home, ".codex") });
+  assert.deepEqual(profile && { provider: profile.provider, configDir: profile.configDir }, { provider: "chatgpt", configDir: path.join(home, ".codex") });
   assert.equal(fs.existsSync(path.join(home, ".claude", "CLAUDE.md")), false, "no Claude configuration was written");
-  assert.throws(() => setUpProfile(REPO, { name: "lovelace", desktop: null }), /already a codex profile/);
+  assert.throws(() => setUpProfile(REPO, { name: "lovelace", desktop: null }), /already a chatgpt profile/);
   assert.throws(() => setUpProfile(REPO, { name: "x", provider: "gemini", desktop: null }), /not a provider/);
 });
 
@@ -80,11 +80,11 @@ test("each provider has its own default profile: a ChatGPT one leaves Claude's a
   machine(t);
   quiet();
   // machine() has work, the default Claude profile.
-  setUpProfile(REPO, { name: "hopper", provider: "codex", isDefault: true, desktop: null });
-  setUpProfile(REPO, { name: "dijkstra", provider: "codex", desktop: null });
+  setUpProfile(REPO, { name: "hopper", provider: "chatgpt", isDefault: true, desktop: null });
+  setUpProfile(REPO, { name: "dijkstra", provider: "chatgpt", desktop: null });
   const defaults = () => loadProfiles().filter((p) => p.default).map((p) => p.name);
   assert.deepEqual(defaults().sort(), ["hopper", "work"]);
-  assert.throws(() => setUpProfile(REPO, { name: "dijkstra", provider: "codex", isDefault: true, desktop: null }), /hopper is already the default ChatGPT profile/);
+  assert.throws(() => setUpProfile(REPO, { name: "dijkstra", provider: "chatgpt", isDefault: true, desktop: null }), /hopper is already the default ChatGPT profile/);
   assert.throws(() => setUpProfile(REPO, { name: "lovelace", isDefault: true, desktop: null }), /work is already the default profile/);
   assert.deepEqual(defaults().sort(), ["hopper", "work"]);
 });
@@ -221,7 +221,7 @@ test("login of a profile with no saved login yet keeps its first one", async (t)
 test("the start API lists the Codex profiles, without numbers, and which one is in the slot", async (t) => {
   const home = machine(t);
   quiet();
-  assert.deepEqual(codexUsage().map((p) => [p.name, p.provider, p.state]), [["hopper", "codex", "not-signed-in"], ["dijkstra", "codex", "not-signed-in"]]);
+  assert.deepEqual(codexUsage().map((p) => [p.name, p.provider, p.state]), [["hopper", "chatgpt", "not-signed-in"], ["dijkstra", "chatgpt", "not-signed-in"]]);
   await twoSaved(home);
   assert.deepEqual(codexUsage().map((p) => [p.name, p.state, p.windows.length]), [["hopper", "no-data", 0], ["dijkstra", "no-data", 0]]);
   assert.deepEqual(readCodexSlots(), { [sideName()]: "dijkstra" });
@@ -230,7 +230,7 @@ test("the start API lists the Codex profiles, without numbers, and which one is 
 // ── The checks of the logins ─────────────────────────────────────────────────────────────────
 const refuse = (home: string, name: string, text: string) => {
   fs.mkdirSync(path.join(home, "state", "usage"), { recursive: true });
-  fs.writeFileSync(path.join(home, "state", "usage", `${name}.json`), JSON.stringify({ version: 1, provider: "codex", refused: codexLoginMark(text) }));
+  fs.writeFileSync(path.join(home, "state", "usage", `${name}.json`), JSON.stringify({ version: 1, provider: "chatgpt", refused: codexLoginMark(text) }));
 };
 const checked = () => {
   const events = quiet();
@@ -460,10 +460,10 @@ test("login releases the login lock for the browser and cleans its temporary hom
 test("login --all takes the ChatGPT profiles with no copy saved or a refused login, never a good one", async (t) => {
   const home = machine(t);
   await twoSaved(home);
-  saveProfile({ name: "knuth", configDir: path.join(home, ".codex"), color: "#2E7D6B", provider: "codex" });
+  saveProfile({ name: "knuth", configDir: path.join(home, ".codex"), color: "#2E7D6B", provider: "chatgpt" });
   const refusedText = fs.readFileSync(path.join(home, "state", "vault", "dijkstra", "auth.json"), "utf8");
   fs.mkdirSync(path.join(home, "state", "usage"), { recursive: true });
-  fs.writeFileSync(path.join(home, "state", "usage", "dijkstra.json"), JSON.stringify({ version: 1, provider: "codex", refused: codexLoginMark(refusedText) }));
+  fs.writeFileSync(path.join(home, "state", "usage", "dijkstra.json"), JSON.stringify({ version: 1, provider: "chatgpt", refused: codexLoginMark(refusedText) }));
   const events = quiet({ dryRun: true });
   let calls = 0;
   await loginProfile({ all: true, codex: { run: () => { calls++; throw new Error("no browser in a dry run"); } } });
@@ -485,6 +485,6 @@ test("the Logins section shows each ChatGPT login on the other side too, refused
   assert.match(checked(), new RegExp(`hopper on ${peerName}: login good, renewed Nov 10`));
   assert.doesNotMatch(checked(), new RegExp(`dijkstra on ${peerName}`), "a profile with no login saved there isn't listed");
   fs.mkdirSync(path.join(peer, ".config", "dotagents", "usage"), { recursive: true });
-  fs.writeFileSync(path.join(peer, ".config", "dotagents", "usage", "hopper.json"), JSON.stringify({ version: 1, provider: "codex", refused: codexLoginMark(login) }));
+  fs.writeFileSync(path.join(peer, ".config", "dotagents", "usage", "hopper.json"), JSON.stringify({ version: 1, provider: "chatgpt", refused: codexLoginMark(login) }));
   assert.match(checked(), new RegExp(`hopper on ${peerName}: OpenAI refused the login`));
 });

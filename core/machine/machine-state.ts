@@ -64,7 +64,7 @@ function writeStateFile(file: string, version: number, body: Record<string, unkn
 // provider: whose account the profile holds, Claude when absent (ADR 0007). Only a Codex profile
 // writes it, and it raises the file to version 2, so a dotagents that knows only Claude stops
 // instead of treating it as a Claude one; a file of Claude profiles stays at version 1.
-export type ProviderId = "claude" | "codex";
+export type ProviderId = "claude" | "chatgpt";
 export type Profile = { name: string; configDir: string; color: string; default?: boolean; provider?: ProviderId };
 
 const PROFILES = { name: "profiles.json", version: 2 };
@@ -78,7 +78,7 @@ export const profilesFile = () => path.join(stateDir(), PROFILES.name);
 
 const isProfile = (v: unknown): v is Profile => {
   const a = v as Profile;
-  return typeof v === "object" && v !== null && typeof a.name === "string" && typeof a.configDir === "string" && typeof a.color === "string" && (a.default === undefined || typeof a.default === "boolean") && (a.provider === undefined || a.provider === "claude" || a.provider === "codex");
+  return typeof v === "object" && v !== null && typeof a.name === "string" && typeof a.configDir === "string" && typeof a.color === "string" && (a.default === undefined || typeof a.default === "boolean") && (a.provider === undefined || a.provider === "claude" || a.provider === "chatgpt");
 };
 
 // Earlier versions called the profiles "accounts", in accounts.json.

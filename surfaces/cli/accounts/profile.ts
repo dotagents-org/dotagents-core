@@ -11,13 +11,13 @@ const { bold, muted } = tone;
 
 export const profileAdd: Command = {
   name: "profile add",
-  usage: "<name> [--default] [--provider codex]",
-  summary: "add a profile, one Claude account, or one ChatGPT account with --provider codex",
-  more: ["--default: the one the normal Desktop app opens (Claude Desktop, or the ChatGPT app), one per provider;", "--color #RRGGBB: its color in the listings;", "--provider codex: a ChatGPT account for Codex"],
+  usage: "<name> [--default] [--provider chatgpt]",
+  summary: "add a profile, one Claude account, or one ChatGPT account with --provider chatgpt",
+  more: ["--default: the one the normal Desktop app opens (Claude Desktop, or the ChatGPT app), one per provider;", "--color #RRGGBB: its color in the listings;", "--provider chatgpt: a ChatGPT account for Codex"],
   group: "Profiles",
   run({ repo, args, positional }) {
     const name = positional[0];
-    if (!name) throw new Error("Usage: dotagents profile add <name> [--default] [--color #RRGGBB] [--provider codex]");
+    if (!name) throw new Error("Usage: dotagents profile add <name> [--default] [--color #RRGGBB] [--provider chatgpt]");
     header("profile add", name);
     setUpProfile(repo, { name, isDefault: args.default, color: args.color, provider: args.provider });
     const profile = loadProfiles().find((a) => a.name === name);
@@ -34,7 +34,7 @@ export const profileList: Command = {
   run({ repo }) {
     const profiles = listedProfiles();
     if (!profiles.length) {
-      const hint = "No profiles yet. Add one per Claude account, the first with: dotagents profile add <name> --default, and one per ChatGPT account with: dotagents profile add <name> --provider codex";
+      const hint = "No profiles yet. Add one per Claude account, the first with: dotagents profile add <name> --default, and one per ChatGPT account with: dotagents profile add <name> --provider chatgpt";
       return console.log(fancy ? muted(hint) : hint);
     }
     header("profile list", `${plural(profiles.length, "profile")}`);

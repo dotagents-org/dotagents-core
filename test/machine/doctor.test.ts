@@ -21,7 +21,7 @@ test("the other side's answer says what to do, in words for someone who doesn't 
 
 test("an agent's version is the line in its shape, past what the shell printed first, and none when it isn't there", () => {
   const claude = providers().find((p) => p.id === "claude")!.cli.version;
-  const codex = providers().find((p) => p.id === "codex")!.cli.version;
+  const codex = providers().find((p) => p.id === "chatgpt")!.cli.version;
   assert.equal(agentVersion({ status: 0, stdout: "2.1.327 (Claude Code)\n" }, claude), "2.1.327 (Claude Code)");
   assert.equal(agentVersion({ status: 0, stdout: "Now using node v24.20.0 (npm v11.6.2)\r\ncodex-cli 0.170.0\r\n" }, codex), "codex-cli 0.170.0");
   assert.equal(agentVersion({ status: 0, stdout: "Now using node v24.20.0 (npm v11.6.2)\n" }, claude), null);

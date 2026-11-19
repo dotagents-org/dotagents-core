@@ -40,7 +40,7 @@ export const LABELS: Record<ProviderId, Labels> = {
       return tier ? `${name} ${tier}` : name;
     },
   },
-  codex: {
+  chatgpt: {
     account: "ChatGPT",
     tool: "Codex",
     company: "OpenAI",

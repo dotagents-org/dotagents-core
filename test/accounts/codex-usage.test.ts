@@ -36,8 +36,8 @@ async function machine(t: TestContext) {
     fs.rmSync(home, { recursive: true, force: true });
   });
   const events = quiet();
-  saveProfile({ name: "hopper", configDir: path.join(home, ".codex"), color: "#7B61A8", provider: "codex" });
-  saveProfile({ name: "dijkstra", configDir: path.join(home, ".codex"), color: "#B8862B", provider: "codex" });
+  saveProfile({ name: "hopper", configDir: path.join(home, ".codex"), color: "#7B61A8", provider: "chatgpt" });
+  saveProfile({ name: "dijkstra", configDir: path.join(home, ".codex"), color: "#B8862B", provider: "chatgpt" });
   const noPeer: PeerSwitch = () => ({ ok: true, detail: "" });
   const codex = { daemon: () => null };
   const slot = path.join(home, ".codex", "auth.json");
@@ -84,7 +84,7 @@ test("a good answer from a profile outside the slot: asked in a temporary folder
   assert.equal(fs.readFileSync(m.vault("dijkstra"), "utf8"), before, "an unchanged copy is not written back");
   assert.equal(fs.readFileSync(m.slot, "utf8"), slotBefore, "the slot is not touched");
   const p = read("dijkstra");
-  assert.deepEqual([p.state, p.source, p.plan, p.provider], ["ok", "live", "team", "codex"]);
+  assert.deepEqual([p.state, p.source, p.plan, p.provider], ["ok", "live", "team", "chatgpt"]);
   assert.deepEqual(p.windows.map((w) => [w.kind, w.pct, w.reset]), [["session", 42, false], ["week", 17, false]]);
   assert.equal(p.windows[0].resetsAt?.getTime(), NOW + 3_600_000);
 });
@@ -237,7 +237,7 @@ test("a missing codex command is a clear failure", async (t) => {
 
 test("a profile with no saved login is not asked, and a dry run asks nothing", async (t) => {
   const m = await machine(t);
-  saveProfile({ name: "knuth", configDir: path.join(m.home, ".codex"), color: "#2E7D6B", provider: "codex" });
+  saveProfile({ name: "knuth", configDir: path.join(m.home, ".codex"), color: "#2E7D6B", provider: "chatgpt" });
   assert.deepEqual(await fetchUsage(profile("knuth"), { spawnIt: fake(m.log, "good"), now: () => NOW }), { status: "failed", detail: "no login saved for it" });
   state.dryRun = true;
   assert.equal((await fetchUsage(profile("dijkstra"), { spawnIt: fake(m.log, "good"), now: () => NOW })).status, "ok");
@@ -247,7 +247,7 @@ test("a profile with no saved login is not asked, and a dry run asks nothing", a
 test("the usage view groups the profiles by provider", () => {
   const w = { kind: "session" as const, pct: 10, resetsAt: new Date(NOW + 3_600_000), reset: false };
   const base = { color: "#000000", state: "ok" as const, fetchedAt: new Date(NOW), windows: [w], source: "live" as const };
-  const list: ProfileUsage[] = [{ ...base, name: "work", provider: "claude" }, { ...base, name: "hopper", provider: "codex" }];
+  const list: ProfileUsage[] = [{ ...base, name: "work", provider: "claude" }, { ...base, name: "hopper", provider: "chatgpt" }];
   const text = usageLines(list, new Date(NOW)).map((l) => l.map((s) => s.text).join(""));
   assert.deepEqual(text.filter((l) => l === "Claude" || l === "ChatGPT"), ["Claude", "ChatGPT"]);
   assert.equal(usageLines([list[0]], new Date(NOW)).some((l) => l.map((s) => s.text).join("") === "Claude"), false, "one provider: no header");
@@ -263,7 +263,7 @@ test("usage --refresh --json in a temporary home carries the Codex windows from 
   const run = spawnSync(process.execPath, [path.join(REPO, "cli.ts"), "usage", "--refresh", "--json"], { env, encoding: "utf8" });
   assert.equal(run.status, 0, run.stderr);
   const json = JSON.parse(run.stdout);
-  const codex = json.profiles.filter((p: { provider?: string }) => p.provider === "codex");
+  const codex = json.profiles.filter((p: { provider?: string }) => p.provider === "chatgpt");
   assert.deepEqual(codex.map((p: { name: string }) => p.name), ["hopper", "dijkstra"]);
   for (const p of codex) {
     assert.equal(p.plan, "team");
@@ -420,7 +420,7 @@ test("Windows usage termination stops the shell and its child tree with a valida
 
 test("a slot changed externally during usage cannot assign another account's numbers or refusal to the old profile", async (t) => {
   const m = await machine(t);
-  const previous = { version: 1, provider: "codex", user: "user-hopper", fetchedAtMs: NOW - ASK_EVERY_MS, askedAtMs: NOW - ASK_EVERY_MS, windows: [{ kind: "session", pct: 9, resetsAt: NOW + 3_600_000 }] };
+  const previous = { version: 1, provider: "chatgpt", user: "user-hopper", fetchedAtMs: NOW - ASK_EVERY_MS, askedAtMs: NOW - ASK_EVERY_MS, windows: [{ kind: "session", pct: 9, resetsAt: NOW + 3_600_000 }] };
   const file = path.join(m.home, "state", "usage", "hopper.json");
   fs.mkdirSync(path.dirname(file), { recursive: true });
   for (const mode of ["good", "refused"]) {
@@ -466,14 +466,14 @@ test("the other side's newer reading of the same ChatGPT account wins, matched b
   saveMachine({ peer: { name: peerName, home: peer, nativeHome: peer } });
   const usage = (dir: string, name: string, user: string, at: number, pct: number) => {
     fs.mkdirSync(path.join(dir, "usage"), { recursive: true });
-    fs.writeFileSync(path.join(dir, "usage", `${name}.json`), JSON.stringify({ version: 1, provider: "codex", user, fetchedAtMs: at, windows: [{ kind: "session", pct, resetsAt: new Date(NOW + 3_600_000).toISOString() }] }));
+    fs.writeFileSync(path.join(dir, "usage", `${name}.json`), JSON.stringify({ version: 1, provider: "chatgpt", user, fetchedAtMs: at, windows: [{ kind: "session", pct, resetsAt: new Date(NOW + 3_600_000).toISOString() }] }));
   };
   const peerState = path.join(peer, ".config", "dotagents");
   // There, hopper's account is a profile named otherwise, in a CODEX_HOME of its own
   const codexThere = path.join(peer, "codex-home");
   fs.mkdirSync(peerState, { recursive: true });
   fs.mkdirSync(codexThere, { recursive: true });
-  fs.writeFileSync(path.join(peerState, "profiles.json"), JSON.stringify({ version: 2, profiles: [{ name: "work-gpt", configDir: codexThere, color: "#7B61A8", provider: "codex" }] }));
+  fs.writeFileSync(path.join(peerState, "profiles.json"), JSON.stringify({ version: 2, profiles: [{ name: "work-gpt", configDir: codexThere, color: "#7B61A8", provider: "chatgpt" }] }));
   usage(path.join(home, "state"), "hopper", "user-hopper", NOW - 600_000, 10);
   usage(peerState, "work-gpt", "user-hopper", NOW - 60_000, 70);
   usage(peerState, "stranger", "user-hopper", NOW, 99); // no profile there by that name: not read
@@ -494,6 +494,6 @@ test("the other side's newer reading of the same ChatGPT account wins, matched b
   fs.writeFileSync(path.join(codexThere, "auth.json"), auth("user-dijkstra", "dijkstra-there"));
   assert.equal(readCodexSlots()[peerName], "dijkstra");
   // A configured folder that can't be reached from here: no slot there, never ~/.codex's login
-  fs.writeFileSync(path.join(peerState, "profiles.json"), JSON.stringify({ version: 2, profiles: [{ name: "work-gpt", configDir: path.join(peer, "gone"), color: "#7B61A8", provider: "codex" }] }));
+  fs.writeFileSync(path.join(peerState, "profiles.json"), JSON.stringify({ version: 2, profiles: [{ name: "work-gpt", configDir: path.join(peer, "gone"), color: "#7B61A8", provider: "chatgpt" }] }));
   assert.equal(readCodexSlots()[peerName], undefined);
 });

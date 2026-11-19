@@ -104,8 +104,8 @@ test("a ChatGPT profile gets \"ChatGPT <Name>\": the default one the normal app 
   fs.writeFileSync(desktopExe(CHATGPT_DESKTOP), "");
   const { saved, desktop } = fakeShortcuts();
   quiet();
-  setUpProfile(REPO, { name: "hopper", provider: "codex", isDefault: true, desktop });
-  setUpProfile(REPO, { name: "dijkstra", provider: "codex", desktop });
+  setUpProfile(REPO, { name: "hopper", provider: "chatgpt", isDefault: true, desktop });
+  setUpProfile(REPO, { name: "dijkstra", provider: "chatgpt", desktop });
   assert.equal(state.problems, 0);
   assert.ok(shortcutFile("dijkstra", CHATGPT_DESKTOP).endsWith("ChatGPT Dijkstra.lnk"));
   // The default one: the normal app, which reads the slot (~/.codex) and so follows the switch.
@@ -139,7 +139,7 @@ test("a ChatGPT profile gets \"ChatGPT <Name>\": the default one the normal app 
   assert.ok(ran[0].at(-1)!.endsWith("chatgpt-desktop-dijkstra.vbs"));
   // A second run changes nothing.
   quiet();
-  setUpProfile(REPO, { name: "dijkstra", provider: "codex", desktop });
+  setUpProfile(REPO, { name: "dijkstra", provider: "chatgpt", desktop });
   assert.equal(state.counts.created, undefined);
   assert.equal(state.counts.updated, undefined);
   quiet();

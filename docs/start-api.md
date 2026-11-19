@@ -31,13 +31,13 @@ Every answer and every event starts with `"apiVersion"` (see [The version rule](
       "activity": { "working": 0, "waiting": 0 },
       "windows": [{ "kind": "session", "pct": 72, "resetsAt": "2026-11-16T15:17:00.000Z", "reset": false, "elapsedPct": 34,
                     "projection": { "atResetPct": 210, "runsOutAt": "2026-11-16T12:40:00.000Z" } }] },
-    { "name": "hopper", "provider": "codex", "plan": "team", "color": "#7B61A8",
+    { "name": "hopper", "provider": "chatgpt", "plan": "team", "color": "#7B61A8",
       "state": "no-data", "fetchedAt": null, "windows": [], "avatar": "asleep", "working": false }
   ],
   "sides": ["WSL", "Windows"],
   "peer": { "name": "Windows", "up": true },
-  "slots": { "claude": { "WSL": "turing", "Windows": "turing" }, "codex": { "WSL": "hopper" } },
-  "current": { "claude": { "profile": "turing", "state": "ok" }, "codex": { "profile": "hopper", "state": "asleep" } }
+  "slots": { "claude": { "WSL": "turing", "Windows": "turing" }, "chatgpt": { "WSL": "hopper" } },
+  "current": { "claude": { "profile": "turing", "state": "ok" }, "chatgpt": { "profile": "hopper", "state": "asleep" } }
 }
 ```
 
@@ -51,7 +51,7 @@ Top level:
 | `profiles` | Every profile, Claude's first, then Codex's. Within each provider, the one in this side's slot first, then the one in the other side's slot, then the rest in the order of `profiles.json`. |
 | `sides` | The sides of the machine, this one first; one entry when no other side was found by `install`. |
 | `peer` | The other side: `{ "name", "up" }`. Absent without one. When it is not `up` it isn't read at all, and WSL is never started for it. |
-| `slots` | The profile in each side's slot, per provider: `{ "claude": { "<side>": "<profile>" }, "codex": { ... } }`. Both keys are always there; a side with no known profile in its slot, or the other side while it is down, is left out. |
+| `slots` | The profile in each side's slot, per provider: `{ "claude": { "<side>": "<profile>" }, "chatgpt": { ... } }`. Both keys are always there; a side with no known profile in its slot, or the other side while it is down, is left out. |
 | `current` | The current account per provider, below. |
 
 A profile:
@@ -59,7 +59,7 @@ A profile:
 | Field | Meaning |
 |---|---|
 | `name`, `color` | The profile's name and its `#RRGGBB` color. |
-| `provider` | `claude` or `codex`. |
+| `provider` | `claude` or `chatgpt`. |
 | `plan` | The plan, or `null` when unknown. Claude: `subscriptionType` in the credentials Claude Code keeps next to the tokens (the slot's `.credentials.json` when the profile's account is there, else its vault's); only that field is read, and it is `null` where the credentials aren't in a file (the macOS keychain). Codex: the plan the live usage recorded, else `chatgpt_plan_type` in the id_token of the saved login. |
 | `seat` | Claude only, and only when Claude Code keeps it with the login: the seat type of a Team or Enterprise plan (`seatTier` in `.claude.json`, such as `team_standard`), from the same copy as `plan`. Absent otherwise; OpenAI tells none. |
 | `default` | `true` on the profile whose shortcut opens the provider's standard Desktop app on Windows. Absent on other profiles. |
@@ -75,7 +75,7 @@ A profile:
 
 Nothing in the answer carries a token, an account id or the ChatGPT user id.
 
-`current` is `{ "claude": { "profile", "state" } }` and, only when there is at least one ChatGPT profile, `"codex"` with the same shape. Each provider picks the profile in a slot with the most urgent avatar state. When the states tie, the profile in this side's slot wins. With no profile of the provider in a slot, `profile` is the brand `"dotagents"`, in the most urgent state among all of that provider's profiles (`asleep` with none).
+`current` is `{ "claude": { "profile", "state" } }` and, only when there is at least one ChatGPT profile, `"chatgpt"` with the same shape. Each provider picks the profile in a slot with the most urgent avatar state. When the states tie, the profile in this side's slot wins. With no profile of the provider in a slot, `profile` is the brand `"dotagents"`, in the most urgent state among all of that provider's profiles (`asleep` with none).
 
 ## Actions
 

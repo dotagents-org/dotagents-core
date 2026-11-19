@@ -51,7 +51,7 @@ function machine(t: TestContext) {
     }
   };
   const codex = (name: string, color: string, user: string, plan?: string, isDefault = false) => {
-    saveProfile({ name, configDir: path.join(home, ".codex"), color, provider: "codex", ...(isDefault ? { default: true } : {}) });
+    saveProfile({ name, configDir: path.join(home, ".codex"), color, provider: "chatgpt", ...(isDefault ? { default: true } : {}) });
     put(vault(name, "auth.json"), codexAuth(user, plan));
   };
   return { home, peer, claude, codex };
@@ -63,7 +63,7 @@ test("Claude only: no codex entry in current, the plan from the saved credential
   m.claude("lovelace", "#376B80", "uuid-l");
   const a = startAnswer(NOW);
   assert.deepEqual(a.profiles.map((p) => [p.name, p.provider, p.plan]), [["turing", "claude", "team"], ["lovelace", "claude", null]]);
-  assert.deepEqual(a.slots, { claude: { [sideName()]: "turing" }, codex: {} });
+  assert.deepEqual(a.slots, { claude: { [sideName()]: "turing" }, chatgpt: {} });
   assert.deepEqual(Object.keys(a.current), ["claude"]);
   assert.equal(a.current.claude.profile, "turing");
   assert.deepEqual(a.sides, [sideName()]);
@@ -80,9 +80,9 @@ test("Claude and Codex: Claude first, Codex plan from the login, a current per p
   fs.mkdirSync(path.join(m.home, ".codex"), { recursive: true });
   fs.writeFileSync(path.join(m.home, ".codex", "auth.json"), codexAuth("user-hopper", "team"));
   const a = startAnswer(NOW);
-  assert.deepEqual(a.profiles.map((p) => [p.name, p.provider, p.plan, p.state]), [["turing", "claude", "max", "no-data"], ["hopper", "codex", "team", "no-data"], ["dijkstra", "codex", null, "no-data"]]);
-  assert.deepEqual(a.slots, { claude: { [sideName()]: "turing" }, codex: { [sideName()]: "hopper" } });
-  assert.deepEqual(a.current.codex, { profile: "hopper", state: "asleep" });
+  assert.deepEqual(a.profiles.map((p) => [p.name, p.provider, p.plan, p.state]), [["turing", "claude", "max", "no-data"], ["hopper", "chatgpt", "team", "no-data"], ["dijkstra", "chatgpt", null, "no-data"]]);
+  assert.deepEqual(a.slots, { claude: { [sideName()]: "turing" }, chatgpt: { [sideName()]: "hopper" } });
+  assert.deepEqual(a.current.chatgpt, { profile: "hopper", state: "asleep" });
   assert.equal(a.current.claude.profile, "turing");
   const hopper = a.profiles.find((p) => p.name === "hopper")!;
   assert.deepEqual(Object.keys(hopper).sort(), ["avatar", "color", "default", "fetchedAt", "name", "plan", "provider", "state", "windows", "working"]);
@@ -98,7 +98,7 @@ test("the profile in the slot comes first for each provider, in the API and in u
   put(path.join(m.home, ".codex", "auth.json"), codexAuth("user-dijkstra", "team"));
   const a = startAnswer(NOW);
   assert.deepEqual(a.profiles.map((p) => p.name), ["lovelace", "turing", "dijkstra", "hopper"]);
-  assert.deepEqual([a.current.claude.profile, a.current.codex!.profile], ["lovelace", "dijkstra"]);
+  assert.deepEqual([a.current.claude.profile, a.current.chatgpt!.profile], ["lovelace", "dijkstra"]);
   assert.deepEqual(readAll(NOW).map((p) => p.name), ["lovelace", "turing", "dijkstra", "hopper"]);
 });
 
@@ -121,17 +121,17 @@ test("this side's slot comes first and wins ties for the current account", (t) =
   put(path.join(m.peer, ".codex", "auth.json"), codexAuth("user-dijkstra", "team"));
   saveMachine({ peer: { name: peerName, home: m.peer, nativeHome: m.peer } });
   const tied = startAnswer(NOW, { up: () => true });
-  assert.deepEqual(tied.profiles.filter((p) => p.provider === "codex").map((p) => p.name), ["hopper", "dijkstra", "knuth"]);
-  assert.deepEqual(tied.current.codex, { profile: "hopper", state: "asleep" });
+  assert.deepEqual(tied.profiles.filter((p) => p.provider === "chatgpt").map((p) => p.name), ["hopper", "dijkstra", "knuth"]);
+  assert.deepEqual(tied.current.chatgpt, { profile: "hopper", state: "asleep" });
 
-  put(path.join(m.home, "state", "usage", "dijkstra.json"), JSON.stringify({ version: 1, provider: "codex", fetchedAtMs: NOW.getTime() - 60_000, user: "user-dijkstra", plan: "team", windows: [{ kind: "session", pct: 100, resetsAt: Date.parse("2026-11-16T14:00:00Z") }] }));
-  assert.deepEqual(startAnswer(NOW, { up: () => true }).current.codex, { profile: "dijkstra", state: "limit" });
+  put(path.join(m.home, "state", "usage", "dijkstra.json"), JSON.stringify({ version: 1, provider: "chatgpt", fetchedAtMs: NOW.getTime() - 60_000, user: "user-dijkstra", plan: "team", windows: [{ kind: "session", pct: 100, resetsAt: Date.parse("2026-11-16T14:00:00Z") }] }));
+  assert.deepEqual(startAnswer(NOW, { up: () => true }).current.chatgpt, { profile: "dijkstra", state: "limit" });
 });
 
 test("the live usage's plan wins over the login's", (t) => {
   const m = machine(t);
   m.codex("hopper", "#7B61A8", "user-hopper", "team");
-  put(path.join(m.home, "state", "usage", "hopper.json"), JSON.stringify({ version: 1, provider: "codex", fetchedAtMs: NOW.getTime() - 60_000, user: "user-hopper", plan: "pro", windows: [{ kind: "session", pct: 30, resetsAt: "2026-11-16T14:00:00Z" }], askedAtMs: NOW.getTime() - 60_000 }));
+  put(path.join(m.home, "state", "usage", "hopper.json"), JSON.stringify({ version: 1, provider: "chatgpt", fetchedAtMs: NOW.getTime() - 60_000, user: "user-hopper", plan: "pro", windows: [{ kind: "session", pct: 30, resetsAt: "2026-11-16T14:00:00Z" }], askedAtMs: NOW.getTime() - 60_000 }));
   const hopper = startAnswer(NOW).profiles.find((p) => p.name === "hopper")!;
   assert.equal(hopper.plan, "pro");
   assert.equal(hopper.state, "ok");
@@ -146,12 +146,12 @@ test("a Codex profile in a slot on each side, and the peer's state", (t) => {
   put(path.join(m.peer, ".codex", "auth.json"), codexAuth("user-dijkstra", "team"));
   saveMachine({ peer: { name: peerName, home: m.peer, nativeHome: m.peer } });
   const up = startAnswer(NOW, { up: () => true });
-  assert.deepEqual(up.slots.codex, { [sideName()]: "hopper", [peerName]: "dijkstra" });
+  assert.deepEqual(up.slots.chatgpt, { [sideName()]: "hopper", [peerName]: "dijkstra" });
   assert.deepEqual(up.sides, [sideName(), peerName]);
   assert.deepEqual(up.peer, { name: peerName, up: true });
-  assert.equal(up.current.codex!.profile, "hopper");
+  assert.equal(up.current.chatgpt!.profile, "hopper");
   const down = startAnswer(NOW, { up: () => false });
-  assert.deepEqual(down.slots.codex, { [sideName()]: "hopper" });
+  assert.deepEqual(down.slots.chatgpt, { [sideName()]: "hopper" });
   assert.deepEqual(down.peer, { name: peerName, up: false });
 });
 
@@ -160,7 +160,7 @@ test("nothing in the answer carries a token or the ChatGPT user id", (t) => {
   m.claude("turing", "#D77655", "uuid-t", "team", true);
   m.codex("hopper", "#7B61A8", "user-hopper", "team");
   put(path.join(m.home, ".codex", "auth.json"), codexAuth("user-hopper", "team"));
-  put(path.join(m.home, "state", "usage", "hopper.json"), JSON.stringify({ version: 1, provider: "codex", fetchedAtMs: NOW.getTime() - 60_000, user: "user-hopper", plan: "team", windows: [{ kind: "session", pct: 30, resetsAt: "2026-11-16T14:00:00Z" }], askedAtMs: NOW.getTime() - 60_000 }));
+  put(path.join(m.home, "state", "usage", "hopper.json"), JSON.stringify({ version: 1, provider: "chatgpt", fetchedAtMs: NOW.getTime() - 60_000, user: "user-hopper", plan: "team", windows: [{ kind: "session", pct: 30, resetsAt: "2026-11-16T14:00:00Z" }], askedAtMs: NOW.getTime() - 60_000 }));
   const text = JSON.stringify(startAnswer(NOW));
   for (const leak of [secret("turing"), secret("user-hopper"), "user-hopper", "uuid-t", "@example.com", "grant-"]) assert.equal(text.includes(leak), false, leak);
 });

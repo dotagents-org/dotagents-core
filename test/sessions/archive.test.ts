@@ -252,7 +252,7 @@ test("a Codex rollout archives in the same format: the user's messages, not the 
   fs.writeFileSync(path.join(codexHome, "session_index.jsonl"), `${JSON.stringify({ id: CODEX_ID, thread_name: "Old name" })}\n${JSON.stringify({ id: CODEX_ID, thread_name: "Login form" })}\n`);
   const state = path.join(root, "state");
   fs.mkdirSync(path.join(state, "usage"), { recursive: true });
-  fs.writeFileSync(path.join(state, "usage", "hopper.json"), JSON.stringify({ version: 1, provider: "codex", user: "user-hopper" }));
+  fs.writeFileSync(path.join(state, "usage", "hopper.json"), JSON.stringify({ version: 1, provider: "chatgpt", user: "user-hopper" }));
   const project = path.join(root, "project");
   const run = spawnSync(process.execPath, [SCRIPT, "--agent", "codex", "--session-id", CODEX_ID, "--codex-home", codexHome, "--project-root", project], { encoding: "utf8", env: { ...process.env, DOTAGENTS_STATE_DIR: state } });
   assert.equal(run.status, 0, run.stderr);

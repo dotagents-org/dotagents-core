@@ -99,7 +99,7 @@ test("account behavior is selected through provider adapters", () => {
     const visit = (node: ts.Node) => {
       if (ts.isBinaryExpression(node) && [ts.SyntaxKind.EqualsEqualsEqualsToken, ts.SyntaxKind.ExclamationEqualsEqualsToken, ts.SyntaxKind.EqualsEqualsToken, ts.SyntaxKind.ExclamationEqualsToken].includes(node.operatorToken.kind)) {
         for (const [value, id] of [[node.left, node.right], [node.right, node.left]]) {
-          if (!ts.isStringLiteral(id) || !["claude", "codex"].includes(id.text)) continue;
+          if (!ts.isStringLiteral(id) || !["claude", "chatgpt"].includes(id.text)) continue;
           // Profile creation validates the public provider argument before dispatching.
           if (rel === "core/accounts/profiles.ts" && ts.isIdentifier(value) && value.text === "provider") continue;
           if ((ts.isPropertyAccessExpression(value) && value.name.text === "provider") || (ts.isCallExpression(value) && value.expression.getText(ast) === "providerOf")) {

@@ -11,7 +11,7 @@
 // is never lost.
 //
 // What comes back is kept in <state>/usage/<profile>.json, next to Claude's (core/accounts/providers/claude-usage.ts), in this
-// shape: version 1; provider "codex"; fetchedAtMs, user (the ChatGPT user the numbers are about),
+// shape: version 1; provider "chatgpt"; fetchedAtMs, user (the ChatGPT user the numbers are about),
 // plan (Codex's planType, "team"), windows [{ kind: "session" | "week", pct, resetsAt (ms or
 // null) }]; and the last attempt: askedAtMs, failures, retryAtMs, error, and refused, the mark
 // (codexLoginMark in core/accounts/providers/codex.ts) of the login OpenAI last refused: the slot's auth.json for
@@ -237,7 +237,7 @@ export async function askCodex(
   }
   // The %'s history, for usage --spend, as Claude's (core/accounts/spend.ts)
   const history = usage.windows.map((w) => ({ kind: w.kind, pct: w.pct, resetsAt: w.resetsAt === null ? null : new Date(w.resetsAt) }));
-  return { ok: true, record: { provider: "codex", fetchedAtMs: at, user: login.id, plan: usage.plan, windows: usage.windows }, afterWrite: () => recordHistory(p.name, history, new Date(at)) };
+  return { ok: true, record: { provider: "chatgpt", fetchedAtMs: at, user: login.id, plan: usage.plan, windows: usage.windows }, afterWrite: () => recordHistory(p.name, history, new Date(at)) };
 }
 
 // The usage kept for a Codex profile, as the snapshot reads it: its windows as of now, when they
@@ -264,11 +264,11 @@ export function codexLiveUsage(name: string, user: string, now: Date, dir?: stri
 // view: as for Claude, the other side only while it is up; without it, whenever it is known.
 export function readCodexUsage(now = new Date(), view?: PeerView): ProfileUsage[] {
   const peer = sidePeer();
-  const there = peer && !(view && !view.up(peer)) ? peerProfiles(peer).filter((p) => p.provider === "codex") : [];
+  const there = peer && !(view && !view.up(peer)) ? peerProfiles(peer).filter((p) => p.provider === "chatgpt") : [];
   return codexProfiles().map((p) => {
     const account = codexAccount(p);
     // The plan the live usage recorded, else the one the saved login says.
-    const base = { name: p.name, color: p.color, provider: "codex" as const, fetchedAt: null, windows: [], ...(p.default ? { default: true } : {}), ...(account?.plan ? { plan: account.plan } : {}) };
+    const base = { name: p.name, color: p.color, provider: "chatgpt" as const, fetchedAt: null, windows: [], ...(p.default ? { default: true } : {}), ...(account?.plan ? { plan: account.plan } : {}) };
     if (!account) return { ...base, state: "not-signed-in" };
     let live = codexLiveUsage(p.name, account.user, now);
     let from: string | undefined;
@@ -287,7 +287,7 @@ export function readCodexUsage(now = new Date(), view?: PeerView): ProfileUsage[
 // CODEX_HOME when they were added), else its ~/.codex. Null when the configured one can't be reached
 // from here: never another folder's login in its place.
 export function peerCodexHome(peer: Peer) {
-  const configured = peerProfiles(peer).find((p) => p.provider === "codex" && typeof p.configDir === "string");
+  const configured = peerProfiles(peer).find((p) => p.provider === "chatgpt" && typeof p.configDir === "string");
   if (!configured) return path.join(peer.home, ".codex");
   const home = peerPath(configured.configDir, peer);
   return home && fs.existsSync(home) ? home : null;
