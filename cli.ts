@@ -66,14 +66,17 @@ async function switchAction(body: unknown, oneAtATime: Serial): Promise<Action> 
     peer = undefined;
   }
   if (side !== undefined && side !== sideName() && side !== peer?.name) return { status: 404, body: { ok: false, detail: "no such side" } };
+  // What to do after a switch, as the switch command says it: the open sessions' account
+  const next = providerFor(profile).switched;
   if (side !== undefined && side === peer?.name) {
     const other = await oneAtATime(async () => peerSwitch(name));
-    return { status: other?.ok ? 200 : 502, body: other ?? { ok: false, detail: "no other side" } };
+    return { status: other?.ok ? 200 : 502, body: other?.ok ? { ...other, next } : (other ?? { ok: false, detail: "no other side" }) };
   }
   try {
     const events = await oneAtATime(() => captureAsync(() => switchProfile({ name, here: side !== undefined })));
     const failed = events.filter((e) => e.kind === "result" && e.status === "failed");
-    return { status: failed.length ? 502 : 200, body: { ok: !failed.length, detail: failed.map((e) => ("detail" in e ? e.detail : "")).join("; ") || `now ${name}` } };
+    if (failed.length) return { status: 502, body: { ok: false, detail: failed.map((e) => ("detail" in e ? e.detail : "")).join("; ") } };
+    return { status: 200, body: { ok: true, detail: `now ${name}`, next } };
   } catch (err) {
     log("core", "error", "start switch", err as Error);
     return { status: 409, body: { ok: false, detail: (err as Error).message } };

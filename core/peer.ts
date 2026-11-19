@@ -87,6 +87,14 @@ export function runOnPeer(line: string) {
     : spawnSync("powershell.exe", ["-NoProfile", "-Command", line], { encoding: "utf8", timeout: 60_000, cwd: "/mnt/c" });
 }
 
+// The version an agent's `<command> --version` printed ("2.1.327 (Claude Code)", "codex-cli
+// 0.170.0"): the line in its own shape, past whatever the shell printed first (the other side's
+// interactive bash may say which Node nvm uses), or null when the command isn't there or failed.
+export function agentVersion(res: { status: number | null; stdout?: string | null; error?: Error }, shape: RegExp) {
+  if (res.error || res.status !== 0) return null;
+  return `${res.stdout ?? ""}`.replace(/\r/g, "").split("\n").map((l) => l.trim()).find((l) => shape.test(l)) ?? null;
+}
+
 // What the other side's `node --version; dotagents --version` says, as a check: passed, and what to do.
 export function peerToolCheck(peer: string, res: { status: number | null; stdout?: string | null; stderr?: string | null; error?: Error }) {
   const out = `${res.stdout ?? ""}`.replace(/\r/g, "").split("\n").map((l) => l.trim()).filter(Boolean);

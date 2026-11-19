@@ -5,7 +5,8 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { test, type TestContext } from "node:test";
-import { installCodex, verifyCodexConfig } from "../core/accounts/providers/codex-config.ts";
+import { type CodexRun, installCodex, verifyCodexConfig } from "../core/accounts/providers/codex-config.ts";
+import { mcpSystem } from "../core/global.ts";
 import { state } from "../core/state.ts";
 import { REPO, quiet } from "./helpers.ts";
 
@@ -139,4 +140,74 @@ test("check says nothing when Codex isn't installed", (t) => {
   const events = quiet();
   verifyCodexConfig(REPO, { onPath: never });
   assert.deepEqual(events, []);
+});
+
+// A codex command that keeps its MCP servers in memory, as `mcp list --json` and `mcp add` see them.
+function fakeCodex(servers: Record<string, object>) {
+  const calls: string[][] = [];
+  const run: CodexRun = (args) => {
+    calls.push(args);
+    if (args[1] === "list") return JSON.stringify(Object.entries(servers).map(([name, transport]) => ({ name, transport })));
+    const [, , name, ...rest] = args;
+    if (rest[0] === "--url") servers[name] = { type: "streamable_http", url: rest[1] };
+    else {
+      const at = rest.indexOf("--");
+      const env = Object.fromEntries(rest.slice(0, at).filter((_, i) => i % 2).map((kv) => kv.split("=")));
+      // Codex keeps the env sorted by key
+      const keys = Object.keys(env).sort();
+      servers[name] = { type: "stdio", command: rest[at + 1], args: rest.slice(at + 2), env: keys.length ? Object.fromEntries(keys.map((k) => [k, env[k]])) : null };
+    }
+    return "";
+  };
+  return { run, calls, servers };
+}
+
+test("install gives Codex the configuration's MCP servers through codex mcp add, once, leaving its own alone; check sees them", (t) => {
+  const { home } = sides(t);
+  fs.mkdirSync(path.join(home, ".codex"));
+  const config = path.join(home, "config");
+  fs.cpSync(path.join(REPO, "templates", "config"), config, { recursive: true });
+  const system = mcpSystem();
+  fs.writeFileSync(path.join(config, "claude", "mcp-servers.json"), JSON.stringify({
+    browser: { [system]: { command: "npx", args: ["-y", "browser-mcp@1"], env: { ZONE: "b", DEBUG: "1" } } },
+    docs: { [system]: { url: "https://example.com/mcp", type: "http" } },
+    elsewhere: { "some-other-os": { command: "y" } },
+  }));
+  const saved = process.env.DOTAGENTS_CONFIG;
+  process.env.DOTAGENTS_CONFIG = config;
+  t.after(() => void (process.env.DOTAGENTS_CONFIG = saved));
+  const own = { type: "stdio", command: "mine", args: [], env: null };
+  const codex = fakeCodex({ own });
+
+  const mcpCheck = (events: ReturnType<typeof quiet>) => events.find((e) => e.kind === "check" && e.text.startsWith("Codex has the MCP servers")) as { passed: boolean; detail: string } | undefined;
+  let events = quiet();
+  verifyCodexConfig(REPO, { onPath: never, run: codex.run });
+  assert.deepEqual({ ...mcpCheck(events) }, { kind: "check", passed: false, text: "Codex has the MCP servers of the configuration: browser", detail: "add browser with: dotagents install" });
+
+  // --dry-run doesn't even run codex, which writes in its folder to list
+  const before = codex.calls.length;
+  quiet({ dryRun: true });
+  installCodex(REPO, { onPath: never, run: codex.run });
+  assert.equal(codex.calls.length, before);
+
+  events = quiet();
+  installCodex(REPO, { onPath: never, run: codex.run });
+  // A remote server goes to Codex by hand: it may carry headers, or start a sign-in
+  assert.deepEqual(codex.calls.filter((c) => c[1] === "add"), [["mcp", "add", "browser", "--env", "ZONE=b", "--env", "DEBUG=1", "--", "npx", "-y", "browser-mcp@1"]]);
+  assert.ok(events.some((e) => e.kind === "result" && e.status === "skipped" && e.detail.startsWith("add docs to Codex by hand")));
+  assert.deepEqual(codex.servers.own, own);
+
+  const adds = codex.calls.length;
+  quiet();
+  installCodex(REPO, { onPath: never, run: codex.run });
+  assert.equal(codex.calls.slice(adds).filter((c) => c[1] === "add").length, 0, "a second install changes nothing");
+  events = quiet();
+  verifyCodexConfig(REPO, { onPath: never, run: codex.run });
+  assert.equal(mcpCheck(events)?.passed, true);
+  assert.equal(state.problems, 0);
+
+  // A codex that doesn't answer is said, not taken for nothing to do
+  events = quiet();
+  verifyCodexConfig(REPO, { onPath: never, run: () => null });
+  assert.ok(events.some((e) => e.kind === "warning" && e.text.startsWith("Codex's MCP servers can't be read")));
 });

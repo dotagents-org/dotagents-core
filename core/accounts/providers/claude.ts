@@ -21,7 +21,7 @@ import { ASK_EVERY_MS } from "../usage-record.ts";
 import { state } from "../../state.ts";
 import { readRecord } from "../usage-record.ts";
 import { vaultDir, withLoginLock, writePrivate } from "../vault.ts";
-import { type StoredLogin, credentialsIn, knownLogin, liveLogin, loginMark, loginOf, ownerOf, profileAccount, readJson, realOrSame, slotDir, slotLogin, slotProfile, vaultLogin } from "./claude-store.ts";
+import { type StoredLogin, credentialsIn, knownLogin, liveLogin, loginMark, loginOf, ownerOf, readJson, realOrSame, slotDir, slotLogin, slotProfile, subscriptionOf, vaultLogin } from "./claude-store.ts";
 
 // ── When the saved logins expire ─────────────────────────────────────────────────────────────
 // A login lasts a few weeks; Claude Code renews the access token but not past the refresh token's
@@ -140,6 +140,7 @@ const unknownSlot = (slot: StoredLogin) => new Error(`The slot holds ${emailOf(s
 const claude: Provider = {
   id: "claude",
   labels: LABELS.claude,
+  cli: { command: "claude", version: /^\d+\.\d+\S* \(Claude Code\)$/, install: "install Claude Code: https://claude.com/claude-code" },
   configDir: defaultConfigDir,
   desktop: CLAUDE_DESKTOP,
   configure(repo) {
@@ -155,8 +156,10 @@ const claude: Provider = {
   },
 
   account(p) {
-    const account = profileAccount(p);
-    return account ? { id: account.accountUuid, email: account.email, plan: null, shown: account.email || account.accountUuid } : null;
+    const known = knownLogin(p);
+    if (!known) return null;
+    const seat = known.account?.seatTier;
+    return { id: known.id, email: known.email, plan: subscriptionOf(known.text), seat: typeof seat === "string" && seat ? seat : null, shown: known.email || known.id };
   },
   slot: slotLogin,
   slotProfile,

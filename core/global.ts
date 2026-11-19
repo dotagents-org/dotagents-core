@@ -251,7 +251,7 @@ export function verifyGlobal(repo: string, configDirs: string[]) {
 const mcpSource = (repo: string) => path.join(configRoot(repo), "claude", "mcp-servers.json");
 export const mcpSystem = () => (process.platform === "linux" && inWsl() ? "wsl" : process.platform);
 
-type McpServer = { type?: string; command?: string; args?: string[]; env?: Record<string, string>; url?: string };
+export type McpServer = { type?: string; command?: string; args?: string[]; env?: Record<string, string>; url?: string };
 const isServer = (v: unknown): v is McpServer => {
   const s = v as McpServer;
   return typeof v === "object" && v !== null && (typeof s.command === "string" || typeof s.url === "string") && (s.args === undefined || (Array.isArray(s.args) && s.args.every((a) => typeof a === "string")));

@@ -156,6 +156,7 @@ export const codexSignIn: CodexSignIn = (home) => {
 const codex: Provider = {
   id: "codex",
   labels: LABELS.codex,
+  cli: { command: "codex", version: /^codex-cli \d+\.\d+/, install: "install Codex: npm install -g @openai/codex" },
   configDir: codexHome,
   desktop: CHATGPT_DESKTOP,
   profiles: codexProfiles,

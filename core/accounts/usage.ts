@@ -41,6 +41,8 @@ export type ProfileUsage = {
   activity?: Activity;
   // The plan Codex reports for a Codex profile ("team"); not read from Claude's endpoint.
   plan?: string;
+  // The seat Claude keeps in the login's account ("team_standard"); OpenAI tells none.
+  seat?: string;
   // Why the last live ask failed; the numbers shown are older than it.
   error?: string;
 };
@@ -280,6 +282,8 @@ export function usageLines(list: ProfileUsage[], now: Date): Line[] {
     const stale = a.state === "stale";
     const head: Line = [nameSegment(a)];
     if (a.default) head.push({ text: "  " }, { text: "[default]", role: "muted" });
+    const plan = LABELS[a.provider ?? "claude"].plan(a.plan, a.seat);
+    if (plan) head.push({ text: "  " }, { text: plan, role: "muted" });
     const busy = activityText(a.activity);
     if (busy) head.push({ text: "  " }, { text: busy, role: "ok" });
     const note = stateNote(a);
