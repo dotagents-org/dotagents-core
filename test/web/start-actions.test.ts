@@ -76,8 +76,15 @@ test("start actions reject missing profiles and sides and preserve provider desk
     // The Windows side's switch runs powershell.exe from /mnt/c, which only WSL has.
     if (fs.existsSync("/mnt/c")) {
       const powershell = path.join(bin, "powershell.exe");
-      fs.writeFileSync(powershell, "#!/bin/sh\nexit 0\n", { mode: 0o755 });
+      // Already in the slot there: no next
+      fs.writeFileSync(powershell, "#!/bin/sh\necho 'ok           C:/Users/me/.claude  (claude is already in the slot)'\nexit 0\n", { mode: 0o755 });
+      assert.deepEqual(await ask("switch", { profile: "claude", side: "Windows" }), { status: 200, body: { apiVersion: 2, ok: true, detail: "Windows: claude" } });
+      // Its slot changed: next, also when the switch there failed after it (a daemon's restart, say)
+      fs.writeFileSync(powershell, "#!/bin/sh\necho 'updated      C:/Users/me/.claude  (now claude)'\nexit 0\n", { mode: 0o755 });
       assert.deepEqual(await ask("switch", { profile: "claude", side: "Windows" }), { status: 200, body: { apiVersion: 2, ok: true, detail: "Windows: claude", next } });
+      fs.writeFileSync(powershell, "#!/bin/sh\necho 'updated      C:/Users/me/.codex/auth.json  (now claude)'\necho 'dotagents: the daemon did not restart' >&2\nexit 1\n", { mode: 0o755 });
+      const failed = await ask("switch", { profile: "claude", side: "Windows" });
+      assert.deepEqual([failed.status, failed.body.next], [502, next]);
     }
   }
   assert.deepEqual(await ask("desktop", { profile: "missing" }), { status: 404, body: { apiVersion: 2, ok: false, detail: "no such profile" } });

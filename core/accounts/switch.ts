@@ -14,7 +14,13 @@ import { state } from "../state.ts";
 import { vaultDir, withLoginLock } from "./vault.ts";
 
 // Runs the switch on the other side of the machine, with --here so it doesn't come back.
-export type PeerSwitch = (name: string) => { ok: boolean; detail: string } | null;
+// changed: whether the other side's slot took the profile, told by its own output (the line that
+// says the slot was updated), apart from ok: a switch there can fail after its slot changed (the
+// Codex daemon's restart, say), and one that went through may have found it there already.
+export type PeerSwitch = (name: string) => { ok: boolean; detail: string; changed?: boolean } | null;
+
+// The plain report line the other side's switch prints when it wrote its slot.
+export const slotChanged = (output: string) => /^updated\s+\S.*\(now /m.test(output.replace(/\r/g, ""));
 
 export const peerSwitch: PeerSwitch = (name) => {
   const peer = loadMachine().peer;
@@ -25,9 +31,10 @@ export const peerSwitch: PeerSwitch = (name) => {
     process.platform === "win32"
       ? spawnSync("wsl.exe", ["-e", "bash", "-lic", `dotagents switch ${name} --here`], { encoding: "utf8", timeout: 60_000, windowsHide: true })
       : spawnSync("powershell.exe", ["-NoProfile", "-Command", `dotagents switch ${name} --here`], { encoding: "utf8", timeout: 60_000, cwd: "/mnt/c" });
-  if (run.status === 0) return { ok: true, detail: `${peer.name}: ${name}` };
+  const changed = slotChanged(`${run.stdout ?? ""}`);
+  if (run.status === 0) return { ok: true, detail: `${peer.name}: ${name}`, changed };
   log("core", "error", "peer switch", `dotagents switch ${name} --here on ${peer.name}: exit ${run.status}${run.error ? `, ${run.error.message}` : ""}\n${run.stdout ?? ""}${run.stderr ?? ""}`);
-  return { ok: false, detail: `${peer.name}: ${peerFailure(`${run.stdout ?? ""}${run.stderr ?? ""}`) || run.error?.message || `exit ${run.status}`}` };
+  return { ok: false, detail: `${peer.name}: ${peerFailure(`${run.stdout ?? ""}${run.stderr ?? ""}`) || run.error?.message || `exit ${run.status}`}`, changed };
 };
 
 // Why the other side's switch failed, in one line: a dotagents older than switch (it doesn't know
@@ -74,7 +81,9 @@ export async function switchProfile({ name, save, here = false, peer = peerSwitc
   const other = peer(switched);
   if (!other) return;
   section("Other side");
-  report(other.ok ? "updated" : "failed", "switch", other.detail);
+  report(other.ok ? (other.changed === false ? "ok" : "updated") : "failed", "switch", other.detail);
+  // Its slot changed before it failed: the sessions there keep the old account all the same
+  if (!other.ok && other.changed) report("updated", "switch", `the other side's slot holds ${switched}`);
 }
 
 // The switch on this side, under the lock: the profile switched to, or null after a --save.

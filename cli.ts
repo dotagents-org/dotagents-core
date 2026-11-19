@@ -70,7 +70,9 @@ async function switchAction(body: unknown, oneAtATime: Serial): Promise<Action> 
   const next = providerFor(profile).switched;
   if (side !== undefined && side === peer?.name) {
     const other = await oneAtATime(async () => peerSwitch(name));
-    return { status: other?.ok ? 200 : 502, body: other?.ok ? { ...other, next } : (other ?? { ok: false, detail: "no other side" }) };
+    if (!other) return { status: 502, body: { ok: false, detail: "no other side" } };
+    // next as on this side: only when that side's slot changed, even if its switch then failed
+    return { status: other.ok ? 200 : 502, body: { ok: other.ok, detail: other.detail, ...(other.changed ? { next } : {}) } };
   }
   try {
     const events = await oneAtATime(() => captureAsync(() => switchProfile({ name, here: side !== undefined })));
