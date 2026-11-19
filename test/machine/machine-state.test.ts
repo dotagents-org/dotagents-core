@@ -128,11 +128,11 @@ test("the profiles file is written and read in the documented format", (t) => {
   // Another tool's file: fields it adds are ignored, and a newer format is refused.
   fs.writeFileSync(path.join(dir, "profiles.json"), JSON.stringify({ version: 1, profiles: [{ name: "work", configDir: "/home/me/.claude", color: "#D77655", avatar: "hexagon" }] }));
   assert.deepEqual(loadProfiles().map((p) => [p.name, p.configDir, p.color, Boolean(p.default)]), [["work", "/home/me/.claude", "#D77655", false]]);
-  fs.writeFileSync(path.join(dir, "profiles.json"), JSON.stringify({ version: 3, profiles: [] }));
+  fs.writeFileSync(path.join(dir, "profiles.json"), JSON.stringify({ version: 4, profiles: [] }));
   assert.throws(() => loadProfiles(), /newer dotagents/);
 });
 
-test("a Codex profile raises the profiles file to version 2, and the Claude parts don't see it", (t) => {
+test("a ChatGPT profile raises the profiles file to version 3, and the Claude parts don't see it", (t) => {
   tempStateDir(t);
   quiet();
   saveProfile({ name: "work", configDir: "/home/me/.claude", color: "#D77655", provider: "claude" });
@@ -140,7 +140,7 @@ test("a Codex profile raises the profiles file to version 2, and the Claude part
   assert.equal("provider" in loadProfiles()[0], false);
   saveProfile({ name: "codex-work", configDir: "/home/me/.codex", color: "#7B61A8", provider: "chatgpt" });
   const file = JSON.parse(fs.readFileSync(profilesFile(), "utf8"));
-  assert.equal(file.version, 2);
+  assert.equal(file.version, 3);
   assert.deepEqual(file.profiles[1], { name: "codex-work", configDir: "/home/me/.codex", color: "#7B61A8", provider: "chatgpt" });
   assert.deepEqual(claudeProfiles().map((p) => p.name), ["work"]);
   assert.deepEqual(loadProfiles().map(providerOf), ["claude", "chatgpt"]);

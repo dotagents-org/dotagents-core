@@ -1,6 +1,6 @@
 # The profiles file
 
-`profiles.json` lists the profiles of a machine: one per account the person holds, a Claude account or, from version 2, a ChatGPT one for Codex. It is the contract between the parts of dotagents that share the profiles: `dotagents profile add/remove` writes it, and everything else (installing the configuration into each profile's config folder, pointing each profile's memory at a workspace, `switch`, `usage`, `start`) reads it. Another tool that reads or writes it follows this page.
+`profiles.json` lists the profiles of a machine: one per account the person holds, a Claude account or, from version 2, a ChatGPT one for Codex (named `chatgpt` from version 3). It is the contract between the parts of dotagents that share the profiles: `dotagents profile add/remove` writes it, and everything else (installing the configuration into each profile's config folder, pointing each profile's memory at a workspace, `switch`, `usage`, `start`) reads it. Another tool that reads or writes it follows this page.
 
 ## Where
 
@@ -20,7 +20,7 @@
 
 | Field | Type | Meaning |
 |---|---|---|
-| `version` | number | The format: `1`, or `2` when a profile has a `provider` other than `claude`. |
+| `version` | number | The format: `1`, or `3` when a profile has a `provider` other than `claude` (`2`, before the provider was named `chatgpt`, was `codex`). |
 | `profiles` | array | The profiles, in the order they were added. |
 | `name` | string | The profile's name: lowercase letters, digits and dashes. Unique. |
 | `configDir` | string | The agent's config folder, an absolute path. Claude profiles use `~/.claude`; ChatGPT profiles use `$CODEX_HOME` or `~/.codex`. |
@@ -33,5 +33,5 @@
 - A reader takes only the fields above and ignores any other.
 - A file whose `version` is higher than the reader knows is not read: the reader stops and says to update. A file that isn't valid JSON, or has an entry without `name`, `configDir` or `color` as strings, stops it too. Neither is ever read as empty and overwritten.
 - A writer writes the whole file, `version` first, with two-space indentation and a final newline.
-- A change a version 1 reader would misread raises `version`. A ChatGPT profile is one: a version 1 reader would take it for a Claude one. So a writer writes `2` only when the file holds a ChatGPT profile, and `1` otherwise, which every reader still reads.
+- A change a version 1 reader would misread raises `version`. A ChatGPT profile is one: a version 1 reader would take it for a Claude one. So a writer writes `3` only when the file holds a ChatGPT profile (a version 2 reader would not find it under `codex`), and `1` otherwise, which every reader still reads. A file written at version 2 by a build from before the provider was named `chatgpt` holds `"provider": "codex"`: change those to `"chatgpt"` and `version` to `3` by hand, on each side.
 - A reader that works only on Claude Code's files (the configuration, the memory, the Claude logins and usage) skips the profiles whose `provider` isn't `claude`.

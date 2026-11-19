@@ -62,12 +62,12 @@ function writeStateFile(file: string, version: number, body: Record<string, unkn
 }
 
 // provider: whose account the profile holds, Claude when absent (ADR 0007). Only a Codex profile
-// writes it, and it raises the file to version 2, so a dotagents that knows only Claude stops
-// instead of treating it as a Claude one; a file of Claude profiles stays at version 1.
+// writes it, and it raises the file to version 3 (2 named the provider codex), so a dotagents that knows only Claude, or
+// the ChatGPT account as codex, stops instead of treating it as another one; a file of Claude profiles stays at version 1.
 export type ProviderId = "claude" | "chatgpt";
 export type Profile = { name: string; configDir: string; color: string; default?: boolean; provider?: ProviderId };
 
-const PROFILES = { name: "profiles.json", version: 2 };
+const PROFILES = { name: "profiles.json", version: 3 };
 export const providerOf = (p: Profile): ProviderId => p.provider ?? "claude";
 
 // The colors given to profiles in the order they are added, unless --color picks one. None is
@@ -99,7 +99,7 @@ export const claudeProfiles = () => loadProfiles().filter((p) => providerOf(p) =
 
 // Writes the profiles, and drops the accounts.json they may have come from.
 function writeProfiles(profiles: Profile[]) {
-  writeStateFile(profilesFile(), profiles.some((p) => providerOf(p) !== "claude") ? 2 : 1, { profiles });
+  writeStateFile(profilesFile(), profiles.some((p) => providerOf(p) !== "claude") ? 3 : 1, { profiles });
   if (!state.dryRun) fs.rmSync(legacyProfilesFile(), { force: true });
 }
 
