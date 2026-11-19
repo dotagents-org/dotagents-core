@@ -8,13 +8,18 @@ import path from "node:path";
 import { test, type TestContext } from "node:test";
 import { REPO } from "./helpers.ts";
 
-// Fails the import of any module named in BLOCKED (comma-separated package names).
+// Fails the import of any module named in BLOCKED (comma-separated package names), and says so on
+// stderr first: a command that catches the error (the revision hook catches everything) can't hide it.
 const BLOCK = `data:text/javascript,${encodeURIComponent(`
+import { writeSync } from "node:fs";
 import { registerHooks } from "node:module";
 const blocked = process.env.BLOCKED.split(",");
 registerHooks({
   resolve(spec, context, next) {
-    if (blocked.some((name) => spec === name || spec.startsWith(name + "/"))) throw new Error("loaded at start: " + spec);
+    if (blocked.some((name) => spec === name || spec.startsWith(name + "/"))) {
+      writeSync(2, "loaded at start: " + spec + "\\n");
+      throw new Error("loaded at start: " + spec);
+    }
     return next(spec, context);
   },
 });
@@ -31,9 +36,10 @@ function run(t: TestContext, args: string[], blocked: string[], input = "") {
   const res = spawnSync(process.execPath, ["--import", BLOCK, path.join(REPO, "cli.ts"), ...args], {
     encoding: "utf8",
     input,
-    env: { ...process.env, BLOCKED: blocked.join(","), DOTAGENTS_STATE_DIR: tempDir(t), XDG_CACHE_HOME: tempDir(t), LOCALAPPDATA: tempDir(t) },
+    env: { ...process.env, BLOCKED: blocked.join(","), DOTAGENTS_STATE_DIR: tempDir(t) },
   });
   assert.equal(res.status, 0, `${t.name}: ${res.stderr}`);
+  assert.doesNotMatch(res.stderr, /loaded at start/);
   return res;
 }
 
