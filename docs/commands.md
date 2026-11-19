@@ -24,8 +24,8 @@ dotagents <command> [options]
 | [`check [path]`](#dotagents-check) | Runs the standards checklist on a workspace, changing nothing. |
 | [`workspaces`](#dotagents-workspaces) | Lists the workspaces tracked on this machine. |
 | [`untrack <path>`](#dotagents-untrack) | Stops tracking a workspace. Its files are not touched. |
-| [`sessions [path] [--all] [--json]`](#dotagents-sessions) | Lists Claude Code's sessions on both sides of the machine: title, account, size, where they would be archived. |
-| [`sessions rm [ids…] [--all] [--yes] [--no-archive]`](#dotagents-sessions-rm) | Deletes sessions, archiving each first into its project's `.artifacts/sessions/`; `--no-archive` skips the archive. A running one, once you confirm, is archived and its Claude Code closed first. |
+| [`sessions [path] [--all] [--agent claude|codex] [--json]`](#dotagents-sessions) | Lists Claude Code's and Codex's sessions on both sides of the machine: title, account, size. |
+| [`sessions rm [ids…] [--all] [--agent claude|codex] [--yes]`](#dotagents-sessions-rm) | Deletes Claude Code's and Codex's sessions after one confirmation; a running one only when you say so in a terminal. |
 | [`skills`](#dotagents-skills) | Lists the own skills and the registered third-party ones. |
 | [`skills add <source>`](#dotagents-skills-add) | Registers third-party skills in the catalog. |
 | [`skills remove <name>`](#dotagents-skills-remove) | Removes a third-party skill from the catalog. |
@@ -74,13 +74,13 @@ On every system `/config` writes to the local copy of `config/claude/settings.js
 Prompt revision is off until you turn it on. With it on, each message you send to Claude Code is proofread before Claude answers: spelling, accents, punctuation, capitalization, small grammar errors and chat abbreviations, by the rules of the language it is written in. It corrects without rewriting: nothing is rephrased, reordered, added or removed, and an unclear part is left as written. Code, commands, paths, URLs and pasted text are left alone, and so are slash commands.
 
 - The revised message shows in the chat, under yours, after Claude Code's `UserPromptSubmit says:`, and Claude gets it next to yours, told that yours wins where they differ in meaning and to ask when the request is vague. A message that needs no change shows nothing.
-- Claude Code records the revised message in the session's transcript, so the [`archive`](../skills/archive/SKILL.md) skill and [`sessions rm`](#dotagents-sessions-rm) archive it in place of yours, with no extra step.
+- Claude Code records the revised message in the session's transcript, so the [`archive`](../skills/archive/SKILL.md) skill archives it in place of yours, with no extra step.
 - The revision runs on the newest Sonnet at low effort, to cost little. Your message reaches only Anthropic. By default it goes through the Claude account signed in to Claude Code, on its plan: a lean `claude -p` with no tools, no settings, no MCP and no saved session, about 3 seconds per message. With `--api` it goes through your own Anthropic API key instead, billed to the API, with the newest Sonnet in the API's model list, checked once a day. Sonnet, not the cheaper Haiku, because on a test set it got 11 of 14 messages right where Haiku got 3 of 12, and was no slower.
 - Past 8 seconds, or on any error, the message goes on as you wrote it: the hook never blocks it and never changes it.
 
 `revision on` adds the hook to your configuration's `claude/settings.json`: on Linux and macOS that file is `~/.claude/settings.json`, so it takes effect at once; on Windows, run [`install`](#dotagents-install) to copy it. `revision on --api` also asks for an API key the first time (from console.anthropic.com) and keeps it in `revision/api-key` in the [state folder](#environment-variables), readable only by you; it is never put in `ANTHROPIC_API_KEY`, which would make Claude Code itself bill the API. The choice between the account and the key is kept per side of the machine, in the same folder: run `revision on` or `revision on --api` on each side. `revision off` removes the hook and keeps the key. `revision` alone says whether it is on, and how, and what it cost: the revisions of the last 24 hours and since the start, their cost in dollars (as Claude Code reports it through the account, at API prices; from the price list through the API), split by the API key and the Claude account when both were used, and, for the revisions through the account, how far its 5-hour and 7-day usage went in the windows of the last one. A window that restarted is never compared with the one before: the log keeps when each window ends. Each revision is logged in `revision/log.jsonl` in the state folder with its tokens, its cost and that usage at the moment it ran; the usage comes from dotagents' live usage, so it is as fresh as [`start`](#dotagents-start) or `usage --refresh` keep it, and Anthropic reports it only as a whole-window percentage, so a single revision's share of it can't be told apart. `revision hook` is what the hook runs; Claude Code calls it.
 
-`revision fix` proofreads, after the fact, the messages of sessions that ran without the revision on, or from before it existed, and rewrites those sessions' archives with them. It takes the sessions started in the current folder, the ids given (the start of an id is enough), or with `--all` every project's, on both sides. For each it counts the messages still to revise and says how many in how many sessions, and what it will cost: about US$ 0.001 each through the API key, or the account's plan; then it asks, and `--yes` skips the question. It revises the way `revision on` set up, with the same rules and the same check that nothing in code, paths, links or numbers was lost, and keeps the revisions next to each archive (`<date>-<session-id>.revisions.json`), so `sessions rm` shows them too. Slash commands, pasted text and the interruption notice are left alone, and so are sessions outside a workspace with `.artifacts/sessions/`, which has nowhere to keep them. A message the model left as it was is not asked for again; one that failed, or lost something it must keep, is left for the next run. A session never archived gets its archive written. `--dry-run` only counts.
+`revision fix` proofreads, after the fact, the messages of sessions that ran without the revision on, or from before it existed, and rewrites those sessions' archives with them. It takes the sessions started in the current folder, the ids given (the start of an id is enough), or with `--all` every project's, on both sides. For each it counts the messages still to revise and says how many in how many sessions, and what it will cost: about US$ 0.001 each through the API key, or the account's plan; then it asks, and `--yes` skips the question. It revises the way `revision on` set up, with the same rules and the same check that nothing in code, paths, links or numbers was lost, and keeps the revisions next to each archive (`<date>-<session-id>.revisions.json`), so the archive shows them too. Slash commands, pasted text and the interruption notice are left alone, and so are sessions outside a workspace with `.artifacts/sessions/`, which has nowhere to keep them. A message the model left as it was is not asked for again; one that failed, or lost something it must keep, is left for the next run. A session never archived gets its archive written. `--dry-run` only counts.
 
 ## dotagents doctor
 
@@ -381,43 +381,32 @@ Each session shows when it was last active, its id, its title (the one the agent
 - the account: the profile whose Claude account ran it, from the `session-owner` records Claude Code writes, and `(shared)` when more than one account did, which happens when a session continues after a `switch`. Older transcripts don't record it: `account unknown`. A Codex conversation names the ChatGPT user that started it, shown as the profile whose saved login is that user;
 - its size;
 - with `--all`, the folder it started in;
-- where `sessions rm` would archive it: the nearest folder at or above where it started that has `.artifacts/sessions/`, or `no .artifacts`;
 - `running`: a session this side's Claude Code still runs (its `sessions/<pid>.json`, while the process lives), or one whose transcript changed in the last 10 minutes. Codex keeps no record of its processes, so a Codex conversation counts as running only by that time. The list doesn't ask the other side, which takes a few seconds, so there a session counts as running only by that time; `sessions rm` asks.
 
 `dotagents sessions --running` prints only the ids of the sessions this side's Claude Code runs, one per line. It is how `sessions rm` asks the other side.
 
-In a terminal the account is in its profile's color, as in every other view, and `running` and `no .artifacts` are in the warning color; the rest is muted.
+In a terminal the account is in its profile's color, as in every other view, and `running` is in the warning color; the rest is muted.
 
-Piped, one tab-separated line per session: id, agent (`claude` or `codex`), side, last activity, bytes, `running` or `-`, archive folder or `-`, account ids joined with `+`, title. `--json` prints the list with each session's `agent`, each account's id and label, `shared`, `archiveRoot`, `running` and the transcript's path.
+Piped, one tab-separated line per session: id, agent (`claude` or `codex`), side, last activity, bytes, `running` or `-`, account ids joined with `+`, title. `--json` prints the list with each session's `agent`, each account's id and label, `shared`, `running` and the transcript's path.
 
 ## dotagents sessions rm
 
 ```bash
-dotagents sessions rm [ids…] [--all] [--yes] [--no-archive]
+dotagents sessions rm [ids…] [--all] [--agent claude|codex] [--yes]
 ```
 
-Deletes sessions. Without ids, it lists the ones started in this folder (`--all`: every project's) to pick from, the running ones marked `running`: type to filter by title, folder, side or account, Tab marks a session, Enter goes on. Ids may be given instead, in full or by a unique start, such as the eight characters `sessions` shows.
+Deletes sessions, Claude Code's and Codex's, and nothing else: it writes no archive (the [`archive`](../skills/archive/SKILL.md) skill does that, from inside a session). Without ids, it lists the ones started in this folder (`--all`: every project's) to pick from, the running ones marked `running`: type to filter by title, folder, side or account, Tab marks a session, Enter goes on. Ids may be given instead, in full or by a unique start, such as the eight characters `sessions` shows.
 
-Then it asks what should happen to them:
+Then it asks once, **Delete N sessions? It can't be brought back**, No by default, and deletes each:
 
-1. **Archive, then delete**, with how many go into which workspace and how many have no `.artifacts/sessions/`; it isn't offered when none can be archived. The archive keeps the user messages an `archive` run revised (`<name>.revisions.json` next to it).
-2. **Delete without archiving.**
-3. **Cancel**, the default.
+- **Claude Code**: the transcript, `projects/<slug>/<id>.jsonl`; its folder beside it, with subagents and tool results; `file-history/<id>/` and `session-env/<id>/`; and the project folder, when nothing else is left in it.
+- **Codex**: through Codex itself, `codex delete --force <id>`, on the side it ran on (on the other side, through PowerShell or WSL's bash, in the `CODEX_HOME` that side's ChatGPT profiles use, else its `~/.codex`), which also deletes the conversation's subagents' rollouts and Codex's own records of it, and every rollout of a conversation that was reverted.
 
-With the first, when some sessions started outside a workspace with `.artifacts/sessions/`, it asks once more: **they can't be archived first; delete them anyway?** No keeps them.
+A running session is deleted only when you confirm it in a terminal: **N sessions are still running. Delete them anyway?** No keeps them. For Claude Code, one you confirm has its process closed first (asked to stop, and killed after 5 seconds), so it doesn't write the transcript again; one running on the other side of the machine can't be closed from here: only its files go, and it writes them again until you close it there. For the other side's Claude Code sessions it asks that side's dotagents (`dotagents sessions --running`, through `powershell.exe` from WSL or `wsl.exe` from Windows), so a session left open and idle there counts as running too; when that side can't say (no dotagents there, or an older one), it warns and falls back to the 10 minutes.
 
-Then, for each session, it writes the archive when asked to (the same file the `archive` skill writes, with the account line) and deletes:
+A Codex conversation can't be ended by dotagents, so it is never deleted while it is open: on Linux and WSL, where `/proc` tells, its rollout held open by a process, or the conversation the command itself runs in (`CODEX_THREAD_ID`), is kept, and any rollout written in the last 10 minutes counts as running. Where dotagents can't see the processes (a Codex conversation on the other side of the machine, or on Windows) it can't say whether Codex still has it open, so it is asked about like a running one, and Codex's own `codex delete` may reach a conversation a running Codex owns: close Codex on it first. A conversation is looked at again right before it is deleted, and kept if its rollout was written since the list.
 
-- the transcript, `projects/<slug>/<id>.jsonl`;
-- its folder beside it, with subagents and tool results;
-- `file-history/<id>/` and `session-env/<id>/`;
-- the project folder, when nothing else is left in it.
-
-A Codex conversation is archived with its subagents' conversations, each in a file of its own, and a rollout that ends in half a line (still being written) isn't archived, so it isn't deleted. It is deleted through Codex itself, `codex delete --force <id>`, on the side it ran on (on the other side, through PowerShell or WSL's bash), which also deletes its subagents' rollouts and Codex's own records of it. One still running is never deleted: close it first, since dotagents can't end a Codex process. Running means, on this side, its rollout open in a process (on Linux and WSL, where `/proc` tells) or the conversation the command itself runs in (`CODEX_THREAD_ID`); on either side, a rollout written in the last 10 minutes; it is looked at again right before the deletion. Where dotagents can't see the processes (a Codex conversation on the other side of the machine, or on Windows), whether Codex still has it open is unknown, so it is asked about like a running one: only your confirmation in a terminal deletes it, never `--yes`, and Codex's own `codex delete` may reach a conversation a running Codex owns, so close Codex on it first. A conversation whose subagents Codex itself archived (`codex archive`) isn't archived and deleted here, since the archive can't keep them: `codex unarchive` them first.
-
-A session whose archive fails is kept unless you answer yes to deleting it anyway.
-
-A running session is deleted only when you confirm it in a terminal: **N sessions are still running. Archive and delete them anyway?** No keeps them. One you confirm is archived first and kept if its archive fails; then its Claude Code is closed (asked to stop, and killed after 5 seconds), so it doesn't write the transcript again, and its files are deleted. A session running on the other side of the machine can't be closed from here: only its files go, and it writes them again until you close it there. `--yes`, `--no-archive` and a session with no archive folder keep running sessions, and so does **Delete without archiving**. For the other side's sessions it asks that side's dotagents (`dotagents sessions --running`, through `powershell.exe` from WSL or `wsl.exe` from Windows), so a session left open and idle there counts as running too. When that side can't say (no dotagents there, or an older one), it warns and falls back to the 10 minutes. `--yes` skips the questions, archiving what can be archived and deleting the sessions without an archive folder too, but never one whose archive failed; without a terminal, `sessions rm` needs `--yes`. `--no-archive` answers the first question with **Delete without archiving**. `--dry-run` shows the archives and deletions without making them.
+`--yes` skips the questions and never deletes a running session, nor a Codex one it can't see; without a terminal, `sessions rm` needs `--yes`. `--dry-run` shows what would be deleted without deleting.
 
 ## dotagents skills
 
@@ -465,7 +454,6 @@ Removes a skill from the catalog. Workspaces that already installed it keep it; 
 | `--running` | `sessions` | Only the ids of the sessions this side's Claude Code runs. |
 | `--yes` | `init`, `new`, `skills add`, `sessions rm` | Never ask. |
 | `--no-pull` | `update` | Skip `git pull`. |
-| `--no-archive` | `sessions rm` | Delete without archiving. |
 | `--from <profile>` | `settings pull` | The profile to take the settings from. |
 | `--port <n>` | `start` | The port; `0` picks a free one. |
 | `--here` | `switch` | Only this side of the machine. |

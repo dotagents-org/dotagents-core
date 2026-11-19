@@ -15,7 +15,6 @@ export type CliArgs = {
   "dry-run"?: boolean;
   help?: boolean;
   "no-pull"?: boolean;
-  "no-archive"?: boolean;
   version?: boolean;
   wrap?: boolean;
   yes?: boolean;

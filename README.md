@@ -44,7 +44,7 @@ dotagents keeps the configuration in your git repository and applies shared inst
 - **Projects stay clean.** A project gets its `AGENTS.md`, skills and documentation in a folder that wraps its repositories, so not a single agent file lands in the project's git history, not even a `.gitignore` rule.
 - **Skills, yours and other people's.** Your own skills are linked, so an edit is live everywhere at once; third-party ones come from a catalog and install through [`npx skills`](https://skills.sh).
 - **A checklist you can run.** `dotagents check` verifies a workspace against the standards and exits non-zero when something is off.
-- **Sessions of both agents.** `dotagents sessions` lists Claude Code's and Codex's conversations on both sides of the machine, with the account of each; `sessions rm` and the `archive` skill write them to `.artifacts/sessions/` before deleting.
+- **Sessions of both agents.** `dotagents sessions` lists Claude Code's and Codex's conversations on both sides of the machine, with the account of each; `sessions rm` deletes them, and the `archive` skill, run from inside a session, writes one to `.artifacts/sessions/`.
 
 **Claude and ChatGPT accounts**
 
@@ -202,7 +202,7 @@ dotagents-config/
 | [`init [path]`](docs/commands.md#dotagents-init) | Applies the standards to a folder, offering to wrap a repository first. |
 | [`check [path]`](docs/commands.md#dotagents-check) | Runs the checklist on a workspace, changing nothing. |
 | [`workspaces`](docs/commands.md#dotagents-workspaces), [`untrack <path>`](docs/commands.md#dotagents-untrack) | Lists the tracked workspaces; stops tracking one. |
-| [`sessions`](docs/commands.md#dotagents-sessions), [`sessions rm`](docs/commands.md#dotagents-sessions-rm) | Lists Claude Code's and Codex's sessions on both sides, with the account of each; deletes them after archiving them into `.artifacts/sessions/`. |
+| [`sessions`](docs/commands.md#dotagents-sessions), [`sessions rm`](docs/commands.md#dotagents-sessions-rm) | Lists Claude Code's and Codex's sessions on both sides, with the account of each; deletes them after one confirmation. |
 | [`skills`](docs/commands.md#dotagents-skills), [`skills add`](docs/commands.md#dotagents-skills-add), [`skills remove`](docs/commands.md#dotagents-skills-remove) | Lists, registers and unregisters skills. |
 
 Every command that changes something takes `--dry-run`.

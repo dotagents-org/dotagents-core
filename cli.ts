@@ -215,7 +215,6 @@ ${title("Options")}
   ${bold("--refresh")}    (usage) ask Anthropic and OpenAI for fresh numbers first
   ${bold("--spend")}      (usage) what 1% of each Claude window costs, and where the spend went
   ${bold("--no-pull")}    (update) skip git pull, only reapply
-  ${bold("--no-archive")} (sessions rm) delete without archiving
   ${bold("--from")}       (settings pull) the profile to take the settings from
   ${bold("--port")}       (start) the server's port; 0 picks a free one
   ${bold("--here")}       (switch) only this side of the machine
@@ -256,7 +255,7 @@ function fail(err: Error) {
 let args: CliArgs | null = null;
 try {
   args = parseArgs<CliArgs>(process.argv.slice(2), {
-    booleans: ["all", "api", "default", "dry-run", "help", "here", "json", "no-archive", "no-pull", "refresh", "running", "short", "spend", "version", "watch", "wrap", "yes"],
+    booleans: ["all", "api", "default", "dry-run", "help", "here", "json", "no-pull", "refresh", "running", "short", "spend", "version", "watch", "wrap", "yes"],
     lists: ["skills"],
     values: ["agent", "color", "expect", "from", "port", "provider", "save", "side"],
   });

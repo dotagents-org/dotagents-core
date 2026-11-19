@@ -9,7 +9,6 @@
 // here or on the other side; that runs a command, so it goes through an adapter the tests replace.
 
 import { spawnSync } from "node:child_process";
-import zlib from "node:zlib";
 import fs from "node:fs";
 import path from "node:path";
 import { CODEX_INJECTED } from "../../skills/archive/scripts/archive-session.ts";
@@ -176,79 +175,6 @@ const inside = (child: string, parent: string) => {
 // The rollouts of a conversation's subagents, and of theirs, in a Codex folder: each names its
 // parent in its first line. live: in sessions/, which the archive can read; archived: those Codex
 // itself archived (archived_sessions/*.jsonl.zst), which codex delete takes all the same.
-// The whole first line of a file: session_meta carries the instructions and the tool schemas, which
-// can pass any small read. Null when it is past the cap or the file can't be read.
-function firstLine(file: string, cap = 32 << 20): string | null {
-  const fd = fs.openSync(file, "r");
-  try {
-    const chunks: Buffer[] = [];
-    let at = 0;
-    for (;;) {
-      const buf = Buffer.alloc(64 * 1024);
-      const n = fs.readSync(fd, buf, 0, buf.length, at);
-      if (n === 0) return Buffer.concat(chunks).toString("utf8");
-      const nl = buf.subarray(0, n).indexOf(0x0a);
-      if (nl >= 0) {
-        chunks.push(buf.subarray(0, nl));
-        return Buffer.concat(chunks).toString("utf8");
-      }
-      chunks.push(buf.subarray(0, n));
-      at += n;
-      if (at > cap) return null;
-    }
-  } finally {
-    fs.closeSync(fd);
-  }
-}
-
-// incomplete: a rollout couldn't be read to its first line, so the inventory may miss a subagent.
-export function subagentRollouts(home: string, parent: string): { live: string[]; archived: string[]; incomplete: boolean } {
-  let incomplete = false;
-  const children = new Map<string, { id: string; file: string; archived: boolean }[]>();
-  const add = (file: string, first: string, archived: boolean) => {
-    const meta = parse(first);
-    const p = meta?.type === "session_meta" ? meta.payload : null;
-    if (p && typeof p.parent_thread_id === "string" && typeof p.id === "string") children.set(p.parent_thread_id, [...(children.get(p.parent_thread_id) ?? []), { id: p.id, file, archived }]);
-  };
-  for (const file of rolloutFiles(home)) {
-    try {
-      const first = firstLine(file);
-      if (first === null) incomplete = true;
-      else add(file, first, false);
-    } catch {
-      incomplete = true;
-    }
-  }
-  const dir = path.join(home, "archived_sessions");
-  let names: string[] = [];
-  try {
-    names = fs.readdirSync(dir);
-  } catch {
-    // none archived
-  }
-  for (const name of names) {
-    const file = path.join(dir, name);
-    try {
-      const bytes = fs.readFileSync(file);
-      const text = (name.endsWith(".zst") ? zlib.zstdDecompressSync(bytes) : bytes).toString("utf8");
-      add(file, text.split("\n")[0], true);
-    } catch {
-      // not a rollout (a stray file), or not readable: only a rollout name makes it an unknown subagent
-      if (/^rollout-.*\.jsonl(\.zst)?$/.test(name)) incomplete = true;
-    }
-  }
-  const out: { file: string; archived: boolean }[] = [];
-  const visit = (id: string) => {
-    for (const child of children.get(id) ?? []) {
-      if (out.some((o) => o.file === child.file)) continue;
-      out.push(child);
-      visit(child.id);
-    }
-  };
-  visit(parent);
-  return { live: out.filter((o) => !o.archived).map((o) => o.file), archived: out.filter((o) => o.archived).map((o) => o.file), incomplete };
-}
-
 // Every rollout file of a Codex folder: sessions/YYYY/MM/DD/rollout-*.jsonl.
 function rolloutFiles(home: string) {
   const files: string[] = [];
@@ -275,7 +201,7 @@ export function listCodexSessions(dirs: CodexDir[], { under, now = Date.now(), f
   for (const dir of dirs) {
     const names = titles(dir.home);
     // A conversation with more than one rollout (a /revert starts a new one, same id inside) is one
-    // entry: the newest rollout, the others named in `others`, which no archive here covers
+    // entry: the newest rollout; codex delete takes them all
     const byId = new Map<string, { file: string; st: fs.Stats; info: NonNullable<ReturnType<typeof summary>> }[]>();
     for (const file of rolloutFiles(dir.home)) {
       let st: fs.Stats;
@@ -291,7 +217,6 @@ export function listCodexSessions(dirs: CodexDir[], { under, now = Date.now(), f
     for (const group of byId.values()) {
       group.sort((x, y) => y.st.mtimeMs - x.st.mtimeMs);
       const { file, st, info } = group[0];
-      const others = group.slice(1).map((g) => g.file);
       const localCwd = info.cwd && dir.peer ? fromPeer(info.cwd, dir.peer) : info.cwd;
       if (under && !(localCwd && inside(localCwd, under))) continue;
       list.push({
@@ -310,7 +235,6 @@ export function listCodexSessions(dirs: CodexDir[], { under, now = Date.now(), f
         accounts: info.accounts,
         root: archiveRoot(localCwd),
         running: group.some((g) => codexRunning({ id: info.id, file: g.file, mtime: g.st.mtimeMs }, !dir.peer, now, open)),
-        ...(others.length ? { others } : {}),
         pid: null,
         // Told only on Linux (WSL included), where /proc says which rollouts a process holds open
         checked: !dir.peer && open !== null,

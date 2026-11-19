@@ -1,13 +1,11 @@
-// `sessions` lists Claude Code's sessions on both sides of the machine; `sessions rm` deletes the
-// ones picked, archiving each first into its project's .artifacts/sessions/ when there is
-// one. A session without that folder, or whose archive failed, is deleted only when the user says
-// so; --yes never deletes one whose archive failed. --no-archive deletes without archiving any.
+// `sessions` lists Claude Code's and Codex's sessions on both sides of the machine; `sessions rm`
+// deletes the ones picked, after one question in a terminal. A running one goes only when the user
+// says so there; --yes never deletes one. (The archive skill writes a session to .artifacts/sessions/.)
 
-import path from "node:path";
 import type { AccountLabels } from "../../../skills/archive/scripts/archive-session.ts";
 import { UsageError } from "../../../core/common.ts";
 import { checkWarn, displayPath, fancy, finish, header, ink, interactive, line, report, section, tone } from "../../../core/output/output.ts";
-import { RECENT_MS, type Session, accountColors, accountLabels, archiveSession, deleteSession, listSessions, peerRunning, runningIds } from "../../../core/sessions/sessions.ts";
+import { RECENT_MS, type Session, accountColors, accountLabels, deleteSession, listSessions, peerRunning, runningIds } from "../../../core/sessions/sessions.ts";
 import { state } from "../../../core/state.ts";
 import { plural, type Command, type Context, fitHint, workspaceArg } from "../shared.ts";
 import { loadPrompts } from "../prompts.ts";
@@ -32,12 +30,10 @@ function accountsShort(s: Session, labels: AccountLabels) {
   return s.accounts.length > 1 ? `${names} (shared)` : names;
 }
 
-const archiveNote = (s: Session) => (s.root ? `archives to ${displayPath(s.root)}` : "no .artifacts, not archived");
-
 const agentName = (s: Session) => (s.agent === "codex" ? "Codex" : "Claude Code");
 
 function details(s: Session, labels: AccountLabels, withProject: boolean) {
-  return [agentName(s), s.side, accountsShort(s, labels), size(s.bytes), withProject ? displayPath(s.localCwd ?? s.cwd ?? "?") : "", archiveNote(s), s.running ? "running" : ""].filter(Boolean).join("  ");
+  return [agentName(s), s.side, accountsShort(s, labels), size(s.bytes), withProject ? displayPath(s.localCwd ?? s.cwd ?? "?") : "", s.running ? "running" : ""].filter(Boolean).join("  ");
 }
 
 // The same details for the terminal: the account in its profile's color, what needs attention
@@ -52,7 +48,6 @@ function paintedDetails(s: Session, labels: AccountLabels, colors: Map<string, s
     account,
     muted(size(s.bytes)),
     withProject ? muted(displayPath(s.localCwd ?? s.cwd ?? "?")) : "",
-    s.root ? muted(`archives to ${displayPath(s.root)}`) : warn("no .artifacts, not archived"),
     s.running ? bold(warn("running")) : "",
   ]
     .filter(Boolean)
@@ -71,7 +66,6 @@ function json(list: Session[], labels: AccountLabels) {
     bytes: s.bytes,
     accounts: s.accounts.map((uuid) => ({ uuid, label: labels.get(uuid) ?? null })),
     shared: s.accounts.length > 1,
-    archiveRoot: s.root,
     running: s.running,
     file: s.file,
   }));
@@ -101,7 +95,7 @@ export const sessions: Command = {
     const labels = accountLabels();
     if (ctx.args.json) return console.log(JSON.stringify(json(list, labels), null, 2));
     if (!fancy) {
-      for (const s of list) console.log([s.id, s.agent, s.side, when(s), s.bytes, s.running ? "running" : "-", s.root ?? "-", s.accounts.join("+") || "-", s.title].join("\t"));
+      for (const s of list) console.log([s.id, s.agent, s.side, when(s), s.bytes, s.running ? "running" : "-", s.accounts.join("+") || "-", s.title].join("\t"));
       return;
     }
     const colors = accountColors();
@@ -146,39 +140,11 @@ async function ask(message: string, initialValue: boolean) {
 }
 
 
-// What happens to the sessions picked: archived first, deleted without an archive, or nothing.
-type Mode = "archive" | "bare" | "cancel";
-
-const folders = (list: Session[], dir: (s: Session) => string | null) => [...new Set(list.map((s) => path.basename(dir(s) ?? "?")))].join(", ");
-
-// "1 into app-workspace; 1 has no .artifacts (asks next)".
-function archiveHint(doomed: Session[]) {
-  const into = doomed.filter((s) => s.root);
-  const bare = doomed.length - into.length;
-  return `${into.length} into ${folders(into, (s) => s.root)}${bare ? `; ${bare} ${bare === 1 ? "has" : "have"} no .artifacts (asks next)` : ""}`;
-}
-
-async function chooseMode(doomed: Session[]): Promise<Mode> {
-  const archivable = doomed.some((s) => s.root);
-  if (!archivable) line(muted(`  None of them can be archived: ${folders(doomed, (s) => s.localCwd ?? s.cwd)} has no .artifacts/sessions/`));
-  const p = await loadPrompts();
-  const mode = await p.select<Mode>({
-    message: `What should happen to ${plural(doomed.length, "session")}?`,
-    initialValue: "cancel",
-    options: [
-      ...(archivable ? [{ value: "archive" as const, label: "Archive, then delete", hint: archiveHint(doomed) }] : []),
-      { value: "bare", label: "Delete without archiving" },
-      { value: "cancel", label: "Cancel" },
-    ],
-  });
-  return p.isCancel(mode) ? "cancel" : mode;
-}
-
 export const sessionsRm: Command = {
   name: "sessions rm",
   usage: "[ids…]",
-  summary: "delete sessions, archiving each into .artifacts first",
-  more: ["without ids, search and pick from this folder's (--all: every project's);", "then archive and delete, delete without archiving, or cancel;", "--no-archive: delete without archiving"],
+  summary: "delete sessions",
+  more: ["without ids, search and pick from this folder's (--all: every project's);", "then confirm; a running one is deleted only when you say so in a terminal"],
   group: "Workspace",
   async run(ctx) {
     const { args, positional } = ctx;
@@ -223,78 +189,42 @@ export const sessionsRm: Command = {
       chosen = free.filter((s) => picked.includes(s.id));
     }
 
-    // A running session goes only when the user says so in a terminal, and only archived: its
-    // Claude Code is ended first on this side. --yes doesn't answer this one.
-    // A Codex conversation dotagents can't see the processes of (the other side, Windows) is one it can't
-    // say is stopped: it asks like a running one. One it sees open here is never asked about.
+    // A running session goes only when the user says so in a terminal, its Claude Code ended first on
+    // this side. --yes doesn't answer this one. A Codex conversation dotagents can't see the processes
+    // of (the other side, Windows) can't be said stopped: it asks like a running one. One it sees open
+    // here is never asked about: close it first.
     const unsure = (s: Session) => s.agent === "codex" && !s.checked;
     const running = chosen.filter((s) => s.running || unsure(s));
     const doomed = chosen.filter((s) => !running.includes(s));
     let alsoRunning: Session[] = [];
-    if (running.length && ask_ && !args["no-archive"]) {
+    if (running.length && ask_) {
       const askable = running.filter((s) => s.agent !== "codex" || unsure(s));
       const here = askable.filter((s) => s.pid !== null).length;
       const codexOnly = askable.every((s) => s.agent === "codex");
       const what = codexOnly ? "it is deleted through codex delete; close Codex on it first" : here === askable.length ? "its Claude Code is closed first" : here ? "on this side, its Claude Code is closed first; on the other, only its files go" : "only its files go: it runs on the other side, so close it there";
-      const archivable = askable.filter((s) => s.root);
       const word = askable.some((s) => s.running) ? "still running" : "possibly still open";
-      if (archivable.length && (await ask(`${plural(archivable.length, "session")} ${archivable.length === 1 ? "is" : "are"} ${word}. Archive and delete ${archivable.length === 1 ? "it" : "them"} anyway? (${what})`, false))) alsoRunning = archivable;
+      if (askable.length && (await ask(`${plural(askable.length, "session")} ${askable.length === 1 ? "is" : "are"} ${word}. Delete ${askable.length === 1 ? "it" : "them"} anyway? (${what})`, false))) alsoRunning = askable;
     }
     const kept = running.filter((s) => !alsoRunning.includes(s));
     if (kept.length) section("Plan");
     for (const s of kept) {
-      const why = !s.root ? "it can't be archived first" : args["no-archive"] ? "a running session is deleted only archived" : ask_ ? "kept, as answered" : "confirm in a terminal to delete it";
+      const why = ask_ ? (s.agent === "codex" && s.checked ? "close it first" : "kept, as answered") : "confirm in a terminal to delete it";
       report("skipped", s.file, `${s.id.slice(0, 8)} ${s.running ? "is still running" : "may still be open"}; ${why}`);
     }
     doomed.push(...alsoRunning);
     if (!doomed.length) return finish();
 
-    // --no-archive and --yes answer for the user; --dry-run shows the archiving way.
-    const mode: Mode = args["no-archive"] ? "bare" : ask_ ? await chooseMode(doomed) : "archive";
-    if (mode === "cancel") {
+    // --yes answers for the user; --dry-run shows what would go.
+    if (ask_ && !(await ask(`Delete ${plural(doomed.length, "session")}? It can't be brought back.`, false))) {
       (await loadPrompts()).cancel("Nothing was deleted.");
       return;
     }
-    const archive = mode === "archive";
-    if (!archive && alsoRunning.length) {
-      // Deleting without archiving leaves the running ones.
-      doomed.splice(0, doomed.length, ...doomed.filter((s) => !alsoRunning.includes(s)));
-      for (const s of alsoRunning) report("skipped", s.file, `${s.id.slice(0, 8)} is still running; a running session is deleted only archived`);
-      if (!doomed.length) return finish();
-    }
-    const bare = doomed.filter((s) => !s.root);
     if (!ask_) {
       section("Plan");
-      if (!archive) line(`  ${warn(`${plural(doomed.length, "session")} deleted without an archive (--no-archive)`)}`);
-      else {
-        line(`  ${plural(doomed.length - bare.length, "session")} archived, then deleted`);
-        if (bare.length) line(`  ${warn(`${plural(bare.length, "session")} deleted without an archive: ${folders(bare, (s) => s.localCwd ?? s.cwd)} has no .artifacts/sessions/`)}`);
-      }
+      line(`  ${plural(doomed.length, "session")} deleted`);
     }
-    if (ask_ && archive && bare.length && !(await ask(`${plural(bare.length, "session")} can't be archived first. Delete ${bare.length === 1 ? "it" : "them"} anyway?`, false))) {
-      doomed.splice(0, doomed.length, ...doomed.filter((s) => s.root));
-      for (const s of bare) report("ok", s.file, "kept, as answered");
-    }
-
-    const labels = accountLabels();
     section("Sessions");
-    for (const s of doomed) {
-      if (!archive) {
-        // Asked for: nothing to warn about.
-      } else if (s.root) {
-        const archived = archiveSession(s, labels);
-        if (!archived.ok) {
-          const keep = s.running || alsoRunning.includes(s) || !ask_ || !(await ask(`Couldn't archive ${s.id.slice(0, 8)} (${archived.error}). Delete it anyway?`, false));
-          if (keep) {
-            report("skipped", s.file, "kept: its archive failed");
-            continue;
-          }
-        }
-      } else {
-        checkWarn(`${s.id.slice(0, 8)} not archived`, `${displayPath(s.localCwd ?? s.cwd ?? "?")} has no .artifacts/sessions/`);
-      }
-      deleteSession(s, { evenRunning: alsoRunning.includes(s) });
-    }
+    for (const s of doomed) deleteSession(s, { evenRunning: alsoRunning.includes(s) });
     finish();
   },
 };

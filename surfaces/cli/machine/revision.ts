@@ -101,7 +101,7 @@ export const revisionFix: Command = {
     header("revision fix", positional.join(" ") || (args.all ? "every project" : ""));
     const api = readBackend() === "api";
     if (api && !readKey()) throw new Error("There is no API key yet: run dotagents revision on --api in a terminal, which asks for it");
-    const list = positional.length ? byIds(positional, listSessions({})) : listSessions({ under: args.all ? undefined : path.resolve(process.cwd()) });
+    const list = positional.length ? byIds(positional, listSessions({ agent: "claude" })) : listSessions({ agent: "claude", under: args.all ? undefined : path.resolve(process.cwd()) });
     const todo = list.flatMap((s) => {
       const pending = pendingMessages(s);
       return pending?.messages.length ? [{ s, pending }] : [];

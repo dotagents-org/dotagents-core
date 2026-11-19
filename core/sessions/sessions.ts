@@ -14,8 +14,8 @@ import { execFile, spawnSync } from "node:child_process";
 import { logChange } from "../machine/log.ts";
 import fs from "node:fs";
 import path from "node:path";
-import { type AccountLabels, archiveFile, codexTitles, parseRollout, parseTranscript, promptText, readRevisions, renderArchive, revise } from "../../skills/archive/scripts/archive-session.ts";
-import { type CodexDelete, type CodexDir, codexDelete, codexDirs, codexRunning, listCodexSessions, subagentRollouts } from "./codex-sessions.ts";
+import { type AccountLabels, archiveFile, parseTranscript, promptText, readRevisions, renderArchive, revise } from "../../skills/archive/scripts/archive-session.ts";
+import { type CodexDelete, type CodexDir, codexDelete, codexDirs, codexRunning, listCodexSessions } from "./codex-sessions.ts";
 import { codexAccount, codexProfiles } from "../accounts/providers/codex-store.ts";
 import { type ProcessProbe, defaultConfigDir, runningProcess, signedIn } from "../claude-code.ts";
 import { isWindows } from "../common.ts";
@@ -311,53 +311,20 @@ export function accountColors(): Map<string, string> {
 export function archiveSession(s: Session, labels: AccountLabels = new Map()): { ok: true; file: string } | { ok: false; error: string } {
   if (!s.root) return { ok: false, error: "no .artifacts/sessions/ in its project" };
   try {
-    // A Codex conversation goes with its subagents', which codex delete takes too, each in its own file
-    let files = [s.file];
-    if (s.agent === "codex") {
-      // A conversation with several rollouts (after a /revert) is deleted whole by Codex, and only one is archived here
-      if (s.others?.length) throw new Error(`it has ${s.others.length + 1} rollouts (a /revert started a new one); archive it with the archive skill's --transcript, one file at a time, and delete it with codex delete yourself`);
-      const children = subagentRollouts(s.configDir, s.id);
-      if (children.incomplete) throw new Error("a rollout in its Codex folder couldn't be read whole, so its subagents may be missed; nothing is archived or deleted");
-      // codex delete takes these too, and the archive can't keep what Codex compressed away
-      if (children.archived.length) throw new Error(`${children.archived.length} of its subagents' conversations are archived by Codex (${path.basename(children.archived[0])}); unarchive them with codex unarchive, or delete the conversation with codex delete yourself`);
-      files = [s.file, ...children.live];
+    const session = parseTranscript(s.file);
+    const file = archiveFile(s.root, session);
+    const existed = fs.existsSync(file);
+    const text = renderArchive(revise(session, readRevisions(file)), labels);
+    if (!state.dryRun) {
+      fs.mkdirSync(path.dirname(file), { recursive: true });
+      fs.writeFileSync(file, text);
     }
-    const titles = s.agent === "codex" ? codexTitles(s.configDir) : {};
-    let first = "";
-    for (const source of files) {
-      // A rollout still being written ends in half a line: an archive of it would miss the end
-      if (s.agent === "codex" && !wholeFile(source)) throw new Error(`${path.basename(source)} has a line that isn't whole; is it still running?`);
-      const session = s.agent === "codex" ? parseRollout(source, titles) : parseTranscript(source);
-      // The file is the one asked for: the id in its own record must be its name's, or it would take another's place
-      if (s.agent === "codex" && !path.basename(source).endsWith(`-${session.sessionId}.jsonl`)) throw new Error(`${path.basename(source)} names ${session.sessionId} inside, not the id in its name`);
-      const file = archiveFile(s.root, session);
-      first ||= file;
-      const existed = fs.existsSync(file);
-      const text = renderArchive(revise(session, readRevisions(file)), labels);
-      if (!state.dryRun) {
-        fs.mkdirSync(path.dirname(file), { recursive: true });
-        fs.writeFileSync(file, text);
-      }
-      report(state.dryRun ? (existed ? "would update" : "would create") : existed ? "updated" : "created", file, source === s.file ? `archive of ${s.id}` : `archive of a subagent of ${s.id}`);
-    }
-    return { ok: true, file: first };
+    report(state.dryRun ? (existed ? "would update" : "would create") : existed ? "updated" : "created", file, `archive of ${s.id}`);
+    return { ok: true, file };
   } catch (err) {
     const error = (err as Error).message;
     report("failed", s.file, `couldn't archive: ${error}`);
     return { ok: false, error };
-  }
-}
-
-// Whether every line of a file is a whole JSON record: a rollout with one cut in the middle (a write
-// that was interrupted) would be archived without it, and the deletion after would lose it.
-function wholeFile(file: string) {
-  try {
-    const text = fs.readFileSync(file, "utf8");
-    if (!text.endsWith("\n")) return false;
-    for (const line of text.split("\n")) if (line.trim()) JSON.parse(line);
-    return true;
-  } catch {
-    return false;
   }
 }
 
@@ -392,10 +359,6 @@ function deleteCodex(s: Session, evenRunning: boolean, codex: CodexDelete) {
   // The conversation this very command runs in is never one to delete, whatever else is known
   if (process.env.CODEX_THREAD_ID === s.id || (known && codexRunning({ ...s, mtime }, true))) {
     report("skipped", s.file, "still running; close it first");
-    return false;
-  }
-  if (s.others?.length) {
-    report("skipped", s.file, `it has ${s.others.length + 1} rollouts (a /revert started a new one); codex delete would take them all, and an archive covers one: delete it with codex delete yourself`);
     return false;
   }
   if (!known && !evenRunning) {

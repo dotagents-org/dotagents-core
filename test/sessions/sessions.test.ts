@@ -8,7 +8,7 @@ import os from "node:os";
 import path from "node:path";
 import { test, type TestContext } from "node:test";
 import type { Peer } from "../../core/machine/machine-state.ts";
-import { codexRunning, subagentRollouts } from "../../core/sessions/codex-sessions.ts";
+import { codexRunning } from "../../core/sessions/codex-sessions.ts";
 import { type ConfigDir, archiveRoot, archiveSession, deleteSession, fromPeer, listSessions, parseRunningIds, projectSlug, sessionFiles } from "../../core/sessions/sessions.ts";
 
 test("peer running ids ignore non-id lines and CRLF", () => {
@@ -260,32 +260,27 @@ test("sessions --running prints the ids this side's Claude Code runs, for the ot
   assert.deepEqual(res.stdout.trim().split(/\r?\n/), ["11111111-2222-3333-4444-555555555555"]);
 });
 
-test("sessions rm archives before deleting, and --no-archive deletes without archiving", (t) => {
+test("sessions rm deletes what is picked, with no archive written, and an unknown id fails", (t) => {
   const s = setup(t);
   const home = path.join(s.root, "home");
   const dir: ConfigDir = { side: "Here", dir: path.join(home, ".claude") };
-  const kept = session(dir, "11111111-0000-0000-0000-000000000001", lines(s.ws, "11111111-0000-0000-0000-000000000001"));
-  const bare = session(dir, "22222222-0000-0000-0000-000000000002", lines(s.ws, "22222222-0000-0000-0000-000000000002"));
+  const gone = session(dir, "11111111-0000-0000-0000-000000000001", lines(s.ws, "11111111-0000-0000-0000-000000000001"));
   const rm = (...args: string[]) =>
     spawnSync(process.execPath, [path.join(REPO, "cli.ts"), "sessions", "rm", ...args], {
       encoding: "utf8",
       env: { ...process.env, HOME: home, USERPROFILE: home, DOTAGENTS_STATE_DIR: path.join(s.root, "state") },
     });
-  const archives = path.join(s.ws, ".artifacts", "sessions");
-
-  let res = rm("11111111", "--yes");
+  // Without a terminal, --yes or --dry-run is needed
+  assert.notEqual(rm("11111111").status, 0);
+  assert.ok(fs.existsSync(gone));
+  const dry = rm("11111111", "--dry-run");
+  assert.equal(dry.status, 0, dry.stderr + dry.stdout);
+  assert.ok(fs.existsSync(gone), "a dry run deletes nothing");
+  const res = rm("11111111", "--yes");
   assert.equal(res.status, 0, res.stderr + res.stdout);
-  assert.ok(!fs.existsSync(kept));
-  assert.deepEqual(fs.readdirSync(archives), ["2026-01-02-11111111-0000-0000-0000-000000000001.md"]);
-
-  res = rm("22222222", "--yes", "--no-archive");
-  assert.equal(res.status, 0, res.stderr + res.stdout);
-  assert.match(res.stdout, /without an archive \(--no-archive\)/);
-  assert.ok(!fs.existsSync(bare));
-  assert.equal(fs.readdirSync(archives).length, 1, "no archive written");
-
-  res = rm("33333333", "--yes");
-  assert.notEqual(res.status, 0, "an unknown id fails");
+  assert.ok(!fs.existsSync(gone));
+  assert.deepEqual(fs.readdirSync(path.join(s.ws, ".artifacts", "sessions")), [], "nothing archived");
+  assert.notEqual(rm("33333333", "--yes").status, 0, "an unknown id fails");
 });
 
 test("the sessions list draws no glyphs between its parts, only spaces", (t) => {
@@ -301,7 +296,7 @@ test("the sessions list draws no glyphs between its parts, only spaces", (t) => 
   assert.doesNotMatch(res.stdout, /[◇·⚠└●]/);
 });
 
-test("in the terminal, a session's account is painted in its profile's color, and a missing archive folder in the warning one", (t) => {
+test("in the terminal, a session's account is painted in its profile's color", (t) => {
   const s = setup(t);
   const home = path.join(s.root, "home");
   const stateDir = path.join(s.root, "state");
@@ -318,7 +313,6 @@ test("in the terminal, a session's account is painted in its profile's color, an
   });
   assert.equal(res.status, 0, res.stderr);
   assert.ok(res.stdout.includes("\x1b[38;2;215;118;85mwork\x1b[39m"), "the profile's color on its name");
-  assert.ok(res.stdout.includes("\x1b[38;2;254;153;17mno .artifacts, not archived\x1b[39m"), "the warning color");
 });
 
 // Codex's rollouts, made by hand: a conversation, a subagent's, and one in another folder.
@@ -361,12 +355,13 @@ test("Codex's conversations join the list, without subagents', named as Codex na
   assert.deepEqual([cart.agent, cart.title, cart.accounts, cart.running, cart.ended], ["codex", "Cart", ["user-hopper"], false, "2026-11-18T10:05:00Z"]);
   assert.equal(all.find((s) => s.id === D)!.title, "something else", "the first message the user wrote, not the injected context");
   assert.deepEqual(listSessions({ dirs: [], codex, under: ws, now }).map((s) => s.id), [C]);
-  // Written a minute ago: running, never deleted, even when asked to
+  assert.deepEqual(listSessions({ dirs: [], codex, agent: "claude", now }), [], "the other agent's files are not read");
+  // Written a minute ago: running
   assert.equal(listSessions({ dirs: [], codex, now: old + 60_000 }).find((s) => s.id === C)!.running, true);
   const asked: string[] = [];
   const fake = (id: string) => (asked.push(id), true);
   quiet();
-  // The file is written now (a conversation that came back to life since it was listed): looked at again, still never deleted
+  // The file is written now (a conversation that came back to life since it was listed): looked at again, never deleted
   fs.utimesSync(main, new Date(), new Date());
   assert.equal(deleteSession(cart, { evenRunning: true, codex: fake }), false);
   fs.utimesSync(main, new Date(old), new Date(old));
@@ -376,28 +371,21 @@ test("Codex's conversations join the list, without subagents', named as Codex na
   quiet({ dryRun: true });
   assert.equal(deleteSession(cart, { codex: fake }), true);
   state.dryRun = false;
-  assert.deepEqual(asked, [], "neither a running one nor --dry-run asks Codex");
+  assert.deepEqual(asked, [], "neither a refused one nor --dry-run asks Codex");
   quiet();
   assert.equal(deleteSession(cart, { codex: fake }), true);
-  assert.deepEqual(asked, [C]);
   assert.equal(deleteSession({ ...cart, checked: false }, { evenRunning: true, codex: fake }), true, "confirmed, where it can't be seen");
   assert.deepEqual(asked, [C, C]);
-  // Its archive is the archive skill's Codex one, with its subagent's in a file of its own
-  const archived = archiveSession(cart);
-  assert.ok(archived.ok && fs.readFileSync(archived.file, "utf8").startsWith("# Cart\n"));
-  assert.match(fs.readFileSync((archived as { file: string }).file, "utf8"), /\| \*\*Agent\*\* \| Codex \|/);
-  assert.ok(fs.existsSync(path.join(ws, ".artifacts", "sessions", `2026-11-18-${S}.md`)), "the subagent's archive too");
-  // Half a line at the end: not archived, so not deleted
-  fs.appendFileSync(main, '{"timestamp":"2026-11-18T10:06:00Z","type":"response_item","payload":{"type":"mess');
-  assert.equal(archiveSession(cart).ok, false);
-  // A cut line in the middle, a whole one after it: no more an archive
-  const text = fs.readFileSync(main, "utf8").replace(/\{"timestamp":"2026-11-18T10:06:00Z"[^\n]*$/, '{"timestamp":"2026-11-18T10:06:00Z","type":"respo\n{"timestamp":"2026-11-18T10:07:00Z","type":"event_msg","payload":{}}\n');
-  fs.writeFileSync(main, text);
-  assert.equal(archiveSession(cart).ok, false, "a line cut in the middle");
-  // A rollout whose own id isn't the one in its name never takes that id's archive
-  const other = path.join(path.dirname(main), `rollout-2026-11-18T10-00-00-${D}.jsonl`);
-  fs.writeFileSync(other, fs.readFileSync(other, "utf8").replace(D, C));
-  assert.equal(archiveSession({ ...cart, id: D, file: other }).ok, false);
+  // This very command's own conversation, whatever else is known
+  const saved = process.env.CODEX_THREAD_ID;
+  process.env.CODEX_THREAD_ID = C;
+  try {
+    assert.equal(deleteSession(cart, { evenRunning: true, codex: fake }), false);
+  } finally {
+    if (saved === undefined) delete process.env.CODEX_THREAD_ID;
+    else process.env.CODEX_THREAD_ID = saved;
+  }
+  assert.deepEqual(asked, [C, C]);
 });
 
 test("a Codex conversation runs while a process here holds its rollout open, or it is the one a command runs in", () => {
@@ -405,6 +393,7 @@ test("a Codex conversation runs while a process here holds its rollout open, or 
   const now = 60 * 60_000;
   assert.equal(codexRunning(s, true, now, new Set()), false);
   assert.equal(codexRunning(s, true, now, new Set([s.file])), true);
+  assert.equal(codexRunning(s, true, now, null), false, "no /proc to look at: only the time says");
   assert.equal(codexRunning(s, false, now, new Set([s.file])), false, "another side's processes can't be seen from here");
   assert.equal(codexRunning({ ...s, mtime: now - 60_000 }, false, now), true, "written a minute ago");
   const saved = process.env.CODEX_THREAD_ID;
@@ -417,64 +406,12 @@ test("a Codex conversation runs while a process here holds its rollout open, or 
   }
 });
 
-test("a subagent Codex itself archived stops the archive of its parent: codex delete would take it, the archive can't keep it", async (t) => {
+test("a Codex conversation with several rollouts (after a /revert) is one entry: the newest rollout, the size of all", (t) => {
   const { root, ws } = setup(t);
-  const { home, C, S } = codexHome(root, ws);
-  const zlib = await import("node:zlib");
-  // The subagent moves to archived_sessions, compressed, as codex archive leaves it
-  const live = path.join(home, "sessions", "2026", "11", "18", `rollout-2026-11-18T10-00-00-${S}.jsonl`);
-  fs.mkdirSync(path.join(home, "archived_sessions"), { recursive: true });
-  fs.writeFileSync(path.join(home, "archived_sessions", `rollout-2026-11-18T10-00-00-${S}.jsonl.zst`), zlib.zstdCompressSync(fs.readFileSync(live)));
-  fs.rmSync(live);
-  const cart = listSessions({ dirs: [], codex: [{ side: "Here", home }], now: Date.parse("2026-11-18T13:00:00Z") }).find((x) => x.id === C)!;
-  fs.utimesSync(cart.file, new Date(0), new Date(0));
-  quiet();
-  const result = archiveSession(cart);
-  assert.equal(result.ok, false);
-  assert.match((result as { error: string }).error, /archived by Codex.*codex unarchive/);
-});
-
-test("a Codex conversation with several rollouts, a child whose header is long, or a file changed since listing is not deleted", (t) => {
-  const { root, ws } = setup(t);
-  const { home, C, S, main } = codexHome(root, ws);
-  const day = path.dirname(main);
-  const old = Date.parse("2026-11-18T12:00:00Z");
-  const age = (f: string) => fs.utimesSync(f, new Date(old), new Date(old));
-  age(main);
-  const codex = [{ side: "Here", home }];
-  const now = old + HOUR;
-  const list = () => listSessions({ dirs: [], codex, now }).find((x) => x.id === C)!;
-  const asked: string[] = [];
-  const fake = (id: string) => (asked.push(id), true);
-  quiet();
-  // A /revert: another rollout of the same conversation, a name of its own
-  const reverted = path.join(day, "rollout-2026-11-18T11-00-00-019a0000-0000-7000-8000-0000000000ff.jsonl");
+  const { home, C, main } = codexHome(root, ws);
+  const reverted = path.join(path.dirname(main), "rollout-2026-11-18T11-00-00-019a0000-0000-7000-8000-0000000000ff.jsonl");
   fs.copyFileSync(main, reverted);
-  age(reverted);
-  const twice = list();
-  assert.equal(twice.others?.length, 1);
-  assert.equal(archiveSession(twice).ok, false);
-  assert.equal(deleteSession(twice, { evenRunning: true, codex: fake }), false);
-  fs.rmSync(reverted);
-  // A subagent whose first line passes 64 KiB is still found: archived with its parent, not lost
-  const child = path.join(day, `rollout-2026-11-18T10-00-00-${S}.jsonl`);
-  const meta = JSON.parse(fs.readFileSync(child, "utf8").split("\n")[0]);
-  meta.payload.base_instructions = "x".repeat(100_000);
-  fs.writeFileSync(child, `${JSON.stringify(meta)}\n`);
-  assert.deepEqual(subagentRollouts(home, C).live, [child]);
-  // Written since it was listed: looked at again, kept
-  const listed = list();
-  fs.utimesSync(main, new Date(old + 1000), new Date(old + 1000));
-  assert.equal(deleteSession(listed, { evenRunning: true, codex: fake }), false);
-  // This very command's own conversation, whatever else is known
-  age(main);
-  const saved = process.env.CODEX_THREAD_ID;
-  process.env.CODEX_THREAD_ID = C;
-  try {
-    assert.equal(deleteSession(list(), { evenRunning: true, codex: fake }), false);
-  } finally {
-    if (saved === undefined) delete process.env.CODEX_THREAD_ID;
-    else process.env.CODEX_THREAD_ID = saved;
-  }
-  assert.deepEqual(asked, []);
+  const [one] = listSessions({ dirs: [], codex: [{ side: "Here", home }] }).filter((x) => x.id === C);
+  assert.equal(listSessions({ dirs: [], codex: [{ side: "Here", home }] }).filter((x) => x.id === C).length, 1);
+  assert.equal(one.bytes, fs.statSync(main).size * 2);
 });

@@ -31,9 +31,6 @@ export type Session = {
   // Whether `running` comes from the process records: always on this side; on the other side only
   // when its dotagents answered. When false, a session idle there for RECENT_MS counts as stopped.
   checked: boolean;
-  // A Codex conversation's other rollouts, when it has more than one (a /revert starts a new one under
-  // the same conversation id): they are one conversation to Codex's delete, and to no archive here.
-  others?: string[];
 };
 
 // The nearest folder at or above dir with .artifacts/sessions/.
