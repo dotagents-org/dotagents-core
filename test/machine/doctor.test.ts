@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { agentVersion, nodeOk, pathOnlyEnv, peerToolCheck, peerVersionLine } from "../../core/machine/peer.ts";
+import { agentVersion, nodeOk, pathOnlyEnv, peerAgentLine, peerToolCheck, peerVersionLine } from "../../core/machine/peer.ts";
 import { providers } from "../../core/accounts/providers.ts";
 import "../helpers.ts";
 
@@ -33,7 +33,10 @@ test("an agent is asked for its version from the PATH's absolute folders only, n
   // From WSL, Windows: cmd without AutoRun, no current folder, no relative PATH entry
   assert.match(peerVersionLine("codex", "linux"), /^\$env:PATH = .*-match .*\$env:NoDefaultCurrentDirectoryInExePath = 1; cmd \/d \/c codex --version$/);
   // From Windows, WSL: the PATH's relative entries dropped
-  assert.match(peerVersionLine("codex", "win32"), /^IFS=:; for d in \$PATH; do case \$d in \/\*\) .*exec "\$d\/codex" --version;; esac; done; exit 127$/);
+  assert.match(peerVersionLine("codex", "win32"), /^set -f; IFS=:; for d in \$PATH; do case \$d in \/\*\) \[ -f "\$d\/codex" \] && \[ -x "\$d\/codex" \] && exec "\$d\/codex" --version;; esac; done; exit 127$/);
+  // A variable for it, quoted for each shell
+  assert.match(peerAgentLine("codex", "delete --force x", "linux", { CODEX_HOME: "D:\\Ana's" }), /^\$env:CODEX_HOME = 'D:\\Ana''s'; .* cmd \/d \/c codex delete --force x$/);
+  assert.match(peerAgentLine("codex", "delete --force x", "win32", { CODEX_HOME: "/home/ana's" }), /&& CODEX_HOME='\/home\/ana'\\''s' exec "\$d\/codex" delete --force x;;/);
   const win = pathOnlyEnv({ Path: String.raw`C:\Tools;.;bin;\\server\share;\rooted;D:/bin` }, "win32");
   assert.equal(win.Path, String.raw`C:\Tools;\\server\share;D:/bin`);
   assert.equal(win.NoDefaultCurrentDirectoryInExePath, "1");

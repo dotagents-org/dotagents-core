@@ -13,10 +13,10 @@ import fs from "node:fs";
 import path from "node:path";
 import { CODEX_INJECTED } from "../../skills/archive/scripts/archive-session.ts";
 import { codexHome } from "../accounts/providers/codex-config.ts";
-import { peerCodexHome } from "../accounts/providers/codex-usage.ts";
+import { peerCodexHome, peerCodexNative } from "../accounts/providers/codex-usage.ts";
 import { isWindows } from "../common.ts";
 import { type Peer, loadMachine } from "../machine/machine-state.ts";
-import { pathOnlyEnv, runOnPeer } from "../machine/peer.ts";
+import { pathOnlyEnv, peerAgentLine, runOnPeer } from "../machine/peer.ts";
 import { type Session, RECENT_MS, archiveRoot } from "./session.ts";
 
 // A Codex data folder and the side it belongs to; peer: set for the other side's.
@@ -231,12 +231,18 @@ export function listCodexSessions(dirs: CodexDir[], { under, now = Date.now(), f
   return list;
 }
 
-// Deletes a conversation through Codex: here, or on the other side when peer is set. True when
-// Codex said it did. The id is a UUID, checked before it goes on a command line.
+// Deletes a conversation through Codex: here, or on the other side when peer is set, in that side's
+// CODEX_HOME when its ChatGPT profiles use one. True when Codex said it did. The id is a UUID, checked
+// before it goes on a command line, and codex is looked for in the PATH's absolute folders only.
 export type CodexDelete = (id: string, peer?: Peer) => boolean;
 export const codexDelete: CodexDelete = (id, peer) => {
   if (!ID.test(id)) return false;
-  if (peer) return runOnPeer(`codex delete --force ${id}`).status === 0;
-  // On Windows a codex npm installed is a .cmd, which only a shell runs: from the PATH only
-  return spawnSync("codex", ["delete", "--force", id], { encoding: "utf8", timeout: 60_000, windowsHide: true, shell: isWindows, env: pathOnlyEnv() }).status === 0;
+  if (peer) {
+    const native = peerCodexNative(peer);
+    return runOnPeer(peerAgentLine("codex", `delete --force ${id}`, process.platform, native ? { CODEX_HOME: native } : {})).status === 0;
+  }
+  const env = pathOnlyEnv();
+  if (!Object.entries(env).some(([k, v]) => k.toUpperCase() === "PATH" && v)) return false; // an empty PATH searches the current folder
+  // On Windows a codex npm installed is a .cmd, which only a shell runs
+  return spawnSync("codex", ["delete", "--force", id], { encoding: "utf8", timeout: 60_000, windowsHide: true, shell: isWindows, env }).status === 0;
 };

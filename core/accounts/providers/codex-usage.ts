@@ -286,6 +286,12 @@ export function readCodexUsage(now = new Date(), view?: PeerView): ProfileUsage[
 // The other side's Codex folder, as this side reaches it: the one its ChatGPT profiles use (its
 // CODEX_HOME when they were added), else its ~/.codex. Null when the configured one can't be reached
 // from here: never another folder's login in its place.
+// The other side's CODEX_HOME as that side names it, when its ChatGPT profiles use one of their own.
+export function peerCodexNative(peer: Peer): string | null {
+  const configured = peerProfiles(peer).find((p) => p.provider === "chatgpt" && typeof p.configDir === "string");
+  return configured ? configured.configDir : null;
+}
+
 export function peerCodexHome(peer: Peer) {
   const configured = peerProfiles(peer).find((p) => p.provider === "chatgpt" && typeof p.configDir === "string");
   if (!configured) return path.join(peer.home, ".codex");
