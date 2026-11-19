@@ -81,6 +81,7 @@ What changed for someone who updates a clone. The format follows [Keep a Changel
 
 ### Fixed
 
+- `start` no longer says the other side is off before it has asked: the first answers after it starts gave `"peer": { "up": false }` until `wsl.exe` answered, so the sidebar showed "WSL off" with WSL running.
 - `start --dry-run` previews the local API without starting a listener or writing state.
 - A successful Claude login renewal writes a log entry after saving the renewed login, without account details or credentials.
 - **Claude usage stays with the profile during a switch.** A refresh reads the login under the switch lock and uses that login's identity for usage and refusal records.
