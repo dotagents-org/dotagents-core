@@ -5,7 +5,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { test, type TestContext } from "node:test";
-import { claudeProfiles, forgetServer, liveServer, loadProfiles, providerOf, loadWorkspaces, migrateLegacyProfiles, profilesFile, readServer, recordServer, registerWorkspace, removeProfile, saveProfile, serverFile, untrackWorkspace, workspacesFile } from "../../core/machine/machine-state.ts";
+import { claudeProfiles, forgetServer, peerPath, liveServer, loadProfiles, providerOf, loadWorkspaces, migrateLegacyProfiles, profilesFile, readServer, recordServer, registerWorkspace, removeProfile, saveProfile, serverFile, untrackWorkspace, workspacesFile } from "../../core/machine/machine-state.ts";
 import { state } from "../../core/state.ts";
 import { startServer } from "../../surfaces/web/server.ts";
 import { quiet } from "../helpers.ts";
@@ -182,4 +182,24 @@ test("the recorded server counts only while it answers with its token", async (t
   recordServer({ port: server.port, token: server.token });
   await server.close();
   assert.equal(await liveServer(), null, "a file left behind by a server that stopped");
+});
+
+test("a path the other side wrote is reached from here by whole folders, or by its drive", () => {
+  const win = { name: "Windows", home: "/mnt/c/Users/Ana", nativeHome: "C:\\Users\\Ana" };
+  if (process.platform !== "win32") {
+    assert.equal(peerPath("C:\\Users\\Ana\\.codex", win), "/mnt/c/Users/Ana/.codex");
+    assert.equal(peerPath("c:\\users\\ana\\.claude-x", win), "/mnt/c/Users/Ana/.claude-x");
+    // Not under the home, though it starts with it
+    assert.equal(peerPath("C:\\Users\\AnaBackup\\.codex", win), "/mnt/c/Users/AnaBackup/.codex");
+    assert.equal(peerPath("D:\\Codex", win), "/mnt/d/Codex");
+    assert.equal(peerPath("relative\\x", win), null);
+  }
+  const wsl = { name: "WSL", home: "\\\\wsl.localhost\\Ubuntu\\home\\ana", nativeHome: "/home/ana" };
+  if (process.platform === "win32") {
+    assert.equal(peerPath("/home/ana/.codex", wsl), "\\\\wsl.localhost\\Ubuntu\\home\\ana\\.codex");
+    assert.equal(peerPath("/srv/codex", wsl), "\\\\wsl.localhost\\Ubuntu\\srv\\codex");
+  } else {
+    assert.equal(peerPath("/home/ana/.codex", { ...wsl, home: "/peer/home/ana" }), "/peer/home/ana/.codex");
+    assert.equal(peerPath("/home/anabackup/.codex", { ...wsl, home: "/peer/home/ana" }), null);
+  }
 });

@@ -281,10 +281,13 @@ export function readCodexUsage(now = new Date(), view?: PeerView): ProfileUsage[
 }
 
 // The other side's Codex folder, as this side reaches it: the one its ChatGPT profiles use (its
-// CODEX_HOME when they were added), else its ~/.codex.
+// CODEX_HOME when they were added), else its ~/.codex. Null when the configured one can't be reached
+// from here: never another folder's login in its place.
 export function peerCodexHome(peer: Peer) {
   const configured = peerProfiles(peer).find((p) => p.provider === "codex" && typeof p.configDir === "string");
-  return (configured && peerPath(configured.configDir, peer)) || path.join(peer.home, ".codex");
+  if (!configured) return path.join(peer.home, ".codex");
+  const home = peerPath(configured.configDir, peer);
+  return home && fs.existsSync(home) ? home : null;
 }
 
 // Which Codex profile is in each side's slot. The other side's slot is told apart by the ChatGPT
@@ -297,7 +300,8 @@ export function readCodexSlots(view?: PeerView): Record<string, string> {
   if (here) slots[sideName()] = here;
   const peer = sidePeer();
   if (!peer || (view && !view.up(peer))) return slots;
-  const user = readLogin(path.join(peerCodexHome(peer), "auth.json"))?.id;
+  const home = peerCodexHome(peer);
+  const user = home ? readLogin(path.join(home, "auth.json"))?.id : undefined;
   const there = user ? codexProfiles().find((p) => codexAccount(p)?.user === user)?.name : undefined;
   if (there) slots[peer.name] = there;
   return slots;

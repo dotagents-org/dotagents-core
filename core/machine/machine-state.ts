@@ -186,15 +186,27 @@ export type Peer = { name: string; home: string; nativeHome: string };
 export const peerStateDir = (peer: Peer) => path.join(peer.home, ".config", "dotagents");
 
 // A path the other side wrote (C:\Users\me\.claude-x), as this side reaches it
-// (/mnt/c/Users/me/.claude-x); null when it isn't under that side's home.
+// (/mnt/c/Users/me/.claude-x): under that side's home, by whole folders (C:\Users\AnaBackup is not
+// under C:\Users\Ana); else a Windows drive from WSL (D:\Codex is /mnt/d/Codex), or a WSL path from
+// Windows through the share peer.home is on. Null when there is no way there.
 export function peerPath(native: string, peer: Peer) {
-  const norm = (p: string) => p.replace(/[\\/]+$/, "");
-  const home = norm(peer.nativeHome);
-  const windowsLike = /^[a-z]:\\/i.test(home);
-  const inside = windowsLike ? native.toLowerCase().startsWith(home.toLowerCase()) : native.startsWith(home);
-  if (!inside) return null;
-  const rest = native.slice(home.length).split(/[\\/]+/).filter(Boolean);
-  return path.join(peer.home, ...rest);
+  const parts = (p: string) => p.split(/[\\/]+/).filter(Boolean);
+  const windowsLike = /^[a-z]:[\\/]/i.test(peer.nativeHome);
+  const same = (a: string, b: string) => (windowsLike ? a.toLowerCase() === b.toLowerCase() : a === b);
+  const home = parts(peer.nativeHome);
+  const mine = parts(native);
+  const rooted = windowsLike ? /^[a-z]:[\\/]/i.test(native) : native.startsWith("/");
+  if (rooted && mine.length >= home.length && home.every((h, n) => same(h, mine[n]))) return path.join(peer.home, ...mine.slice(home.length));
+  if (windowsLike && process.platform !== "win32") {
+    const drive = /^([a-z]):[\\/]/i.exec(native);
+    return drive ? path.posix.join("/mnt", drive[1].toLowerCase(), ...mine.slice(1)) : null;
+  }
+  if (!windowsLike && process.platform === "win32" && native.startsWith("/")) {
+    // peer.home is \\wsl.localhost\<distro> followed by the native home
+    const share = peer.home.slice(0, peer.home.length - peer.nativeHome.replace(/\//g, "\\").length);
+    return share && share !== peer.home ? share + native.replace(/\//g, "\\") : null;
+  }
+  return null;
 }
 
 // The other side's profiles.json, as it wrote it; empty when it can't be read (no dotagents there).

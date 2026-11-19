@@ -484,7 +484,7 @@ test("the other side's newer reading of the same ChatGPT account wins, matched b
   assert.deepEqual([read("hopper").windows[0].pct, read("hopper").from], [20, undefined]);
   // Another account's reading there is never taken
   usage(peerState, "work-gpt", "user-someone-else", NOW, 90);
-  assert.equal(read("dijkstra").windows.length, 0);
+  assert.deepEqual([read("hopper").windows[0].pct, read("hopper").from], [20, undefined]);
   // A side that is down isn't read
   usage(peerState, "work-gpt", "user-hopper", NOW, 80);
   assert.equal(codexUsage(new Date(NOW), { up: () => false }).find((p) => p.name === "hopper")!.from, undefined);
@@ -493,4 +493,7 @@ test("the other side's newer reading of the same ChatGPT account wins, matched b
   fs.writeFileSync(path.join(peer, ".codex", "auth.json"), auth("user-hopper", "hopper-there"));
   fs.writeFileSync(path.join(codexThere, "auth.json"), auth("user-dijkstra", "dijkstra-there"));
   assert.equal(readCodexSlots()[peerName], "dijkstra");
+  // A configured folder that can't be reached from here: no slot there, never ~/.codex's login
+  fs.writeFileSync(path.join(peerState, "profiles.json"), JSON.stringify({ version: 2, profiles: [{ name: "work-gpt", configDir: path.join(peer, "gone"), color: "#7B61A8", provider: "codex" }] }));
+  assert.equal(readCodexSlots()[peerName], undefined);
 });

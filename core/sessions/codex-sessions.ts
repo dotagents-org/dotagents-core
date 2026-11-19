@@ -27,7 +27,7 @@ export function codexDirs(side: (peer?: Peer) => string): CodexDir[] {
   const dirs: CodexDir[] = [{ side: side(peer), home: codexHome() }];
   if (peer) {
     const home = peerCodexHome(peer);
-    if (fs.existsSync(home)) dirs.push({ side: peer.name, home, peer });
+    if (home && fs.existsSync(home)) dirs.push({ side: peer.name, home, peer });
   }
   return dirs;
 }
