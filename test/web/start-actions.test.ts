@@ -92,3 +92,14 @@ test("start actions reject missing profiles and sides and preserve provider desk
   const claudeDesktop = await ask("desktop", { profile: "claude" });
   assert.doesNotMatch(claudeDesktop.body.detail, /has no Claude Desktop/);
 });
+
+test("what a switch reported before it threw stays with the error, so a slot written before it keeps its next", async () => {
+  const { captureAsync, report } = await import("../../core/output/output.ts");
+  await assert.rejects(
+    captureAsync(async () => {
+      report("updated", "/slot/auth.json", "now hopper");
+      throw new Error("the registry of the slot couldn't be written");
+    }),
+    (err: Error & { events?: { kind: string; status?: string; detail?: string }[] }) => err.events?.some((e) => e.kind === "result" && e.status === "updated" && e.detail === "now hopper") === true,
+  );
+});

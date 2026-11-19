@@ -112,11 +112,17 @@ export const sessions: Command = {
   },
 };
 
-// A side whose dotagents couldn't say which sessions it runs: said once, before anything is picked.
+// A side whose sessions can't be looked into: said once, before anything is picked. Claude Code's from the
+// other side are asked of that side's dotagents, and fall back on the time; Codex's can't be seen at all
+// there (or on Windows), so deleting one asks for a confirmation in a terminal, which --yes never gives.
 function warnUnchecked(list: Session[]) {
-  const sides = [...new Set(list.filter((s) => !s.checked).map((s) => s.side))];
-  for (const side of sides) {
+  const claude = [...new Set(list.filter((s) => s.agent === "claude" && !s.checked).map((s) => s.side))];
+  for (const side of claude) {
     checkWarn(`couldn't ask ${side} which sessions run there`, `a session idle there for over ${RECENT_MS / 60_000} minutes counts as stopped; close it there first, and update dotagents there with: dotagents update`);
+  }
+  const codex = [...new Set(list.filter((s) => s.agent === "codex" && !s.checked).map((s) => s.side))];
+  for (const side of codex) {
+    checkWarn(`can't see which Codex conversations are open on ${side}`, "deleting one there needs your confirmation in a terminal (--yes doesn't give it), and Codex closed on it first");
   }
 }
 

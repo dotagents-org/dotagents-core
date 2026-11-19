@@ -88,7 +88,9 @@ async function switchAction(body: unknown, oneAtATime: Serial): Promise<Action> 
     return { status: 200, body: { ok: true, detail: `now ${name}`, ...changed } };
   } catch (err) {
     log("core", "error", "start switch", err as Error);
-    return { status: 409, body: { ok: false, detail: (err as Error).message } };
+    // A slot written before the step that threw: the sessions on it keep the old account all the same
+    const written = (err as Error & { events?: { kind: string; status?: string; detail?: string }[] }).events?.some((e) => e.kind === "result" && e.status === "updated" && (e.detail ?? "").startsWith("now "));
+    return { status: 409, body: { ok: false, detail: (err as Error).message, ...(written ? { next } : {}) } };
   }
 }
 

@@ -256,6 +256,10 @@ export async function captureAsync(fn: () => Promise<void>, options: CaptureOpti
   const restore = swapIn(events, options);
   try {
     await fn();
+  } catch (err) {
+    // What was reported before it failed is kept with the error: a slot written before a later step threw
+    if (err instanceof Error) (err as Error & { events?: Event[] }).events = events;
+    throw err;
   } finally {
     restore();
   }

@@ -333,3 +333,25 @@ test("the archive skill refuses a reverted conversation: its rollouts together h
   assert.equal(alone.status, 1);
   assert.match(alone.stderr, /history starts in another rollout/);
 });
+
+test("Codex's own tool calls (a web search) are in the archive, and a rollout Codex archived is refused", (t) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "dotagents-archive-codex-"));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const file = path.join(root, "codex", "sessions", "2026", "11", "18", "rollout-2026-11-18T10-00-00-019a0000-aaaa-7bbb-8ccc-000000000009.jsonl");
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  fs.writeFileSync(file, [
+    { timestamp: "2026-11-18T10:00:00Z", type: "session_meta", payload: { id: "019a0000-aaaa-7bbb-8ccc-000000000009", cwd: "/w" } },
+    { timestamp: "2026-11-18T10:00:01Z", type: "response_item", payload: { type: "message", role: "user", content: [{ type: "input_text", text: "look it up" }] } },
+    { timestamp: "2026-11-18T10:00:02Z", type: "response_item", payload: { type: "web_search_call", action: { type: "search", query: "codex rollout format" } } },
+  ].map((l) => JSON.stringify(l)).join("\n") + "\n");
+  const text = renderArchive(parseRollout(file));
+  assert.match(text, /\| \*\*Tool calls\*\* \| web_search 1 \|/);
+  assert.match(text, /- `web_search` - codex rollout format/);
+  // In archived_sessions: its conversation's other rollouts are out of reach
+  const archived = path.join(root, "codex", "archived_sessions", path.basename(file));
+  fs.mkdirSync(path.dirname(archived), { recursive: true });
+  fs.copyFileSync(file, archived);
+  const run = spawnSync(process.execPath, [SCRIPT, "--agent", "codex", "--transcript", archived, "--project-root", path.join(root, "p")], { encoding: "utf8" });
+  assert.equal(run.status, 1);
+  assert.match(run.stderr, /archived by Codex; `codex unarchive`/);
+});

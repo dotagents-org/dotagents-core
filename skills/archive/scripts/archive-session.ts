@@ -351,6 +351,12 @@ export function parseRollout(file: string, titles: Record<string, string> = {}):
       if (str(p.call_id)) toolLines.set(p.call_id, s.out.length);
       s.out.push(codexToolLine(name, input));
       if (name === "apply_patch") for (const f of patchFiles(input)) addOnce(s.changed, f);
+    } else if (obj.type === "response_item" && /^(web_search|tool_search|image_generation|local_shell)_call$/.test(String(p.type))) {
+      // Codex's own tools, which have no name or input of their own
+      const name = String(p.type).replace(/_call$/, "");
+      bump(s.tools, name);
+      const detail = str(p.action?.query) ?? str(p.query) ?? str(p.action?.type) ?? str(p.prompt) ?? "";
+      s.out.push(detail ? oneLine(name, detail) : `- \`${name}\``);
     } else if (obj.type === "response_item" && (p.type === "custom_tool_call_output" || p.type === "function_call_output")) {
       const idx = toolLines.get(p.call_id);
       const out = isObject(p.output) ? p.output : null;
@@ -682,6 +688,11 @@ function main(argv: string[]) {
     return 1;
   }
   if (agent === "codex") {
+    // One Codex archived itself (compressed or not, in archived_sessions): its lineage can't be checked here
+    if (transcript.split(path.sep).includes("archived_sessions")) {
+      console.error("error: this rollout is in archived_sessions, archived by Codex; `codex unarchive` it first, so the other rollouts of its conversation can be looked at");
+      return 1;
+    }
     // The rollouts of this conversation: more than one means a /revert, whose history no one file holds
     const id = (args.transcript ? undefined : args["session-id"]) ?? (firstRecord(transcript)?.payload?.id as string | undefined);
     const same = id ? rolloutsOf(codexHome, id) : [];
