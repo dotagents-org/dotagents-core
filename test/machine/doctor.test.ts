@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { agentVersion, nodeOk, peerToolCheck } from "../../core/machine/peer.ts";
+import { agentVersion, nodeOk, peerToolCheck, peerVersionLine } from "../../core/machine/peer.ts";
 import { providers } from "../../core/accounts/providers.ts";
 import "../helpers.ts";
 
@@ -27,4 +27,9 @@ test("an agent's version is the line in its shape, past what the shell printed f
   assert.equal(agentVersion({ status: 0, stdout: "Now using node v24.20.0 (npm v11.6.2)\n" }, claude), null);
   assert.equal(agentVersion({ status: 1, stdout: "" }, codex), null);
   assert.equal(agentVersion({ status: null, error: new Error("spawn claude ENOENT") }, claude), null);
+});
+
+test("from WSL the other side's agent is asked through cmd, which runs an npm .cmd that PowerShell may refuse as a .ps1", () => {
+  assert.equal(peerVersionLine("codex", "linux"), "cmd /c codex --version");
+  assert.equal(peerVersionLine("codex", "win32"), "codex --version");
 });

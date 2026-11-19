@@ -86,6 +86,12 @@ export function runOnPeer(line: string) {
     : spawnSync("powershell.exe", ["-NoProfile", "-Command", line], { encoding: "utf8", timeout: 60_000, cwd: "/mnt/c" });
 }
 
+// The line that asks the other side for an agent's version. From WSL it goes through cmd: an agent
+// npm installed on Windows has a codex.ps1 next to codex.cmd, and PowerShell, which prefers the
+// .ps1, refuses it where scripts are blocked, so the agent would look missing.
+export const peerVersionLine = (command: string, platform: NodeJS.Platform = process.platform) =>
+  platform === "win32" ? `${command} --version` : `cmd /c ${command} --version`;
+
 // The version an agent's `<command> --version` printed ("2.1.327 (Claude Code)", "codex-cli
 // 0.170.0"): the line in its own shape, past whatever the shell printed first (the other side's
 // interactive bash may say which Node nvm uses), or null when the command isn't there or failed.

@@ -3,7 +3,7 @@
 
 import { spawnSync } from "node:child_process";
 import { checkItem, checkWarn, finish, header, section } from "../../../core/output/output.ts";
-import { agentVersion, inWsl, nodeOk, peerToolCheck, runOnPeer } from "../../../core/machine/peer.ts";
+import { agentVersion, inWsl, nodeOk, peerToolCheck, peerVersionLine, runOnPeer } from "../../../core/machine/peer.ts";
 import { providers } from "../../../core/accounts/providers.ts";
 import { sideName, sidePeer } from "../../../core/machine/machine-state.ts";
 import { verifyLogins } from "../../../core/accounts/profiles.ts";
@@ -41,7 +41,7 @@ export const doctor: Command = {
       const { command, version: shape, install } = provider.cli;
       // On Windows an npm-installed agent is a .cmd, which only a shell runs
       const sides = [{ name: sideName(), res: spawnSync(command, ["--version"], { encoding: "utf8", timeout: 30_000, windowsHide: true, shell: process.platform === "win32" }) }];
-      if (peer) sides.push({ name: peer.name, res: runOnPeer(`${command} --version`) });
+      if (peer) sides.push({ name: peer.name, res: runOnPeer(peerVersionLine(command)) });
       for (const side of sides) {
         const version = agentVersion(side.res, shape);
         if (version) checkItem(true, `${provider.labels.tool} on ${side.name}: ${version}`);
