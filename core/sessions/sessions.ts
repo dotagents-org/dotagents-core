@@ -15,7 +15,7 @@ import { logChange } from "../machine/log.ts";
 import fs from "node:fs";
 import path from "node:path";
 import { type AccountLabels, archiveFile, codexTitles, parseRollout, parseTranscript, promptText, readRevisions, renderArchive, revise } from "../../skills/archive/scripts/archive-session.ts";
-import { type CodexDelete, type CodexDir, codexDelete, codexDirs, codexRunning, listCodexSessions } from "./codex-sessions.ts";
+import { type CodexDelete, type CodexDir, codexDelete, codexDirs, codexRunning, listCodexSessions, subagentRollouts } from "./codex-sessions.ts";
 import { codexAccount, codexProfiles } from "../accounts/providers/codex-store.ts";
 import { type ProcessProbe, defaultConfigDir, runningProcess, signedIn } from "../claude-code.ts";
 import { isWindows } from "../common.ts";
@@ -309,20 +309,49 @@ export function accountColors(): Map<string, string> {
 export function archiveSession(s: Session, labels: AccountLabels = new Map()): { ok: true; file: string } | { ok: false; error: string } {
   if (!s.root) return { ok: false, error: "no .artifacts/sessions/ in its project" };
   try {
-    const session = s.agent === "codex" ? parseRollout(s.file, codexTitles(s.configDir)) : parseTranscript(s.file);
-    const file = archiveFile(s.root, session);
-    const existed = fs.existsSync(file);
-    const text = renderArchive(revise(session, readRevisions(file)), labels);
-    if (!state.dryRun) {
-      fs.mkdirSync(path.dirname(file), { recursive: true });
-      fs.writeFileSync(file, text);
+    // A Codex conversation goes with its subagents', which codex delete takes too, each in its own file
+    const files = s.agent === "codex" ? [s.file, ...subagentRollouts(s.configDir, s.id)] : [s.file];
+    const titles = s.agent === "codex" ? codexTitles(s.configDir) : {};
+    let first = "";
+    for (const source of files) {
+      // A rollout still being written ends in half a line: an archive of it would miss the end
+      if (s.agent === "codex" && !wholeFile(source)) throw new Error(`${path.basename(source)} ends in a partial line; is it still running?`);
+      const session = s.agent === "codex" ? parseRollout(source, titles) : parseTranscript(source);
+      const file = archiveFile(s.root, session);
+      first ||= file;
+      const existed = fs.existsSync(file);
+      const text = renderArchive(revise(session, readRevisions(file)), labels);
+      if (!state.dryRun) {
+        fs.mkdirSync(path.dirname(file), { recursive: true });
+        fs.writeFileSync(file, text);
+      }
+      report(state.dryRun ? (existed ? "would update" : "would create") : existed ? "updated" : "created", file, source === s.file ? `archive of ${s.id}` : `archive of a subagent of ${s.id}`);
     }
-    report(state.dryRun ? (existed ? "would update" : "would create") : existed ? "updated" : "created", file, `archive of ${s.id}`);
-    return { ok: true, file };
+    return { ok: true, file: first };
   } catch (err) {
     const error = (err as Error).message;
     report("failed", s.file, `couldn't archive: ${error}`);
     return { ok: false, error };
+  }
+}
+
+// Whether a file ends with a whole line: its last line read as JSON.
+function wholeFile(file: string) {
+  const fd = fs.openSync(file, "r");
+  try {
+    const size = fs.fstatSync(fd).size;
+    const length = Math.min(size, 1 << 20);
+    const buf = Buffer.alloc(length);
+    fs.readSync(fd, buf, 0, length, size - length);
+    const text = buf.toString("utf8");
+    if (!text.endsWith("\n")) return false;
+    const last = text.trimEnd().split("\n").at(-1) ?? "";
+    JSON.parse(last);
+    return true;
+  } catch {
+    return false;
+  } finally {
+    fs.closeSync(fd);
   }
 }
 

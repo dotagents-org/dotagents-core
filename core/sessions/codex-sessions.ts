@@ -141,27 +141,61 @@ const inside = (child: string, parent: string) => {
   return rel === "" || (!rel.startsWith("..") && !path.isAbsolute(rel));
 };
 
+// The rollouts of a conversation's subagents, and of theirs, in a Codex folder: each names its
+// parent in its first line.
+export function subagentRollouts(home: string, parent: string): string[] {
+  const children = new Map<string, { id: string; file: string }[]>();
+  for (const file of rolloutFiles(home)) {
+    try {
+      const fd = fs.openSync(file, "r");
+      const buf = Buffer.alloc(64 * 1024);
+      const n = fs.readSync(fd, buf, 0, buf.length, 0);
+      fs.closeSync(fd);
+      const meta = parse(buf.subarray(0, n).toString("utf8").split("\n")[0]);
+      const p = meta?.type === "session_meta" ? meta.payload : null;
+      if (p && typeof p.parent_thread_id === "string" && typeof p.id === "string") children.set(p.parent_thread_id, [...(children.get(p.parent_thread_id) ?? []), { id: p.id, file }]);
+    } catch {
+      // unreadable: not one
+    }
+  }
+  const out: string[] = [];
+  const visit = (id: string) => {
+    for (const child of children.get(id) ?? []) {
+      if (out.includes(child.file)) continue;
+      out.push(child.file);
+      visit(child.id);
+    }
+  };
+  visit(parent);
+  return out;
+}
+
+// Every rollout file of a Codex folder: sessions/YYYY/MM/DD/rollout-*.jsonl.
+function rolloutFiles(home: string) {
+  const files: string[] = [];
+  const walk = (at: string, depth: number) => {
+    let entries: string[];
+    try {
+      entries = fs.readdirSync(at);
+    } catch {
+      return;
+    }
+    for (const name of entries) {
+      if (depth < 3) walk(path.join(at, name), depth + 1);
+      else if (/^rollout-.*\.jsonl$/.test(name)) files.push(path.join(at, name));
+    }
+  };
+  walk(path.join(home, "sessions"), 0);
+  return files;
+}
+
 // Every Codex conversation of the folders; under: only those started inside that folder.
 export function listCodexSessions(dirs: CodexDir[], { under, now = Date.now(), fromPeer }: { under?: string; now?: number; fromPeer: (p: string, peer: Peer) => string | null }): Session[] {
   const list: Session[] = [];
   const open = dirs.some((d) => !d.peer) ? openRollouts() : new Set<string>();
   for (const dir of dirs) {
     const names = titles(dir.home);
-    const files: string[] = [];
-    const walk = (at: string, depth: number) => {
-      let entries: string[];
-      try {
-        entries = fs.readdirSync(at);
-      } catch {
-        return;
-      }
-      for (const name of entries) {
-        if (depth < 3) walk(path.join(at, name), depth + 1);
-        else if (/^rollout-.*\.jsonl$/.test(name)) files.push(path.join(at, name));
-      }
-    };
-    walk(path.join(dir.home, "sessions"), 0);
-    for (const file of files) {
+    for (const file of rolloutFiles(dir.home)) {
       let st: fs.Stats;
       let info: ReturnType<typeof summary>;
       try {

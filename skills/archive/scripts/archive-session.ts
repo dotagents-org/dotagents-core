@@ -306,6 +306,7 @@ export function parseRollout(file: string, titles: Record<string, string> = {}):
   };
   const toolLines = new Map<string, number>(); // call_id → index of its line in s.out
   let usage: Json | null = null;
+  let recorded = false;
   let firstPrompt: string | null = null;
   for (const obj of transcriptLines(file)) {
     const ts = str(obj.timestamp);
@@ -322,6 +323,9 @@ export function parseRollout(file: string, titles: Record<string, string> = {}):
       if (str(p.effort)) addOnce(s.efforts, p.effort);
     } else if (obj.type === "token_usage_record" && isObject(obj.thread_token_usage ?? p.thread_token_usage)) {
       usage = obj.thread_token_usage ?? p.thread_token_usage; // the thread's total so far
+      recorded = true;
+    } else if (!recorded && obj.type === "event_msg" && p.type === "token_count" && isObject(p.info?.total_token_usage)) {
+      usage = p.info.total_token_usage; // older Codex: the same total, in its token_count events
     } else if (obj.type === "event_msg" && p.type === "item_completed" && isObject(p.item) && p.item.type === "FileChange") {
       const changes = p.item.changes;
       for (const f of Array.isArray(changes) ? changes.map((c) => (isObject(c) ? str(c.path) : null)) : isObject(changes) ? Object.keys(changes) : []) if (f) addOnce(s.changed, f);
@@ -472,9 +476,13 @@ export function renderArchive(s: ArchivedSession, labels: AccountLabels = new Ma
   return `${[...header, ...s.out, ...footer].join("\n").trimEnd()}\n`;
 }
 
-// Where a session's archive goes inside a project.
-export const archiveFile = (projectRoot: string, s: ArchivedSession) =>
-  path.join(projectRoot, ".artifacts", "sessions", `${(s.started ?? "").slice(0, 10)}-${s.sessionId}.md`);
+// Where a session's archive goes inside a project. The id and the date come from the transcript, so
+// they are checked before they name a file: never a path out of .artifacts/sessions/.
+export const archiveFile = (projectRoot: string, s: ArchivedSession) => {
+  const day = (s.started ?? "").slice(0, 10);
+  if (!/^[A-Za-z0-9][A-Za-z0-9_-]*$/.test(s.sessionId)) throw new Error(`the session id ${JSON.stringify(s.sessionId.slice(0, 80))} can't name a file`);
+  return path.join(projectRoot, ".artifacts", "sessions", `${/^\d{4}-\d{2}-\d{2}$/.test(day) ? day : "undated"}-${s.sessionId}.md`);
+};
 
 // The revised user messages of an archive ({ id: text }), kept next to it.
 export const revisionsFile = (archive: string) => archive.replace(/\.md$/, ".revisions.json");

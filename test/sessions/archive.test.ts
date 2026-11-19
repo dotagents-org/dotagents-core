@@ -7,7 +7,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { test, type TestContext } from "node:test";
-import { accountsText, parseTranscript, readRevisions, renderArchive, revise } from "../../skills/archive/scripts/archive-session.ts";
+import { accountsText, archiveFile, parseRollout, parseTranscript, readRevisions, renderArchive, revise } from "../../skills/archive/scripts/archive-session.ts";
 import { CONTEXT_HEAD, CONTEXT_TAIL } from "../../core/sessions/revision.ts";
 import { REPO } from "../helpers.ts";
 
@@ -270,4 +270,22 @@ test("a Codex rollout archives in the same format: the user's messages, not the 
   for (const f of ["src/login.ts", "test/login.test.ts", "src/form.css"]) assert.match(text, new RegExp(`- \`${f}\``));
   assert.match(text, /Fixed: the form now validates\./);
   for (const hidden of ["AGENTS.md instructions", "environment_context", "secret-reasoning", "permissions instructions"]) assert.doesNotMatch(text, new RegExp(hidden));
+});
+
+test("a Codex rollout from before token_usage_record gives its tokens from token_count", (t) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "dotagents-archive-codex-"));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const file = path.join(root, "rollout-2026-11-18T10-00-00-019a0000-aaaa-7bbb-8ccc-000000000001.jsonl");
+  const lines = [
+    { timestamp: "2026-11-18T10:00:00Z", type: "session_meta", payload: { id: "019a0000-aaaa-7bbb-8ccc-000000000001", cwd: "/w" } },
+    { timestamp: "2026-11-18T10:00:05Z", type: "event_msg", payload: { type: "token_count", info: { total_token_usage: { input_tokens: 3000, cached_input_tokens: 1000, output_tokens: 200 } } } },
+  ];
+  fs.writeFileSync(file, `${lines.map((l) => JSON.stringify(l)).join("\n")}\n`);
+  assert.match(renderArchive(parseRollout(file)), /\| \*\*Tokens\*\* \| in 2k, out 200, cache read 1k \|/);
+});
+
+test("an archive's name is never a path out of .artifacts/sessions/", () => {
+  const s = parseRollout(path.join(REPO, "package.json")); // no rollout: only its defaults
+  assert.throws(() => archiveFile("/p", { ...s, sessionId: "../../escape" }), /can't name a file/);
+  assert.equal(archiveFile("/p", { ...s, sessionId: "abc-1", started: "../x" }), path.join("/p", ".artifacts", "sessions", "undated-abc-1.md"));
 });

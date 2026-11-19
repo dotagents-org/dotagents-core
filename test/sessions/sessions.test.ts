@@ -375,10 +375,14 @@ test("Codex's conversations join the list, without subagents', named as Codex na
   quiet();
   assert.equal(deleteSession(cart, { codex: fake }), true);
   assert.deepEqual(asked, [C]);
-  // Its archive is the archive skill's Codex one
+  // Its archive is the archive skill's Codex one, with its subagent's in a file of its own
   const archived = archiveSession(cart);
   assert.ok(archived.ok && fs.readFileSync(archived.file, "utf8").startsWith("# Cart\n"));
   assert.match(fs.readFileSync((archived as { file: string }).file, "utf8"), /\| \*\*Agent\*\* \| Codex \|/);
+  assert.ok(fs.existsSync(path.join(ws, ".artifacts", "sessions", `2026-11-18-${S}.md`)), "the subagent's archive too");
+  // Half a line at the end: not archived, so not deleted
+  fs.appendFileSync(main, '{"timestamp":"2026-11-18T10:06:00Z","type":"response_item","payload":{"type":"mess');
+  assert.equal(archiveSession(cart).ok, false);
 });
 
 test("a Codex conversation runs while a process here holds its rollout open, or it is the one a command runs in", () => {
