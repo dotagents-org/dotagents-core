@@ -15,7 +15,7 @@ import { logChange } from "../machine/log.ts";
 import fs from "node:fs";
 import path from "node:path";
 import { type AccountLabels, archiveFile, codexTitles, parseRollout, parseTranscript, promptText, readRevisions, renderArchive, revise } from "../../skills/archive/scripts/archive-session.ts";
-import { type CodexDelete, type CodexDir, codexDelete, codexDirs, listCodexSessions } from "./codex-sessions.ts";
+import { type CodexDelete, type CodexDir, codexDelete, codexDirs, codexRunning, listCodexSessions } from "./codex-sessions.ts";
 import { codexAccount, codexProfiles } from "../accounts/providers/codex-store.ts";
 import { type ProcessProbe, defaultConfigDir, runningProcess, signedIn } from "../claude-code.ts";
 import { isWindows } from "../common.ts";
@@ -370,9 +370,20 @@ export function deleteSession(s: Session, { evenRunning = false, stop = stopProc
     return false;
   }
   if (s.agent === "codex") {
+    const peer = s.side === thisSide(loadMachine().peer) ? undefined : loadMachine().peer;
+    // Looked at again right before: it may have been opened, or written to, since it was listed
+    let mtime = s.mtime;
+    try {
+      mtime = fs.statSync(s.file).mtimeMs;
+    } catch {
+      // gone: codex delete says so
+    }
+    if (codexRunning({ ...s, mtime }, !peer)) {
+      report("skipped", s.file, "still running; close it first");
+      return false;
+    }
     // Through Codex, which deletes its subagents' rollouts and its own records too
     if (state.dryRun) return report("would update", s.file, "would delete it with codex delete"), true;
-    const peer = s.side === thisSide(loadMachine().peer) ? undefined : loadMachine().peer;
     if (codex(s.id, peer)) return report("updated", s.file, "deleted with codex delete"), true;
     report("failed", s.file, `codex delete ${s.id} failed${peer ? ` on ${peer.name}` : ""}; delete it there with: codex delete ${s.id}`);
     return false;

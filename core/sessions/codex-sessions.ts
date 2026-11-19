@@ -99,6 +99,43 @@ function summary(file: string) {
   };
 }
 
+// The rollouts a process on this side holds open: on Linux (WSL included) /proc says which files
+// each process has, and Codex keeps its conversation's rollout open while it runs. Elsewhere it
+// can't be told, so the empty set: the rollout's time is all there is.
+export function openRollouts(): Set<string> {
+  const open = new Set<string>();
+  if (process.platform !== "linux") return open;
+  let pids: string[] = [];
+  try {
+    pids = fs.readdirSync("/proc").filter((n) => /^\d+$/.test(n));
+  } catch {
+    return open;
+  }
+  for (const pid of pids) {
+    let fds: string[];
+    try {
+      fds = fs.readdirSync(`/proc/${pid}/fd`);
+    } catch {
+      continue; // another user's, or gone
+    }
+    for (const fd of fds) {
+      try {
+        const target = fs.readlinkSync(`/proc/${pid}/fd/${fd}`);
+        if (/\/rollout-[^/]*\.jsonl$/.test(target)) open.add(target);
+      } catch {
+        // closed meanwhile
+      }
+    }
+  }
+  return open;
+}
+
+// Whether a Codex conversation is running: its rollout open in a process on this side, its own
+// conversation (CODEX_THREAD_ID, for a command run inside Codex), or written in the last RECENT_MS.
+export function codexRunning(s: Pick<Session, "id" | "file" | "mtime">, here: boolean, now = Date.now(), open: Set<string> = here ? openRollouts() : new Set()) {
+  return (here && (open.has(s.file) || process.env.CODEX_THREAD_ID === s.id)) || now - s.mtime < RECENT_MS;
+}
+
 const inside = (child: string, parent: string) => {
   const rel = path.relative(parent, child);
   return rel === "" || (!rel.startsWith("..") && !path.isAbsolute(rel));
@@ -107,6 +144,7 @@ const inside = (child: string, parent: string) => {
 // Every Codex conversation of the folders; under: only those started inside that folder.
 export function listCodexSessions(dirs: CodexDir[], { under, now = Date.now(), fromPeer }: { under?: string; now?: number; fromPeer: (p: string, peer: Peer) => string | null }): Session[] {
   const list: Session[] = [];
+  const open = dirs.some((d) => !d.peer) ? openRollouts() : new Set<string>();
   for (const dir of dirs) {
     const names = titles(dir.home);
     const files: string[] = [];
@@ -150,7 +188,7 @@ export function listCodexSessions(dirs: CodexDir[], { under, now = Date.now(), f
         mtime: st.mtimeMs,
         accounts: info.accounts,
         root: archiveRoot(localCwd),
-        running: now - st.mtimeMs < RECENT_MS,
+        running: codexRunning({ id: info.id, file, mtime: st.mtimeMs }, !dir.peer, now, open),
         pid: null,
         checked: false,
       });

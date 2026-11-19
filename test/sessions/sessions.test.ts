@@ -8,6 +8,7 @@ import os from "node:os";
 import path from "node:path";
 import { test, type TestContext } from "node:test";
 import type { Peer } from "../../core/machine/machine-state.ts";
+import { codexRunning } from "../../core/sessions/codex-sessions.ts";
 import { type ConfigDir, archiveRoot, archiveSession, deleteSession, fromPeer, listSessions, parseRunningIds, projectSlug, sessionFiles } from "../../core/sessions/sessions.ts";
 
 test("peer running ids ignore non-id lines and CRLF", () => {
@@ -378,4 +379,21 @@ test("Codex's conversations join the list, without subagents', named as Codex na
   const archived = archiveSession(cart);
   assert.ok(archived.ok && fs.readFileSync(archived.file, "utf8").startsWith("# Cart\n"));
   assert.match(fs.readFileSync((archived as { file: string }).file, "utf8"), /\| \*\*Agent\*\* \| Codex \|/);
+});
+
+test("a Codex conversation runs while a process here holds its rollout open, or it is the one a command runs in", () => {
+  const s = { id: "019a0000-0000-7000-8000-00000000000c", file: "/h/.codex/sessions/rollout-x.jsonl", mtime: 0 };
+  const now = 60 * 60_000;
+  assert.equal(codexRunning(s, true, now, new Set()), false);
+  assert.equal(codexRunning(s, true, now, new Set([s.file])), true);
+  assert.equal(codexRunning(s, false, now, new Set([s.file])), false, "another side's processes can't be seen from here");
+  assert.equal(codexRunning({ ...s, mtime: now - 60_000 }, false, now), true, "written a minute ago");
+  const saved = process.env.CODEX_THREAD_ID;
+  process.env.CODEX_THREAD_ID = s.id;
+  try {
+    assert.equal(codexRunning(s, true, now, new Set()), true, "the conversation this command runs in");
+  } finally {
+    if (saved === undefined) delete process.env.CODEX_THREAD_ID;
+    else process.env.CODEX_THREAD_ID = saved;
+  }
 });
