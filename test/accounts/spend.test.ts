@@ -158,7 +158,25 @@ test("a rollout Codex archived (compressed, in archived_sessions) still counts t
     JSON.stringify({ timestamp: "2026-11-15T09:05:00Z", type: "token_usage_record", response_id: "r1", usage: { input_tokens: 5000, cached_input_tokens: 4000, output_tokens: 1000 } }),
   ].join("\n");
   fs.writeFileSync(path.join(home, "archived_sessions", "rollout-2026-11-15T09-00-00-c1.jsonl.zst"), zlib.zstdCompressSync(text));
+  // The compressed file the only source: if it can't be read, nothing is counted
+  assert.deepEqual(readCodexSpend(0, [home]).map((x) => [x.account, x.tokens.output]), [["user-hopper", 1000]]);
   fs.writeFileSync(path.join(home, "archived_sessions", "rollout-2026-11-15T09-00-00-c2.jsonl"), text); // the same response, as plain text: counted once
-  const spend = readCodexSpend(0, [home]);
-  assert.deepEqual(spend.map((x) => [x.account, x.tokens.output]), [["user-hopper", 1000]]);
+  assert.deepEqual(readCodexSpend(0, [home]).map((x) => [x.account, x.tokens.output]), [["user-hopper", 1000]]);
+});
+
+test("a rollout that goes from token_count to token_usage_record counts both parts once, and a copy of it adds nothing", (t) => {
+  const dir = tmp(t);
+  const home = path.join(dir, "codex");
+  fs.mkdirSync(path.join(home, "sessions", "2026", "11", "15"), { recursive: true });
+  fs.mkdirSync(path.join(home, "archived_sessions"), { recursive: true });
+  const count = (at: string, input: number, output: number) => JSON.stringify({ timestamp: at, type: "event_msg", payload: { type: "token_count", info: { total_token_usage: { input_tokens: input, cached_input_tokens: 0, output_tokens: output } } } });
+  const text = [
+    JSON.stringify({ timestamp: "2026-11-15T09:00:00Z", type: "session_meta", payload: { id: "c1", cwd: "/w", creator_user_id: "user-hopper" } }),
+    count("2026-11-15T09:05:00Z", 2000, 500), // before the update: from the total's step
+    JSON.stringify({ timestamp: "2026-11-15T10:00:00Z", type: "token_usage_record", response_id: "r1", usage: { input_tokens: 3000, cached_input_tokens: 0, output_tokens: 700 } }),
+    count("2026-11-15T10:00:00Z", 5000, 1200), // the same response's count: not twice
+  ].join("\n");
+  fs.writeFileSync(path.join(home, "sessions", "2026", "11", "15", "rollout-2026-11-15T09-00-00-c1.jsonl"), text);
+  fs.writeFileSync(path.join(home, "archived_sessions", "rollout-2026-11-15T09-00-00-c1.jsonl"), text); // a copy
+  assert.deepEqual(readCodexSpend(0, [home]).map((x) => x.tokens.output), [500, 700]);
 });

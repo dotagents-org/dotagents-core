@@ -145,9 +145,11 @@ export function readSpend(since: number, dirs: ConfigDir[] = configDirs()): Spen
 function readRollout(file: string, since: number, seen: Set<string>): Spend[] {
   const out: Spend[] = [];
   // An older Codex has no token_usage_record, only token_count events with the thread's running total:
-  // its deltas stand in, and only when the file has no record at all (they would count twice)
+  // their steps stand in for the part of the file before its first record (after, the two would count
+  // twice), and a step seen already (the same rollout in sessions/ and in archived_sessions/) is not counted again
   const fallback: Spend[] = [];
-  let recorded = false;
+  let firstRecord = Infinity;
+  let thread = "";
   let total = 0;
   let account: string | null = null;
   let model = "";
@@ -165,16 +167,17 @@ function readRollout(file: string, since: number, seen: Set<string>): Spend[] {
     if (o.type === "session_meta") {
       // The first one is the conversation's: a later one (a reverted history) names another
       if (total++ === 0) {
+        thread = typeof p.id === "string" ? p.id : thread;
         account = typeof p.creator_user_id === "string" ? p.creator_user_id : account;
         cwd = typeof p.cwd === "string" ? p.cwd : cwd;
       }
     } else if (o.type === "turn_context") {
       model = typeof p.model === "string" ? p.model : model;
     } else if (o.type === "token_usage_record") {
-      recorded = true;
       const u = o.usage ?? p.usage;
       const id = o.response_id ?? p.response_id;
       const at = Date.parse(o.timestamp);
+      if (at < firstRecord) firstRecord = at;
       if (!u || !(at >= since) || (id && seen.has(id))) continue;
       if (id) seen.add(id);
       const cached = Number(u.cached_input_tokens) || 0;
@@ -188,11 +191,14 @@ function readRollout(file: string, since: number, seen: Set<string>): Spend[] {
       Object.assign(lastTotal, now);
       // A total that went down (a new thread's counter) is no spend
       if (!(at >= since) || delta.input < 0 || delta.cached < 0 || delta.output < 0 || !(delta.input || delta.output)) continue;
+      const key = `tc|${thread}|${at}|${now.input}|${now.output}`;
+      if (thread && seen.has(key)) continue;
+      seen.add(key);
       const tokens = { input: Math.max(0, delta.input - delta.cached), cacheRead: delta.cached, cacheWrite: 0, output: delta.output };
       fallback.push({ at, account, model, cwd, tokens, costUsd: costOf(model, tokens) });
     }
   }
-  return recorded ? out : fallback;
+  return [...out, ...fallback.filter((d) => d.at < firstRecord)];
 }
 
 export function readCodexSpend(since: number, homes: string[]): Spend[] {
