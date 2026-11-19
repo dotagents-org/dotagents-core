@@ -14,15 +14,18 @@ import { execFile, spawnSync } from "node:child_process";
 import { logChange } from "../machine/log.ts";
 import fs from "node:fs";
 import path from "node:path";
-import { type AccountLabels, archiveFile, parseTranscript, promptText, readRevisions, renderArchive, revise } from "../../skills/archive/scripts/archive-session.ts";
+import { type AccountLabels, archiveFile, codexTitles, parseRollout, parseTranscript, promptText, readRevisions, renderArchive, revise } from "../../skills/archive/scripts/archive-session.ts";
+import { type CodexDelete, type CodexDir, codexDelete, codexDirs, listCodexSessions } from "./codex-sessions.ts";
+import { codexAccount, codexProfiles } from "../accounts/providers/codex-store.ts";
 import { type ProcessProbe, defaultConfigDir, runningProcess, signedIn } from "../claude-code.ts";
 import { isWindows } from "../common.ts";
 import { type Peer, claudeProfiles, loadMachine } from "../machine/machine-state.ts";
 import { report } from "../output/output.ts";
 import { state } from "../state.ts";
 import { profileAccount } from "../accounts/providers/claude-store.ts";
+import { RECENT_MS, type Session, archiveRoot } from "./session.ts";
 
-export const RECENT_MS = 10 * 60_000;
+export { RECENT_MS, type Session, archiveRoot };
 
 // A config folder and the side it belongs to. peer: set for the other side's, whose paths have to
 // be translated to be reached from here.
@@ -58,43 +61,7 @@ export function fromPeer(p: string, peer: Peer, here: "posix" | "win32" = isWind
   return peer.home.slice(0, peer.home.length - nativeHome.length) + p.replace(/\//g, "\\");
 }
 
-export type Session = {
-  id: string;
-  side: string;
-  configDir: string;
-  file: string;
-  // The working directory the session started in, as written, and as reached from this side.
-  cwd: string | null;
-  localCwd: string | null;
-  title: string;
-  started: string | null;
-  ended: string | null;
-  bytes: number;
-  mtime: number;
-  accounts: string[];
-  // The project folder its archive goes to: the nearest folder up from the working directory with
-  // .artifacts/sessions/. Null outside a workspace that follows the standard.
-  root: string | null;
-  running: boolean;
-  // The Claude Code process running it, on this side; null on the other side or with none.
-  pid: number | null;
-  // Whether `running` comes from the process records: always on this side; on the other side only
-  // when its dotagents answered. When false, a session idle there for RECENT_MS counts as stopped.
-  checked: boolean;
-};
 
-// The nearest folder at or above dir with .artifacts/sessions/.
-export function archiveRoot(dir: string | null) {
-  if (!dir) return null;
-  for (let at = path.resolve(dir); ; at = path.dirname(at)) {
-    try {
-      if (fs.statSync(path.join(at, ".artifacts", "sessions")).isDirectory()) return at;
-    } catch {
-      // Not here.
-    }
-    if (path.dirname(at) === at) return null;
-  }
-}
 
 // The sessions this side's Claude Code processes are running: session id -> process id.
 export function runningPids(configDir: string = defaultConfigDir(), running: ProcessProbe = runningProcess) {
@@ -215,7 +182,8 @@ export const peerRunningLater = (): Promise<Set<string> | null> =>
   });
 
 // peerRunning: how to ask the other side; without it, its sessions count as running only by RECENT_MS.
-export type ListOptions = { dirs?: ConfigDir[]; under?: string; now?: number; running?: ProcessProbe; peerRunning?: PeerRunning };
+// codex: the Codex folders to read; by default both sides', unless dirs names the Claude ones (a test).
+export type ListOptions = { dirs?: ConfigDir[]; codex?: CodexDir[]; under?: string; now?: number; running?: ProcessProbe; peerRunning?: PeerRunning };
 
 const inside = (child: string, parent: string) => {
   const rel = path.relative(parent, child);
@@ -227,8 +195,9 @@ const inside = (child: string, parent: string) => {
 export const projectSlug = (dir: string) => path.resolve(dir).replace(/[^A-Za-z0-9]/g, "-");
 
 // Every session of the config folders, newest first; under: only those started inside that folder.
-export function listSessions({ dirs = configDirs(), under, now = Date.now(), running = runningProcess, peerRunning: askPeer }: ListOptions = {}): Session[] {
-  const list: Session[] = [];
+export function listSessions({ dirs, codex, under, now = Date.now(), running = runningProcess, peerRunning: askPeer }: ListOptions = {}): Session[] {
+  const list: Session[] = listCodexSessions(codex ?? (dirs ? [] : codexDirs(thisSide)), { under, now, fromPeer });
+  dirs ??= configDirs();
   for (const cd of dirs) {
     // The other side is asked once, and only when it has a session to ask about.
     let asked = false;
@@ -274,6 +243,7 @@ export function listSessions({ dirs = configDirs(), under, now = Date.now(), run
         const known = live ?? liveThere();
         return {
           id,
+          agent: "claude",
           side: cd.side,
           configDir: cd.dir,
           file,
@@ -313,6 +283,11 @@ export function accountLabels(): AccountLabels {
   }
   const slot = signedIn(defaultConfigDir());
   if (slot && !labels.has(slot.accountUuid) && slot.email) labels.set(slot.accountUuid, slot.email);
+  // The ChatGPT users a Codex conversation names, by the profile whose saved login is that user
+  for (const profile of codexProfiles()) {
+    const account = codexAccount(profile);
+    if (account && !labels.has(account.user)) labels.set(account.user, account.email ? `${profile.name} (${account.email})` : profile.name);
+  }
   return labels;
 }
 
@@ -323,6 +298,10 @@ export function accountColors(): Map<string, string> {
     const account = profileAccount(profile);
     if (account && !colors.has(account.accountUuid)) colors.set(account.accountUuid, profile.color);
   }
+  for (const profile of codexProfiles()) {
+    const account = codexAccount(profile);
+    if (account && !colors.has(account.user)) colors.set(account.user, profile.color);
+  }
   return colors;
 }
 
@@ -330,7 +309,7 @@ export function accountColors(): Map<string, string> {
 export function archiveSession(s: Session, labels: AccountLabels = new Map()): { ok: true; file: string } | { ok: false; error: string } {
   if (!s.root) return { ok: false, error: "no .artifacts/sessions/ in its project" };
   try {
-    const session = parseTranscript(s.file);
+    const session = s.agent === "codex" ? parseRollout(s.file, codexTitles(s.configDir)) : parseTranscript(s.file);
     const file = archiveFile(s.root, session);
     const existed = fs.existsSync(file);
     const text = renderArchive(revise(session, readRevisions(file)), labels);
@@ -384,9 +363,18 @@ export const stopProcess: ProcessStopper = (pid) => {
 // session is archived: then its Claude Code process on this side is ended first, or the session
 // would write its transcript again. One on the other side has only its files deleted. Honors
 // --dry-run; files already gone are left alone, so it can run again.
-export function deleteSession(s: Session, { evenRunning = false, stop = stopProcess }: { evenRunning?: boolean; stop?: ProcessStopper } = {}) {
-  if (s.running && !evenRunning) {
+export function deleteSession(s: Session, { evenRunning = false, stop = stopProcess, codex = codexDelete }: { evenRunning?: boolean; stop?: ProcessStopper; codex?: CodexDelete } = {}) {
+  // A Codex conversation has no process dotagents can end: one still running is never deleted
+  if (s.running && (!evenRunning || s.agent === "codex")) {
     report("skipped", s.file, "still running; close it first");
+    return false;
+  }
+  if (s.agent === "codex") {
+    // Through Codex, which deletes its subagents' rollouts and its own records too
+    if (state.dryRun) return report("would update", s.file, "would delete it with codex delete"), true;
+    const peer = s.side === thisSide(loadMachine().peer) ? undefined : loadMachine().peer;
+    if (codex(s.id, peer)) return report("updated", s.file, "deleted with codex delete"), true;
+    report("failed", s.file, `codex delete ${s.id} failed${peer ? ` on ${peer.name}` : ""}; delete it there with: codex delete ${s.id}`);
     return false;
   }
   if (s.running && s.pid !== null) {

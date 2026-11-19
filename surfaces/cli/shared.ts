@@ -22,6 +22,7 @@ export type CliArgs = {
   default?: boolean;
   color?: string;
   provider?: string;
+  agent?: string;
   json?: boolean;
   refresh?: boolean;
   running?: boolean;

@@ -259,7 +259,7 @@ export function parseTranscript(file: string): ArchivedSession {
 
 // What Codex puts in the user's role that the user didn't write: the environment, the AGENTS.md
 // files, its own context.
-const CODEX_INJECTED = /^\s*(<environment_context>|<user_instructions>|<codex_internal_context|# AGENTS\.md instructions)/;
+export const CODEX_INJECTED = /^\s*(<environment_context>|<user_instructions>|<user_action>|<codex_internal_context|# AGENTS\.md instructions)/;
 
 // The files an apply_patch names: "*** Add File: a", "*** Update File: b", "*** Move to: c".
 const patchFiles = (patch: string) => [...patch.matchAll(/^\*\*\* (?:Add|Update|Delete) File: (.+)$|^\*\*\* Move to: (.+)$/gm)].map((m) => (m[1] ?? m[2]).trim());

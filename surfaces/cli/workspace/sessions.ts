@@ -34,8 +34,10 @@ function accountsShort(s: Session, labels: AccountLabels) {
 
 const archiveNote = (s: Session) => (s.root ? `archives to ${displayPath(s.root)}` : "no .artifacts, not archived");
 
+const agentName = (s: Session) => (s.agent === "codex" ? "Codex" : "Claude Code");
+
 function details(s: Session, labels: AccountLabels, withProject: boolean) {
-  return [s.side, accountsShort(s, labels), size(s.bytes), withProject ? displayPath(s.localCwd ?? s.cwd ?? "?") : "", archiveNote(s), s.running ? "running" : ""].filter(Boolean).join("  ");
+  return [agentName(s), s.side, accountsShort(s, labels), size(s.bytes), withProject ? displayPath(s.localCwd ?? s.cwd ?? "?") : "", archiveNote(s), s.running ? "running" : ""].filter(Boolean).join("  ");
 }
 
 // The same details for the terminal: the account in its profile's color, what needs attention
@@ -45,6 +47,7 @@ function paintedDetails(s: Session, labels: AccountLabels, colors: Map<string, s
     ? s.accounts.map((a) => (colors.has(a) ? ink.profile(colors.get(a)!)(shortLabel(a, labels)) : muted(shortLabel(a, labels)))).join(muted(" + ")) + (s.accounts.length > 1 ? muted(" (shared)") : "")
     : muted("account unknown");
   return [
+    muted(agentName(s)),
     muted(s.side),
     account,
     muted(size(s.bytes)),
@@ -59,6 +62,7 @@ function paintedDetails(s: Session, labels: AccountLabels, colors: Map<string, s
 function json(list: Session[], labels: AccountLabels) {
   return list.map((s) => ({
     id: s.id,
+    agent: s.agent,
     side: s.side,
     title: s.title,
     cwd: s.cwd,
@@ -76,21 +80,29 @@ function json(list: Session[], labels: AccountLabels) {
 // The folder a command lists, or every project's with --all.
 const scope = (ctx: Context) => (ctx.args.all ? undefined : workspaceArg(ctx));
 
+// --agent claude|codex: only that agent's sessions
+function ofAgent(ctx: Context, list: Session[]) {
+  const agent = ctx.args.agent;
+  if (agent === undefined) return list;
+  if (agent !== "claude" && agent !== "codex") throw new UsageError(`--agent is claude or codex, not ${agent}`);
+  return list.filter((s) => s.agent === agent);
+}
+
 export const sessions: Command = {
   name: "sessions",
-  usage: "[path] [--all]",
-  summary: "list Claude Code's sessions, on both sides of the machine",
-  more: ["the ones started in this folder; --all: every project's"],
+  usage: "[path] [--all] [--agent claude|codex]",
+  summary: "list Claude Code's and Codex's sessions, on both sides of the machine",
+  more: ["the ones started in this folder; --all: every project's; --agent: only one agent's"],
   group: "Workspace",
   run(ctx) {
     // For the other side's `sessions rm`: the ids of the sessions this side's Claude Code runs.
     if (ctx.args.running) return void [...runningIds()].forEach((id) => console.log(id));
     const under = scope(ctx);
-    const list = listSessions({ under });
+    const list = ofAgent(ctx, listSessions({ under }));
     const labels = accountLabels();
     if (ctx.args.json) return console.log(JSON.stringify(json(list, labels), null, 2));
     if (!fancy) {
-      for (const s of list) console.log([s.id, s.side, when(s), s.bytes, s.running ? "running" : "-", s.root ?? "-", s.accounts.join("+") || "-", s.title].join("\t"));
+      for (const s of list) console.log([s.id, s.agent, s.side, when(s), s.bytes, s.running ? "running" : "-", s.root ?? "-", s.accounts.join("+") || "-", s.title].join("\t"));
       return;
     }
     const colors = accountColors();
@@ -181,7 +193,7 @@ export const sessionsRm: Command = {
     } else {
       if (!interactive) throw new UsageError("Pass the ids to delete (dotagents sessions lists them), or run it in a terminal to pick them");
       const under = scope(ctx);
-      const pool = listSessions({ under, peerRunning });
+      const pool = ofAgent(ctx, listSessions({ under, peerRunning }));
       const labels = accountLabels();
       header("sessions rm", under ?? "every project");
       warnUnchecked(pool);

@@ -369,25 +369,26 @@ Removes a workspace from the tracked list, so `update --all` skips it. Its files
 ## dotagents sessions
 
 ```bash
-dotagents sessions [path] [--all] [--json]
+dotagents sessions [path] [--all] [--agent claude|codex] [--json]
 ```
 
-Lists the Claude Code sessions started in a folder (the current one by default) or, with `--all`, in every project, newest first. It reads every config folder of the machine: this side's `~/.claude` and, when `install` found the other side (WSL or Windows), that side's too, with its paths translated (`C:\x` is `/mnt/c/x` from WSL).
+Lists the Claude Code and Codex sessions started in a folder (the current one by default) or, with `--all`, in every project, newest first; `--agent` shows only one agent's. It reads every config folder of the machine: this side's `~/.claude` and Codex's (`CODEX_HOME`, else `~/.codex`) and, when `install` found the other side (WSL or Windows), that side's too (its Codex folder is the one its ChatGPT profiles use, else its `~/.codex`), with its paths translated (`C:\x` is `/mnt/c/x` from WSL). A Codex conversation is its rollout, `sessions/YYYY/MM/DD/rollout-<time>-<id>.jsonl`; a subagent's rollout belongs to its parent's conversation and isn't listed.
 
-Each session shows when it was last active, its id, its title (the one Claude Code gave it, or the first message), and then:
+Each session shows when it was last active, its id, its title (the one the agent gave it, Codex's from its `session_index.jsonl`, or the first message), and then:
 
+- its agent, Claude Code or Codex;
 - the side it ran on;
-- the account: the profile whose Claude account ran it, from the `session-owner` records Claude Code writes, and `(shared)` when more than one account did, which happens when a session continues after a `switch`. Older transcripts don't record it: `account unknown`;
+- the account: the profile whose Claude account ran it, from the `session-owner` records Claude Code writes, and `(shared)` when more than one account did, which happens when a session continues after a `switch`. Older transcripts don't record it: `account unknown`. A Codex conversation names the ChatGPT user that started it, shown as the profile whose saved login is that user;
 - its size;
 - with `--all`, the folder it started in;
 - where `sessions rm` would archive it: the nearest folder at or above where it started that has `.artifacts/sessions/`, or `no .artifacts`;
-- `running`: a session this side's Claude Code still runs (its `sessions/<pid>.json`, while the process lives), or one whose transcript changed in the last 10 minutes. The list doesn't ask the other side, which takes a few seconds, so there a session counts as running only by that time; `sessions rm` asks.
+- `running`: a session this side's Claude Code still runs (its `sessions/<pid>.json`, while the process lives), or one whose transcript changed in the last 10 minutes. Codex keeps no record of its processes, so a Codex conversation counts as running only by that time. The list doesn't ask the other side, which takes a few seconds, so there a session counts as running only by that time; `sessions rm` asks.
 
 `dotagents sessions --running` prints only the ids of the sessions this side's Claude Code runs, one per line. It is how `sessions rm` asks the other side.
 
 In a terminal the account is in its profile's color, as in every other view, and `running` and `no .artifacts` are in the warning color; the rest is muted.
 
-Piped, one tab-separated line per session: id, side, last activity, bytes, `running` or `-`, archive folder or `-`, account ids joined with `+`, title. `--json` prints the list with each account's id and label, `shared`, `archiveRoot`, `running` and the transcript's path.
+Piped, one tab-separated line per session: id, agent (`claude` or `codex`), side, last activity, bytes, `running` or `-`, archive folder or `-`, account ids joined with `+`, title. `--json` prints the list with each session's `agent`, each account's id and label, `shared`, `archiveRoot`, `running` and the transcript's path.
 
 ## dotagents sessions rm
 
@@ -411,6 +412,8 @@ Then, for each session, it writes the archive when asked to (the same file the `
 - its folder beside it, with subagents and tool results;
 - `file-history/<id>/` and `session-env/<id>/`;
 - the project folder, when nothing else is left in it.
+
+A Codex conversation is deleted through Codex itself, `codex delete --force <id>`, on the side it ran on (on the other side, through PowerShell or WSL's bash), which also deletes its subagents' rollouts and Codex's own records of it. One still running is never deleted: close it first, since dotagents can't end a Codex process.
 
 A session whose archive fails is kept unless you answer yes to deleting it anyway.
 

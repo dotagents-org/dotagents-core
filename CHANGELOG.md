@@ -22,6 +22,7 @@ What changed for someone who updates a clone. The format follows [Keep a Changel
 
 ### Added
 
+- **Codex's sessions in `sessions` and `sessions rm`.** The list shows Codex's conversations next to Claude Code's, on both sides, with the agent of each (`--agent claude|codex` shows one), the ChatGPT profile that started it, and Codex's own name for it. `sessions rm` archives a Codex conversation in the `archive` skill's format and deletes it through `codex delete`, which takes its subagents' rollouts too; a running one is never deleted. Piped, the list has an agent column after the id, and `--json` an `agent`.
 - **The `archive` skill for Codex too.** `--agent codex --session-id "$CODEX_THREAD_ID"`, run inside a Codex session, writes its conversation to `.artifacts/sessions/<date>-<id>.md` in the same format as Claude Code's: the user's messages without the context Codex injects, the replies, one line per tool, the files an `apply_patch` changed, the model, the effort, the tokens and the ChatGPT profile. The encrypted reasoning stays out.
 - **`doctor` checks the agents.** It says whether Claude Code and Codex are installed on each side of the machine, with their versions (`Codex on Windows: codex-cli 0.169.1`), and how to install one that is missing, as a warning.
 - **`dotagents new <folder>` starts an empty workspace:** without a repository to clone, `new` creates the folder and runs `init` on it, for a project with no repository yet; in a terminal, `dotagents new` alone asks for the name.

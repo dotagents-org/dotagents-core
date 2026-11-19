@@ -254,7 +254,7 @@ try {
   args = parseArgs<CliArgs>(process.argv.slice(2), {
     booleans: ["all", "api", "default", "dry-run", "help", "here", "json", "no-archive", "no-pull", "refresh", "running", "short", "spend", "version", "watch", "wrap", "yes"],
     lists: ["skills"],
-    values: ["color", "from", "port", "provider", "save", "side"],
+    values: ["agent", "color", "from", "port", "provider", "save", "side"],
   });
 } catch (err) {
   fail(err as Error);

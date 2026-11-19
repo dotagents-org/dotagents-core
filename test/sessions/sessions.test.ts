@@ -319,3 +319,63 @@ test("in the terminal, a session's account is painted in its profile's color, an
   assert.ok(res.stdout.includes("\x1b[38;2;215;118;85mwork\x1b[39m"), "the profile's color on its name");
   assert.ok(res.stdout.includes("\x1b[38;2;254;153;17mno .artifacts, not archived\x1b[39m"), "the warning color");
 });
+
+// Codex's rollouts, made by hand: a conversation, a subagent's, and one in another folder.
+function codexHome(root: string, ws: string) {
+  const home = path.join(root, "codex");
+  const day = path.join(home, "sessions", "2026", "11", "18");
+  fs.mkdirSync(day, { recursive: true });
+  const write = (id: string, cwd: string, extra: object = {}, text = "add the cart") => {
+    const file = path.join(day, `rollout-2026-11-18T10-00-00-${id}.jsonl`);
+    const lines = [
+      { timestamp: "2026-11-18T10:00:00Z", type: "session_meta", payload: { id, cwd, creator_user_id: "user-hopper", ...extra } },
+      { timestamp: "2026-11-18T10:00:01Z", type: "response_item", payload: { type: "message", role: "user", content: [{ type: "input_text", text: "<environment_context>x</environment_context>" }] } },
+      { timestamp: "2026-11-18T10:00:02Z", type: "response_item", payload: { type: "message", role: "user", content: [{ type: "input_text", text }] } },
+      { timestamp: "2026-11-18T10:05:00Z", type: "response_item", payload: { type: "message", role: "assistant", content: [{ type: "output_text", text: "done" }] } },
+    ];
+    fs.writeFileSync(file, `${lines.map((l) => JSON.stringify(l)).join("\n")}\n`);
+    return file;
+  };
+  const C = "019a0000-0000-7000-8000-00000000000c";
+  const D = "019a0000-0000-7000-8000-00000000000d";
+  const S = "019a0000-0000-7000-8000-00000000000e";
+  const main = write(C, ws);
+  write(S, ws, { parent_thread_id: C, source: { subagent: { thread_spawn: {} } } });
+  write(D, path.join(root, "elsewhere"), {}, "something else");
+  fs.writeFileSync(path.join(home, "session_index.jsonl"), `${JSON.stringify({ id: C, thread_name: "Cart" })}\n`);
+  return { home, C, D, S, main };
+}
+
+test("Codex's conversations join the list, without subagents', named as Codex names them, and are deleted through Codex", (t) => {
+  const { root, ws } = setup(t);
+  const { home, C, D, S, main } = codexHome(root, ws);
+  const old = Date.parse("2026-11-18T12:00:00Z");
+  fs.utimesSync(main, new Date(old), new Date(old));
+  const codex = [{ side: "Here", home }];
+  const now = old + HOUR;
+  const all = listSessions({ dirs: [], codex, now });
+  assert.deepEqual(all.map((s) => s.id).sort(), [C, D].sort(), "a subagent's rollout isn't listed");
+  assert.ok(!all.some((s) => s.id === S));
+  const cart = all.find((s) => s.id === C)!;
+  assert.deepEqual([cart.agent, cart.title, cart.accounts, cart.running, cart.ended], ["codex", "Cart", ["user-hopper"], false, "2026-11-18T10:05:00Z"]);
+  assert.equal(all.find((s) => s.id === D)!.title, "something else", "the first message the user wrote, not the injected context");
+  assert.deepEqual(listSessions({ dirs: [], codex, under: ws, now }).map((s) => s.id), [C]);
+  // Written a minute ago: running, never deleted, even when asked to
+  assert.equal(listSessions({ dirs: [], codex, now: old + 60_000 }).find((s) => s.id === C)!.running, true);
+  const asked: string[] = [];
+  const fake = (id: string) => (asked.push(id), true);
+  quiet();
+  assert.equal(deleteSession({ ...cart, running: true }, { evenRunning: true, codex: fake }), false);
+  state.dryRun = true;
+  quiet({ dryRun: true });
+  assert.equal(deleteSession(cart, { codex: fake }), true);
+  state.dryRun = false;
+  assert.deepEqual(asked, [], "neither a running one nor --dry-run asks Codex");
+  quiet();
+  assert.equal(deleteSession(cart, { codex: fake }), true);
+  assert.deepEqual(asked, [C]);
+  // Its archive is the archive skill's Codex one
+  const archived = archiveSession(cart);
+  assert.ok(archived.ok && fs.readFileSync(archived.file, "utf8").startsWith("# Cart\n"));
+  assert.match(fs.readFileSync((archived as { file: string }).file, "utf8"), /\| \*\*Agent\*\* \| Codex \|/);
+});

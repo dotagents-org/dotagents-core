@@ -61,7 +61,11 @@ test("only core/accounts imports a provider's files", () => {
   const wrong = [path.join(REPO, "cli.ts"), ...sources(path.join(REPO, "core")), ...sources(path.join(REPO, "surfaces"))].flatMap((f) => {
     const rel = path.relative(REPO, f).split(path.sep).join("/");
     if (rel.startsWith("core/accounts/")) return [];
-    return imports(f).filter((i) => i.startsWith("core/accounts/providers/") && !(rel === "core/sessions/sessions.ts" && i === "core/accounts/providers/claude-store.ts")).map((i) => `${rel} → ${i}`);
+    // The sessions list reads each agent's own files: Claude Code's accounts, Codex's folders and users
+    const allowed = (i: string) =>
+      (rel === "core/sessions/sessions.ts" && ["core/accounts/providers/claude-store.ts", "core/accounts/providers/codex-store.ts"].includes(i)) ||
+      (rel === "core/sessions/codex-sessions.ts" && ["core/accounts/providers/codex-config.ts", "core/accounts/providers/codex-usage.ts"].includes(i));
+    return imports(f).filter((i) => i.startsWith("core/accounts/providers/") && !allowed(i)).map((i) => `${rel} → ${i}`);
   });
   assert.deepEqual(wrong, []);
 });

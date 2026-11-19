@@ -24,7 +24,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import readline from "node:readline";
-import { type Profile, peerPath, peerProfiles, peerStateDir, sideName, sidePeer } from "../../machine/machine-state.ts";
+import { type Peer, type Profile, peerPath, peerProfiles, peerStateDir, sideName, sidePeer } from "../../machine/machine-state.ts";
 import type { PeerView } from "../snapshot.ts";
 import { codexAccount, codexLoginMark, codexProfiles, codexSlotProfile, readLogin, slotFile, vaultFile, vaultLogin } from "./codex-store.ts";
 import type { Asked } from "../providers.ts";
@@ -280,6 +280,13 @@ export function readCodexUsage(now = new Date(), view?: PeerView): ProfileUsage[
   });
 }
 
+// The other side's Codex folder, as this side reaches it: the one its ChatGPT profiles use (its
+// CODEX_HOME when they were added), else its ~/.codex.
+export function peerCodexHome(peer: Peer) {
+  const configured = peerProfiles(peer).find((p) => p.provider === "codex" && typeof p.configDir === "string");
+  return (configured && peerPath(configured.configDir, peer)) || path.join(peer.home, ".codex");
+}
+
 // Which Codex profile is in each side's slot. The other side's slot is told apart by the ChatGPT
 // user in its auth.json, matched against this side's vault (the same account on both sides); only
 // while that side is up. Its slot is the folder its ChatGPT profiles use (its CODEX_HOME when they
@@ -290,9 +297,7 @@ export function readCodexSlots(view?: PeerView): Record<string, string> {
   if (here) slots[sideName()] = here;
   const peer = sidePeer();
   if (!peer || (view && !view.up(peer))) return slots;
-  const configured = peerProfiles(peer).find((p) => p.provider === "codex" && typeof p.configDir === "string");
-  const home = (configured && peerPath(configured.configDir, peer)) || path.join(peer.home, ".codex");
-  const user = readLogin(path.join(home, "auth.json"))?.id;
+  const user = readLogin(path.join(peerCodexHome(peer), "auth.json"))?.id;
   const there = user ? codexProfiles().find((p) => codexAccount(p)?.user === user)?.name : undefined;
   if (there) slots[peer.name] = there;
   return slots;
