@@ -22,6 +22,7 @@ What changed for someone who updates a clone. The format follows [Keep a Changel
 
 ### Added
 
+- **`doctor` checks the agents.** It says whether Claude Code and Codex are installed on each side of the machine, with their versions (`Codex on Windows: codex-cli 0.169.1`), and how to install one that is missing, as a warning.
 - **`dotagents new <folder>` starts an empty workspace:** without a repository to clone, `new` creates the folder and runs `init` on it, for a project with no repository yet; in a terminal, `dotagents new` alone asks for the name.
 - **A new workspace folder ends in `-workspace`:** `dotagents new` adds it when the folder given or answered lacks it (`thesis` becomes `thesis-workspace/`); an existing folder keeps its name.
 - **A ChatGPT app per ChatGPT profile, on Windows, as Claude Desktop per Claude profile.** `profile add --provider codex` and `install` give it the Start menu shortcut "ChatGPT <Name>" and a launcher; the default ChatGPT profile (`--default` now works for ChatGPT too, one default per provider) opens the normal app, which follows the slot, and another one a second app with its own data folder and `CODEX_HOME` inside it, signed in once there. The accounts panel's mark opens it, as a Claude account's opens Claude Desktop. Each one gets its own taskbar button, title and icon (`assets/chatgpt-<name>.ico`), through the same watcher as Claude Desktop's, which now takes the app's process (`-Exe`). The tray icon stays the app's: the ChatGPT app registers one by GUID for all its instances.

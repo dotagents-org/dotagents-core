@@ -1,8 +1,10 @@
 // `doctor`: whether dotagents can do its job on this machine, and what to do when it can't, in words
 // for someone who doesn't know the tool: Node, the other side of the machine, the logins.
 
-import { checkItem, finish, header, section } from "../../../core/output/output.ts";
-import { inWsl, nodeOk, peerToolCheck, runOnPeer } from "../../../core/machine/peer.ts";
+import { spawnSync } from "node:child_process";
+import { checkItem, checkWarn, finish, header, section } from "../../../core/output/output.ts";
+import { agentVersion, inWsl, nodeOk, peerToolCheck, runOnPeer } from "../../../core/machine/peer.ts";
+import { providers } from "../../../core/accounts/providers.ts";
 import { sideName, sidePeer } from "../../../core/machine/machine-state.ts";
 import { verifyLogins } from "../../../core/accounts/profiles.ts";
 import type { Command } from "../shared.ts";
@@ -11,7 +13,7 @@ export const doctor: Command = {
   name: "doctor",
   usage: "",
   summary: "check that dotagents can work here, and say what to do when it can't",
-  more: ["Node on both sides, whether each side sees the other, the logins"],
+  more: ["Node on both sides, whether each side sees the other, Claude Code and Codex on each side, the logins"],
   group: "Machine",
   run() {
     header("doctor", sideName());
@@ -29,6 +31,21 @@ export const doctor: Command = {
       if (peer) {
         const check = peerToolCheck(peer.name, runOnPeer("node --version; dotagents --version"));
         checkItem(check.passed, `dotagents runs on ${peer.name}${check.passed ? `: ${check.detail}` : ""}`, check.passed ? "" : check.detail);
+      }
+    }
+
+    // The agents, on each side: one that is missing is a warning, since dotagents works without it
+    section("Agents");
+    const peer = inWsl() || process.platform === "win32" ? sidePeer() : null;
+    for (const provider of providers()) {
+      const { command, version: shape, install } = provider.cli;
+      // On Windows an npm-installed agent is a .cmd, which only a shell runs
+      const sides = [{ name: sideName(), res: spawnSync(command, ["--version"], { encoding: "utf8", timeout: 30_000, windowsHide: true, shell: process.platform === "win32" }) }];
+      if (peer) sides.push({ name: peer.name, res: runOnPeer(`${command} --version`) });
+      for (const side of sides) {
+        const version = agentVersion(side.res, shape);
+        if (version) checkItem(true, `${provider.labels.tool} on ${side.name}: ${version}`);
+        else checkWarn(`${provider.labels.tool} isn't on ${side.name}`, install);
       }
     }
 

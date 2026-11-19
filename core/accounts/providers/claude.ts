@@ -140,6 +140,7 @@ const unknownSlot = (slot: StoredLogin) => new Error(`The slot holds ${emailOf(s
 const claude: Provider = {
   id: "claude",
   labels: LABELS.claude,
+  cli: { command: "claude", version: /^\d+\.\d+\S* \(Claude Code\)$/, install: "install Claude Code: https://claude.com/claude-code" },
   configDir: defaultConfigDir,
   desktop: CLAUDE_DESKTOP,
   configure(repo) {

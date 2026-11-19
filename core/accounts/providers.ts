@@ -69,6 +69,9 @@ export type Asked = { ok: true; record: Record<string, unknown>; afterWrite?: ()
 export type Provider = {
   id: ProviderId;
   labels: Labels;
+  // The agent's command, the shape of the line its --version prints, and how to install it when a
+  // side lacks it (doctor).
+  cli: { command: string; version: RegExp; install: string };
   // The agent's config folder: the slot is in it.
   configDir: () => string;
   // Each profile's Desktop app on Windows (core/machine/desktop.ts): Claude Desktop, or the ChatGPT app.
