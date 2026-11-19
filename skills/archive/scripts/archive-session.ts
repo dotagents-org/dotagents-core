@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Writes a direct, readable transcript of a Claude Code session. No dependencies; Node 22.18+,
+// Writes a direct, readable transcript of a Claude Code or Codex session. No dependencies; Node 24+,
 // which runs this TypeScript file directly.
 //
 // Reads the raw JSONL transcript that Claude Code keeps locally:
@@ -17,8 +17,13 @@
 //
 // Re-running overwrites the file, so it is safe to checkpoint mid-session.
 //
+// A Codex conversation works the same way with --agent codex: its rollout,
+// $CODEX_HOME/sessions/YYYY/MM/DD/rollout-<time>-<id>.jsonl (CODEX_HOME, else ~/.codex), in the
+// same format; inside Codex the conversation's id is in $CODEX_THREAD_ID.
+//
 // Usage:
 //   node archive-session.ts --session-id <uuid>
+//   node archive-session.ts --agent codex --session-id <uuid>
 //   node archive-session.ts --transcript /path/to/session.jsonl
 //   node archive-session.ts                         # newest session for this project
 //   node archive-session.ts --session-id <uuid> --prompts         # user messages not revised yet, as JSON
@@ -26,6 +31,7 @@
 //
 //   --project-root   override the detected project root
 //   --claude-home    override the Claude Code data folder (CLAUDE_CONFIG_DIR, else ~/.claude)
+//   --codex-home     override the Codex data folder (CODEX_HOME, else ~/.codex)
 //
 // dotagents imports this file too (`dotagents sessions rm` archives before it deletes), so the
 // parser lives in one place: keep the exports below stable.
@@ -249,6 +255,160 @@ export function parseTranscript(file: string): ArchivedSession {
   return s;
 }
 
+// ── Codex ─────────────────────────────────────────────────────────────────────────────────────
+
+// What Codex puts in the user's role that the user didn't write: the environment, the AGENTS.md
+// files, its own context.
+const CODEX_INJECTED = /^\s*(<environment_context>|<user_instructions>|<codex_internal_context|# AGENTS\.md instructions)/;
+
+// The files an apply_patch names: "*** Add File: a", "*** Update File: b", "*** Move to: c".
+const patchFiles = (patch: string) => [...patch.matchAll(/^\*\*\* (?:Add|Update|Delete) File: (.+)$|^\*\*\* Move to: (.+)$/gm)].map((m) => (m[1] ?? m[2]).trim());
+
+// A Codex tool call as one line: the command for a shell, the first line of the code or patch for
+// the others, the message for a subagent's.
+function codexToolLine(name: string, input: string) {
+  let shown = input;
+  try {
+    const args = JSON.parse(input);
+    if (isObject(args)) {
+      const command = Array.isArray(args.command) ? args.command.join(" ") : (str(args.command) ?? str(args.cmd));
+      shown = command ?? str(args.message) ?? str(args.prompt) ?? str(args.path) ?? "";
+    }
+  } catch {
+    // Not JSON: code or a patch, as it is
+  }
+  const first = shown.split("\n").find((l) => l.trim() && !/^\*\*\* Begin Patch/.test(l)) ?? "";
+  return first ? oneLine(name, first) : `- \`${name}\``;
+}
+
+// A Codex rollout, as the same ArchivedSession a Claude transcript gives. titles: the names Codex
+// keeps in session_index.jsonl ({ id: name }). Encrypted reasoning and injected context stay out.
+export function parseRollout(file: string, titles: Record<string, string> = {}): ArchivedSession {
+  const s: ArchivedSession = {
+    sessionId: path.basename(file, ".jsonl").replace(/^rollout-[\dT-]+?-(?=[0-9a-f]{8}-)/, ""),
+    agent: "Codex",
+    title: null,
+    model: null,
+    started: null,
+    ended: null,
+    out: [],
+    efforts: [],
+    userTurns: 0,
+    assistantMsgs: 0,
+    tools: new Map(),
+    tokens: new Map(),
+    changed: [],
+    userEdited: [],
+    cost: null,
+    accounts: [],
+    prompts: [],
+    revised: 0,
+  };
+  const toolLines = new Map<string, number>(); // call_id → index of its line in s.out
+  let usage: Json | null = null;
+  let firstPrompt: string | null = null;
+  for (const obj of transcriptLines(file)) {
+    const ts = str(obj.timestamp);
+    if (ts) {
+      s.started ??= ts;
+      s.ended = ts;
+    }
+    const p = isObject(obj.payload) ? obj.payload : {};
+    if (obj.type === "session_meta") {
+      s.sessionId = str(p.id) ?? s.sessionId;
+      if (str(p.creator_user_id)) addOnce(s.accounts, p.creator_user_id);
+    } else if (obj.type === "turn_context") {
+      s.model = str(p.model) ?? s.model;
+      if (str(p.effort)) addOnce(s.efforts, p.effort);
+    } else if (obj.type === "token_usage_record" && isObject(obj.thread_token_usage ?? p.thread_token_usage)) {
+      usage = obj.thread_token_usage ?? p.thread_token_usage; // the thread's total so far
+    } else if (obj.type === "event_msg" && p.type === "item_completed" && isObject(p.item) && p.item.type === "FileChange") {
+      const changes = p.item.changes;
+      for (const f of Array.isArray(changes) ? changes.map((c) => (isObject(c) ? str(c.path) : null)) : isObject(changes) ? Object.keys(changes) : []) if (f) addOnce(s.changed, f);
+    } else if (obj.type === "response_item" && p.type === "message") {
+      const text = (Array.isArray(p.content) ? p.content : []).filter((b: unknown) => isObject(b) && typeof b.text === "string").map((b: Json) => b.text).join("\n").trim();
+      if (!text) continue;
+      if (p.role === "user" && !CODEX_INJECTED.test(text)) {
+        s.userTurns++;
+        firstPrompt ??= text;
+        s.out.push("", `## 👤 User - ${(ts ?? "").slice(0, 16).replace("T", " ")} UTC`, "", text, "");
+        s.prompts.push({ id: str(p.id) ?? ts ?? String(s.userTurns), text, at: s.out.length - 2 });
+      } else if (p.role === "assistant") {
+        s.assistantMsgs++;
+        s.out.push("", `**🤖 ${s.agent}:**`, "", text, "");
+      }
+    } else if (obj.type === "response_item" && (p.type === "custom_tool_call" || p.type === "function_call")) {
+      const name = str(p.name) ?? "unknown";
+      const input = str(p.input) ?? str(p.arguments) ?? "";
+      bump(s.tools, name);
+      if (str(p.call_id)) toolLines.set(p.call_id, s.out.length);
+      s.out.push(codexToolLine(name, input));
+      if (name === "apply_patch") for (const f of patchFiles(input)) addOnce(s.changed, f);
+    } else if (obj.type === "response_item" && (p.type === "custom_tool_call_output" || p.type === "function_call_output")) {
+      const idx = toolLines.get(p.call_id);
+      const out = isObject(p.output) ? p.output : null;
+      const failed = (out && (out.success === false || (typeof out.exit_code === "number" && out.exit_code !== 0))) || /"exit_code":\s*[1-9]/.test(str(p.output) ?? "");
+      if (idx !== undefined && failed && !s.out[idx].endsWith("**(error)**")) s.out[idx] += " **(error)**";
+    }
+  }
+  if (usage) {
+    bump(s.tokens, "in", (Number(usage.input_tokens) || 0) - (Number(usage.cached_input_tokens) || 0));
+    bump(s.tokens, "out", Number(usage.output_tokens) || 0);
+    bump(s.tokens, "cache read", Number(usage.cached_input_tokens) || 0);
+  }
+  s.title = titles[s.sessionId] ?? (firstPrompt ? clip(firstPrompt.split("\n")[0], 80) : null);
+  return s;
+}
+
+// The names Codex gives its conversations: session_index.jsonl, one { id, thread_name } per line,
+// the last one for an id winning.
+export function codexTitles(codexHome: string): Record<string, string> {
+  const titles: Record<string, string> = {};
+  const file = path.join(codexHome, "session_index.jsonl");
+  if (!fs.existsSync(file)) return titles;
+  for (const obj of transcriptLines(file)) if (str(obj.id) && str(obj.thread_name)) titles[obj.id] = obj.thread_name;
+  return titles;
+}
+
+// The ChatGPT accounts this machine knows, by profile: dotagents' usage record of each ChatGPT
+// profile names its user (<state>/usage/<profile>.json); no login file is read.
+export function knownCodexAccounts(): AccountLabels {
+  const labels: AccountLabels = new Map();
+  const usage = path.join(dotagentsState(), "usage");
+  for (const name of fs.existsSync(usage) ? fs.readdirSync(usage).filter((n) => n.endsWith(".json")).sort() : []) {
+    try {
+      const data = JSON.parse(fs.readFileSync(path.join(usage, name), "utf8"));
+      if (isObject(data) && data.provider === "codex" && str(data.user) && !labels.has(data.user)) labels.set(data.user, name.slice(0, -5));
+    } catch {
+      // Being written, or not a record
+    }
+  }
+  return labels;
+}
+
+// The rollout of a Codex conversation by its id, or the newest one started in the project.
+function findRollout(codexHome: string, sessionId: string | undefined, projectRoot: string) {
+  const files: { file: string; mtime: number }[] = [];
+  const walk = (dir: string, depth: number) => {
+    for (const name of fs.existsSync(dir) ? fs.readdirSync(dir) : []) {
+      const full = path.join(dir, name);
+      if (depth < 3) walk(full, depth + 1);
+      else if (/^rollout-.*\.jsonl$/.test(name)) files.push({ file: full, mtime: fs.statSync(full).mtimeMs });
+    }
+  };
+  walk(path.join(codexHome, "sessions"), 0);
+  files.sort((a, b) => b.mtime - a.mtime);
+  if (sessionId) return files.find((f) => f.file.endsWith(`-${sessionId}.jsonl`))?.file ?? null;
+  const root = projectRoot.toLowerCase();
+  return (
+    files.find((f) => {
+      const meta = transcriptLines(f.file).next().value;
+      const p = isObject(meta?.payload) ? meta.payload : {};
+      return meta?.type === "session_meta" && !p.parent_thread_id && inProject(str(p.cwd), root);
+    })?.file ?? null
+  );
+}
+
 function duration(a: string | null, b: string | null) {
   if (!a || !b) return "?";
   const secs = Math.trunc((Date.parse(b) - Date.parse(a)) / 1000);
@@ -341,13 +501,17 @@ export function revise(s: ArchivedSession, revisions: Record<string, string>) {
 
 // Parses a transcript and writes its archive, with the revisions saved next to it; returns the
 // file written.
-export function writeArchive(transcript: string, projectRoot: string, labels: AccountLabels = new Map()) {
-  const session = parseTranscript(transcript);
+// parse: parseTranscript for Claude Code, or a parseRollout for Codex.
+export function writeArchive(transcript: string, projectRoot: string, labels: AccountLabels = new Map(), parse: (file: string) => ArchivedSession = parseTranscript) {
+  const session = parse(transcript);
   const out = archiveFile(projectRoot, session);
   fs.mkdirSync(path.dirname(out), { recursive: true });
   fs.writeFileSync(out, renderArchive(revise(session, readRevisions(out)), labels));
   return out;
 }
+
+// dotagents' state folder: DOTAGENTS_STATE_DIR, else ~/.config/dotagents.
+const dotagentsState = () => process.env.DOTAGENTS_STATE_DIR || path.join(process.env.XDG_CONFIG_HOME || path.join(os.homedir(), ".config"), "dotagents");
 
 // The accounts this machine knows, to name them: dotagents keeps each profile's account in
 // <state>/vault/<profile>/account.json (DOTAGENTS_STATE_DIR, else ~/.config/dotagents), and Claude
@@ -362,8 +526,7 @@ export function knownAccounts(claudeHome: string): AccountLabels {
       return null;
     }
   };
-  const stateDir = process.env.DOTAGENTS_STATE_DIR || path.join(process.env.XDG_CONFIG_HOME || path.join(os.homedir(), ".config"), "dotagents");
-  const vault = path.join(stateDir, "vault");
+  const vault = path.join(dotagentsState(), "vault");
   for (const name of fs.existsSync(vault) ? fs.readdirSync(vault).sort() : []) {
     const account = read(path.join(vault, name, "account.json"));
     if (str(account?.accountUuid)) labels.set(account!.accountUuid, str(account!.emailAddress) ? `${name} (${account!.emailAddress})` : name);
@@ -418,30 +581,38 @@ function findTranscript(claudeHome: string, sessionId: string | undefined, proje
 function main(argv: string[]) {
   const args: Record<string, string> = {};
   for (let i = 0; i < argv.length; i++) {
-    const m = /^--(session-id|transcript|project-root|claude-home|revise)$/.exec(argv[i]);
+    const m = /^--(session-id|transcript|project-root|claude-home|codex-home|agent|revise)$/.exec(argv[i]);
     if (m && argv[i + 1] !== undefined) args[m[1]] = argv[++i];
     else if (argv[i] === "--prompts") args.prompts = "yes";
     else if (argv[i] === "-h" || argv[i] === "--help") {
-      console.log("Usage: node archive-session.ts [--session-id <uuid> | --transcript <file>] [--project-root <dir>] [--claude-home <dir>] [--prompts | --revise <file>]");
+      console.log("Usage: node archive-session.ts [--agent claude|codex] [--session-id <uuid> | --transcript <file>] [--project-root <dir>] [--claude-home <dir>] [--codex-home <dir>] [--prompts | --revise <file>]");
       return 0;
     } else {
       console.error(`error: unexpected argument ${argv[i]}`);
       return 2;
     }
   }
+  const agent = args.agent ?? "claude";
+  if (agent !== "claude" && agent !== "codex") {
+    console.error(`error: --agent is claude or codex, not ${agent}`);
+    return 2;
+  }
   const projectRoot = path.resolve(args["project-root"] ?? findProjectRoot(path.resolve(process.argv[1])));
   const claudeHome = args["claude-home"] ?? process.env.CLAUDE_CONFIG_DIR ?? path.join(os.homedir(), ".claude");
-  const transcript = args.transcript ?? findTranscript(claudeHome, args["session-id"], projectRoot);
+  const codexHome = args["codex-home"] ?? process.env.CODEX_HOME ?? path.join(os.homedir(), ".codex");
+  const transcript = args.transcript ?? (agent === "codex" ? findRollout(codexHome, args["session-id"], projectRoot) : findTranscript(claudeHome, args["session-id"], projectRoot));
   if (!transcript || !fs.statSync(transcript, { throwIfNoEntry: false })?.isFile()) {
     console.error("error: transcript not found; pass --session-id or --transcript");
     return 1;
   }
-  const archive = archiveFile(projectRoot, parseTranscript(transcript));
+  const titles = agent === "codex" ? codexTitles(codexHome) : {};
+  const parse = agent === "codex" ? (file: string) => parseRollout(file, titles) : parseTranscript;
+  const archive = archiveFile(projectRoot, parse(transcript));
   if (args.prompts) {
     // The user messages with no revision yet, for the agent to revise
     // Not those revised already: by an earlier --revise, or by the prompt revision hook.
     const done = readRevisions(archive);
-    const s = parseTranscript(transcript);
+    const s = parse(transcript);
     console.log(JSON.stringify(s.prompts.filter((p) => !done[p.id] && s.out[p.at] === p.text).map(({ id, text }) => ({ id, text })), null, 2));
     return 0;
   }
@@ -460,7 +631,8 @@ function main(argv: string[]) {
     fs.mkdirSync(path.dirname(archive), { recursive: true });
     fs.writeFileSync(revisionsFile(archive), `${JSON.stringify({ ...readRevisions(archive), ...added }, null, 2)}\n`);
   }
-  console.log(`Claude transcript written -> ${writeArchive(transcript, projectRoot, knownAccounts(claudeHome))}`);
+  const labels = agent === "codex" ? knownCodexAccounts() : knownAccounts(claudeHome);
+  console.log(`${agent === "codex" ? "Codex" : "Claude"} transcript written -> ${writeArchive(transcript, projectRoot, labels, parse)}`);
   return 0;
 }
 

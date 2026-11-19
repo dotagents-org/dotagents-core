@@ -216,3 +216,58 @@ test("run as a command, the script names accounts from dotagents' vault and Clau
   assert.match(md, /\| \*\*Account\*\* \| work \(a@example\.com\); also used by b@example\.com \|/);
   assert.ok(!md.includes("never-read"));
 });
+
+// A Codex rollout, made by hand: the same shapes Codex 0.170 writes, with nothing real in it.
+const CODEX_ID = "019a0000-aaaa-7bbb-8ccc-dddddddddddd";
+function rollout(dir: string) {
+  const line = (timestamp: string, type: string, payload: object) => JSON.stringify({ timestamp, type, payload });
+  const msg = (role: string, text: string) => ({ type: "message", role, content: [{ type: role === "assistant" ? "output_text" : "input_text", text }] });
+  const lines = [
+    line("2026-11-18T10:00:00Z", "session_meta", { id: CODEX_ID, cwd: "/work/shop", creator_user_id: "user-hopper", source: "cli" }),
+    line("2026-11-18T10:00:01Z", "turn_context", { model: "gpt-test-1", effort: "high", cwd: "/work/shop" }),
+    line("2026-11-18T10:00:01Z", "response_item", msg("developer", "<permissions instructions>")),
+    line("2026-11-18T10:00:01Z", "response_item", msg("user", "# AGENTS.md instructions for /work/shop\n\nrules")),
+    line("2026-11-18T10:00:01Z", "response_item", msg("user", "<environment_context>\n  <cwd>/work/shop</cwd>\n</environment_context>")),
+    line("2026-11-18T10:00:02Z", "response_item", msg("user", "fix the login form")),
+    line("2026-11-18T10:00:03Z", "response_item", { type: "reasoning", encrypted_content: "secret-reasoning", summary: [] }),
+    line("2026-11-18T10:00:04Z", "response_item", { type: "function_call", name: "shell", call_id: "c1", arguments: JSON.stringify({ command: ["npm", "test"] }) }),
+    line("2026-11-18T10:00:05Z", "response_item", { type: "function_call_output", call_id: "c1", output: JSON.stringify({ exit_code: 1 }) }),
+    line("2026-11-18T10:00:06Z", "response_item", { type: "custom_tool_call", name: "apply_patch", call_id: "c2", input: "*** Begin Patch\n*** Update File: src/login.ts\n@@\n-a\n+b\n*** Add File: test/login.test.ts\n+x\n*** End Patch" }),
+    line("2026-11-18T10:00:07Z", "event_msg", { type: "item_completed", item: { type: "FileChange", changes: { "src/form.css": {} } } }),
+    line("2026-11-18T10:00:08Z", "response_item", msg("assistant", "Fixed: the form now validates.")),
+    JSON.stringify({ timestamp: "2026-11-18T10:00:09Z", type: "token_usage_record", thread_token_usage: { input_tokens: 5000, cached_input_tokens: 4000, output_tokens: 300 } }),
+  ];
+  const day = path.join(dir, "sessions", "2026", "11", "18");
+  fs.mkdirSync(day, { recursive: true });
+  const file = path.join(day, `rollout-2026-11-18T10-00-00-${CODEX_ID}.jsonl`);
+  fs.writeFileSync(file, `${lines.join("\n")}\n`);
+  return file;
+}
+
+test("a Codex rollout archives in the same format: the user's messages, not the injected context; tools, files, model and account", (t) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "dotagents-archive-codex-"));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const codexHome = path.join(root, "codex");
+  rollout(codexHome);
+  fs.writeFileSync(path.join(codexHome, "session_index.jsonl"), `${JSON.stringify({ id: CODEX_ID, thread_name: "Old name" })}\n${JSON.stringify({ id: CODEX_ID, thread_name: "Login form" })}\n`);
+  const state = path.join(root, "state");
+  fs.mkdirSync(path.join(state, "usage"), { recursive: true });
+  fs.writeFileSync(path.join(state, "usage", "hopper.json"), JSON.stringify({ version: 1, provider: "codex", user: "user-hopper" }));
+  const project = path.join(root, "project");
+  const run = spawnSync(process.execPath, [SCRIPT, "--agent", "codex", "--session-id", CODEX_ID, "--codex-home", codexHome, "--project-root", project], { encoding: "utf8", env: { ...process.env, DOTAGENTS_STATE_DIR: state } });
+  assert.equal(run.status, 0, run.stderr);
+  const text = fs.readFileSync(path.join(project, ".artifacts", "sessions", `2026-11-18-${CODEX_ID}.md`), "utf8");
+  assert.match(text, /^# Login form\n/);
+  assert.match(text, /\| \*\*Agent\*\* \| Codex \|/);
+  assert.match(text, /\| \*\*Account\*\* \| hopper \|/);
+  assert.match(text, /\| \*\*Model\*\* \| `gpt-test-1` \|/);
+  assert.match(text, /\| \*\*Effort\*\* \| high \|/);
+  assert.match(text, /\| \*\*Turns\*\* \| 1 user, 1 assistant \|/);
+  assert.match(text, /\| \*\*Tokens\*\* \| in 1k, out 300, cache read 4k \|/);
+  assert.match(text, /fix the login form/);
+  assert.match(text, /- `shell` - npm test \*\*\(error\)\*\*/);
+  assert.match(text, /- `apply_patch` - \*\*\* Update File: src\/login.ts/);
+  for (const f of ["src/login.ts", "test/login.test.ts", "src/form.css"]) assert.match(text, new RegExp(`- \`${f}\``));
+  assert.match(text, /Fixed: the form now validates\./);
+  for (const hidden of ["AGENTS.md instructions", "environment_context", "secret-reasoning", "permissions instructions"]) assert.doesNotMatch(text, new RegExp(hidden));
+});
