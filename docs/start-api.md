@@ -45,7 +45,7 @@ Top level:
 
 | Field | Meaning |
 |---|---|
-| `apiVersion` | The format of this answer; `2`. |
+| `apiVersion` | The format of this answer; `3`. |
 | `version` | The format of the usage data, the same as `usage --json`'s `version` (`1`). |
 | `generatedAt` | When it was read, ISO. |
 | `profiles` | Every profile, Claude's first, then Codex's. Within each provider, the one in this side's slot first, then the one in the other side's slot, then the rest in the order of `profiles.json`. |
