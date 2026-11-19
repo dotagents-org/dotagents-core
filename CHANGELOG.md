@@ -87,6 +87,7 @@ What changed for someone who updates a clone. The format follows [Keep a Changel
 
 ### Fixed
 
+- **The other side switches only to the same account.** `switch` tells the other side which account the profile holds here, and that side refuses when its profile of that name holds another one, instead of switching to it.
 - `start --dry-run` previews the local API without starting a listener or writing state.
 - A successful Claude login renewal writes a log entry after saving the renewed login, without account details or credentials.
 - **Claude usage stays with the profile during a switch.** A refresh reads the login under the switch lock and uses that login's identity for usage and refusal records.

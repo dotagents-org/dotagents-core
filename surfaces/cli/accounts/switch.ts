@@ -39,7 +39,7 @@ export const switchCommand: Command = {
       return line();
     }
     header("switch", name ?? `--save ${args.save}`);
-    await switchProfile({ name, save: args.save, here: args.here });
+    await switchProfile({ name, save: args.save, here: args.here, expect: args.expect });
     const profile = activeProfiles().find((p) => p.name === name);
     const done = (profile ? providerFor(profile) : providers()[0]).switched;
     finish(name && state.counts.updated ? done : "");

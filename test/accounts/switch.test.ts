@@ -129,13 +129,20 @@ test("the switch reaches the other side too, unless --here", async (t) => {
   quiet();
   await switchProfile({ save: "work", peer: noPeer });
   const calls: string[] = [];
-  const peer: PeerSwitch = (name) => (calls.push(name), { ok: true, detail: "" });
+  const peer: PeerSwitch = (name, expect) => (calls.push(`${name} ${expect}`), { ok: true, detail: "" });
   quiet();
   await switchProfile({ name: "personal", peer });
-  assert.deepEqual(calls, ["personal"]);
+  assert.deepEqual(calls, ["personal uuid-personal"], "the other side is told which account the profile holds here");
   quiet();
   await switchProfile({ name: "work", peer, here: true });
-  assert.deepEqual(calls, ["personal"]);
+  assert.deepEqual(calls, ["personal uuid-personal"]);
+  // The other side's switch: a profile of that name holding another account is refused, its slot untouched
+  quiet();
+  await assert.rejects(switchProfile({ name: "personal", here: true, expect: "uuid-someone-else" }), /personal on .* holds another Claude account than personal on the other side/);
+  assert.equal(slotToken(home), "rt-work1");
+  quiet();
+  await switchProfile({ name: "personal", here: true, expect: "uuid-personal" });
+  assert.equal(slotToken(home), "rt-personal1");
 });
 
 test("a failure on the other side reads as one line: an older dotagents says how to update it", () => {

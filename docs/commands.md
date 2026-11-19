@@ -151,7 +151,7 @@ Every account's login is kept in a vault, one per profile and side, in `~/.confi
 
 The switch and the renewals of `usage --refresh` take the same lock (`logins.lock` in the state folder), so neither copies a token the other is spending.
 
-Then it runs the same switch on the other side of the machine (`--here` skips that), whose vault holds that side's own login: a refresh token copied to two slots would sign one of them out. An account in the slot that no profile knows is never overwritten: `--save <profile>` says whose it is. The switch is always manual.
+Then it runs the same switch on the other side of the machine (`--here` skips that), whose vault holds that side's own login: a refresh token copied to two slots would sign one of them out. It names the account the profile holds here (`--expect <account id>`), and the other side refuses when its profile of that name holds another account, so give the profiles of one account the same name on both sides. An account in the slot that no profile knows is never overwritten: `--save <profile>` says whose it is. The switch is always manual.
 
 ### ChatGPT profiles
 
@@ -469,6 +469,7 @@ Removes a skill from the catalog. Workspaces that already installed it keep it; 
 | `--from <profile>` | `settings pull` | The profile to take the settings from. |
 | `--port <n>` | `start` | The port; `0` picks a free one. |
 | `--here` | `switch` | Only this side of the machine. |
+| `--expect <id>` | `switch` | Only when the profile holds that account (its id); what the other side's switch is run with. |
 | `--side <side>` | `logs` | Only that side: `wsl` or `windows`. |
 | `--api` | `revision on` | Revise through your Anthropic API key instead of the Claude account. |
 | `--save <profile>` | `switch` | Save the login in the provider's slot to that profile's vault. |

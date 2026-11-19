@@ -17,21 +17,25 @@ import { vaultDir, withLoginLock } from "./vault.ts";
 // changed: whether the other side's slot took the profile, told by its own output (the line that
 // says the slot was updated), apart from ok: a switch there can fail after its slot changed (the
 // Codex daemon's restart, say), and one that went through may have found it there already.
-export type PeerSwitch = (name: string) => { ok: boolean; detail: string; changed?: boolean } | null;
+// expect: the account the profile holds here, which the other side checks its profile of that name
+// holds too before it switches.
+export type PeerSwitch = (name: string, expect?: string) => { ok: boolean; detail: string; changed?: boolean } | null;
 
 // The report line the other side's switch prints when it wrote its slot: "updated  <slot>  (now x)"
 // plain, or with an icon, colors and no parentheses when that side draws for a terminal.
 export const slotChanged = (output: string) => /^\s*(?:\S\s+)?updated\s+\S.*\s\(?now /m.test(output.replace(/\x1b\[[0-9;]*m/g, "").replace(/\r/g, ""));
 
-export const peerSwitch: PeerSwitch = (name) => {
+export const peerSwitch: PeerSwitch = (name, expect) => {
   const peer = loadMachine().peer;
   if (!peer) return null;
+  // An account id (a UUID, a ChatGPT user id) goes on the command line only when it is plain
+  const check = expect && /^[A-Za-z0-9_-]+$/.test(expect) ? ` --expect ${expect}` : "";
   // -i too: a login shell alone skips ~/.bashrc, where nvm puts its Node on the PATH, and the
   // distro's own Node may be too old to run dotagents
   const run =
     process.platform === "win32"
-      ? spawnSync("wsl.exe", ["-e", "bash", "-lic", `dotagents switch ${name} --here`], { encoding: "utf8", timeout: 60_000, windowsHide: true })
-      : spawnSync("powershell.exe", ["-NoProfile", "-Command", `dotagents switch ${name} --here`], { encoding: "utf8", timeout: 60_000, cwd: "/mnt/c" });
+      ? spawnSync("wsl.exe", ["-e", "bash", "-lic", `dotagents switch ${name} --here${check}`], { encoding: "utf8", timeout: 60_000, windowsHide: true })
+      : spawnSync("powershell.exe", ["-NoProfile", "-Command", `dotagents switch ${name} --here${check}`], { encoding: "utf8", timeout: 60_000, cwd: "/mnt/c" });
   const changed = slotChanged(`${run.stdout ?? ""}`);
   if (run.status === 0) return { ok: true, detail: `${peer.name}: ${name}`, changed };
   log("core", "error", "peer switch", `dotagents switch ${name} --here on ${peer.name}: exit ${run.status}${run.error ? `, ${run.error.message}` : ""}\n${run.stdout ?? ""}${run.stderr ?? ""}`);
@@ -72,16 +76,18 @@ export function putInSlot(provider: Provider, name: string, login: Login, option
   provider.afterSlotWrite?.(name, login, options);
 }
 
-export type SwitchArgs = SwitchOptions & { name?: string; save?: string; here?: boolean; peer?: PeerSwitch };
+// expect: the account the profile must hold here (the other side's switch passes it), refused otherwise.
+export type SwitchArgs = SwitchOptions & { name?: string; save?: string; here?: boolean; expect?: string; peer?: PeerSwitch };
 
 // The profile's provider picks the slot: a switch touches only that provider's. A name no profile
 // has goes to the first provider, which says there is no such profile.
-export async function switchProfile({ name, save, here = false, peer = peerSwitch, ...options }: SwitchArgs) {
+export async function switchProfile({ name, save, here = false, expect, peer = peerSwitch, ...options }: SwitchArgs) {
   const profile = loadProfiles().find((p) => p.name === (name ?? save));
   const provider = profile ? providerFor(profile) : providers()[0];
-  const switched = await withLoginLock(() => switchHere(provider, name, save, options));
+  const switched = await withLoginLock(() => switchHere(provider, name, save, options, expect));
   if (!switched || here || state.dryRun) return;
-  const other = peer(switched);
+  // The same name may be another account's profile there: it checks the account
+  const other = peer(switched, profile && provider.saved(profile)?.id);
   if (!other) return;
   section("Other side");
   report(other.ok ? (other.changed === false ? "ok" : "updated") : "failed", "switch", other.detail);
@@ -90,7 +96,7 @@ export async function switchProfile({ name, save, here = false, peer = peerSwitc
 }
 
 // The switch on this side, under the lock: the profile switched to, or null after a --save.
-export function switchHere(provider: Provider, name: string | undefined, save: string | undefined, options: SwitchOptions = {}): string | null {
+export function switchHere(provider: Provider, name: string | undefined, save: string | undefined, options: SwitchOptions = {}, expect?: string): string | null {
   options = provider.switchOptions?.(options) ?? options;
   const find = (n: string): Profile => {
     const p = provider.profiles().find((x) => x.name === n);
@@ -114,6 +120,7 @@ export function switchHere(provider: Provider, name: string | undefined, save: s
   const target = find(name);
   const wanted = provider.saved(target);
   if (!wanted) throw new Error(provider.noSavedLogin(name));
+  if (expect && wanted.id !== expect) throw new Error(`${name} on ${sideName()} holds another ${provider.labels.account} account than ${name} on the other side; give the profiles of one account the same name on both sides`);
   const slot = provider.slot();
   // Already there: nothing to write.
   if (slot && provider.beforeLeave(slot, wanted, name, ctx)) {
