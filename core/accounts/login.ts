@@ -2,7 +2,8 @@
 // provider shares is here: finding the profile, the check that the account signed in is the
 // profile's, and keeping the new login in its vault. How the sign-in runs differs, so it is the
 // provider's own (core/accounts/providers.ts): Claude through this side's slot, putting the previous account
-// back after; Codex in a temporary folder of its own, never ~/.codex. --all is Claude's for now.
+// back after; Codex in a temporary folder of its own, never ~/.codex. --all takes each provider's due ones:
+// Claude's that run out within a week or were refused, ChatGPT's with no copy saved or refused.
 
 import { saveToVault, putInSlot, switchHere } from "./switch.ts";
 import { type Profile, loadProfiles, sideName } from "../machine/machine-state.ts";
@@ -23,21 +24,27 @@ function accept(provider: Provider, p: Profile, fresh: Login, who: string, onMis
 }
 
 export async function loginProfile({ name, all = false, now = new Date(), ...options }: LoginOptions) {
-  const profile = !all && name ? loadProfiles().find((p) => p.name === name) : undefined;
-  // --all belongs to the provider that can tell which logins run out; else the first one.
-  const provider = profile ? providerFor(profile) : all ? (providers().find((p) => p.dueLogins) ?? providers()[0]) : providers()[0];
   if (!all && !name) throw new Error("Usage: dotagents login <profile>, or dotagents login --all");
-  if (name && !profile) throw new Error(`There is no profile named ${name}`);
-  const due = all ? (provider.dueLogins?.(now) ?? []) : provider.profiles().filter((p) => p.name === name);
-  if (!due.length) {
+  const profile = !all && name ? loadProfiles().find((p) => p.name === name) : undefined;
+  if (name && !all && !profile) throw new Error(`There is no profile named ${name}`);
+  // --all: each provider's due logins, Claude's first, each signed in its own way
+  const work = all
+    ? providers().flatMap((provider) => {
+        const due = provider.dueLogins?.(now) ?? [];
+        return due.length ? [{ provider, due }] : [];
+      })
+    : [{ provider: providerFor(profile!), due: providerFor(profile!).profiles().filter((p) => p.name === name) }];
+  if (!work.length) {
     section("Logins");
-    return report("ok", sideName(), "every login lasts more than a week");
+    return report("ok", sideName(), "every login lasts more than a week, and none was refused");
   }
-  const ctx: SignInContext = {
-    accept: (p, fresh, who, onMismatch) => accept(provider, p, fresh, who, onMismatch),
-    save: (n, login) => saveToVault(provider, n, login),
-    put: (n, login) => putInSlot(provider, n, login, { codex: options.codex }),
-    switchHere: (n) => switchHere(provider, n, undefined),
-  };
-  await provider.signIn(due, { now, ...options }, ctx);
+  for (const { provider, due } of work) {
+    const ctx: SignInContext = {
+      accept: (p, fresh, who, onMismatch) => accept(provider, p, fresh, who, onMismatch),
+      save: (n, login) => saveToVault(provider, n, login),
+      put: (n, login) => putInSlot(provider, n, login, { codex: options.codex }),
+      switchHere: (n) => switchHere(provider, n, undefined),
+    };
+    await provider.signIn(due, { now, ...options }, ctx);
+  }
 }

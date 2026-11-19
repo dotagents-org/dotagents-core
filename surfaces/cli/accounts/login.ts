@@ -9,7 +9,7 @@ export const login: Command = {
   name: "login",
   usage: "<profile> | --all",
   summary: "sign a profile in again on this side and keep the new login in its vault",
-  more: ["a Claude profile: claude auth login in the slot, then the previous one put back;", "a ChatGPT profile: codex login in a folder of its own, never ~/.codex;", "--all: every Claude profile whose login runs out within a week;", "each side signs in on its own: run it on the other side too"],
+  more: ["a Claude profile: claude auth login in the slot, then the previous one put back;", "a ChatGPT profile: codex login in a folder of its own, never ~/.codex;", "--all: every Claude profile whose login runs out within a week, and every ChatGPT one refused or not saved;", "each side signs in on its own: run it on the other side too"],
   group: "Profiles",
   async run({ args, positional }) {
     header("login", args.all ? "--all" : (positional[0] ?? ""));

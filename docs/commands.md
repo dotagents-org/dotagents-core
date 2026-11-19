@@ -167,7 +167,7 @@ Codex sessions already open (the terminal, the extension, the desktop app) stay 
 
 ```bash
 dotagents login personal   # sign personal in again on this side
-dotagents login --all      # every profile whose login runs out within a week
+dotagents login --all      # every profile whose login runs out, was refused or isn't saved
 ```
 
 A login lasts a few weeks, and no renewal extends it: `profile list` says when each one runs out. `login` signs a profile in again through this side's slot:
@@ -178,7 +178,7 @@ A login lasts a few weeks, and no renewal extends it: `profile list` says when e
 4. keeps the new login in the profile's vault;
 5. puts the account that was in the slot back, also when a step failed.
 
-The login lock is held only around the slot changes, not while the browser waits for you. `--all` takes every Claude profile on this side whose login runs out within a week, was refused by Anthropic, or isn't saved yet. Each side of the machine has its own login, so run it on the other side too.
+The login lock is held only around the slot changes, not while the browser waits for you. `--all` takes every Claude profile on this side whose login runs out within a week, was refused by Anthropic, or isn't saved yet, then every ChatGPT profile whose login was refused by OpenAI or isn't saved yet (OpenAI tells no end date, so a good one is never taken). Each side of the machine has its own login, so run it on the other side too.
 
 
 ### ChatGPT profiles

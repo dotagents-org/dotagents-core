@@ -457,14 +457,18 @@ test("login releases the login lock for the browser and cleans its temporary hom
   assert.equal(vaultToken(home, "hopper"), "rt-hopper1");
 });
 
-test("login --all stays Claude-only even when Codex test dependencies are supplied", async (t) => {
-  machine(t);
-  quiet({ dryRun: true });
+test("login --all takes the ChatGPT profiles with no copy saved or a refused login, never a good one", async (t) => {
+  const home = machine(t);
+  await twoSaved(home);
+  saveProfile({ name: "knuth", configDir: path.join(home, ".codex"), color: "#2E7D6B", provider: "codex" });
+  const refusedText = fs.readFileSync(path.join(home, "state", "vault", "dijkstra", "auth.json"), "utf8");
+  fs.mkdirSync(path.join(home, "state", "usage"), { recursive: true });
+  fs.writeFileSync(path.join(home, "state", "usage", "dijkstra.json"), JSON.stringify({ version: 1, provider: "codex", refused: codexLoginMark(refusedText) }));
+  const events = quiet({ dryRun: true });
   let calls = 0;
-  await loginProfile({ all: true, codex: {
-    run: () => { calls++; throw new Error("ChatGPT browser must not run"); },
-    lock: async (fn) => { calls++; return fn(); },
-  } });
+  await loginProfile({ all: true, codex: { run: () => { calls++; throw new Error("no browser in a dry run"); } } });
+  const signed = events.filter((e) => e.kind === "result" && e.status === "would update").map((e) => path.basename((e as { target: string }).target));
+  assert.deepEqual(signed.sort(), ["dijkstra", "knuth", "work"]); // work: the Claude profile with no login, Claude's due one
   assert.equal(calls, 0);
 });
 

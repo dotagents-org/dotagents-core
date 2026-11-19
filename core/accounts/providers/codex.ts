@@ -206,6 +206,8 @@ const codex: Provider = {
   afterSlotWrite,
   afterAlready: (name, slot) => recordSlot(name, slot.id),
   refused: (p) => refusedCodex(p.name),
+  // OpenAI tells no end date for a login: --all takes the ones with no copy, or refused
+  dueLogins: () => codexProfiles().filter((p) => !vaultLogin(p.name) || refusedCodex(p.name)),
   switched: "Codex sessions already open stay on the old account until you restart them.",
   signInHint: (name) => `sign it in with: dotagents login ${name}`,
   addHint: (name) => `Sign it in with: dotagents login ${name}`,
