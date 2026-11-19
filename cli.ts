@@ -5,8 +5,17 @@
 // so it goes without the cache.
 
 import module from "node:module";
+import os from "node:os";
+import path from "node:path";
+
+// This user's own cache folder: Node's default, the temporary folder, is shared on Linux, and another
+// account could plant code in it.
+const cacheRoot =
+  process.platform === "win32"
+    ? process.env.LOCALAPPDATA || path.join(os.homedir(), "AppData", "Local")
+    : process.env.XDG_CACHE_HOME || path.join(os.homedir(), ".cache");
 
 // --dry-run or --dry-run=<anything>, as parseArgs (core/common.ts) reads it
 const dryRun = process.argv.some((arg) => arg === "--dry-run" || arg.startsWith("--dry-run="));
-if (!dryRun) module.enableCompileCache();
+if (!dryRun) module.enableCompileCache(path.join(cacheRoot, "dotagents", "compile-cache"));
 await import("./main.ts");

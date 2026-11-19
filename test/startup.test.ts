@@ -55,14 +55,27 @@ test("cli.ts is executable", { skip: process.platform === "win32" }, () => {
   assert.ok(fs.statSync(path.join(REPO, "cli.ts")).mode & 0o111);
 });
 
-// The compile cache lives in the temporary folder; a dry run writes nothing, not even there.
+// Runs cli.ts with the temporary folder and this user's cache folder each in a folder of the test's own.
+function withFolders(t: TestContext, args: string[]) {
+  const tmp = tempDir(t);
+  const cache = tempDir(t);
+  const env: NodeJS.ProcessEnv = { ...process.env, TMPDIR: tmp, TEMP: tmp, TMP: tmp, XDG_CACHE_HOME: cache, LOCALAPPDATA: cache };
+  delete env.NODE_COMPILE_CACHE;
+  const res = spawnSync(process.execPath, [path.join(REPO, "cli.ts"), ...args], { encoding: "utf8", env });
+  assert.equal(res.status, 0, res.stderr);
+  return { tmp, cache };
+}
+
+// The shared temporary folder (Node's default) would let another account plant code in the cache.
+test("the compile cache lives in this user's cache folder, never the temporary one", (t) => {
+  const { tmp, cache } = withFolders(t, ["--help"]);
+  assert.deepEqual(fs.readdirSync(tmp), []);
+  assert.ok(fs.readdirSync(path.join(cache, "dotagents", "compile-cache")).length);
+});
+
 test("--dry-run leaves the compile cache off, in either form the parser takes", (t) => {
   for (const flag of ["--dry-run", "--dry-run=true"]) {
-    const tmp = tempDir(t);
-    const env: NodeJS.ProcessEnv = { ...process.env, TMPDIR: tmp, TEMP: tmp, TMP: tmp };
-    delete env.NODE_COMPILE_CACHE;
-    const res = spawnSync(process.execPath, [path.join(REPO, "cli.ts"), "--help", flag], { encoding: "utf8", env });
-    assert.equal(res.status, 0, res.stderr);
-    assert.deepEqual(fs.readdirSync(tmp), [], flag);
+    const { tmp, cache } = withFolders(t, ["--help", flag]);
+    assert.deepEqual([...fs.readdirSync(tmp), ...fs.readdirSync(cache)], [], flag);
   }
 });
