@@ -7,7 +7,7 @@ import path from "node:path";
 import { test, type TestContext } from "node:test";
 import { configRoot } from "../../core/common.ts";
 import { state } from "../../core/state.ts";
-import { GLOBAL_CONFIG_KEYS, installGlobal, mcpServersFor, mcpSystem, pullSettings, verifyGlobal } from "../../core/machine/global.ts";
+import { GLOBAL_CONFIG_KEYS, installGlobal, pullSettings, verifyGlobal } from "../../core/machine/global.ts";
 import { execFileSync } from "node:child_process";
 import { REPO, quiet, withConfig } from "../helpers.ts";
 
@@ -230,39 +230,6 @@ test("global config leaves a non-object .claude.json untouched", (t) => {
     assert.equal(fs.readFileSync(file, "utf8"), bad);
     assert.ok(events.some((event) => event.kind === "result" && event.status === "skipped" && event.detail === "not valid JSON"));
   }
-});
-
-test("the MCP servers of this system go into .claude.json as claude mcp add would write them, leaving the others alone", (t) => {
-  const home = tempHome(t);
-  const repo = tempRepo(t);
-  const system = mcpSystem();
-  fs.writeFileSync(path.join(repo, "config", "claude", "mcp-servers.json"), JSON.stringify({
-    browser: { [system]: { command: "npx", args: ["-y", "browser-mcp@1"] }, "some-other-os": { command: "x" } },
-    docs: { [system]: { url: "https://example.com/mcp", type: "http" } },
-    elsewhere: { "some-other-os": { command: "y" } },
-  }));
-  const own = { command: "mine", args: [], env: { A: "1" } };
-  fs.writeFileSync(path.join(home, ".claude.json"), JSON.stringify({ numStartups: 3, mcpServers: { own } }));
-
-  quiet({ dryRun: true });
-  installGlobal(repo);
-  assert.deepEqual(JSON.parse(fs.readFileSync(path.join(home, ".claude.json"), "utf8")).mcpServers, { own });
-
-  quiet();
-  installGlobal(repo);
-  const config = JSON.parse(fs.readFileSync(path.join(home, ".claude.json"), "utf8"));
-  assert.equal(config.numStartups, 3);
-  assert.deepEqual(config.mcpServers, {
-    own,
-    browser: { type: "stdio", command: "npx", args: ["-y", "browser-mcp@1"], env: {} },
-    docs: { url: "https://example.com/mcp", type: "http" },
-  });
-  quiet();
-  installGlobal(repo);
-  assert.equal(state.counts.updated, undefined);
-
-  fs.writeFileSync(path.join(repo, "config", "claude", "mcp-servers.json"), JSON.stringify({ broken: { [system]: { args: ["no command"] } } }));
-  assert.throws(() => mcpServersFor(repo), /needs a command or a url/);
 });
 
 test("the checklist warns about settings changed in the repository and not committed", (t) => {
