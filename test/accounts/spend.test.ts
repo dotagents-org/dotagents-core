@@ -180,3 +180,31 @@ test("a rollout that goes from token_count to token_usage_record counts both par
   fs.writeFileSync(path.join(home, "archived_sessions", "rollout-2026-11-15T09-00-00-c1.jsonl"), text); // a copy
   assert.deepEqual(readCodexSpend(0, [home]).map((x) => x.tokens.output), [500, 700]);
 });
+
+test("a response's cache writes are counted once: input holds the reads and the writes, each on its own line", (t) => {
+  const dir = tmp(t);
+  const home = path.join(dir, "codex");
+  fs.mkdirSync(path.join(home, "sessions", "2026", "11", "15"), { recursive: true });
+  fs.writeFileSync(path.join(home, "sessions", "2026", "11", "15", "rollout-2026-11-15T09-00-00-c1.jsonl"), [
+    JSON.stringify({ timestamp: "2026-11-15T09:00:00Z", type: "session_meta", payload: { id: "c1", cwd: "/w", creator_user_id: "u" } }),
+    JSON.stringify({ timestamp: "2026-11-15T09:05:00Z", type: "token_usage_record", response_id: "r1", usage: { input_tokens: 100, cached_input_tokens: 40, cache_write_input_tokens: 60, output_tokens: 10 } }),
+  ].join("\n"));
+  const [x] = readCodexSpend(0, [home]);
+  assert.deepEqual([x.tokens.input, x.tokens.cacheRead, x.tokens.cacheWrite, x.tokens.output], [0, 40, 60, 10]);
+});
+
+test("after a switch --save to another account, a profile's history of the old one is not the new one's, and an empty ChatGPT window is tokens, not dollars", (t) => {
+  const dir = tmp(t);
+  const saved = process.env.DOTAGENTS_STATE_DIR;
+  process.env.DOTAGENTS_STATE_DIR = dir;
+  t.after(() => (process.env.DOTAGENTS_STATE_DIR = saved));
+  const resets = new Date("2026-11-15T12:00:00Z");
+  recordHistory("hopper", [{ kind: "session", pct: 10, resetsAt: resets }], new Date("2026-11-15T09:00:00Z"), undefined, "user-old");
+  recordHistory("hopper", [{ kind: "session", pct: 40, resetsAt: resets }], new Date("2026-11-15T09:20:00Z"), undefined, "user-old");
+  recordHistory("hopper", [{ kind: "session", pct: 5, resetsAt: resets }], new Date("2026-11-15T09:30:00Z"), undefined, "user-new");
+  const now = Date.parse("2026-11-15T09:40:00Z");
+  const { profiles } = spendReport([{ name: "hopper", accountUuid: "user-new", tokensOnly: true }], { now, dirs: [], codex: [] });
+  const [session] = profiles[0].ratios;
+  assert.equal(session.explainedPct + session.unexplainedPct, 0, "the old account's rise isn't counted");
+  assert.deepEqual([profiles[0].session!.totalUsd, profiles[0].session!.totalTokens], [null, 0]);
+});

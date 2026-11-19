@@ -237,7 +237,7 @@ export async function askCodex(
   }
   // The %'s history, for usage --spend, as Claude's (core/accounts/spend.ts)
   const history = usage.windows.map((w) => ({ kind: w.kind, pct: w.pct, resetsAt: w.resetsAt === null ? null : new Date(w.resetsAt) }));
-  return { ok: true, record: { provider: "chatgpt", fetchedAtMs: at, user: login.id, plan: usage.plan, windows: usage.windows }, afterWrite: () => recordHistory(p.name, history, new Date(at)) };
+  return { ok: true, record: { provider: "chatgpt", fetchedAtMs: at, user: login.id, plan: usage.plan, windows: usage.windows }, afterWrite: () => recordHistory(p.name, history, new Date(at), undefined, login.id) };
 }
 
 // The usage kept for a Codex profile, as the snapshot reads it: its windows as of now, when they
@@ -283,23 +283,22 @@ export function readCodexUsage(now = new Date(), view?: PeerView): ProfileUsage[
   });
 }
 
-// The other side's Codex folder, as this side reaches it: the one its ChatGPT profiles use (its
-// CODEX_HOME when they were added), else its ~/.codex. Null when the configured one can't be reached
-// from here: never another folder's login in its place.
-// The other side's CODEX_HOME as that side names it, when its ChatGPT profiles use one of their own.
-export function peerCodexNative(peer: Peer): string {
+// The other side's Codex folder from ONE reading of its profiles: visible, as this side reaches it (the one
+// its ChatGPT profiles use, else its ~/.codex; null when the configured one can't be reached from here: never
+// another folder's login in its place), and native, as that side names it (its default written out, so the
+// shell's own CODEX_HOME can't point elsewhere than what was listed). Both come from the same read, so a
+// profile re-pointed meanwhile can't give one from before and one from after.
+export function peerCodexFolders(peer: Peer): { visible: string | null; native: string } {
   const configured = peerProfiles(peer).find((p) => p.provider === "chatgpt" && typeof p.configDir === "string");
-  if (configured) return configured.configDir;
-  // Its default, written out, so the shell's own CODEX_HOME can't point elsewhere than what was listed
-  return `${peer.nativeHome.replace(/[\\/]+$/, "")}${/^[a-z]:/i.test(peer.nativeHome) ? "\\" : "/"}.codex`;
-}
-
-export function peerCodexHome(peer: Peer) {
-  const configured = peerProfiles(peer).find((p) => p.provider === "chatgpt" && typeof p.configDir === "string");
-  if (!configured) return path.join(peer.home, ".codex");
+  if (!configured) {
+    const native = `${peer.nativeHome.replace(/[\\/]+$/, "")}${/^[a-z]:/i.test(peer.nativeHome) ? "\\" : "/"}.codex`;
+    return { visible: path.join(peer.home, ".codex"), native };
+  }
   const home = peerPath(configured.configDir, peer);
-  return home && fs.existsSync(home) ? home : null;
+  return { visible: home && fs.existsSync(home) ? home : null, native: configured.configDir };
 }
+export const peerCodexNative = (peer: Peer) => peerCodexFolders(peer).native;
+export const peerCodexHome = (peer: Peer) => peerCodexFolders(peer).visible;
 
 // Which Codex profile is in each side's slot. The other side's slot is told apart by the ChatGPT
 // user in its auth.json, matched against this side's vault (the same account on both sides); only

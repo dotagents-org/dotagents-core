@@ -365,7 +365,7 @@ function deleteCodex(s: Session, evenRunning: boolean, codex: CodexDelete, probe
     return false;
   }
   if (state.dryRun) return report("would update", s.file, "would delete it with codex delete"), true;
-  if (codex(s.id, peer)) return report("updated", s.file, "deleted with codex delete"), true;
+  if (codex(s.id, peer, s.origin)) return report("updated", s.file, "deleted with codex delete"), true;
   report("failed", s.file, `codex delete ${s.id} failed${peer ? ` on ${peer.name}` : ""}; delete it there with: codex delete ${s.id}`);
   return false;
 }

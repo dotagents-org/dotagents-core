@@ -181,7 +181,9 @@ function readRollout(file: string, since: number, seen: Set<string>): Spend[] {
       if (!u || !(at >= since) || (id && seen.has(id))) continue;
       if (id) seen.add(id);
       const cached = Number(u.cached_input_tokens) || 0;
-      const tokens = { input: Math.max(0, (Number(u.input_tokens) || 0) - cached), cacheRead: cached, cacheWrite: Number(u.cache_write_input_tokens) || 0, output: Number(u.output_tokens) || 0 };
+      // input_tokens holds what was read from the cache and what was written to it: each is counted once, on its own line
+      const written = Number(u.cache_write_input_tokens) || 0;
+      const tokens = { input: Math.max(0, (Number(u.input_tokens) || 0) - cached - written), cacheRead: cached, cacheWrite: written, output: Number(u.output_tokens) || 0 };
       out.push({ at, account, model, cwd, tokens, costUsd: costOf(model, tokens) });
     } else if (o.type === "event_msg" && p.type === "token_count" && p.info?.total_token_usage) {
       const u = p.info.total_token_usage;
@@ -291,8 +293,10 @@ export type ProfileSpend = { name: string; ratios: Ratio[]; session: WindowSpend
 // The report of usage --spend, for profiles and the account each one is (null: no saved login).
 // folder: how a session's folder is shown.
 // codex: Codex's folders, both sides' by default unless dirs names the Claude ones (a test).
-export function spendReport(profiles: { name: string; accountUuid: string | null }[], { now = Date.now(), dirs, codex, folder = (cwd: string) => cwd }: { now?: number; dirs?: ConfigDir[]; codex?: string[]; folder?: (cwd: string) => string } = {}) {
-  const histories = new Map(profiles.map((p) => [p.name, readHistory(p.name)]));
+export function spendReport(profiles: { name: string; accountUuid: string | null; tokensOnly?: boolean }[], { now = Date.now(), dirs, codex, folder = (cwd: string) => cwd }: { now?: number; dirs?: ConfigDir[]; codex?: string[]; folder?: (cwd: string) => string } = {}) {
+  // Only the readings of the account the profile holds now: after a switch --save to another account, the
+  // old account's rises are not the new one's
+  const histories = new Map(profiles.map((p) => [p.name, readHistory(p.name).filter((pt) => !pt.account || pt.account === p.accountUuid)]));
   const earliest = Math.min(now - SPAN.week, ...[...histories.values()].flat().map((pt) => Date.parse(pt.at)));
   const homes = codex ?? (dirs ? [] : codexDirs(() => "").map((d) => d.home));
   const spend = [...readSpend(earliest, dirs), ...readCodexSpend(earliest, homes)].sort((a, b) => a.at - b.at);
@@ -305,7 +309,7 @@ export function spendReport(profiles: { name: string; accountUuid: string | null
       if (!resets) return null;
       const from = Date.parse(resets) - SPAN[kind];
       const inside = mine.filter((s) => s.at >= from && s.at <= now);
-      const priced = inside.every((s) => s.costUsd !== null);
+      const priced = !p.tokensOnly && inside.every((s) => s.costUsd !== null);
       return { from: new Date(from).toISOString(), totalUsd: priced ? sumUsd(inside) : null, totalTokens: inside.reduce((sum, s) => sum + allTokens(s.tokens), 0), models: totals(inside, (s) => s.model), workspaces: totals(inside, (s) => folder(s.cwd)) };
     };
     return { name: p.name, ratios: ratios(points, mine), session: windowOf("session"), week: windowOf("week") };

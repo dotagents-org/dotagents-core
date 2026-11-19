@@ -87,9 +87,9 @@ export function wslDistroArgs(home = loadMachine().peer?.home ?? ""): string[] {
 
 // Runs a command in a shell on the other side: from Windows, an interactive login bash in WSL (where
 // nvm puts its Node); from WSL, PowerShell in C:. What doctor and the like need, not the switch.
-export function runOnPeer(line: string) {
+export function runOnPeer(line: string, peerHome?: string) {
   return process.platform === "win32"
-    ? spawnSync("wsl.exe", [...wslDistroArgs(), "-e", "bash", "-lic", line], { encoding: "utf8", timeout: 60_000, windowsHide: true })
+    ? spawnSync("wsl.exe", [...wslDistroArgs(peerHome), "-e", "bash", "-lic", line], { encoding: "utf8", timeout: 60_000, windowsHide: true })
     : spawnSync("powershell.exe", ["-NoProfile", "-Command", line], { encoding: "utf8", timeout: 60_000, cwd: "/mnt/c" });
 }
 

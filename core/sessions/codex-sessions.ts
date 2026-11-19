@@ -13,21 +13,22 @@ import fs from "node:fs";
 import path from "node:path";
 import { CODEX_INJECTED } from "../../skills/archive/scripts/archive-session.ts";
 import { codexHome } from "../accounts/providers/codex-config.ts";
-import { peerCodexHome, peerCodexNative } from "../accounts/providers/codex-usage.ts";
+import { peerCodexFolders } from "../accounts/providers/codex-usage.ts";
 import { isWindows } from "../common.ts";
 import { type Peer, loadMachine } from "../machine/machine-state.ts";
 import { pathOnlyEnv, peerAgentLine, runOnPeer } from "../machine/peer.ts";
 import { type Session, RECENT_MS, archiveRoot } from "./session.ts";
 
 // A Codex data folder and the side it belongs to; peer: set for the other side's.
-export type CodexDir = { side: string; home: string; peer?: Peer };
+export type CodexDir = { side: string; home: string; peer?: Peer; origin?: { home: string; native: string } };
 
 export function codexDirs(side: (peer?: Peer) => string): CodexDir[] {
   const peer = loadMachine().peer;
   const dirs: CodexDir[] = [{ side: side(peer), home: codexHome() }];
   if (peer) {
-    const home = peerCodexHome(peer);
-    if (home && fs.existsSync(home)) dirs.push({ side: peer.name, home, peer });
+    // The visible folder and the native one from the same reading, kept with the list
+    const folders = peerCodexFolders(peer);
+    if (folders.visible && fs.existsSync(folders.visible)) dirs.push({ side: peer.name, home: folders.visible, peer, origin: { home: peer.home, native: folders.native } });
   }
   return dirs;
 }
@@ -136,8 +137,20 @@ export function openRollouts(): Set<string> | null {
     let fds: string[];
     try {
       fds = fs.readdirSync(`/proc/${pid}/fd`);
-    } catch {
-      continue; // another user's, or gone
+    } catch (err) {
+      const code = (err as NodeJS.ErrnoException).code;
+      // Gone meanwhile is nothing. Denied is only nothing for a process that isn't Codex's: one that may own
+      // the rollout and can't be looked into leaves the whole state unknown
+      if (code === "EACCES" || code === "EPERM") {
+        let name = "";
+        try {
+          name = fs.readFileSync(`/proc/${pid}/comm`, "utf8");
+        } catch {
+          // gone
+        }
+        if (/codex/i.test(name)) return null;
+      }
+      continue;
     }
     for (const fd of fds) {
       try {
@@ -194,15 +207,15 @@ function rolloutFiles(home: string) {
   return files;
 }
 
-// What the list of the other side was made from: its home, and its CODEX_HOME as it names it.
-const originOf = (peer: Peer) => ({ home: peer.home, native: peerCodexNative(peer) });
-
 // The conversation as it is now, looked at again from where it was listed: null when the other side or
 // its CODEX_HOME is not the one listed (a profile re-pointed, another distro), or the conversation is gone.
 // Every rollout of it is looked at, so one a /revert added since is seen.
 export function codexNow(s: Session, probe?: () => Set<string> | null): Session | null {
   const peer = s.origin ? loadMachine().peer : undefined;
-  if (s.origin && (!peer || peer.home !== s.origin.home || peerCodexNative(peer) !== s.origin.native)) return null;
+  if (s.origin) {
+    // One reading of the other side's profiles: its home, distro and CODEX_HOME must be the listed ones
+    if (!peer || peer.home !== s.origin.home || peerCodexFolders(peer).native !== s.origin.native) return null;
+  }
   const dirs: CodexDir[] = [{ side: s.side, home: s.configDir, ...(peer ? { peer } : {}) }];
   return listCodexSessions(dirs, { fromPeer: () => null, ...(probe ? { probe } : {}) }).find((x) => x.id === s.id) ?? null;
 }
@@ -251,7 +264,7 @@ export function listCodexSessions(dirs: CodexDir[], { under, now = Date.now(), f
         pid: null,
         // Told only where the processes can be seen (Linux, WSL: /proc), and on this side
         checked: !dir.peer && open !== null,
-        ...(dir.peer ? { origin: originOf(dir.peer) } : {}),
+        ...(dir.origin ? { origin: dir.origin } : {}),
       });
     }
   }
@@ -261,11 +274,13 @@ export function listCodexSessions(dirs: CodexDir[], { under, now = Date.now(), f
 // Deletes a conversation through Codex: here, or on the other side when peer is set, in that side's
 // CODEX_HOME when its ChatGPT profiles use one. True when Codex said it did. The id is a UUID, checked
 // before it goes on a command line, and codex is looked for in the PATH's absolute folders only.
-export type CodexDelete = (id: string, peer?: Peer) => boolean;
-export const codexDelete: CodexDelete = (id, peer) => {
+export type CodexDelete = (id: string, peer?: Peer, origin?: { home: string; native: string }) => boolean;
+export const codexDelete: CodexDelete = (id, peer, origin) => {
   if (!ID.test(id)) return false;
   if (peer) {
-    return runOnPeer(peerAgentLine("codex", `delete --force ${id}`, process.platform, { CODEX_HOME: peerCodexNative(peer) })).status === 0;
+    // The origin the list was made from (validated just before), never read again: its CODEX_HOME and distro
+    if (!origin) return false;
+    return runOnPeer(peerAgentLine("codex", `delete --force ${id}`, process.platform, { CODEX_HOME: origin.native }), origin.home).status === 0;
   }
   const env = pathOnlyEnv();
   if (!Object.entries(env).some(([k, v]) => k.toUpperCase() === "PATH" && v)) return false; // an empty PATH searches the current folder

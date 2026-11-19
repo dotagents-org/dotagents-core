@@ -20,7 +20,7 @@ const hhmm = (iso: string) => new Date(iso).toLocaleString("en-GB", { weekday: "
 // usage --spend: what 1% of each window cost, and where the current window's spend went
 function spendView(json: boolean) {
   // Claude's and ChatGPT's: the account each profile's saved login is (a Claude account, a ChatGPT user)
-  const profiles = activeProfiles().map((p) => ({ name: p.name, accountUuid: providerFor(p).account(p)?.id ?? null }));
+  const profiles = activeProfiles().map((p) => ({ name: p.name, accountUuid: providerFor(p).account(p)?.id ?? null, tokensOnly: providerFor(p).id === "chatgpt" }));
   const { profiles: report, unattributedUsd } = spendReport(profiles, { folder: (cwd) => displayPath(cwd) });
   const since = Math.min(...report.flatMap((p) => (p.week ? [Date.parse(p.week.from)] : [])), Date.now());
   const revisionUsd = readLog().filter((e) => Date.parse(e.at) >= since).reduce((sum, e) => sum + (e.costUsd ?? 0), 0);
