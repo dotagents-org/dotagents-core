@@ -41,8 +41,9 @@ export type Login = {
 };
 
 // Who a saved login is, for lists and for telling two profiles' accounts apart. shown: the email,
-// or what stands in for it.
-export type Account = { id: string; email: string; plan: string | null; shown: string };
+// or what stands in for it. plan and seat: the ids the provider gives ("team", "team_standard"),
+// named for people by the labels' plan.
+export type Account = { id: string; email: string; plan: string | null; seat?: string | null; shown: string };
 
 // What the tests reach into the switch and the sign-in with: Claude's moment between saving the
 // slot and replacing it, and Codex's lock, daemon and sign-in command.

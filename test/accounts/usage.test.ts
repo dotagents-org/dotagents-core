@@ -310,3 +310,20 @@ test("each profile's avatar state, most urgent first: error, limit, waiting, war
   assert.equal(avatarState({ ...base, windows: win(100), activity: { working: 0, waiting: 1 } }, NOW), "limit");
   assert.equal(avatarState({ ...base, windows: win(75), activity: { working: 1, waiting: 0 } }, NOW), "warn");
 });
+
+test("the plan shows as the product names it: Team Standard for Claude, Business for ChatGPT", async () => {
+  const { LABELS } = await import("../../core/accounts/provider-labels.ts");
+  assert.equal(LABELS.claude.plan("team", "team_standard"), "Team Standard");
+  assert.equal(LABELS.claude.plan("team", "team_premium"), "Team Premium");
+  assert.equal(LABELS.claude.plan("max", null), "Max");
+  assert.equal(LABELS.claude.plan("max_5x"), "Max 5x");
+  assert.equal(LABELS.claude.plan(null, "team_standard"), null);
+  assert.equal(LABELS.codex.plan("team"), "Business");
+  assert.equal(LABELS.codex.plan("plus"), "Plus");
+  assert.equal(LABELS.codex.plan(undefined), null);
+  const base = { color: "#123456", state: "ok" as const, fetchedAt: null, windows: [] };
+  const text = (list: ProfileUsage[]) => usageLines(list, NOW).map((line) => line.map((s) => s.text).join("")).join("\n");
+  const shown = text([{ ...base, name: "work", plan: "team", seat: "team_standard" } as ProfileUsage, { ...base, name: "hopper", provider: "codex", plan: "team" } as ProfileUsage]);
+  assert.match(shown, /work  Team Standard/);
+  assert.match(shown, /hopper  Business/);
+});

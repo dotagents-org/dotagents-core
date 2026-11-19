@@ -91,18 +91,32 @@ export function liveLogin(p: Profile): LiveLogin | null {
   return { file: credentialsIn(p.configDir), accountUuid: known.id, shared: true, configDir: p.configDir };
 }
 
-// The plan of a profile's login ("max", "pro", "team"), from the subscriptionType Claude Code keeps
+// The plan in a .credentials.json ("max", "pro", "team"): the subscriptionType Claude Code keeps
 // next to the tokens; only that field is read. Null when it isn't there (the macOS keychain, an
 // older Claude Code).
-export function profilePlan(p: Profile): string | null {
-  const login = liveLogin(p);
-  if (!login) return null;
+export function subscriptionOf(text: string): string | null {
   try {
-    const plan = JSON.parse(fs.readFileSync(login.file, "utf8"))?.claudeAiOauth?.subscriptionType;
+    const plan = JSON.parse(text)?.claudeAiOauth?.subscriptionType;
     return typeof plan === "string" && plan ? plan : null;
   } catch {
     return null;
   }
+}
+
+// The plan of a profile's login, and its seat (team_standard), both from the copy it uses now: the
+// slot's credentials and .claude.json, or the vault's.
+export function profilePlan(p: Profile): { plan: string | null; seat: string | null } {
+  const login = liveLogin(p);
+  if (!login) return { plan: null, seat: null };
+  let plan: string | null = null;
+  try {
+    plan = subscriptionOf(fs.readFileSync(login.file, "utf8"));
+  } catch {
+    // no plan to show
+  }
+  const account = login.file === credentialsIn(slotDir()) ? slotLogin()?.account : knownLogin(p)?.account;
+  const seat = account?.seatTier;
+  return { plan, seat: typeof seat === "string" && seat ? seat : null };
 }
 
 // Names one login's refresh token without keeping it: a short hash, which tells the login a

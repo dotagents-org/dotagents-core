@@ -66,6 +66,7 @@ What changed for someone who updates a clone. The format follows [Keep a Changel
 
 ### Changed
 
+- **Plans by the product's name in `usage` and `profile list`.** Each profile shows its plan as the product calls it: `Team Standard` for a Claude Team seat (the plan Claude Code keeps with the login, and the seat in its account), `Business` for ChatGPT Business, which OpenAI's API still calls `team`. The sidebar's panel already said so.
 - **Faster start:** the command loads the prompts only in the commands that ask, and `revision` loads the Anthropic SDK only when it calls the API. `dotagents --help` and the revision hook start in about 0.16 s instead of 0.24 s, and `usage --json` in 0.24 s instead of 0.30 s, with less memory.
 - **One shape for a good login, Claude's and ChatGPT's.** The checklist says `login good, until Nov 27` for a Claude profile and `login good, renewed Nov 16` for a ChatGPT one (OpenAI tells no end date); Claude's said `login good until Nov 27`.
 - **Claude and ChatGPT read the same in the terminal.** `profile list` groups the profiles under Claude and ChatGPT, as `usage` does, checks that each ChatGPT profile uses `~/.codex`, and lists the ChatGPT logins in the Logins section on both sides, with when each was last renewed (OpenAI gives no end date); `doctor` shows them too. A profile with no saved login says `dotagents login <name>` for both providers, the checks say "a different Claude account", the section of Claude Code's configuration is named so, next to Codex's, and the help names both agents and both companies.

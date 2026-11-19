@@ -34,8 +34,9 @@ function localUsage(p: Profile, now: Date): ProfileUsage {
     mine = { ...mine, accountUuid: login.accountUuid, state: "other-account", fetchedAt: null, windows: [] };
   mine = withLive(mine, liveUsage(p.name), login?.accountUuid ?? mine.accountUuid, now);
   if (mine.state === "not-signed-in" && login && !hasNumbers(mine)) mine = { ...mine, accountUuid: login.accountUuid, state: "no-data" };
-  const plan = profilePlan(p);
+  const { plan, seat } = profilePlan(p);
   if (plan) mine = { ...mine, plan };
+  if (seat) mine = { ...mine, seat };
   return login?.configDir ? { ...mine, activity: sessionActivity(login.configDir) } : mine;
 }
 

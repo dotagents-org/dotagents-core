@@ -47,8 +47,9 @@ export const profileList: Command = {
       const who = providerFor(a).account(a);
       const email = who ? who.shown : "no saved login";
       const slot = inSlot.includes(a.name) ? "in the slot" : "";
+      const plan = who ? providerFor(a).labels.plan(who.plan, who.seat) : null;
       if (!fancy) {
-        console.log(`${a.name.padEnd(width)}${a.default ? "default  " : "         "}${email}${slot ? `  ${slot}` : ""}`);
+        console.log(`${a.name.padEnd(width)}${a.default ? "default  " : "         "}${email}${plan ? `  ${plan}` : ""}${slot ? `  ${slot}` : ""}`);
         continue;
       }
       if (grouped && group !== providerFor(a).labels.account) {
@@ -57,7 +58,7 @@ export const profileList: Command = {
         line(muted(group));
       }
       line();
-      line(`${bold(paint(a.color)(a.name.padEnd(width)))}${a.default ? muted("[default]  ") : "           "}${who ? email : muted(email)}${slot ? `  ${tone.ok(slot)}` : ""}`);
+      line(`${bold(paint(a.color)(a.name.padEnd(width)))}${a.default ? muted("[default]  ") : "           "}${who ? email : muted(email)}${plan ? `  ${muted(plan)}` : ""}${slot ? `  ${tone.ok(slot)}` : ""}`);
     }
     verifyProfiles();
     verifyGlobal(repo, configDirs());
